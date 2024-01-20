@@ -7,12 +7,13 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
+	"github.com/rs/zerolog"
 	"go.uber.org/fx"
 )
 
 const HabitatAPIPort = "3000"
 
-func NewAPIServer(lc fx.Lifecycle, router *mux.Router) *http.Server {
+func NewAPIServer(lc fx.Lifecycle, router *mux.Router, logger *zerolog.Logger) *http.Server {
 	srv := &http.Server{Addr: fmt.Sprintf(":%s", HabitatAPIPort), Handler: router}
 	lc.Append(fx.Hook{
 		OnStart: func(ctx context.Context) error {
@@ -20,7 +21,7 @@ func NewAPIServer(lc fx.Lifecycle, router *mux.Router) *http.Server {
 			if err != nil {
 				return err
 			}
-			fmt.Println("Starting Habitat API server at", srv.Addr)
+			logger.Info().Msgf("Starting Habitat API server at", srv.Addr)
 			go srv.Serve(ln)
 			return nil
 		},

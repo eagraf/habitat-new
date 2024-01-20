@@ -1,10 +1,10 @@
 package api
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/gorilla/mux"
+	"github.com/rs/zerolog"
 	"go.uber.org/fx"
 )
 
@@ -25,10 +25,10 @@ func AsRoute(f any) any {
 	)
 }
 
-func NewRouter(routes []Route) *mux.Router {
+func NewRouter(routes []Route, logger *zerolog.Logger) *mux.Router {
 	router := mux.NewRouter()
 	for _, route := range routes {
-		fmt.Println("Registering route: ", route.Pattern())
+		logger.Info().Msgf("Registering route: ", route.Pattern())
 		router.Handle(route.Pattern(), route)
 	}
 
