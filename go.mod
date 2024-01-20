@@ -3,6 +3,7 @@ module github.com/eagraf/habitat-new
 go 1.21
 
 require (
+	github.com/gorilla/mux v1.8.1 // indirect
 	go.uber.org/atomic v1.7.0 // indirect
 	go.uber.org/dig v1.17.0 // indirect
 	go.uber.org/fx v1.20.1 // indirect
