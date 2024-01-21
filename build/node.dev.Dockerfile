@@ -25,6 +25,7 @@ RUN mkdir -p /go/src/github.com/eagraf/habitat-new/pkg
 # the application is going to listen on by default.
 # https://docs.docker.com/engine/reference/builder/#expose
 EXPOSE 3000
+EXPOSE 3001
 EXPOSE 4000
 
 # Live reloading

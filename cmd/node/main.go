@@ -5,6 +5,7 @@ import (
 
 	"github.com/eagraf/habitat-new/internal/node/api"
 	"github.com/eagraf/habitat-new/internal/node/logging"
+	"github.com/eagraf/habitat-new/internal/node/reverse_proxy"
 	"github.com/rs/zerolog"
 	"go.uber.org/fx"
 	"go.uber.org/fx/fxevent"
@@ -25,6 +26,9 @@ func main() {
 		),
 		fx.Provide(
 			api.AsRoute(api.NewVersionHandler),
+		),
+		fx.Provide(
+			reverse_proxy.NewProxyServer,
 		),
 		fx.Invoke(func(*http.Server) {}),
 	).Run()

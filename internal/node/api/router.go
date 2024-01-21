@@ -28,7 +28,7 @@ func AsRoute(f any) any {
 func NewRouter(routes []Route, logger *zerolog.Logger) *mux.Router {
 	router := mux.NewRouter()
 	for _, route := range routes {
-		logger.Info().Msgf("Registering route: ", route.Pattern())
+		logger.Info().Msgf("Registering route: %s", route.Pattern())
 		router.Handle(route.Pattern(), route)
 	}
 

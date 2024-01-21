@@ -22,7 +22,7 @@ docker-build:
 	docker build -t habitat_node -f ./build/node.dev.Dockerfile .
 
 run-dev:
-	docker run -p 3000:3000 -p 4000:4000 \
+	docker run -p 3000:3000 -p 3001:3001 -p 4000:4000 \
 		-v $(TOPDIR)/cmd:$(DOCKER_WORKDIR)/cmd \
 		-v $(TOPDIR)/internal:$(DOCKER_WORKDIR)/internal \
 		-v $(TOPDIR)/pkg:$(DOCKER_WORKDIR)/pkg \

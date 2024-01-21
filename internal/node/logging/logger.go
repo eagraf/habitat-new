@@ -1,7 +1,6 @@
 package logging
 
 import (
-	"os"
 	"strings"
 
 	"github.com/rs/zerolog"
@@ -9,7 +8,8 @@ import (
 )
 
 func NewLogger() *zerolog.Logger {
-	logger := zerolog.New(os.Stdout).With().Timestamp().Logger()
+	out := zerolog.NewConsoleWriter()
+	logger := zerolog.New(out).With().Timestamp().Logger()
 	return &logger
 }
 
