@@ -4,6 +4,8 @@ import (
 	"net/http"
 
 	"github.com/eagraf/habitat-new/internal/node/api"
+	"github.com/eagraf/habitat-new/internal/node/controller"
+	"github.com/eagraf/habitat-new/internal/node/habitat_db"
 	"github.com/eagraf/habitat-new/internal/node/logging"
 	"github.com/eagraf/habitat-new/internal/node/reverse_proxy"
 	"github.com/rs/zerolog"
@@ -26,10 +28,18 @@ func main() {
 		),
 		fx.Provide(
 			api.AsRoute(api.NewVersionHandler),
+			api.AsRoute(controller.NewGetNodeHandler),
 		),
 		fx.Provide(
 			reverse_proxy.NewProxyServer,
 		),
+		fx.Provide(
+			habitat_db.NewHabitatDB,
+		),
+		fx.Provide(
+			controller.NewNodeController,
+		),
+		fx.Invoke(func(*controller.NodeController) {}),
 		fx.Invoke(func(*http.Server) {}),
 	).Run()
 }

@@ -1,0 +1,14 @@
+package habitat_db
+
+type DatabaseNotFoundError struct {
+	databaseName string
+	databaseID   string
+}
+
+func (e *DatabaseNotFoundError) Error() string {
+	if e.databaseName != "" {
+		return "Database with name " + e.databaseName + " not found"
+	} else {
+		return "Database with id " + e.databaseID + " not found"
+	}
+}

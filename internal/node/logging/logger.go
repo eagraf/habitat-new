@@ -4,12 +4,14 @@ import (
 	"strings"
 
 	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	"go.uber.org/fx/fxevent"
 )
 
 func NewLogger() *zerolog.Logger {
 	out := zerolog.NewConsoleWriter()
 	logger := zerolog.New(out).With().Timestamp().Logger()
+	log.Logger = logger
 	return &logger
 }
 
