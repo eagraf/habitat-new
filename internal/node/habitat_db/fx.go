@@ -14,11 +14,16 @@ func NewHabitatDB(lc fx.Lifecycle, logger *zerolog.Logger) *DatabaseManager {
 	}
 	lc.Append(fx.Hook{
 		OnStart: func(ctx context.Context) error {
-			go dbManager.RestartDBs()
+			err := dbManager.RestartDBs()
+			if err != nil {
+				logger.Error().Err(err).Msg("Error restarting databases")
+			}
+
+			go dbManager.Start()
 			return nil
 		},
 		OnStop: func(ctx context.Context) error {
-			// TODO gracefully stop all databases
+			go dbManager.Stop()
 			return nil
 		},
 	})

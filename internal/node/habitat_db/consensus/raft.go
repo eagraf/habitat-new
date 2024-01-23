@@ -58,7 +58,7 @@ func (cs *ClusterService) Start() error {
 // CreateCluster initializes a new Raft cluster, and bootstraps it with this nodes address
 func (cs *ClusterService) CreateCluster(databaseID, filepath string, raftFSM *state.RaftFSMAdapter) (*Cluster, error) {
 	if _, ok := cs.instances[databaseID]; ok {
-		return nil, fmt.Errorf("raft instance for community %s already initialized", databaseID)
+		return nil, fmt.Errorf("raft instance for database %s already initialized", databaseID)
 	}
 
 	ra, err := setupRaftInstance(databaseID, filepath, raftFSM, true, cs.host)
@@ -96,7 +96,7 @@ func (cs *ClusterService) RemoveCluster(databaseID string) error {
 // heartbeets to this node once its AddNode routine has been called.
 func (cs *ClusterService) JoinCluster(databaseID, filepath string, address string, raftFSM *state.RaftFSMAdapter) (<-chan state.StateUpdate, error) {
 	if _, ok := cs.instances[databaseID]; ok {
-		return nil, fmt.Errorf("raft instance for community %s already initialized", databaseID)
+		return nil, fmt.Errorf("raft instance for database %s already initialized", databaseID)
 	}
 
 	ra, err := setupRaftInstance(databaseID, filepath, raftFSM, false, cs.host)
@@ -120,7 +120,7 @@ func (cs *ClusterService) JoinCluster(databaseID, filepath string, address strin
 // restored from snapshots and the write ahead log in stable storage.
 func (cs *ClusterService) RestoreNode(databaseID, filepath string, raftFSM *state.RaftFSMAdapter) (*Cluster, error) {
 	if _, ok := cs.instances[databaseID]; ok {
-		log.Error().Msgf("raft instance for community %s already initialized", databaseID)
+		log.Error().Msgf("raft instance for database %s already initialized", databaseID)
 	}
 
 	ra, err := setupRaftInstance(databaseID, filepath, raftFSM, false, cs.host)

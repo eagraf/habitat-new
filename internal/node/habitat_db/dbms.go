@@ -10,6 +10,7 @@ import (
 	"github.com/eagraf/habitat-new/internal/node/habitat_db/state/schemas"
 	"github.com/google/uuid"
 	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 )
 
 const PersistenceDirectory string = "/var/lib/habitat_db/0.1"
@@ -25,7 +26,7 @@ type Database struct {
 	ID   string
 	Name string
 
-	controller state.StateMachineController
+	Controller state.StateMachineController
 }
 
 type DatabaseLifecycleController interface {
@@ -47,7 +48,7 @@ func (d *Database) Protocol() string {
 }
 
 func (d *Database) Bytes() ([]byte, error) {
-	return d.controller.Bytes(), nil
+	return d.Controller.Bytes(), nil
 }
 
 func NewDatabaseManager() (*DatabaseManager, error) {
@@ -68,6 +69,18 @@ func NewDatabaseManager() (*DatabaseManager, error) {
 	return dm, nil
 }
 
+func (dm *DatabaseManager) Start() {
+	for _, db := range dm.databases {
+		db.Controller.StartListening()
+	}
+}
+
+func (dm *DatabaseManager) Stop() {
+	for _, db := range dm.databases {
+		db.Controller.StopListening()
+	}
+}
+
 func (dm *DatabaseManager) RestartDBs() error {
 	dirs, err := os.ReadDir(PersistenceDirectory)
 	if err != nil {
@@ -75,6 +88,7 @@ func (dm *DatabaseManager) RestartDBs() error {
 	}
 	for _, dir := range dirs {
 		dbID := dir.Name()
+		log.Info().Msgf("Restoring database %s", dbID)
 		dbDir := filepath.Join(PersistenceDirectory, dbID)
 
 		typeBytes, err := os.ReadFile(filepath.Join(dbDir, "schema_type"))
@@ -113,20 +127,21 @@ func (dm *DatabaseManager) RestartDBs() error {
 			ID:   dbID,
 			Name: name,
 		}
-		db.controller = stateMachineController
+		db.Controller = stateMachineController
 
 		dm.databases[dbID] = db
-		db.controller.StartListening()
+		db.Controller.StartListening()
 	}
 	return nil
 }
 
+// CreateDatabase creates a new database with the given name and schema type.
+// This is a no-op if a database with the same name already exists.
 func (dm *DatabaseManager) CreateDatabase(name string, schemaType string, initState []byte) (*Database, error) {
 	// First ensure that no db has the same name
-	for _, db := range dm.databases {
-		if db.Name == name {
-			return nil, fmt.Errorf("Database with name %s already exists", name)
-		}
+	err := dm.checkDatabaseExists(name)
+	if err != nil {
+		return nil, err
 	}
 
 	id := uuid.New().String()
@@ -136,7 +151,7 @@ func (dm *DatabaseManager) CreateDatabase(name string, schemaType string, initSt
 		Name: name,
 	}
 
-	err := os.MkdirAll(db.StateDirectory(), 0600)
+	err = os.MkdirAll(db.StateDirectory(), 0600)
 	if err != nil {
 		return nil, err
 	}
@@ -172,16 +187,16 @@ func (dm *DatabaseManager) CreateDatabase(name string, schemaType string, initSt
 	if err != nil {
 		return nil, err
 	}
-	db.controller = stateMachineController
+	db.Controller = stateMachineController
 
 	initTransition, err := schema.InitializationTransition(initState)
 	if err != nil {
 		return nil, err
 	}
 
-	db.controller.StartListening()
+	db.Controller.StartListening()
 
-	_, err = db.controller.ProposeTransitions([]state.Transition{initTransition})
+	_, err = db.Controller.ProposeTransitions([]state.Transition{initTransition})
 	if err != nil {
 		return nil, err
 	}
@@ -206,4 +221,24 @@ func (dm *DatabaseManager) GetDatabaseByName(name string) (*Database, error) {
 		}
 	}
 	return nil, &DatabaseNotFoundError{databaseName: name}
+}
+
+func (dm *DatabaseManager) checkDatabaseExists(name string) error {
+	// TODO we need a much cleaner way to do this. Maybe a db metadata file.
+	dirs, err := os.ReadDir(PersistenceDirectory)
+	if err != nil {
+		return fmt.Errorf("Error reading existing databases : %s", err)
+	}
+	for _, dir := range dirs {
+		nameFilePath := filepath.Join(PersistenceDirectory, dir.Name(), "name")
+		dbName, err := os.ReadFile(nameFilePath)
+		if err != nil {
+			return fmt.Errorf("Error reading name for database %s: %s", dir.Name(), err)
+		}
+
+		if string(dbName) == name {
+			return &DatabaseAlreadyExistsError{databaseName: name}
+		}
+	}
+	return nil
 }

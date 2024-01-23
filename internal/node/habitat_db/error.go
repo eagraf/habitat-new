@@ -12,3 +12,11 @@ func (e *DatabaseNotFoundError) Error() string {
 		return "Database with id " + e.databaseID + " not found"
 	}
 }
+
+type DatabaseAlreadyExistsError struct {
+	databaseName string
+}
+
+func (e *DatabaseAlreadyExistsError) Error() string {
+	return "Database with name " + e.databaseName + " already exists"
+}
