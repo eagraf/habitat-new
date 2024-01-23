@@ -4,8 +4,10 @@ import (
 	"fmt"
 
 	"github.com/eagraf/habitat-new/internal/node/habitat_db"
+	"github.com/eagraf/habitat-new/internal/node/habitat_db/state"
 	"github.com/eagraf/habitat-new/internal/node/habitat_db/state/schemas/node"
 	"github.com/google/uuid"
+	"github.com/rs/zerolog/log"
 )
 
 const NodeDBDefaultName = "node"
@@ -15,17 +17,34 @@ type NodeController struct {
 }
 
 func (c *NodeController) InitializeNodeDB() error {
-	_, err := c.databaseManager.GetDatabaseByName("node")
+	// Try initializing the database, is a noop if a database with the same name already exists
+	_, err := c.databaseManager.CreateDatabase(NodeDBDefaultName, node.SchemaName, generateInitState())
 	if err != nil {
-		if _, ok := err.(*habitat_db.DatabaseNotFoundError); ok {
-			// Database not found, let's initialize it.
-			_, err := c.databaseManager.CreateDatabase(NodeDBDefaultName, node.SchemaName, generateInitState())
-			if err != nil {
-				return err
-			}
+		if _, ok := err.(*habitat_db.DatabaseAlreadyExistsError); ok {
+			log.Info().Msg("Node database already exists, doing nothing.")
 		} else {
-			return nil
+			return err
 		}
+	}
+
+	return nil
+}
+
+func (c *NodeController) AddUser(userID, username, publicKey string) error {
+	db, err := c.databaseManager.GetDatabaseByName(NodeDBDefaultName)
+	if err != nil {
+		return err
+	}
+
+	_, err = db.Controller.ProposeTransitions([]state.Transition{
+		&node.AddUserTransition{
+			UserID:    userID,
+			Username:  username,
+			PublicKey: publicKey,
+		},
+	})
+	if err != nil {
+		return err
 	}
 
 	return nil

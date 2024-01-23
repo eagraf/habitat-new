@@ -11,6 +11,16 @@ const SchemaName = "node"
 
 var nodeSchemaRaw = `
 {
+	"$defs": {
+		"user": {
+			"type": "object",
+			"properties": {
+				"id": { "type": "string" },
+				"username": { "type": "string" },
+				"public_key": { "type": "string" }
+			}
+		}
+	},
 	"title": "Habitat Node State",
 	"type": "object",
 	"properties": {
@@ -22,15 +32,28 @@ var nodeSchemaRaw = `
 		},
 		"certificate": {
 			"type": "string"
+		},
+		"users": {
+			"type": "array",
+			"items": {
+				"$ref": "#/$defs/user"
+			}
 		}
 	},
-	"required": [ "node_id", "name", "certificate" ]
+	"required": [ "node_id", "name", "certificate", "users" ]
 }`
 
 type NodeState struct {
-	NodeID      string `json:"node_id"`
-	Name        string `json:"name"`
-	Certificate string `json:"certificate"`
+	NodeID      string  `json:"node_id"`
+	Name        string  `json:"name"`
+	Certificate string  `json:"certificate"`
+	Users       []*User `json:"users"`
+}
+
+type User struct {
+	ID        string `json:"id"`
+	Username  string `json:"username"`
+	PublicKey string `json:"public_key"`
 }
 
 func (s NodeState) Schema() []byte {
@@ -53,7 +76,9 @@ func (s *NodeSchema) Name() string {
 }
 
 func (s *NodeSchema) InitState() (state.State, error) {
-	return &NodeState{}, nil
+	return &NodeState{
+		Users: make([]*User, 0),
+	}, nil
 }
 
 func (s *NodeSchema) Bytes() []byte {

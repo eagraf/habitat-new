@@ -41,6 +41,19 @@ type State interface {
 	Bytes() ([]byte, error)
 }
 
+func StateToJSONState(state State) (*JSONState, error) {
+	stateBytes, err := state.Bytes()
+	if err != nil {
+		return nil, err
+	}
+	jsonState, err := NewJSONState(state.Schema(), stateBytes)
+	if err != nil {
+		return nil, err
+	}
+
+	return jsonState, nil
+}
+
 type StateUpdate struct {
 	NewState       []byte
 	Transition     []byte
