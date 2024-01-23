@@ -13,6 +13,7 @@ type Route interface {
 
 	// Pattern reports the path at which this is registered.
 	Pattern() string
+	Method() string
 }
 
 // AsRoute annotates the given constructor to state that
@@ -29,7 +30,7 @@ func NewRouter(routes []Route, logger *zerolog.Logger) *mux.Router {
 	router := mux.NewRouter()
 	for _, route := range routes {
 		logger.Info().Msgf("Registering route: %s", route.Pattern())
-		router.Handle(route.Pattern(), route)
+		router.Handle(route.Pattern(), route).Methods(route.Method())
 	}
 
 	return router
