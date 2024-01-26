@@ -17,8 +17,9 @@ var nodeSchemaRaw = `
 			"properties": {
 				"id": { "type": "string" },
 				"username": { "type": "string" },
-				"public_key": { "type": "string" }
-			}
+				"certificate": { "type": "string" }
+			},
+			"required": [ "id", "username", "certificate" ]
 		}
 	},
 	"title": "Habitat Node State",
@@ -51,9 +52,9 @@ type NodeState struct {
 }
 
 type User struct {
-	ID        string `json:"id"`
-	Username  string `json:"username"`
-	PublicKey string `json:"public_key"`
+	ID          string `json:"id"`
+	Username    string `json:"username"`
+	Certificate string `json:"certificate"`
 }
 
 func (s NodeState) Schema() []byte {

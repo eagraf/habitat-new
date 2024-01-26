@@ -3,6 +3,7 @@ package api
 import (
 	"net/http"
 
+	"github.com/eagraf/habitat-new/internal/node/controller"
 	"github.com/gorilla/mux"
 	"github.com/rs/zerolog"
 	"go.uber.org/fx"
@@ -26,12 +27,18 @@ func AsRoute(f any) any {
 	)
 }
 
-func NewRouter(routes []Route, logger *zerolog.Logger) *mux.Router {
+func NewRouter(routes []Route, logger *zerolog.Logger, nodeController *controller.NodeController) *mux.Router {
 	router := mux.NewRouter()
 	for _, route := range routes {
 		logger.Info().Msgf("Registering route: %s", route.Pattern())
 		router.Handle(route.Pattern(), route).Methods(route.Method())
 	}
+
+	authMiddleware := &authenticationMiddleware{
+		nodeController: nodeController,
+	}
+
+	router.Use(authMiddleware.Middleware)
 
 	return router
 }

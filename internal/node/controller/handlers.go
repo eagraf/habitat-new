@@ -92,7 +92,7 @@ func (h *PostUserHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.nodeController.AddUser(req.UserID, req.Username, req.PublicKey)
+	err = h.nodeController.AddUser(req.UserID, req.Username, req.Certificate)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

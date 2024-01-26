@@ -5,7 +5,7 @@ type GetNodeResponse struct {
 }
 
 type PostUserRequest struct {
-	UserID    string `json:"user_id"`
-	Username  string `json:"username"`
-	PublicKey string `json:"public_key"`
+	UserID      string `json:"user_id"`
+	Username    string `json:"username"`
+	Certificate string `json:"certificate"`
 }

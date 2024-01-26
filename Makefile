@@ -10,7 +10,9 @@ ifeq ($(origin TOPDIR), undefined)
 TOPDIR			:=	$(realpath $(patsubst %/,%, $(dir $(lastword $(MAKEFILE_LIST)))))
 endif
 
+# Directories inside the dev docker container
 DOCKER_WORKDIR = /go/src/github.com/eagraf/habitat-new
+CERT_DIR = /dev_certificates
 
 test::
 	go test ./...
@@ -27,4 +29,5 @@ run-dev:
 		-v $(TOPDIR)/cmd:$(DOCKER_WORKDIR)/cmd \
 		-v $(TOPDIR)/internal:$(DOCKER_WORKDIR)/internal \
 		-v $(TOPDIR)/pkg:$(DOCKER_WORKDIR)/pkg \
+		-v $(HOME)/.ssh/habitat_dev:$(CERT_DIR) \
 		habitat_node

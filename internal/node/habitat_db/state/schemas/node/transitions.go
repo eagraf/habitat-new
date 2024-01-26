@@ -46,9 +46,9 @@ func (t *InitalizationTransition) Validate(oldState *state.JSONState) error {
 }
 
 type AddUserTransition struct {
-	UserID    string `json:"user_id"`
-	Username  string `json:"username"`
-	PublicKey string `json:"public_key"`
+	UserID      string `json:"user_id"`
+	Username    string `json:"username"`
+	Certificate string `json:"certificate"`
 }
 
 func (t *AddUserTransition) Type() string {
@@ -62,9 +62,9 @@ func (t *AddUserTransition) Patch(oldState *state.JSONState) ([]byte, error) {
 		"value": {
 			"id": "%s",
 			"username": "%s",
-			"public_key": "%s"
+			"certificate": "%s"
 		}
-	}]`, t.UserID, t.Username, t.PublicKey)), nil
+	}]`, t.UserID, t.Username, t.Certificate)), nil
 }
 
 func (t *AddUserTransition) Validate(oldState *state.JSONState) error {

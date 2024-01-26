@@ -42,16 +42,6 @@ func testTransitions(oldState *NodeState, transitions []state.Transition) (*Node
 			return nil, err
 		}
 
-		/*		marshaledState, err := json.Marshal(oldJSONState)
-				if err != nil {
-					return nil, err
-				}
-
-				jsonState, err := state.NewJSONState(NodeSchema, marshaledState)
-				if err != nil {
-					return nil, err
-				}*/
-
 		newStateBytes, err := oldJSONState.ValidatePatch(patch)
 		if err != nil {
 			return nil, err
@@ -118,9 +108,9 @@ func TestAddingUsers(t *testing.T) {
 			Name:        "New Node",
 		},
 		&AddUserTransition{
-			UserID:    "123",
-			Username:  "eagraf",
-			PublicKey: "placeholder",
+			UserID:      "123",
+			Username:    "eagraf",
+			Certificate: "placeholder",
 		},
 	}
 
@@ -134,9 +124,9 @@ func TestAddingUsers(t *testing.T) {
 
 	testSecondUserConflictOnUsername := []state.Transition{
 		&AddUserTransition{
-			UserID:    "456",
-			Username:  "eagraf",
-			PublicKey: "placeholder",
+			UserID:      "456",
+			Username:    "eagraf",
+			Certificate: "placeholder",
 		},
 	}
 
@@ -145,9 +135,9 @@ func TestAddingUsers(t *testing.T) {
 
 	testSecondUserConflictOnUserID := []state.Transition{
 		&AddUserTransition{
-			UserID:    "123",
-			Username:  "eagraf2",
-			PublicKey: "placeholder",
+			UserID:      "123",
+			Username:    "eagraf2",
+			Certificate: "placeholder",
 		},
 	}
 
