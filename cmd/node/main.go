@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/eagraf/habitat-new/internal/node/api"
+	"github.com/eagraf/habitat-new/internal/node/config"
 	"github.com/eagraf/habitat-new/internal/node/controller"
 	"github.com/eagraf/habitat-new/internal/node/habitat_db"
 	"github.com/eagraf/habitat-new/internal/node/logging"
@@ -19,6 +20,7 @@ func main() {
 			return &logging.FxEventLoggerWrapper{Logger: logger}
 		}),
 		fx.Provide(logging.NewLogger),
+		fx.Provide(config.NewNodeConfig),
 		fx.Provide(
 			api.NewAPIServer,
 			fx.Annotate(

@@ -8,8 +8,8 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"path/filepath"
 
+	"github.com/eagraf/habitat-new/internal/node/config"
 	"github.com/eagraf/habitat-new/internal/node/reverse_proxy"
 	"github.com/gorilla/mux"
 	"github.com/rs/zerolog"
@@ -19,32 +19,15 @@ import (
 const HabitatAPIPort = "3000"
 const CertificateDir = "/dev_certificates"
 
-func NewAPIServer(lc fx.Lifecycle, router *mux.Router, logger *zerolog.Logger, proxyRules reverse_proxy.RuleSet) *http.Server {
+func NewAPIServer(lc fx.Lifecycle, router *mux.Router, logger *zerolog.Logger, proxyRules reverse_proxy.RuleSet, nodeConfig *config.NodeConfig) *http.Server {
 	srv := &http.Server{Addr: fmt.Sprintf(":%s", HabitatAPIPort), Handler: router}
 	lc.Append(fx.Hook{
 		OnStart: func(ctx context.Context) error {
-			// TODO client and server should use different certificates
-			serverCertPath := filepath.Join(CertificateDir, "cert.pem")
-			serverKeyPath := filepath.Join(CertificateDir, "key.pem")
-
-			// Set up the certificate pool
-			defaultUserCert, err := os.ReadFile(filepath.Join(CertificateDir, "cert.pem"))
+			tlsConfig, err := generateTLSConfig(nodeConfig)
 			if err != nil {
 				return err
 			}
-
-			if err != nil {
-				return err
-			}
-
-			caCertPool := x509.NewCertPool()
-			caCertPool.AppendCertsFromPEM(defaultUserCert)
-
-			// Create the TLS Config with the CA pool and enable Client certificate validation
-			srv.TLSConfig = &tls.Config{
-				ClientCAs:  caCertPool,
-				ClientAuth: tls.RequireAndVerifyClientCert,
-			}
+			srv.TLSConfig = tlsConfig
 
 			// Start the server
 			url, err := url.Parse("http://localhost:3000")
@@ -58,7 +41,7 @@ func NewAPIServer(lc fx.Lifecycle, router *mux.Router, logger *zerolog.Logger, p
 
 			logger.Info().Msgf("Starting Habitat API server at %s", srv.Addr)
 			go func() {
-				err := srv.ListenAndServeTLS(serverCertPath, serverKeyPath)
+				err := srv.ListenAndServeTLS(nodeConfig.NodeCertPath(), nodeConfig.NodeKeyPath())
 				logger.Fatal().Msgf("Habitat API server error: %s", err)
 			}()
 			return nil
@@ -68,4 +51,19 @@ func NewAPIServer(lc fx.Lifecycle, router *mux.Router, logger *zerolog.Logger, p
 		},
 	})
 	return srv
+}
+
+func generateTLSConfig(config *config.NodeConfig) (*tls.Config, error) {
+	rootCertBytes, err := os.ReadFile(config.RootUserCertPath())
+	if err != nil {
+		return nil, err
+	}
+
+	caCertPool := x509.NewCertPool()
+	caCertPool.AppendCertsFromPEM(rootCertBytes)
+
+	return &tls.Config{
+		ClientCAs:  caCertPool,
+		ClientAuth: tls.RequireAndVerifyClientCert,
+	}, nil
 }
