@@ -12,13 +12,18 @@ endif
 
 # Directories inside the dev docker container
 DOCKER_WORKDIR = /go/src/github.com/eagraf/habitat-new
-CERT_DIR = /dev_certificates
+
+# Set up critical Habitat environment variables
+DEV_HABITAT_PATH = $(TOPDIR)/.habitat
+CERT_DIR = $(DEV_HABITAT_PATH)/certificates
 
 test::
 	go test ./...
 
 lint::
 	CGO_ENABLED=0 golangci-lint run --skip-dirs '(^|/)virtctl($$|/)' -D errcheck ./...
+
+install:: $(DEV_HABITAT_PATH)/habitat.yml $(CERT_DIR)/dev_node_cert.pem $(CERT_DIR)/dev_root_user_cert.pem
 
 docker-build:
 	docker build -t habitat_node -f ./build/node.dev.Dockerfile .
@@ -29,5 +34,31 @@ run-dev:
 		-v $(TOPDIR)/cmd:$(DOCKER_WORKDIR)/cmd \
 		-v $(TOPDIR)/internal:$(DOCKER_WORKDIR)/internal \
 		-v $(TOPDIR)/pkg:$(DOCKER_WORKDIR)/pkg \
-		-v $(HOME)/.ssh/habitat_dev:$(CERT_DIR) \
+		-v $(TOPDIR)/.habitat:/.habitat \
+		-e HABITAT_PATH=/.habitat \
 		habitat_node
+
+$(DEV_HABITAT_PATH):
+	mkdir -p $(DEV_HABITAT_PATH)
+
+$(CERT_DIR): $(DEV_HABITAT_PATH)
+	mkdir -p $(CERT_DIR)
+
+$(DEV_HABITAT_PATH)/habitat.yml: $(DEV_HABITAT_PATH)
+	cp $(TOPDIR)/config/habitat.dev.yml $(DEV_HABITAT_PATH)/habitat.yml
+
+$(CERT_DIR)/dev_node_cert.pem: $(CERT_DIR)
+	@echo "Generating dev node certificate"
+	openssl req -newkey rsa:2048 \
+		-new -nodes -x509 \
+		-out $(CERT_DIR)/dev_node_cert.pem \
+		-keyout $(CERT_DIR)/dev_node_key.pem \
+		-subj "/C=US/ST=California/L=Mountain View/O=Habitat/CN=dev_node"
+
+$(CERT_DIR)/dev_root_user_cert.pem: $(CERT_DIR)
+	@echo "Generating dev root user certificate"
+	openssl req -newkey rsa:2048 \
+		-new -nodes -x509 \
+		-out $(CERT_DIR)/dev_root_user_cert.pem \
+		-keyout $(CERT_DIR)/dev_root_user_key.pem \
+		-subj "/C=US/ST=California/L=Mountain View/O=Habitat/CN=root"
