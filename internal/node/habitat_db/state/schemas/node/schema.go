@@ -47,14 +47,14 @@ var nodeSchemaRaw = `
 type NodeState struct {
 	NodeID      string  `json:"node_id"`
 	Name        string  `json:"name"`
-	Certificate string  `json:"certificate"`
+	Certificate string  `json:"certificate"` // TODO turn this into b64
 	Users       []*User `json:"users"`
 }
 
 type User struct {
 	ID          string `json:"id"`
 	Username    string `json:"username"`
-	Certificate string `json:"certificate"`
+	Certificate string `json:"certificate"` // TODO turn this into b64
 }
 
 func (s NodeState) Schema() []byte {
