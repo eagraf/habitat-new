@@ -3,12 +3,14 @@ package habitat_db
 import (
 	"context"
 
+	"github.com/eagraf/habitat-new/internal/node/habitat_db/state"
+	"github.com/eagraf/habitat-new/internal/node/pubsub"
 	"github.com/rs/zerolog"
 	"go.uber.org/fx"
 )
 
-func NewHabitatDB(lc fx.Lifecycle, logger *zerolog.Logger) *DatabaseManager {
-	dbManager, err := NewDatabaseManager()
+func NewHabitatDB(lc fx.Lifecycle, logger *zerolog.Logger, publisher pubsub.Publisher[state.StateUpdate]) *DatabaseManager {
+	dbManager, err := NewDatabaseManager(publisher)
 	if err != nil {
 		logger.Fatal().Err(err).Msg("Error initializing Habitat DB")
 	}
@@ -28,4 +30,19 @@ func NewHabitatDB(lc fx.Lifecycle, logger *zerolog.Logger) *DatabaseManager {
 		},
 	})
 	return dbManager
+}
+
+type StateUpdateLogger struct {
+	logger *zerolog.Logger
+}
+
+func (s *StateUpdateLogger) ConsumeEvent(event *state.StateUpdate) error {
+	s.logger.Info().Msgf("Applying transition %s to %s", string(event.Transition), event.DatabaseID)
+	return nil
+}
+
+func NewStateUpdateLogger(logger *zerolog.Logger) *StateUpdateLogger {
+	return &StateUpdateLogger{
+		logger: logger,
+	}
 }

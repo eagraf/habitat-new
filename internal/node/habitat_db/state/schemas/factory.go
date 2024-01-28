@@ -6,6 +6,7 @@ import (
 	"github.com/eagraf/habitat-new/internal/node/habitat_db/state"
 	"github.com/eagraf/habitat-new/internal/node/habitat_db/state/schemas/node"
 	"github.com/eagraf/habitat-new/internal/node/habitat_db/state/schemas/user"
+	"github.com/eagraf/habitat-new/internal/node/pubsub"
 )
 
 func GetSchema(schemaType string) (state.Schema, error) {
@@ -20,7 +21,7 @@ func GetSchema(schemaType string) (state.Schema, error) {
 }
 
 // TODO this should account for schema version too
-func StateMachineFactory(schemaType string, initState []byte, replicator state.Replicator, executor state.Executor) (state.StateMachineController, error) {
+func StateMachineFactory(databaseID string, schemaType string, initState []byte, replicator state.Replicator, publisher pubsub.Publisher[state.StateUpdate]) (state.StateMachineController, error) {
 	var schema state.Schema
 
 	switch schemaType {
@@ -41,7 +42,7 @@ func StateMachineFactory(schemaType string, initState []byte, replicator state.R
 		initState = initStateBytes
 	}
 
-	stateMachineController, err := state.NewStateMachine(schema.Bytes(), initState, replicator, executor)
+	stateMachineController, err := state.NewStateMachine(databaseID, schema.Bytes(), initState, replicator, publisher)
 	if err != nil {
 		return nil, err
 	}

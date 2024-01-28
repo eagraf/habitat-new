@@ -7,7 +7,9 @@ import (
 	"github.com/eagraf/habitat-new/internal/node/config"
 	"github.com/eagraf/habitat-new/internal/node/controller"
 	"github.com/eagraf/habitat-new/internal/node/habitat_db"
+	"github.com/eagraf/habitat-new/internal/node/habitat_db/state"
 	"github.com/eagraf/habitat-new/internal/node/logging"
+	"github.com/eagraf/habitat-new/internal/node/pubsub"
 	"github.com/eagraf/habitat-new/internal/node/reverse_proxy"
 	"github.com/rs/zerolog"
 	"go.uber.org/fx"
@@ -35,6 +37,20 @@ func main() {
 		),
 		fx.Provide(
 			reverse_proxy.NewProxyServer,
+		),
+		fx.Provide(
+			fx.Annotate(
+				pubsub.NewSimplePublisher[state.StateUpdate],
+				fx.As(new(pubsub.Publisher[state.StateUpdate])),
+				fx.ParamTags(`group:"state_update"`),
+			),
+		),
+		fx.Provide(
+			fx.Annotate(
+				habitat_db.NewStateUpdateLogger,
+				fx.As(new(pubsub.Subscriber[state.StateUpdate])),
+				fx.ResultTags(`group:"state_update"`),
+			),
 		),
 		fx.Provide(
 			habitat_db.NewHabitatDB,

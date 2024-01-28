@@ -14,12 +14,13 @@ import (
 // It treats all state as a JSON blob so that things are serializable, which makes it
 // easy to decouple the state machine types from the Raft library
 type RaftFSMAdapter struct {
+	databaseID string
 	jsonState  *JSONState
 	updateChan chan StateUpdate
 	schema     Schema
 }
 
-func NewRaftFSMAdapter(schema Schema, commState []byte) (*RaftFSMAdapter, error) {
+func NewRaftFSMAdapter(databaseID string, schema Schema, commState []byte) (*RaftFSMAdapter, error) {
 	var jsonState *JSONState
 	var err error
 	if commState == nil {
@@ -43,6 +44,7 @@ func NewRaftFSMAdapter(schema Schema, commState []byte) (*RaftFSMAdapter, error)
 	}
 
 	return &RaftFSMAdapter{
+		databaseID: databaseID,
 		jsonState:  jsonState,
 		updateChan: make(chan StateUpdate),
 		schema:     schema,
@@ -80,6 +82,8 @@ func (sm *RaftFSMAdapter) Apply(entry *raft.Log) interface{} {
 		}
 
 		sm.updateChan <- StateUpdate{
+			SchemaType:     sm.schema.Name(),
+			DatabaseID:     sm.databaseID,
 			TransitionType: w.Type,
 			Transition:     w.Transition,
 			NewState:       sm.jsonState.Bytes(),

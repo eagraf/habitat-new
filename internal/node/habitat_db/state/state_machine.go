@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/eagraf/habitat-new/internal/node/pubsub"
 	"github.com/qri-io/jsonschema"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -17,18 +18,6 @@ func keyError(errs []jsonschema.KeyError) error {
 		s.WriteString(fmt.Sprintf("%s\n", e.Error()))
 	}
 	return errors.New(s.String())
-}
-
-type Executor interface {
-	Execute(*StateUpdate)
-}
-
-type NOOPExecutor struct {
-	logger *zerolog.Logger
-}
-
-func (e *NOOPExecutor) Execute(update *StateUpdate) {
-	log.Info().Msgf("executing %s update", update.TransitionType)
 }
 
 type Replicator interface {
@@ -55,6 +44,8 @@ func StateToJSONState(state State) (*JSONState, error) {
 }
 
 type StateUpdate struct {
+	SchemaType     string
+	DatabaseID     string
 	NewState       []byte
 	Transition     []byte
 	TransitionType string
@@ -68,9 +59,9 @@ type StateMachineController interface {
 }
 
 type StateMachine struct {
-	jsonState *JSONState // this JSONState is maintained in addition to
-	//dispatcher Dispatcher
-	executor   Executor
+	databaseID string
+	jsonState  *JSONState // this JSONState is maintained in addition to
+	publisher  pubsub.Publisher[StateUpdate]
 	replicator Replicator
 	updateChan <-chan StateUpdate
 	doneChan   chan bool
@@ -80,17 +71,18 @@ type StateMachine struct {
 	logger *zerolog.Logger
 }
 
-func NewStateMachine(schema, initRawState []byte, replicator Replicator, executor Executor) (StateMachineController, error) {
+func NewStateMachine(databaseID string, schema, initRawState []byte, replicator Replicator, publisher pubsub.Publisher[StateUpdate]) (StateMachineController, error) {
 	jsonState, err := NewJSONState(schema, initRawState)
 	if err != nil {
 		return nil, err
 	}
 	return &StateMachine{
+		databaseID: databaseID,
 		jsonState:  jsonState,
 		updateChan: replicator.UpdateChannel(),
 		replicator: replicator,
 		doneChan:   make(chan bool),
-		executor:   executor,
+		publisher:  publisher,
 		schema:     schema,
 	}, nil
 }
@@ -106,7 +98,10 @@ func (sm *StateMachine) StartListening() {
 					log.Error().Err(err).Msgf("error getting new state from state update chan")
 				}
 				sm.jsonState = jsonState
-				sm.executor.Execute(&stateUpdate)
+				err = sm.publisher.PublishEvent(&stateUpdate)
+				if err != nil {
+					log.Error().Err(err).Msgf("error publishing state update")
+				}
 			case <-sm.doneChan:
 				return
 			}

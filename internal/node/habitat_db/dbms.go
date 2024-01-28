@@ -8,6 +8,7 @@ import (
 	"github.com/eagraf/habitat-new/internal/node/habitat_db/consensus"
 	"github.com/eagraf/habitat-new/internal/node/habitat_db/state"
 	"github.com/eagraf/habitat-new/internal/node/habitat_db/state/schemas"
+	"github.com/eagraf/habitat-new/internal/node/pubsub"
 	"github.com/google/uuid"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -20,6 +21,8 @@ type DatabaseManager struct {
 	raft   *consensus.ClusterService
 
 	databases map[string]*Database
+
+	publisher pubsub.Publisher[state.StateUpdate]
 }
 
 type Database struct {
@@ -51,7 +54,7 @@ func (d *Database) Bytes() ([]byte, error) {
 	return d.Controller.Bytes(), nil
 }
 
-func NewDatabaseManager() (*DatabaseManager, error) {
+func NewDatabaseManager(publisher pubsub.Publisher[state.StateUpdate]) (*DatabaseManager, error) {
 	// TODO this is obviously wrong
 	host := "localhost"
 	raft := consensus.NewClusterService(host)
@@ -62,6 +65,7 @@ func NewDatabaseManager() (*DatabaseManager, error) {
 	}
 
 	dm := &DatabaseManager{
+		publisher: publisher,
 		databases: make(map[string]*Database),
 		raft:      raft,
 	}
@@ -108,7 +112,7 @@ func (dm *DatabaseManager) RestartDBs() error {
 			return err
 		}
 
-		fsm, err := state.NewRaftFSMAdapter(schema, nil)
+		fsm, err := state.NewRaftFSMAdapter(dbID, schema, nil)
 		if err != nil {
 			return fmt.Errorf("Error creating Raft adapter for database %s: %s", dbID, err)
 		}
@@ -118,7 +122,7 @@ func (dm *DatabaseManager) RestartDBs() error {
 			return fmt.Errorf("Error restoring database %s: %s", dbID, err)
 		}
 
-		stateMachineController, err := schemas.StateMachineFactory(schemaType, nil, cluster, &state.NOOPExecutor{})
+		stateMachineController, err := schemas.StateMachineFactory(dbID, schemaType, nil, cluster, dm.publisher)
 		if err != nil {
 			return err
 		}
@@ -171,7 +175,7 @@ func (dm *DatabaseManager) CreateDatabase(name string, schemaType string, initSt
 		return nil, err
 	}
 
-	fsm, err := state.NewRaftFSMAdapter(schema, nil)
+	fsm, err := state.NewRaftFSMAdapter(db.ID, schema, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -181,9 +185,7 @@ func (dm *DatabaseManager) CreateDatabase(name string, schemaType string, initSt
 		return nil, err
 	}
 
-	executor := &state.NOOPExecutor{}
-
-	stateMachineController, err := schemas.StateMachineFactory(schemaType, nil, cluster, executor)
+	stateMachineController, err := schemas.StateMachineFactory(db.ID, schemaType, nil, cluster, dm.publisher)
 	if err != nil {
 		return nil, err
 	}
