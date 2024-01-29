@@ -69,7 +69,7 @@ func (s *JSONState) applyImpl(patchJSON []byte) ([]byte, error) {
 	}
 	updated, err := patch.Apply(s.state)
 	if err != nil {
-		return nil, fmt.Errorf("error applying patch to current state")
+		return nil, fmt.Errorf("error applying patch to current state: %s", err)
 	}
 	// check that updated state still fulfills the schema
 	keyErrs, err := s.schema.ValidateBytes(context.Background(), updated)

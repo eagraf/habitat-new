@@ -17,9 +17,34 @@ var nodeSchemaRaw = `
 			"properties": {
 				"id": { "type": "string" },
 				"username": { "type": "string" },
-				"certificate": { "type": "string" }
+				"certificate": { "type": "string" },
+				"app_installations": {
+					"type": "array",
+					"items": {
+						"$ref": "#/$defs/app_installation"
+					}
+				}
 			},
 			"required": [ "id", "username", "certificate" ]
+		},
+		"app_installation": {
+			"type": "object",
+			"properties": {
+				"name": { "type": "string" },
+				"version": { "type": "string" },
+				"driver": { 
+					"type": "string",
+					"enum": [ "docker" ]
+				},
+				"registry_url_base": { "type": "string" },
+				"registry_app_id": { "type": "string" },
+				"registry_tag": { "type": "string" },
+				"state": {
+					"type": "string",
+					"enum": [ "installing", "installed", "uninstalled" ]
+				}
+			},
+			"required": [ "name", "version", "driver", "registry_url_base", "registry_app_id", "registry_tag", "state" ]
 		}
 	},
 	"title": "Habitat Node State",
@@ -52,9 +77,24 @@ type NodeState struct {
 }
 
 type User struct {
-	ID          string `json:"id"`
-	Username    string `json:"username"`
-	Certificate string `json:"certificate"` // TODO turn this into b64
+	ID               string             `json:"id"`
+	Username         string             `json:"username"`
+	Certificate      string             `json:"certificate"` // TODO turn this into b64
+	AppInstallations []*AppInstallation `json:"app_installations"`
+}
+
+const AppStateInstalling = "installing"
+const AppStateInstalled = "installed"
+const AppStateUninstalled = "uninstalled"
+
+type AppInstallation struct {
+	Name            string `json:"name"`
+	Version         string `json:"version"`
+	Driver          string `json:"driver"`
+	RegistryURLBase string `json:"registry_url_base"`
+	RegistryAppID   string `json:"registry_app_id"`
+	RegistryTag     string `json:"registry_tag"`
+	State           string `json:"state"`
 }
 
 func (s NodeState) Schema() []byte {

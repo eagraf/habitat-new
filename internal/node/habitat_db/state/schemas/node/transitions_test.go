@@ -144,3 +144,64 @@ func TestAddingUsers(t *testing.T) {
 	_, err = testTransitionsOnCopy(newState, testSecondUserConflictOnUserID)
 	assert.NotNil(t, err)
 }
+
+func TestAppLifecycle(t *testing.T) {
+	transitions := []state.Transition{
+		&InitalizationTransition{
+			NodeID:      "abc",
+			Certificate: "123",
+			Name:        "New Node",
+		},
+		&AddUserTransition{
+			UserID:      "123",
+			Username:    "eagraf",
+			Certificate: "placeholder",
+		},
+		&StartInstallationTransition{
+			UserID:          "123",
+			Name:            "app_name1",
+			Version:         "1",
+			Driver:          "docker",
+			RegistryURLBase: "https://registry.com",
+			RegistryAppID:   "app_name1",
+			RegistryTag:     "v1",
+		},
+	}
+
+	newState, err := testTransitions(nil, transitions)
+	assert.Nil(t, err)
+	assert.NotNil(t, newState)
+	assert.Equal(t, "abc", newState.NodeID)
+	assert.Equal(t, "123", newState.Certificate)
+	assert.Equal(t, "New Node", newState.Name)
+	assert.Equal(t, 1, len(newState.Users))
+	assert.Equal(t, 1, len(newState.Users[0].AppInstallations))
+	assert.Equal(t, "app_name1", newState.Users[0].AppInstallations[0].Name)
+	assert.Equal(t, "installing", newState.Users[0].AppInstallations[0].State)
+
+	testSecondAppConflict := []state.Transition{
+		&StartInstallationTransition{
+			UserID:          "123",
+			Version:         "1",
+			Driver:          "docker",
+			RegistryURLBase: "https://registry.com",
+			RegistryAppID:   "app_name1",
+			RegistryTag:     "v1",
+		},
+	}
+
+	_, err = testTransitionsOnCopy(newState, testSecondAppConflict)
+	assert.NotNil(t, err)
+
+	testInstallationCompleted := []state.Transition{
+		&FinishInstallationTransition{
+			UserID:          "123",
+			RegistryURLBase: "https://registry.com",
+			RegistryAppID:   "app_name1",
+		},
+	}
+
+	newState, err = testTransitionsOnCopy(newState, testInstallationCompleted)
+	assert.Nil(t, err)
+	assert.Equal(t, "installed", newState.Users[0].AppInstallations[0].State)
+}
