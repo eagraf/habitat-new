@@ -38,6 +38,12 @@ run-dev:
 		-e HABITAT_PATH=/.habitat \
 		habitat_node
 
+ clear-volumes:
+	docker container rm -f habitat_node || true
+	docker volume prune -f
+
+run-dev-fresh: clear-volumes run-dev
+
 $(DEV_HABITAT_PATH):
 	mkdir -p $(DEV_HABITAT_PATH)
 
