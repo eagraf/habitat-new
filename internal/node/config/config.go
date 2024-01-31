@@ -2,6 +2,7 @@ package config
 
 import (
 	"crypto/x509"
+	"encoding/base64"
 	"encoding/pem"
 	"errors"
 	"os"
@@ -102,4 +103,8 @@ func (n *NodeConfig) RootUserCertPath() string {
 
 func (n *NodeConfig) RootUserCert() *x509.Certificate {
 	return n.rootUserCert
+}
+
+func (n *NodeConfig) RootUserCertB64() string {
+	return base64.StdEncoding.EncodeToString(n.rootUserCert.Raw)
 }

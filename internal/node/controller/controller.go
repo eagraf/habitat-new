@@ -3,6 +3,8 @@ package controller
 import (
 	"fmt"
 
+	"github.com/eagraf/habitat-new/internal/node/config"
+	"github.com/eagraf/habitat-new/internal/node/constants"
 	"github.com/eagraf/habitat-new/internal/node/habitat_db"
 	"github.com/eagraf/habitat-new/internal/node/habitat_db/state/schemas/node"
 	"github.com/google/uuid"
@@ -13,11 +15,12 @@ const NodeDBDefaultName = "node"
 
 type NodeController struct {
 	databaseManager *habitat_db.DatabaseManager
+	nodeConfig      *config.NodeConfig
 }
 
 func (c *NodeController) InitializeNodeDB() error {
 	// Try initializing the database, is a noop if a database with the same name already exists
-	_, err := c.databaseManager.CreateDatabase(NodeDBDefaultName, node.SchemaName, generateInitState())
+	_, err := c.databaseManager.CreateDatabase(NodeDBDefaultName, node.SchemaName, generateInitState(c.nodeConfig))
 	if err != nil {
 		if _, ok := err.(*habitat_db.DatabaseAlreadyExistsError); ok {
 			log.Info().Msg("Node database already exists, doing nothing.")
@@ -31,11 +34,22 @@ func (c *NodeController) InitializeNodeDB() error {
 
 // TODO this is basically a placeholder until we actually have a way of generating
 // the certificate for the node.
-func generateInitState() []byte {
-	uuid := uuid.New().String()
+func generateInitState(nodeConfig *config.NodeConfig) []byte {
+	nodeUUID := uuid.New().String()
+
+	rootCert := nodeConfig.RootUserCertB64()
+
 	return []byte(fmt.Sprintf(`{
 			"node_id": "%s",
 			"name": "My Habitat node",
-			"certificate": "placeholder"
-		}`, uuid))
+			"certificate": "placeholder",
+			"users": [
+				{
+					"id": "%d",
+					"username": "%s",
+					"certificate": "%s",
+					"app_installations": []
+				}
+			]
+		}`, nodeUUID, 0, constants.RootUsername, rootCert))
 }
