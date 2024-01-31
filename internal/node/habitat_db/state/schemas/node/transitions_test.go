@@ -85,9 +85,12 @@ func testTransitionsOnCopy(oldState *NodeState, transitions []state.Transition) 
 func TestNodeInitialization(t *testing.T) {
 	transitions := []state.Transition{
 		&InitalizationTransition{
-			NodeID:      "abc",
-			Certificate: "123",
-			Name:        "New Node",
+			InitState: &NodeState{
+				NodeID:      "abc",
+				Certificate: "123",
+				Name:        "New Node",
+				Users:       make([]*User, 0),
+			},
 		},
 	}
 
@@ -103,9 +106,12 @@ func TestNodeInitialization(t *testing.T) {
 func TestAddingUsers(t *testing.T) {
 	transitions := []state.Transition{
 		&InitalizationTransition{
-			NodeID:      "abc",
-			Certificate: "123",
-			Name:        "New Node",
+			InitState: &NodeState{
+				NodeID:      "abc",
+				Certificate: "123",
+				Name:        "New Node",
+				Users:       make([]*User, 0),
+			},
 		},
 		&AddUserTransition{
 			UserID:      "123",
@@ -148,9 +154,12 @@ func TestAddingUsers(t *testing.T) {
 func TestAppLifecycle(t *testing.T) {
 	transitions := []state.Transition{
 		&InitalizationTransition{
-			NodeID:      "abc",
-			Certificate: "123",
-			Name:        "New Node",
+			InitState: &NodeState{
+				NodeID:      "abc",
+				Certificate: "123",
+				Name:        "New Node",
+				Users:       make([]*User, 0),
+			},
 		},
 		&AddUserTransition{
 			UserID:      "123",

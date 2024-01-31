@@ -131,10 +131,12 @@ func (s *NodeSchema) Type() reflect.Type {
 }
 
 func (s *NodeSchema) InitializationTransition(initState []byte) (state.Transition, error) {
-	var t InitalizationTransition
-	err := json.Unmarshal(initState, &t)
+	var is *NodeState
+	err := json.Unmarshal(initState, &is)
 	if err != nil {
 		return nil, err
 	}
-	return &t, nil
+	return &InitalizationTransition{
+		InitState: is,
+	}, nil
 }

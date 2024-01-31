@@ -16,9 +16,7 @@ var (
 )
 
 type InitalizationTransition struct {
-	NodeID      string `json:"node_id"`
-	Certificate string `json:"certificate"`
-	Name        string `json:"name"`
+	InitState *NodeState `json:"init_state"`
 }
 
 func (t *InitalizationTransition) Type() string {
@@ -26,21 +24,16 @@ func (t *InitalizationTransition) Type() string {
 }
 
 func (t *InitalizationTransition) Patch(oldState *state.JSONState) ([]byte, error) {
+	marshaled, err := json.Marshal(t.InitState)
+	if err != nil {
+		return nil, err
+	}
+
 	return []byte(fmt.Sprintf(`[{
 		"op": "add",
-		"path": "/node_id",
-		"value": "%s"
-	},
-	{
-		"op": "add",
-		"path": "/name",
-		"value": "%s"
-	},
-	{
-		"op": "add",
-		"path": "/certificate",
-		"value": "%s"
-	}]`, t.NodeID, t.Name, t.Certificate)), nil
+		"path": "",
+		"value": %s
+	}]`, marshaled)), nil
 }
 
 func (t *InitalizationTransition) Validate(oldState *state.JSONState) error {

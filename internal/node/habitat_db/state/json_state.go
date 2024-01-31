@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"sync"
 
-	jsonpatch "github.com/evanphx/json-patch"
+	jsonpatch "github.com/evanphx/json-patch/v5"
 	"github.com/qri-io/jsonschema"
 )
 
@@ -71,6 +71,7 @@ func (s *JSONState) applyImpl(patchJSON []byte) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error applying patch to current state: %s", err)
 	}
+
 	// check that updated state still fulfills the schema
 	keyErrs, err := s.schema.ValidateBytes(context.Background(), updated)
 	if err != nil {
