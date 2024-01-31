@@ -34,6 +34,7 @@ func main() {
 			api.AsRoute(api.NewVersionHandler),
 			api.AsRoute(controller.NewGetNodeHandler),
 			api.AsRoute(controller.NewPostUserHandler),
+			api.AsRoute(controller.NewPostAppHandler),
 		),
 		fx.Provide(
 			reverse_proxy.NewProxyServer,

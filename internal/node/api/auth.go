@@ -8,11 +8,10 @@ import (
 	"net/http"
 
 	"github.com/eagraf/habitat-new/internal/node/config"
+	"github.com/eagraf/habitat-new/internal/node/constants"
 	"github.com/eagraf/habitat-new/internal/node/controller"
 	"github.com/rs/zerolog/log"
 )
-
-var RootUsername = "root"
 
 type authenticationMiddleware struct {
 	nodeController *controller.NodeController
@@ -31,9 +30,9 @@ func (amw *authenticationMiddleware) Middleware(next http.Handler) http.Handler 
 		username := reqCert.Subject.CommonName
 
 		var storedCert *x509.Certificate
-		if username == RootUsername {
+		if username == constants.RootUsername {
 			storedCert = amw.nodeConfig.RootUserCert()
-			username = RootUsername
+			username = constants.RootUsername
 		} else {
 			userCert, err := getUserCert(amw.nodeController, username)
 			if err != nil {
