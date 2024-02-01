@@ -17,6 +17,7 @@ type Subscriber[E Event] interface {
 // and does not ensure the ordering of events in any way. In the future, a more mature
 // solution that guarantees these properties is likely needed.
 // TODO: Implement a channel based publisher.
+// TODO: Implement a topic based publisher.
 type SimplePublisher[E Event] struct {
 	subscribers []Subscriber[E]
 }

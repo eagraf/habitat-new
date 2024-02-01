@@ -9,10 +9,11 @@ import (
 )
 
 var (
-	TransitionInitialize         = "initialize"
-	TransitionAddUser            = "add_user"
-	TransitionStartInstallation  = "start_installation"
-	TransitionFinishInstallation = "finish_installation"
+	TransitionInitialize          = "initialize"
+	TransitionAddUser             = "add_user"
+	TransitionStartInstallation   = "start_installation"
+	TransitionFinishInstallation  = "finish_installation"
+	TransitionStartUninstallation = "start_uninstallation"
 )
 
 type InitalizationTransition struct {

@@ -6,9 +6,11 @@ import (
 	"github.com/eagraf/habitat-new/internal/node/api"
 	"github.com/eagraf/habitat-new/internal/node/config"
 	"github.com/eagraf/habitat-new/internal/node/controller"
+	"github.com/eagraf/habitat-new/internal/node/docker"
 	"github.com/eagraf/habitat-new/internal/node/habitat_db"
 	"github.com/eagraf/habitat-new/internal/node/habitat_db/state"
 	"github.com/eagraf/habitat-new/internal/node/logging"
+	"github.com/eagraf/habitat-new/internal/node/package_manager"
 	"github.com/eagraf/habitat-new/internal/node/pubsub"
 	"github.com/eagraf/habitat-new/internal/node/reverse_proxy"
 	"github.com/rs/zerolog"
@@ -41,6 +43,12 @@ func main() {
 		),
 		fx.Provide(
 			fx.Annotate(
+				docker.NewDockerDriver,
+				fx.As(new(package_manager.PackageManager)),
+			),
+		),
+		fx.Provide(
+			fx.Annotate(
 				pubsub.NewSimplePublisher[state.StateUpdate],
 				fx.As(new(pubsub.Publisher[state.StateUpdate])),
 				fx.ParamTags(`group:"state_update"`),
@@ -49,6 +57,13 @@ func main() {
 		fx.Provide(
 			fx.Annotate(
 				habitat_db.NewStateUpdateLogger,
+				fx.As(new(pubsub.Subscriber[state.StateUpdate])),
+				fx.ResultTags(`group:"state_update"`),
+			),
+		),
+		fx.Provide(
+			fx.Annotate(
+				package_manager.NewAppLifecycleSubscriber,
 				fx.As(new(pubsub.Subscriber[state.StateUpdate])),
 				fx.ResultTags(`group:"state_update"`),
 			),
