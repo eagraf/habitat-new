@@ -35,6 +35,7 @@ run-dev:
 		-v $(TOPDIR)/internal:$(DOCKER_WORKDIR)/internal \
 		-v $(TOPDIR)/pkg:$(DOCKER_WORKDIR)/pkg \
 		-v $(TOPDIR)/.habitat:/.habitat \
+		-v /var/run/docker.sock:/var/run/docker.sock \
 		-e HABITAT_PATH=/.habitat \
 		habitat_node
 
