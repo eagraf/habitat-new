@@ -20,6 +20,10 @@ CERT_DIR = $(DEV_HABITAT_PATH)/certificates
 test::
 	go test ./...
 
+test-coverage:
+	go test -coverprofile=coverage.out ./...
+	go tool cover -html=coverage.out
+
 lint::
 	CGO_ENABLED=0 golangci-lint run --skip-dirs '(^|/)virtctl($$|/)' -D errcheck ./...
 
