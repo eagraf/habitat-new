@@ -18,7 +18,7 @@ DEV_HABITAT_PATH = $(TOPDIR)/.habitat
 CERT_DIR = $(DEV_HABITAT_PATH)/certificates
 
 test::
-	go test ./...
+	go test ./... -timeout 1s
 
 test-coverage:
 	go test -coverprofile=coverage.out ./...
