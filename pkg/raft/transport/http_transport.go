@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"sync"
 
@@ -100,7 +99,7 @@ func (ht *HTTPTransport) genericRPC(id raft.ServerID, target raft.ServerAddress,
 		return err
 	}
 
-	respBody, err := ioutil.ReadAll(postResp.Body)
+	respBody, err := io.ReadAll(postResp.Body)
 	if err != nil {
 		return err
 	}

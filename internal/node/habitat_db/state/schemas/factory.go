@@ -39,6 +39,9 @@ func StateMachineFactory(databaseID string, schemaType string, initState []byte,
 			return nil, err
 		}
 		initStateBytes, err := initStateStruct.Bytes()
+		if err != nil {
+			return nil, err
+		}
 		initState = initStateBytes
 	}
 

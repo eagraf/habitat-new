@@ -4,7 +4,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"io"
-	"io/ioutil"
 
 	"github.com/hashicorp/raft"
 	"github.com/rs/zerolog/log"
@@ -109,7 +108,7 @@ func (sm *RaftFSMAdapter) Snapshot() (raft.FSMSnapshot, error) {
 // concurrently with any other command. The FSM must discard all previous
 // state.
 func (sm *RaftFSMAdapter) Restore(reader io.ReadCloser) error {
-	buf, err := ioutil.ReadAll(reader)
+	buf, err := io.ReadAll(reader)
 	if err != nil {
 		return err
 	}

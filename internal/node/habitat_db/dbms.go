@@ -10,15 +10,13 @@ import (
 	"github.com/eagraf/habitat-new/internal/node/habitat_db/state/schemas"
 	"github.com/eagraf/habitat-new/internal/node/pubsub"
 	"github.com/google/uuid"
-	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
 
 const PersistenceDirectory string = "/var/lib/habitat_db/0.1"
 
 type DatabaseManager struct {
-	logger *zerolog.Logger
-	raft   *consensus.ClusterService
+	raft *consensus.ClusterService
 
 	databases map[string]*Database
 
@@ -30,12 +28,6 @@ type Database struct {
 	Name string
 
 	Controller state.StateMachineController
-}
-
-type DatabaseLifecycleController interface {
-	StartListening()
-	StopListening()
-	State() (state.State, error)
 }
 
 func (d *Database) StateDirectory() string {

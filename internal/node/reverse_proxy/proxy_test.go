@@ -2,7 +2,7 @@ package reverse_proxy
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -30,7 +30,7 @@ func TestProxy(t *testing.T) {
 	fileDir := t.TempDir()
 	defer os.RemoveAll(fileDir)
 
-	file, err := ioutil.TempFile(fileDir, "file")
+	file, err := os.CreateTemp(fileDir, "file")
 	if err != nil {
 		log.Fatalf(err.Error())
 	}
@@ -62,7 +62,7 @@ func TestProxy(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 
-	b, err := ioutil.ReadAll(resp.Body)
+	b, err := io.ReadAll(resp.Body)
 	if err != nil {
 		t.Errorf(err.Error())
 	}
@@ -77,7 +77,7 @@ func TestProxy(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 
-	b, err = ioutil.ReadAll(resp.Body)
+	b, err = io.ReadAll(resp.Body)
 	if err != nil {
 		t.Errorf(err.Error())
 	}

@@ -25,6 +25,7 @@ test-coverage:
 	go tool cover -html=coverage.out
 
 lint::
+# To install: https://golangci-lint.run/usage/install/#local-installation
 	CGO_ENABLED=0 golangci-lint run --skip-dirs '(^|/)virtctl($$|/)' -D errcheck ./...
 
 install:: $(DEV_HABITAT_PATH)/habitat.yml $(CERT_DIR)/dev_node_cert.pem $(CERT_DIR)/dev_root_user_cert.pem

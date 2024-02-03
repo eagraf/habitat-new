@@ -8,7 +8,6 @@ import (
 
 	"github.com/eagraf/habitat-new/internal/node/pubsub"
 	"github.com/qri-io/jsonschema"
-	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
 
@@ -67,8 +66,6 @@ type StateMachine struct {
 	doneChan   chan bool
 
 	schema []byte
-
-	logger *zerolog.Logger
 }
 
 func NewStateMachine(databaseID string, schema, initRawState []byte, replicator Replicator, publisher pubsub.Publisher[StateUpdate]) (StateMachineController, error) {
