@@ -72,9 +72,12 @@ func main() {
 			habitat_db.NewHabitatDB,
 		),
 		fx.Provide(
-			controller.NewNodeController,
+			fx.Annotate(
+				controller.NewNodeController,
+				fx.As(new(controller.NodeController)),
+			),
 		),
-		fx.Invoke(func(*controller.NodeController) {}),
+		fx.Invoke(func(controller.NodeController) {}),
 		fx.Invoke(func(*http.Server) {}),
 	).Run()
 }

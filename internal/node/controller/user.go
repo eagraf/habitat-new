@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/eagraf/habitat-new/api/types"
+	types "github.com/eagraf/habitat-new/core/api"
 	"github.com/eagraf/habitat-new/internal/node/habitat_db"
 	"github.com/eagraf/habitat-new/internal/node/habitat_db/state"
 	"github.com/eagraf/habitat-new/internal/node/habitat_db/state/schemas/node"
