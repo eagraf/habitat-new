@@ -13,12 +13,19 @@ import (
 
 const NodeDBDefaultName = "node"
 
-type NodeController struct {
+type NodeController interface {
+	InitializeNodeDB() error
+	AddUser(userID, username, certificate string) error
+	GetUserByUsername(username string) (*node.User, error)
+	InstallApp(userID string, newApp *node.AppInstallation) error
+}
+
+type BaseNodeController struct {
 	databaseManager *habitat_db.DatabaseManager
 	nodeConfig      *config.NodeConfig
 }
 
-func (c *NodeController) InitializeNodeDB() error {
+func (c *BaseNodeController) InitializeNodeDB() error {
 	// Try initializing the database, is a noop if a database with the same name already exists
 	_, err := c.databaseManager.CreateDatabase(NodeDBDefaultName, node.SchemaName, generateInitState(c.nodeConfig))
 	if err != nil {

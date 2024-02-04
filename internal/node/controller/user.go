@@ -8,7 +8,7 @@ import (
 	"github.com/eagraf/habitat-new/internal/node/habitat_db/state/schemas/node"
 )
 
-func (c *NodeController) AddUser(userID, username, certificate string) error {
+func (c *BaseNodeController) AddUser(userID, username, certificate string) error {
 	db, err := c.databaseManager.GetDatabaseByName(NodeDBDefaultName)
 	if err != nil {
 		return err
@@ -28,7 +28,7 @@ func (c *NodeController) AddUser(userID, username, certificate string) error {
 	return nil
 }
 
-func (c *NodeController) GetUserByUsername(username string) (*node.User, error) {
+func (c *BaseNodeController) GetUserByUsername(username string) (*node.User, error) {
 	db, err := c.databaseManager.GetDatabaseByName(NodeDBDefaultName)
 	if err != nil {
 		return nil, err

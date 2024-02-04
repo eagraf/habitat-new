@@ -63,10 +63,10 @@ func (h *GetNodeHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 type PostUserHandler struct {
-	nodeController *NodeController
+	nodeController NodeController
 }
 
-func NewPostUserHandler(nodeController *NodeController) *PostUserHandler {
+func NewPostUserHandler(nodeController NodeController) *PostUserHandler {
 	return &PostUserHandler{
 		nodeController: nodeController,
 	}
@@ -104,10 +104,10 @@ func (h *PostUserHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 type PostAppHandler struct {
-	nodeController *NodeController
+	nodeController NodeController
 }
 
-func NewPostAppHandler(nodeController *NodeController) *PostAppHandler {
+func NewPostAppHandler(nodeController NodeController) *PostAppHandler {
 	return &PostAppHandler{
 		nodeController: nodeController,
 	}

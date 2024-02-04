@@ -14,12 +14,14 @@ import (
 )
 
 type authenticationMiddleware struct {
-	nodeController *controller.NodeController
+	nodeController controller.NodeController
 	nodeConfig     *config.NodeConfig
 }
 
 func (amw *authenticationMiddleware) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Add("Content-Type", "application/json")
+
 		if r.TLS == nil || len(r.TLS.VerifiedChains) == 0 || len(r.TLS.VerifiedChains[0]) == 0 {
 			http.Error(w, "No client certificate found", http.StatusUnauthorized)
 			return
@@ -54,7 +56,7 @@ func (amw *authenticationMiddleware) Middleware(next http.Handler) http.Handler 
 	})
 }
 
-func getUserCert(controller *controller.NodeController, username string) (*x509.Certificate, error) {
+func getUserCert(controller controller.NodeController, username string) (*x509.Certificate, error) {
 	// Look up the user in the node's user list
 	user, err := controller.GetUserByUsername(username)
 	if err != nil {

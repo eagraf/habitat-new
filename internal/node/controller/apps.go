@@ -5,7 +5,7 @@ import (
 	"github.com/eagraf/habitat-new/internal/node/habitat_db/state/schemas/node"
 )
 
-func (c *NodeController) InstallApp(userID string, newApp *node.AppInstallation) error {
+func (c *BaseNodeController) InstallApp(userID string, newApp *node.AppInstallation) error {
 	db, err := c.databaseManager.GetDatabaseByName(NodeDBDefaultName)
 	if err != nil {
 		return err

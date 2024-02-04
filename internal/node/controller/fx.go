@@ -8,8 +8,8 @@ import (
 	"go.uber.org/fx"
 )
 
-func NewNodeController(lc fx.Lifecycle, habitatDBManager *habitat_db.DatabaseManager, config *config.NodeConfig) *NodeController {
-	controller := &NodeController{
+func NewNodeController(lc fx.Lifecycle, habitatDBManager *habitat_db.DatabaseManager, config *config.NodeConfig) *BaseNodeController {
+	controller := &BaseNodeController{
 		databaseManager: habitatDBManager,
 		nodeConfig:      config,
 	}
