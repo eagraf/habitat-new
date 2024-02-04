@@ -6,7 +6,6 @@ import (
 
 	"github.com/eagraf/habitat-new/api/types"
 	"github.com/eagraf/habitat-new/internal/node/habitat_db"
-	"github.com/eagraf/habitat-new/internal/node/package_manager"
 	"github.com/gorilla/mux"
 )
 
@@ -138,11 +137,7 @@ func (h *PostAppHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.nodeController.InstallApp(userID, req.Name, req.Version, req.Driver, &package_manager.PackageSpec{
-		RegistryURLBase:    req.RegistryURLBase,
-		RegistryPackageID:  req.RegistryAppID,
-		RegistryPackageTag: req.RegistryTag,
-	})
+	err = h.nodeController.InstallApp(userID, req.AppInstallation)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

@@ -77,24 +77,19 @@ type NodeState struct {
 }
 
 type User struct {
-	ID               string             `json:"id"`
-	Username         string             `json:"username"`
-	Certificate      string             `json:"certificate"` // TODO turn this into b64
-	AppInstallations []*AppInstallation `json:"app_installations"`
+	ID               string                  `json:"id"`
+	Username         string                  `json:"username"`
+	Certificate      string                  `json:"certificate"` // TODO turn this into b64
+	AppInstallations []*AppInstallationState `json:"app_installations"`
 }
 
 const AppStateInstalling = "installing"
 const AppStateInstalled = "installed"
 const AppStateUninstalled = "uninstalled"
 
-type AppInstallation struct {
-	Name            string `json:"name"`
-	Version         string `json:"version"`
-	Driver          string `json:"driver"`
-	RegistryURLBase string `json:"registry_url_base"`
-	RegistryAppID   string `json:"registry_app_id"`
-	RegistryTag     string `json:"registry_tag"`
-	State           string `json:"state"`
+type AppInstallationState struct {
+	*AppInstallation
+	State string `json:"state"`
 }
 
 func (s NodeState) Schema() []byte {

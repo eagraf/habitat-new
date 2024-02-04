@@ -1,5 +1,7 @@
 package types
 
+import "github.com/eagraf/habitat-new/internal/node/habitat_db/state/schemas/node"
+
 type GetNodeResponse struct {
 	State map[string]interface{} `json:"state"`
 }
@@ -11,10 +13,5 @@ type PostUserRequest struct {
 }
 
 type PostAppRequest struct {
-	Name            string `json:"name"`
-	Version         string `json:"version"`
-	Driver          string `json:"driver"`
-	RegistryURLBase string `json:"registry_url_base"`
-	RegistryAppID   string `json:"registry_app_id"`
-	RegistryTag     string `json:"registry_tag"`
+	*node.AppInstallation
 }

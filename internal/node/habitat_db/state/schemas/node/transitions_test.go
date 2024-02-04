@@ -167,13 +167,15 @@ func TestAppLifecycle(t *testing.T) {
 			Certificate: "placeholder",
 		},
 		&StartInstallationTransition{
-			UserID:          "123",
-			Name:            "app_name1",
-			Version:         "1",
-			Driver:          "docker",
-			RegistryURLBase: "https://registry.com",
-			RegistryAppID:   "app_name1",
-			RegistryTag:     "v1",
+			UserID: "123",
+			AppInstallation: &AppInstallation{
+				Name:            "app_name1",
+				Version:         "1",
+				Driver:          "docker",
+				RegistryURLBase: "https://registry.com",
+				RegistryAppID:   "app_name1",
+				RegistryTag:     "v1",
+			},
 		},
 	}
 
@@ -190,12 +192,14 @@ func TestAppLifecycle(t *testing.T) {
 
 	testSecondAppConflict := []state.Transition{
 		&StartInstallationTransition{
-			UserID:          "123",
-			Version:         "1",
-			Driver:          "docker",
-			RegistryURLBase: "https://registry.com",
-			RegistryAppID:   "app_name1",
-			RegistryTag:     "v1",
+			UserID: "123",
+			AppInstallation: &AppInstallation{
+				Version:         "1",
+				Driver:          "docker",
+				RegistryURLBase: "https://registry.com",
+				RegistryAppID:   "app_name1",
+				RegistryTag:     "v1",
+			},
 		},
 	}
 

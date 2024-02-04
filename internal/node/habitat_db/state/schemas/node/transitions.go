@@ -84,13 +84,8 @@ func (t *AddUserTransition) Validate(oldState *state.JSONState) error {
 }
 
 type StartInstallationTransition struct {
-	UserID          string `json:"user_id"`
-	Name            string `json:"name"`
-	Version         string `json:"version"`
-	Driver          string `json:"driver"`
-	RegistryURLBase string `json:"registry_url_base"`
-	RegistryAppID   string `json:"registry_app_id"`
-	RegistryTag     string `json:"registry_tag"`
+	UserID string `json:"user_id"`
+	*AppInstallation
 }
 
 func (t *StartInstallationTransition) Type() string {
@@ -104,21 +99,22 @@ func (t *StartInstallationTransition) Patch(oldState *state.JSONState) ([]byte, 
 		return nil, err
 	}
 
+	appState := &AppInstallationState{
+		AppInstallation: t.AppInstallation,
+		State:           AppLifecycleStateInstalling,
+	}
+	marshalledApp, err := json.Marshal(appState)
+	if err != nil {
+		return nil, err
+	}
+
 	for i, user := range oldNode.Users {
 		if user.ID == t.UserID {
 			return []byte(fmt.Sprintf(`[{
 				"op": "add",
 				"path": "/users/%d/app_installations/-",
-				"value": {
-					"name": "%s",
-					"version": "%s",
-					"driver": "%s",
-					"registry_url_base": "%s",
-					"registry_app_id": "%s",
-					"registry_tag": "%s",
-					"state": "installing"
-				}
-			}]`, i, t.Name, t.Version, t.Driver, t.RegistryURLBase, t.RegistryAppID, t.RegistryTag)), nil
+				"value": %s
+			}]`, i, string(marshalledApp))), nil
 		}
 	}
 	return nil, fmt.Errorf("user with id %s not found", t.UserID)
