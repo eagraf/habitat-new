@@ -1,1 +1,4 @@
 .habitat
+
+# Code coverage output
+coverage.out
