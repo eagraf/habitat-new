@@ -1,4 +1,7 @@
 .habitat
 
+# Debugger files
+**/__debug_bin*
+
 # Code coverage output
 coverage.out
