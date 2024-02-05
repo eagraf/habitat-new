@@ -5,25 +5,25 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/eagraf/habitat-new/internal/node/habitat_db/state"
+	"github.com/eagraf/habitat-new/internal/node/habitat_db/core"
 	"github.com/stretchr/testify/assert"
 )
 
-func testTransitions(oldState *NodeState, transitions []state.Transition) (*NodeState, error) {
-	var oldJSONState *state.JSONState
+func testTransitions(oldState *NodeState, transitions []core.Transition) (*NodeState, error) {
+	var oldJSONState *core.JSONState
 	schema := &NodeSchema{}
 	if oldState == nil {
 		emptyState, err := schema.InitState()
 		if err != nil {
 			return nil, err
 		}
-		ojs, err := state.StateToJSONState(emptyState)
+		ojs, err := core.StateToJSONState(emptyState)
 		if err != nil {
 			return nil, err
 		}
 		oldJSONState = ojs
 	} else {
-		ojs, err := state.StateToJSONState(oldState)
+		ojs, err := core.StateToJSONState(oldState)
 		if err != nil {
 			return nil, err
 		}
@@ -32,12 +32,12 @@ func testTransitions(oldState *NodeState, transitions []state.Transition) (*Node
 	}
 	for _, t := range transitions {
 
-		err := t.Validate(oldJSONState)
+		err := t.Validate(oldJSONState.Bytes())
 		if err != nil {
 			return nil, fmt.Errorf("transition validation failed: %s", err)
 		}
 
-		patch, err := t.Patch(oldJSONState)
+		patch, err := t.Patch(oldJSONState.Bytes())
 		if err != nil {
 			return nil, err
 		}
@@ -47,7 +47,7 @@ func testTransitions(oldState *NodeState, transitions []state.Transition) (*Node
 			return nil, err
 		}
 
-		newState, err := state.NewJSONState(schema.Bytes(), newStateBytes)
+		newState, err := core.NewJSONState(schema.Bytes(), newStateBytes)
 		if err != nil {
 			return nil, err
 		}
@@ -67,7 +67,7 @@ func testTransitions(oldState *NodeState, transitions []state.Transition) (*Node
 }
 
 // use this if you expect the transitions to cause an error
-func testTransitionsOnCopy(oldState *NodeState, transitions []state.Transition) (*NodeState, error) {
+func testTransitionsOnCopy(oldState *NodeState, transitions []core.Transition) (*NodeState, error) {
 	marshaled, err := json.Marshal(oldState)
 	if err != nil {
 		return nil, err
@@ -83,7 +83,7 @@ func testTransitionsOnCopy(oldState *NodeState, transitions []state.Transition) 
 }
 
 func TestNodeInitialization(t *testing.T) {
-	transitions := []state.Transition{
+	transitions := []core.Transition{
 		&InitalizationTransition{
 			InitState: &NodeState{
 				NodeID:      "abc",
@@ -104,7 +104,7 @@ func TestNodeInitialization(t *testing.T) {
 }
 
 func TestAddingUsers(t *testing.T) {
-	transitions := []state.Transition{
+	transitions := []core.Transition{
 		&InitalizationTransition{
 			InitState: &NodeState{
 				NodeID:      "abc",
@@ -128,7 +128,7 @@ func TestAddingUsers(t *testing.T) {
 	assert.Equal(t, "New Node", newState.Name)
 	assert.Equal(t, 1, len(newState.Users))
 
-	testSecondUserConflictOnUsername := []state.Transition{
+	testSecondUserConflictOnUsername := []core.Transition{
 		&AddUserTransition{
 			UserID:      "456",
 			Username:    "eagraf",
@@ -139,7 +139,7 @@ func TestAddingUsers(t *testing.T) {
 	newState, err = testTransitionsOnCopy(newState, testSecondUserConflictOnUsername)
 	assert.NotNil(t, err)
 
-	testSecondUserConflictOnUserID := []state.Transition{
+	testSecondUserConflictOnUserID := []core.Transition{
 		&AddUserTransition{
 			UserID:      "123",
 			Username:    "eagraf2",
@@ -152,7 +152,7 @@ func TestAddingUsers(t *testing.T) {
 }
 
 func TestAppLifecycle(t *testing.T) {
-	transitions := []state.Transition{
+	transitions := []core.Transition{
 		&InitalizationTransition{
 			InitState: &NodeState{
 				NodeID:      "abc",
@@ -190,7 +190,7 @@ func TestAppLifecycle(t *testing.T) {
 	assert.Equal(t, "app_name1", newState.Users[0].AppInstallations[0].Name)
 	assert.Equal(t, "installing", newState.Users[0].AppInstallations[0].State)
 
-	testSecondAppConflict := []state.Transition{
+	testSecondAppConflict := []core.Transition{
 		&StartInstallationTransition{
 			UserID: "123",
 			AppInstallation: &AppInstallation{
@@ -206,7 +206,7 @@ func TestAppLifecycle(t *testing.T) {
 	_, err = testTransitionsOnCopy(newState, testSecondAppConflict)
 	assert.NotNil(t, err)
 
-	testInstallationCompleted := []state.Transition{
+	testInstallationCompleted := []core.Transition{
 		&FinishInstallationTransition{
 			UserID:          "123",
 			RegistryURLBase: "https://registry.com",

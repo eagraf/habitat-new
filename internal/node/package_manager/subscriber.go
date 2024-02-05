@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"errors"
 
+	"github.com/eagraf/habitat-new/core/state/node"
 	"github.com/eagraf/habitat-new/internal/node/habitat_db/state"
-	"github.com/eagraf/habitat-new/internal/node/habitat_db/state/schemas/node"
 )
 
 type AppLifecycleSubscriber struct {

@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 
 	"github.com/eagraf/habitat-new/internal/node/habitat_db/consensus"
+	"github.com/eagraf/habitat-new/internal/node/habitat_db/core"
 	"github.com/eagraf/habitat-new/internal/node/habitat_db/state"
 	"github.com/eagraf/habitat-new/internal/node/habitat_db/state/schemas"
 	"github.com/eagraf/habitat-new/internal/node/pubsub"
@@ -27,7 +28,7 @@ type Database struct {
 	ID   string
 	Name string
 
-	Controller state.StateMachineController
+	state.StateMachineController
 }
 
 func (d *Database) StateDirectory() string {
@@ -40,10 +41,6 @@ func (d *Database) DatabaseAddress() string {
 
 func (d *Database) Protocol() string {
 	return filepath.Join("/habitat-raft", "0.0.1", d.ID)
-}
-
-func (d *Database) Bytes() ([]byte, error) {
-	return d.Controller.Bytes(), nil
 }
 
 func NewDatabaseManager(publisher pubsub.Publisher[state.StateUpdate]) (*DatabaseManager, error) {
@@ -67,13 +64,13 @@ func NewDatabaseManager(publisher pubsub.Publisher[state.StateUpdate]) (*Databas
 
 func (dm *DatabaseManager) Start() {
 	for _, db := range dm.databases {
-		db.Controller.StartListening()
+		db.StateMachineController.StartListening()
 	}
 }
 
 func (dm *DatabaseManager) Stop() {
 	for _, db := range dm.databases {
-		db.Controller.StopListening()
+		db.StateMachineController.StopListening()
 	}
 }
 
@@ -120,20 +117,20 @@ func (dm *DatabaseManager) RestartDBs() error {
 		}
 
 		db := &Database{
-			ID:   dbID,
-			Name: name,
+			ID:                     dbID,
+			Name:                   name,
+			StateMachineController: stateMachineController,
 		}
-		db.Controller = stateMachineController
 
 		dm.databases[dbID] = db
-		db.Controller.StartListening()
+		db.StateMachineController.StartListening()
 	}
 	return nil
 }
 
 // CreateDatabase creates a new database with the given name and schema type.
 // This is a no-op if a database with the same name already exists.
-func (dm *DatabaseManager) CreateDatabase(name string, schemaType string, initState []byte) (*Database, error) {
+func (dm *DatabaseManager) CreateDatabase(name string, schemaType string, initState []byte) (core.Client, error) {
 	// First ensure that no db has the same name
 	err := dm.checkDatabaseExists(name)
 	if err != nil {
@@ -181,16 +178,16 @@ func (dm *DatabaseManager) CreateDatabase(name string, schemaType string, initSt
 	if err != nil {
 		return nil, err
 	}
-	db.Controller = stateMachineController
+	db.StateMachineController = stateMachineController
 
 	initTransition, err := schema.InitializationTransition(initState)
 	if err != nil {
 		return nil, err
 	}
 
-	db.Controller.StartListening()
+	db.StateMachineController.StartListening()
 
-	_, err = db.Controller.ProposeTransitions([]state.Transition{initTransition})
+	_, err = db.StateMachineController.ProposeTransitions([]core.Transition{initTransition})
 	if err != nil {
 		return nil, err
 	}
@@ -200,7 +197,7 @@ func (dm *DatabaseManager) CreateDatabase(name string, schemaType string, initSt
 	return db, nil
 }
 
-func (dm *DatabaseManager) GetDatabase(id string) (*Database, error) {
+func (dm *DatabaseManager) GetDatabaseClient(id string) (core.Client, error) {
 	if db, ok := dm.databases[id]; ok {
 		return db, nil
 	} else {
@@ -208,7 +205,7 @@ func (dm *DatabaseManager) GetDatabase(id string) (*Database, error) {
 	}
 }
 
-func (dm *DatabaseManager) GetDatabaseByName(name string) (*Database, error) {
+func (dm *DatabaseManager) GetDatabaseByName(name string) (core.Client, error) {
 	for _, db := range dm.databases {
 		if db.Name == name {
 			return db, nil

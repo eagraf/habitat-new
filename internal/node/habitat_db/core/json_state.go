@@ -1,14 +1,24 @@
-package state
+package core
 
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"strings"
 	"sync"
 
 	jsonpatch "github.com/evanphx/json-patch/v5"
 	"github.com/qri-io/jsonschema"
 )
+
+func keyError(errs []jsonschema.KeyError) error {
+	s := strings.Builder{}
+	for _, e := range errs {
+		s.WriteString(fmt.Sprintf("%s\n", e.Error()))
+	}
+	return errors.New(s.String())
+}
 
 type JSONState struct {
 	schema *jsonschema.Schema

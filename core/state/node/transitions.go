@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/eagraf/habitat-new/internal/node/habitat_db/state"
 	"github.com/rs/zerolog/log"
 )
 
@@ -24,7 +23,7 @@ func (t *InitalizationTransition) Type() string {
 	return TransitionInitialize
 }
 
-func (t *InitalizationTransition) Patch(oldState *state.JSONState) ([]byte, error) {
+func (t *InitalizationTransition) Patch(oldState []byte) ([]byte, error) {
 	marshaled, err := json.Marshal(t.InitState)
 	if err != nil {
 		return nil, err
@@ -37,7 +36,7 @@ func (t *InitalizationTransition) Patch(oldState *state.JSONState) ([]byte, erro
 	}]`, marshaled)), nil
 }
 
-func (t *InitalizationTransition) Validate(oldState *state.JSONState) error {
+func (t *InitalizationTransition) Validate(oldState []byte) error {
 	return nil
 }
 
@@ -51,7 +50,7 @@ func (t *AddUserTransition) Type() string {
 	return TransitionAddUser
 }
 
-func (t *AddUserTransition) Patch(oldState *state.JSONState) ([]byte, error) {
+func (t *AddUserTransition) Patch(oldState []byte) ([]byte, error) {
 	return []byte(fmt.Sprintf(`[{
 		"op": "add",
 		"path": "/users/-",
@@ -64,10 +63,10 @@ func (t *AddUserTransition) Patch(oldState *state.JSONState) ([]byte, error) {
 	}]`, t.UserID, t.Username, t.Certificate)), nil
 }
 
-func (t *AddUserTransition) Validate(oldState *state.JSONState) error {
+func (t *AddUserTransition) Validate(oldState []byte) error {
 
 	var oldNode NodeState
-	err := json.Unmarshal(oldState.Bytes(), &oldNode)
+	err := json.Unmarshal(oldState, &oldNode)
 	if err != nil {
 		return err
 	}
@@ -92,9 +91,9 @@ func (t *StartInstallationTransition) Type() string {
 	return TransitionStartInstallation
 }
 
-func (t *StartInstallationTransition) Patch(oldState *state.JSONState) ([]byte, error) {
+func (t *StartInstallationTransition) Patch(oldState []byte) ([]byte, error) {
 	var oldNode NodeState
-	err := json.Unmarshal(oldState.Bytes(), &oldNode)
+	err := json.Unmarshal(oldState, &oldNode)
 	if err != nil {
 		return nil, err
 	}
@@ -120,9 +119,9 @@ func (t *StartInstallationTransition) Patch(oldState *state.JSONState) ([]byte, 
 	return nil, fmt.Errorf("user with id %s not found", t.UserID)
 }
 
-func (t *StartInstallationTransition) Validate(oldState *state.JSONState) error {
+func (t *StartInstallationTransition) Validate(oldState []byte) error {
 	var oldNode NodeState
-	err := json.Unmarshal(oldState.Bytes(), &oldNode)
+	err := json.Unmarshal(oldState, &oldNode)
 	if err != nil {
 		return err
 	}
@@ -154,9 +153,9 @@ func (t *FinishInstallationTransition) Type() string {
 	return TransitionFinishInstallation
 }
 
-func (t *FinishInstallationTransition) Patch(oldState *state.JSONState) ([]byte, error) {
+func (t *FinishInstallationTransition) Patch(oldState []byte) ([]byte, error) {
 	var oldNode NodeState
-	err := json.Unmarshal(oldState.Bytes(), &oldNode)
+	err := json.Unmarshal(oldState, &oldNode)
 	if err != nil {
 		return nil, err
 	}
@@ -177,9 +176,9 @@ func (t *FinishInstallationTransition) Patch(oldState *state.JSONState) ([]byte,
 	return nil, fmt.Errorf("user with id %s not found", t.UserID)
 }
 
-func (t *FinishInstallationTransition) Validate(oldState *state.JSONState) error {
+func (t *FinishInstallationTransition) Validate(oldState []byte) error {
 	var oldNode NodeState
-	err := json.Unmarshal(oldState.Bytes(), &oldNode)
+	err := json.Unmarshal(oldState, &oldNode)
 	if err != nil {
 		return err
 	}

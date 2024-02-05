@@ -3,10 +3,10 @@ package controller
 import (
 	"fmt"
 
+	"github.com/eagraf/habitat-new/core/state/node"
 	"github.com/eagraf/habitat-new/internal/node/config"
 	"github.com/eagraf/habitat-new/internal/node/constants"
 	"github.com/eagraf/habitat-new/internal/node/habitat_db"
-	"github.com/eagraf/habitat-new/internal/node/habitat_db/state/schemas/node"
 	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
 )

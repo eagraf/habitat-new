@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"reflect"
 
-	"github.com/eagraf/habitat-new/internal/node/habitat_db/state"
+	"github.com/eagraf/habitat-new/internal/node/habitat_db/core"
 )
 
 const SchemaName = "node"
@@ -111,7 +111,7 @@ func (s *NodeSchema) Name() string {
 	return SchemaName
 }
 
-func (s *NodeSchema) InitState() (state.State, error) {
+func (s *NodeSchema) InitState() (core.State, error) {
 	return &NodeState{
 		Users: make([]*User, 0),
 	}, nil
@@ -125,7 +125,7 @@ func (s *NodeSchema) Type() reflect.Type {
 	return reflect.TypeOf(&NodeState{})
 }
 
-func (s *NodeSchema) InitializationTransition(initState []byte) (state.Transition, error) {
+func (s *NodeSchema) InitializationTransition(initState []byte) (core.Transition, error) {
 	var is *NodeState
 	err := json.Unmarshal(initState, &is)
 	if err != nil {

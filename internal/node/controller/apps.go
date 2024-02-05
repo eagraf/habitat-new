@@ -5,8 +5,8 @@ import (
 	"net/http"
 
 	types "github.com/eagraf/habitat-new/core/api"
-	"github.com/eagraf/habitat-new/internal/node/habitat_db/state"
-	"github.com/eagraf/habitat-new/internal/node/habitat_db/state/schemas/node"
+	"github.com/eagraf/habitat-new/core/state/node"
+	"github.com/eagraf/habitat-new/internal/node/habitat_db/core"
 	"github.com/gorilla/mux"
 )
 
@@ -59,12 +59,12 @@ func (h *PostAppHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // Controller methods
 
 func (c *BaseNodeController) InstallApp(userID string, newApp *node.AppInstallation) error {
-	db, err := c.databaseManager.GetDatabaseByName(NodeDBDefaultName)
+	dbClient, err := c.databaseManager.GetDatabaseByName(NodeDBDefaultName)
 	if err != nil {
 		return err
 	}
 
-	_, err = db.Controller.ProposeTransitions([]state.Transition{
+	_, err = dbClient.ProposeTransitions([]core.Transition{
 		&node.StartInstallationTransition{
 			UserID:          userID,
 			AppInstallation: newApp,

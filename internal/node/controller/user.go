@@ -6,9 +6,9 @@ import (
 	"net/http"
 
 	types "github.com/eagraf/habitat-new/core/api"
+	"github.com/eagraf/habitat-new/core/state/node"
 	"github.com/eagraf/habitat-new/internal/node/habitat_db"
-	"github.com/eagraf/habitat-new/internal/node/habitat_db/state"
-	"github.com/eagraf/habitat-new/internal/node/habitat_db/state/schemas/node"
+	"github.com/eagraf/habitat-new/internal/node/habitat_db/core"
 )
 
 // Handlers
@@ -32,13 +32,13 @@ func (h *GetNodeHandler) Method() string {
 }
 
 func (h *GetNodeHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	db, err := h.dbManager.GetDatabaseByName(NodeDBDefaultName)
+	dbClient, err := h.dbManager.GetDatabaseByName(NodeDBDefaultName)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	stateBytes, err := db.Bytes()
+	stateBytes := dbClient.Bytes()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -52,7 +52,7 @@ func (h *GetNodeHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resp := types.GetDatabaseResponse{
-		DatabaseID: db.ID,
+		DatabaseID: dbClient.DatabaseID(),
 		State:      stateMap,
 	}
 
@@ -110,12 +110,12 @@ func (h *PostUserHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // Controller methods
 
 func (c *BaseNodeController) AddUser(userID, username, certificate string) error {
-	db, err := c.databaseManager.GetDatabaseByName(NodeDBDefaultName)
+	dbClient, err := c.databaseManager.GetDatabaseByName(NodeDBDefaultName)
 	if err != nil {
 		return err
 	}
 
-	_, err = db.Controller.ProposeTransitions([]state.Transition{
+	_, err = dbClient.ProposeTransitions([]core.Transition{
 		&node.AddUserTransition{
 			UserID:      userID,
 			Username:    username,
@@ -130,13 +130,13 @@ func (c *BaseNodeController) AddUser(userID, username, certificate string) error
 }
 
 func (c *BaseNodeController) GetUserByUsername(username string) (*node.User, error) {
-	db, err := c.databaseManager.GetDatabaseByName(NodeDBDefaultName)
+	dbClient, err := c.databaseManager.GetDatabaseByName(NodeDBDefaultName)
 	if err != nil {
 		return nil, err
 	}
 
 	var nodeState node.NodeState
-	err = json.Unmarshal(db.Controller.Bytes(), &nodeState)
+	err = json.Unmarshal(dbClient.Bytes(), &nodeState)
 	if err != nil {
 		return nil, err
 	}

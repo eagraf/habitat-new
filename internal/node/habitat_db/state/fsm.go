@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io"
 
+	"github.com/eagraf/habitat-new/internal/node/habitat_db/core"
 	"github.com/hashicorp/raft"
 	"github.com/rs/zerolog/log"
 )
@@ -14,13 +15,13 @@ import (
 // easy to decouple the state machine types from the Raft library
 type RaftFSMAdapter struct {
 	databaseID string
-	jsonState  *JSONState
+	jsonState  *core.JSONState
 	updateChan chan StateUpdate
-	schema     Schema
+	schema     core.Schema
 }
 
-func NewRaftFSMAdapter(databaseID string, schema Schema, commState []byte) (*RaftFSMAdapter, error) {
-	var jsonState *JSONState
+func NewRaftFSMAdapter(databaseID string, schema core.Schema, commState []byte) (*RaftFSMAdapter, error) {
+	var jsonState *core.JSONState
 	var err error
 	if commState == nil {
 		initState, err := schema.InitState()
@@ -31,12 +32,12 @@ func NewRaftFSMAdapter(databaseID string, schema Schema, commState []byte) (*Raf
 		if err != nil {
 			return nil, err
 		}
-		jsonState, err = NewJSONState(schema.Bytes(), initStateBytes)
+		jsonState, err = core.NewJSONState(schema.Bytes(), initStateBytes)
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		jsonState, err = NewJSONState(schema.Bytes(), commState)
+		jsonState, err = core.NewJSONState(schema.Bytes(), commState)
 		if err != nil {
 			return nil, err
 		}
@@ -50,7 +51,7 @@ func NewRaftFSMAdapter(databaseID string, schema Schema, commState []byte) (*Raf
 	}, nil
 }
 
-func (sm *RaftFSMAdapter) JSONState() *JSONState {
+func (sm *RaftFSMAdapter) JSONState() *core.JSONState {
 	return sm.jsonState
 }
 
@@ -68,7 +69,7 @@ func (sm *RaftFSMAdapter) Apply(entry *raft.Log) interface{} {
 		log.Error().Msgf("error decoding log entry data: %s", err)
 	}
 
-	var wrappers []*TransitionWrapper
+	var wrappers []*core.TransitionWrapper
 	err = json.Unmarshal(buf, &wrappers)
 	if err != nil {
 		log.Error().Msgf("error unmarshaling transition wrapper: %s", err)
@@ -113,7 +114,7 @@ func (sm *RaftFSMAdapter) Restore(reader io.ReadCloser) error {
 		return err
 	}
 
-	state, err := NewJSONState(sm.schema.Bytes(), buf)
+	state, err := core.NewJSONState(sm.schema.Bytes(), buf)
 	if err != nil {
 		return err
 	}

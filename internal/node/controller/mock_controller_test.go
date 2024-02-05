@@ -12,7 +12,7 @@ package controller
 import (
 	reflect "reflect"
 
-	node "github.com/eagraf/habitat-new/internal/node/habitat_db/state/schemas/node"
+	node "github.com/eagraf/habitat-new/core/state/node"
 	gomock "go.uber.org/mock/gomock"
 )
 

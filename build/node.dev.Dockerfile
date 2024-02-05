@@ -15,7 +15,7 @@ COPY ./go.sum /go/src/github.com/eagraf/habitat-new/go.sum
 RUN go mod download
 
 # Volume in relevant source directories needed for live reloading
-RUN mkdir -p /go/src/github.com/eagraf/habitat-new/api
+RUN mkdir -p /go/src/github.com/eagraf/habitat-new/core
 RUN mkdir -p /go/src/github.com/eagraf/habitat-new/cmd
 RUN mkdir -p /go/src/github.com/eagraf/habitat-new/internal
 RUN mkdir -p /go/src/github.com/eagraf/habitat-new/pkg

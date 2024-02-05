@@ -11,7 +11,7 @@ import (
 	"testing"
 
 	types "github.com/eagraf/habitat-new/core/api"
-	"github.com/eagraf/habitat-new/internal/node/habitat_db/state/schemas/node"
+	"github.com/eagraf/habitat-new/core/state/node"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"

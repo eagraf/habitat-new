@@ -2,44 +2,16 @@ package state
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
-	"strings"
 
+	"github.com/eagraf/habitat-new/internal/node/habitat_db/core"
 	"github.com/eagraf/habitat-new/internal/node/pubsub"
-	"github.com/qri-io/jsonschema"
 	"github.com/rs/zerolog/log"
 )
 
-func keyError(errs []jsonschema.KeyError) error {
-	s := strings.Builder{}
-	for _, e := range errs {
-		s.WriteString(fmt.Sprintf("%s\n", e.Error()))
-	}
-	return errors.New(s.String())
-}
-
 type Replicator interface {
-	Dispatch([]byte) (*JSONState, error)
+	Dispatch([]byte) (*core.JSONState, error)
 	UpdateChannel() <-chan StateUpdate
-}
-
-type State interface {
-	Schema() []byte
-	Bytes() ([]byte, error)
-}
-
-func StateToJSONState(state State) (*JSONState, error) {
-	stateBytes, err := state.Bytes()
-	if err != nil {
-		return nil, err
-	}
-	jsonState, err := NewJSONState(state.Schema(), stateBytes)
-	if err != nil {
-		return nil, err
-	}
-
-	return jsonState, nil
 }
 
 type StateUpdate struct {
@@ -53,13 +25,14 @@ type StateUpdate struct {
 type StateMachineController interface {
 	StartListening()
 	StopListening()
+	DatabaseID() string
 	Bytes() []byte
-	ProposeTransitions(transitions []Transition) (*JSONState, error)
+	ProposeTransitions(transitions []core.Transition) (*core.JSONState, error)
 }
 
 type StateMachine struct {
 	databaseID string
-	jsonState  *JSONState // this JSONState is maintained in addition to
+	jsonState  *core.JSONState // this JSONState is maintained in addition to
 	publisher  pubsub.Publisher[StateUpdate]
 	replicator Replicator
 	updateChan <-chan StateUpdate
@@ -69,7 +42,7 @@ type StateMachine struct {
 }
 
 func NewStateMachine(databaseID string, schema, initRawState []byte, replicator Replicator, publisher pubsub.Publisher[StateUpdate]) (StateMachineController, error) {
-	jsonState, err := NewJSONState(schema, initRawState)
+	jsonState, err := core.NewJSONState(schema, initRawState)
 	if err != nil {
 		return nil, err
 	}
@@ -90,7 +63,7 @@ func (sm *StateMachine) StartListening() {
 			select {
 			case stateUpdate := <-sm.updateChan:
 				// execute state update
-				jsonState, err := NewJSONState(sm.schema, stateUpdate.NewState)
+				jsonState, err := core.NewJSONState(sm.schema, stateUpdate.NewState)
 				if err != nil {
 					log.Error().Err(err).Msgf("error getting new state from state update chan")
 				}
@@ -110,6 +83,10 @@ func (sm *StateMachine) StopListening() {
 	sm.doneChan <- true
 }
 
+func (sm *StateMachine) DatabaseID() string {
+	return sm.databaseID
+}
+
 func (sm *StateMachine) Bytes() []byte {
 	return sm.jsonState.Bytes()
 }
@@ -117,23 +94,23 @@ func (sm *StateMachine) Bytes() []byte {
 // ProposeTransitions takes a list of transitions and applies them to the current state
 // The hypothetical new state is returned. Importantly, this does not block until the state
 // is "officially updated".
-func (sm *StateMachine) ProposeTransitions(transitions []Transition) (*JSONState, error) {
+func (sm *StateMachine) ProposeTransitions(transitions []core.Transition) (*core.JSONState, error) {
 
 	jsonStateBranch, err := sm.jsonState.Copy()
 	if err != nil {
 		return nil, err
 	}
 
-	wrappers := make([]*TransitionWrapper, 0)
+	wrappers := make([]*core.TransitionWrapper, 0)
 
 	for _, t := range transitions {
 
-		err = t.Validate(jsonStateBranch)
+		err = t.Validate(jsonStateBranch.Bytes())
 		if err != nil {
 			return nil, fmt.Errorf("transition validation failed: %s", err)
 		}
 
-		patch, err := t.Patch(jsonStateBranch)
+		patch, err := t.Patch(jsonStateBranch.Bytes())
 		if err != nil {
 			return nil, err
 		}
@@ -143,7 +120,7 @@ func (sm *StateMachine) ProposeTransitions(transitions []Transition) (*JSONState
 			return nil, err
 		}
 
-		wrapped, err := wrapTransition(t, jsonStateBranch)
+		wrapped, err := core.WrapTransition(t, jsonStateBranch.Bytes())
 		if err != nil {
 			return nil, err
 		}
@@ -163,8 +140,4 @@ func (sm *StateMachine) ProposeTransitions(transitions []Transition) (*JSONState
 	}
 
 	return jsonStateBranch, nil
-}
-
-func (sm *StateMachine) State() (*JSONState, error) {
-	return sm.jsonState.Copy()
 }

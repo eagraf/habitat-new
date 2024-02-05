@@ -3,18 +3,16 @@ package schemas
 import (
 	"fmt"
 
+	"github.com/eagraf/habitat-new/core/state/node"
+	"github.com/eagraf/habitat-new/internal/node/habitat_db/core"
 	"github.com/eagraf/habitat-new/internal/node/habitat_db/state"
-	"github.com/eagraf/habitat-new/internal/node/habitat_db/state/schemas/node"
-	"github.com/eagraf/habitat-new/internal/node/habitat_db/state/schemas/user"
 	"github.com/eagraf/habitat-new/internal/node/pubsub"
 )
 
-func GetSchema(schemaType string) (state.Schema, error) {
+func GetSchema(schemaType string) (core.Schema, error) {
 	switch schemaType {
 	case node.SchemaName:
 		return &node.NodeSchema{}, nil
-	case user.SchemaName:
-		return &user.UserSchema{}, nil
 	default:
 		return nil, fmt.Errorf("schema type %s not found", schemaType)
 	}
@@ -22,13 +20,11 @@ func GetSchema(schemaType string) (state.Schema, error) {
 
 // TODO this should account for schema version too
 func StateMachineFactory(databaseID string, schemaType string, initState []byte, replicator state.Replicator, publisher pubsub.Publisher[state.StateUpdate]) (state.StateMachineController, error) {
-	var schema state.Schema
+	var schema core.Schema
 
 	switch schemaType {
 	case node.SchemaName:
 		schema = &node.NodeSchema{}
-	case user.SchemaName:
-		schema = &user.UserSchema{}
 	default:
 		return nil, fmt.Errorf("schema type %s not found", schemaType)
 	}

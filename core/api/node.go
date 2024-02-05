@@ -1,6 +1,6 @@
 package types
 
-import "github.com/eagraf/habitat-new/internal/node/habitat_db/state/schemas/node"
+import "github.com/eagraf/habitat-new/core/state/node"
 
 type GetNodeResponse struct {
 	State map[string]interface{} `json:"state"`
