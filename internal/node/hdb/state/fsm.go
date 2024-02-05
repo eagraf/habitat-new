@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"io"
 
-	"github.com/eagraf/habitat-new/internal/node/habitat_db/core"
+	"github.com/eagraf/habitat-new/internal/node/hdb"
 	"github.com/hashicorp/raft"
 	"github.com/rs/zerolog/log"
 )
@@ -15,13 +15,13 @@ import (
 // easy to decouple the state machine types from the Raft library
 type RaftFSMAdapter struct {
 	databaseID string
-	jsonState  *core.JSONState
+	jsonState  *hdb.JSONState
 	updateChan chan StateUpdate
-	schema     core.Schema
+	schema     hdb.Schema
 }
 
-func NewRaftFSMAdapter(databaseID string, schema core.Schema, commState []byte) (*RaftFSMAdapter, error) {
-	var jsonState *core.JSONState
+func NewRaftFSMAdapter(databaseID string, schema hdb.Schema, commState []byte) (*RaftFSMAdapter, error) {
+	var jsonState *hdb.JSONState
 	var err error
 	if commState == nil {
 		initState, err := schema.InitState()
@@ -32,12 +32,12 @@ func NewRaftFSMAdapter(databaseID string, schema core.Schema, commState []byte) 
 		if err != nil {
 			return nil, err
 		}
-		jsonState, err = core.NewJSONState(schema.Bytes(), initStateBytes)
+		jsonState, err = hdb.NewJSONState(schema.Bytes(), initStateBytes)
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		jsonState, err = core.NewJSONState(schema.Bytes(), commState)
+		jsonState, err = hdb.NewJSONState(schema.Bytes(), commState)
 		if err != nil {
 			return nil, err
 		}
@@ -51,7 +51,7 @@ func NewRaftFSMAdapter(databaseID string, schema core.Schema, commState []byte) 
 	}, nil
 }
 
-func (sm *RaftFSMAdapter) JSONState() *core.JSONState {
+func (sm *RaftFSMAdapter) JSONState() *hdb.JSONState {
 	return sm.jsonState
 }
 
@@ -69,7 +69,7 @@ func (sm *RaftFSMAdapter) Apply(entry *raft.Log) interface{} {
 		log.Error().Msgf("error decoding log entry data: %s", err)
 	}
 
-	var wrappers []*core.TransitionWrapper
+	var wrappers []*hdb.TransitionWrapper
 	err = json.Unmarshal(buf, &wrappers)
 	if err != nil {
 		log.Error().Msgf("error unmarshaling transition wrapper: %s", err)
@@ -114,7 +114,7 @@ func (sm *RaftFSMAdapter) Restore(reader io.ReadCloser) error {
 		return err
 	}
 
-	state, err := core.NewJSONState(sm.schema.Bytes(), buf)
+	state, err := hdb.NewJSONState(sm.schema.Bytes(), buf)
 	if err != nil {
 		return err
 	}

@@ -6,7 +6,7 @@ import (
 
 	types "github.com/eagraf/habitat-new/core/api"
 	"github.com/eagraf/habitat-new/core/state/node"
-	"github.com/eagraf/habitat-new/internal/node/habitat_db/core"
+	"github.com/eagraf/habitat-new/internal/node/hdb"
 	"github.com/gorilla/mux"
 )
 
@@ -64,7 +64,7 @@ func (c *BaseNodeController) InstallApp(userID string, newApp *node.AppInstallat
 		return err
 	}
 
-	_, err = dbClient.ProposeTransitions([]core.Transition{
+	_, err = dbClient.ProposeTransitions([]hdb.Transition{
 		&node.StartInstallationTransition{
 			UserID:          userID,
 			AppInstallation: newApp,

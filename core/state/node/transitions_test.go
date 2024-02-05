@@ -5,25 +5,25 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/eagraf/habitat-new/internal/node/habitat_db/core"
+	"github.com/eagraf/habitat-new/internal/node/hdb"
 	"github.com/stretchr/testify/assert"
 )
 
-func testTransitions(oldState *NodeState, transitions []core.Transition) (*NodeState, error) {
-	var oldJSONState *core.JSONState
+func testTransitions(oldState *NodeState, transitions []hdb.Transition) (*NodeState, error) {
+	var oldJSONState *hdb.JSONState
 	schema := &NodeSchema{}
 	if oldState == nil {
 		emptyState, err := schema.InitState()
 		if err != nil {
 			return nil, err
 		}
-		ojs, err := core.StateToJSONState(emptyState)
+		ojs, err := hdb.StateToJSONState(emptyState)
 		if err != nil {
 			return nil, err
 		}
 		oldJSONState = ojs
 	} else {
-		ojs, err := core.StateToJSONState(oldState)
+		ojs, err := hdb.StateToJSONState(oldState)
 		if err != nil {
 			return nil, err
 		}
@@ -47,7 +47,7 @@ func testTransitions(oldState *NodeState, transitions []core.Transition) (*NodeS
 			return nil, err
 		}
 
-		newState, err := core.NewJSONState(schema.Bytes(), newStateBytes)
+		newState, err := hdb.NewJSONState(schema.Bytes(), newStateBytes)
 		if err != nil {
 			return nil, err
 		}
@@ -67,7 +67,7 @@ func testTransitions(oldState *NodeState, transitions []core.Transition) (*NodeS
 }
 
 // use this if you expect the transitions to cause an error
-func testTransitionsOnCopy(oldState *NodeState, transitions []core.Transition) (*NodeState, error) {
+func testTransitionsOnCopy(oldState *NodeState, transitions []hdb.Transition) (*NodeState, error) {
 	marshaled, err := json.Marshal(oldState)
 	if err != nil {
 		return nil, err
@@ -83,7 +83,7 @@ func testTransitionsOnCopy(oldState *NodeState, transitions []core.Transition) (
 }
 
 func TestNodeInitialization(t *testing.T) {
-	transitions := []core.Transition{
+	transitions := []hdb.Transition{
 		&InitalizationTransition{
 			InitState: &NodeState{
 				NodeID:      "abc",
@@ -104,7 +104,7 @@ func TestNodeInitialization(t *testing.T) {
 }
 
 func TestAddingUsers(t *testing.T) {
-	transitions := []core.Transition{
+	transitions := []hdb.Transition{
 		&InitalizationTransition{
 			InitState: &NodeState{
 				NodeID:      "abc",
@@ -128,7 +128,7 @@ func TestAddingUsers(t *testing.T) {
 	assert.Equal(t, "New Node", newState.Name)
 	assert.Equal(t, 1, len(newState.Users))
 
-	testSecondUserConflictOnUsername := []core.Transition{
+	testSecondUserConflictOnUsername := []hdb.Transition{
 		&AddUserTransition{
 			UserID:      "456",
 			Username:    "eagraf",
@@ -139,7 +139,7 @@ func TestAddingUsers(t *testing.T) {
 	newState, err = testTransitionsOnCopy(newState, testSecondUserConflictOnUsername)
 	assert.NotNil(t, err)
 
-	testSecondUserConflictOnUserID := []core.Transition{
+	testSecondUserConflictOnUserID := []hdb.Transition{
 		&AddUserTransition{
 			UserID:      "123",
 			Username:    "eagraf2",
@@ -152,7 +152,7 @@ func TestAddingUsers(t *testing.T) {
 }
 
 func TestAppLifecycle(t *testing.T) {
-	transitions := []core.Transition{
+	transitions := []hdb.Transition{
 		&InitalizationTransition{
 			InitState: &NodeState{
 				NodeID:      "abc",
@@ -190,7 +190,7 @@ func TestAppLifecycle(t *testing.T) {
 	assert.Equal(t, "app_name1", newState.Users[0].AppInstallations[0].Name)
 	assert.Equal(t, "installing", newState.Users[0].AppInstallations[0].State)
 
-	testSecondAppConflict := []core.Transition{
+	testSecondAppConflict := []hdb.Transition{
 		&StartInstallationTransition{
 			UserID: "123",
 			AppInstallation: &AppInstallation{
@@ -206,7 +206,7 @@ func TestAppLifecycle(t *testing.T) {
 	_, err = testTransitionsOnCopy(newState, testSecondAppConflict)
 	assert.NotNil(t, err)
 
-	testInstallationCompleted := []core.Transition{
+	testInstallationCompleted := []hdb.Transition{
 		&FinishInstallationTransition{
 			UserID:          "123",
 			RegistryURLBase: "https://registry.com",

@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/eagraf/habitat-new/internal/node/habitat_db/core"
-	"github.com/eagraf/habitat-new/internal/node/habitat_db/state"
+	"github.com/eagraf/habitat-new/internal/node/hdb"
+	"github.com/eagraf/habitat-new/internal/node/hdb/state"
 	"github.com/eagraf/habitat-new/pkg/raft/transport"
 	"github.com/hashicorp/raft"
 	raftboltdb "github.com/hashicorp/raft-boltdb"
@@ -145,7 +145,7 @@ func (cs *ClusterService) RestoreNode(databaseID, filepath string, raftFSM *stat
 // ProposeTransitions takes a proposed update to community state in the form of a JSON patch,
 // and attempts to get other nodes to agree to apply the transition to the state machine.
 // If succesfully commited, the updated state should be available via the GetState() call.
-func (c *Cluster) ProposeTransitions(transitions []byte) (*core.JSONState, error) {
+func (c *Cluster) ProposeTransitions(transitions []byte) (*hdb.JSONState, error) {
 	log.Info().Msgf("applying transition to %s", c.databaseID)
 
 	log.Info().Msg(string(transitions))
@@ -163,11 +163,11 @@ func (c *Cluster) ProposeTransitions(transitions []byte) (*core.JSONState, error
 		return nil, errors.New("got nil state back from Raft apply future")
 	}
 
-	if _, ok := newState.(*core.JSONState); !ok {
+	if _, ok := newState.(*hdb.JSONState); !ok {
 		return nil, errors.New("state returned by Raft apply future is not JSONState")
 	}
 
-	return newState.(*core.JSONState), nil
+	return newState.(*hdb.JSONState), nil
 }
 
 // GetState returns the state tracked by the Raft instance's state machine. It returns
@@ -298,7 +298,7 @@ func (c *Cluster) UpdateChannel() <-chan state.StateUpdate {
 	return c.updateChan
 }
 
-func (c *Cluster) Dispatch(transition []byte) (*core.JSONState, error) {
+func (c *Cluster) Dispatch(transition []byte) (*hdb.JSONState, error) {
 	encoded := base64.StdEncoding.EncodeToString(transition)
 	return c.ProposeTransitions([]byte(encoded))
 }

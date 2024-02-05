@@ -1,20 +1,20 @@
-package habitat_db
+package hdbms
 
 import (
 	"fmt"
 	"os"
 	"path/filepath"
 
-	"github.com/eagraf/habitat-new/internal/node/habitat_db/consensus"
-	"github.com/eagraf/habitat-new/internal/node/habitat_db/core"
-	"github.com/eagraf/habitat-new/internal/node/habitat_db/state"
-	"github.com/eagraf/habitat-new/internal/node/habitat_db/state/schemas"
+	"github.com/eagraf/habitat-new/internal/node/hdb"
+	"github.com/eagraf/habitat-new/internal/node/hdb/consensus"
+	"github.com/eagraf/habitat-new/internal/node/hdb/state"
+	"github.com/eagraf/habitat-new/internal/node/hdb/state/schemas"
 	"github.com/eagraf/habitat-new/internal/node/pubsub"
 	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
 )
 
-const PersistenceDirectory string = "/var/lib/habitat_db/0.1"
+const PersistenceDirectory string = "/var/lib/hdb/0.1"
 
 type DatabaseManager struct {
 	raft *consensus.ClusterService
@@ -130,7 +130,7 @@ func (dm *DatabaseManager) RestartDBs() error {
 
 // CreateDatabase creates a new database with the given name and schema type.
 // This is a no-op if a database with the same name already exists.
-func (dm *DatabaseManager) CreateDatabase(name string, schemaType string, initState []byte) (core.Client, error) {
+func (dm *DatabaseManager) CreateDatabase(name string, schemaType string, initState []byte) (hdb.Client, error) {
 	// First ensure that no db has the same name
 	err := dm.checkDatabaseExists(name)
 	if err != nil {
@@ -187,7 +187,7 @@ func (dm *DatabaseManager) CreateDatabase(name string, schemaType string, initSt
 
 	db.StateMachineController.StartListening()
 
-	_, err = db.StateMachineController.ProposeTransitions([]core.Transition{initTransition})
+	_, err = db.StateMachineController.ProposeTransitions([]hdb.Transition{initTransition})
 	if err != nil {
 		return nil, err
 	}
@@ -197,7 +197,7 @@ func (dm *DatabaseManager) CreateDatabase(name string, schemaType string, initSt
 	return db, nil
 }
 
-func (dm *DatabaseManager) GetDatabaseClient(id string) (core.Client, error) {
+func (dm *DatabaseManager) GetDatabaseClient(id string) (hdb.Client, error) {
 	if db, ok := dm.databases[id]; ok {
 		return db, nil
 	} else {
@@ -205,7 +205,7 @@ func (dm *DatabaseManager) GetDatabaseClient(id string) (core.Client, error) {
 	}
 }
 
-func (dm *DatabaseManager) GetDatabaseByName(name string) (core.Client, error) {
+func (dm *DatabaseManager) GetDatabaseByName(name string) (hdb.Client, error) {
 	for _, db := range dm.databases {
 		if db.Name == name {
 			return db, nil

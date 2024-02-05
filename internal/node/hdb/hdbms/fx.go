@@ -1,9 +1,9 @@
-package habitat_db
+package hdbms
 
 import (
 	"context"
 
-	"github.com/eagraf/habitat-new/internal/node/habitat_db/state"
+	"github.com/eagraf/habitat-new/internal/node/hdb/state"
 	"github.com/eagraf/habitat-new/internal/node/pubsub"
 	"github.com/rs/zerolog"
 	"go.uber.org/fx"

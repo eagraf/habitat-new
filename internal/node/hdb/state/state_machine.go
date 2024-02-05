@@ -4,13 +4,13 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/eagraf/habitat-new/internal/node/habitat_db/core"
+	"github.com/eagraf/habitat-new/internal/node/hdb"
 	"github.com/eagraf/habitat-new/internal/node/pubsub"
 	"github.com/rs/zerolog/log"
 )
 
 type Replicator interface {
-	Dispatch([]byte) (*core.JSONState, error)
+	Dispatch([]byte) (*hdb.JSONState, error)
 	UpdateChannel() <-chan StateUpdate
 }
 
@@ -27,12 +27,12 @@ type StateMachineController interface {
 	StopListening()
 	DatabaseID() string
 	Bytes() []byte
-	ProposeTransitions(transitions []core.Transition) (*core.JSONState, error)
+	ProposeTransitions(transitions []hdb.Transition) (*hdb.JSONState, error)
 }
 
 type StateMachine struct {
 	databaseID string
-	jsonState  *core.JSONState // this JSONState is maintained in addition to
+	jsonState  *hdb.JSONState // this JSONState is maintained in addition to
 	publisher  pubsub.Publisher[StateUpdate]
 	replicator Replicator
 	updateChan <-chan StateUpdate
@@ -42,7 +42,7 @@ type StateMachine struct {
 }
 
 func NewStateMachine(databaseID string, schema, initRawState []byte, replicator Replicator, publisher pubsub.Publisher[StateUpdate]) (StateMachineController, error) {
-	jsonState, err := core.NewJSONState(schema, initRawState)
+	jsonState, err := hdb.NewJSONState(schema, initRawState)
 	if err != nil {
 		return nil, err
 	}
@@ -63,7 +63,7 @@ func (sm *StateMachine) StartListening() {
 			select {
 			case stateUpdate := <-sm.updateChan:
 				// execute state update
-				jsonState, err := core.NewJSONState(sm.schema, stateUpdate.NewState)
+				jsonState, err := hdb.NewJSONState(sm.schema, stateUpdate.NewState)
 				if err != nil {
 					log.Error().Err(err).Msgf("error getting new state from state update chan")
 				}
@@ -94,14 +94,14 @@ func (sm *StateMachine) Bytes() []byte {
 // ProposeTransitions takes a list of transitions and applies them to the current state
 // The hypothetical new state is returned. Importantly, this does not block until the state
 // is "officially updated".
-func (sm *StateMachine) ProposeTransitions(transitions []core.Transition) (*core.JSONState, error) {
+func (sm *StateMachine) ProposeTransitions(transitions []hdb.Transition) (*hdb.JSONState, error) {
 
 	jsonStateBranch, err := sm.jsonState.Copy()
 	if err != nil {
 		return nil, err
 	}
 
-	wrappers := make([]*core.TransitionWrapper, 0)
+	wrappers := make([]*hdb.TransitionWrapper, 0)
 
 	for _, t := range transitions {
 
@@ -120,7 +120,7 @@ func (sm *StateMachine) ProposeTransitions(transitions []core.Transition) (*core
 			return nil, err
 		}
 
-		wrapped, err := core.WrapTransition(t, jsonStateBranch.Bytes())
+		wrapped, err := hdb.WrapTransition(t, jsonStateBranch.Bytes())
 		if err != nil {
 			return nil, err
 		}

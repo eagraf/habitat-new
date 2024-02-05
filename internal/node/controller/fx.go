@@ -4,11 +4,11 @@ import (
 	"context"
 
 	"github.com/eagraf/habitat-new/internal/node/config"
-	"github.com/eagraf/habitat-new/internal/node/habitat_db"
+	"github.com/eagraf/habitat-new/internal/node/hdb/hdbms"
 	"go.uber.org/fx"
 )
 
-func NewNodeController(lc fx.Lifecycle, habitatDBManager *habitat_db.DatabaseManager, config *config.NodeConfig) *BaseNodeController {
+func NewNodeController(lc fx.Lifecycle, habitatDBManager *hdbms.DatabaseManager, config *config.NodeConfig) *BaseNodeController {
 	controller := &BaseNodeController{
 		databaseManager: habitatDBManager,
 		nodeConfig:      config,

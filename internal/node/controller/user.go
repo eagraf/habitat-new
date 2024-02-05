@@ -7,17 +7,17 @@ import (
 
 	types "github.com/eagraf/habitat-new/core/api"
 	"github.com/eagraf/habitat-new/core/state/node"
-	"github.com/eagraf/habitat-new/internal/node/habitat_db"
-	"github.com/eagraf/habitat-new/internal/node/habitat_db/core"
+	"github.com/eagraf/habitat-new/internal/node/hdb"
+	"github.com/eagraf/habitat-new/internal/node/hdb/hdbms"
 )
 
 // Handlers
 
 type GetNodeHandler struct {
-	dbManager *habitat_db.DatabaseManager
+	dbManager *hdbms.DatabaseManager
 }
 
-func NewGetNodeHandler(dbManager *habitat_db.DatabaseManager) *GetNodeHandler {
+func NewGetNodeHandler(dbManager *hdbms.DatabaseManager) *GetNodeHandler {
 	return &GetNodeHandler{
 		dbManager: dbManager,
 	}
@@ -115,7 +115,7 @@ func (c *BaseNodeController) AddUser(userID, username, certificate string) error
 		return err
 	}
 
-	_, err = dbClient.ProposeTransitions([]core.Transition{
+	_, err = dbClient.ProposeTransitions([]hdb.Transition{
 		&node.AddUserTransition{
 			UserID:      userID,
 			Username:    username,

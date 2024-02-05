@@ -1,4 +1,4 @@
-package habitat_db
+package hdbms
 
 type DatabaseNotFoundError struct {
 	databaseName string

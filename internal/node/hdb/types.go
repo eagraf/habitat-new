@@ -1,4 +1,4 @@
-package core
+package hdb
 
 import (
 	"encoding/json"
