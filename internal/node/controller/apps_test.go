@@ -12,6 +12,9 @@ import (
 
 	types "github.com/eagraf/habitat-new/core/api"
 	"github.com/eagraf/habitat-new/core/state/node"
+	"github.com/eagraf/habitat-new/internal/node/config"
+	"github.com/eagraf/habitat-new/internal/node/hdb"
+	hdb_mocks "github.com/eagraf/habitat-new/internal/node/hdb/mocks"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
@@ -64,4 +67,43 @@ func TestPostAppHandler(t *testing.T) {
 	resp, err = client.Post(url, "application/json", bytes.NewBuffer(bodyBytes))
 	assert.Nil(t, err)
 	assert.Equal(t, http.StatusInternalServerError, resp.StatusCode)
+}
+
+func TestInstallAppController(t *testing.T) {
+	ctrl := gomock.NewController(t)
+
+	mockedManager := hdb_mocks.NewMockHDBManager(ctrl)
+	mockedClient := hdb_mocks.NewMockClient(ctrl)
+
+	controller := &BaseNodeController{
+		databaseManager: mockedManager,
+		nodeConfig:      &config.NodeConfig{},
+	}
+
+	mockedManager.EXPECT().GetDatabaseClientByName(NodeDBDefaultName).Return(mockedClient, nil).Times(1)
+	mockedClient.EXPECT().ProposeTransitions(gomock.Eq(
+		[]hdb.Transition{
+			&node.StartInstallationTransition{
+				UserID: "0",
+				AppInstallation: &node.AppInstallation{
+					Name:            "app_name1",
+					Version:         "1",
+					Driver:          "docker",
+					RegistryURLBase: "https://registry.com",
+					RegistryAppID:   "app_name1",
+					RegistryTag:     "v1",
+				},
+			},
+		},
+	)).Return(nil, nil).Times(1)
+
+	err := controller.InstallApp("0", &node.AppInstallation{
+		Name:            "app_name1",
+		Version:         "1",
+		Driver:          "docker",
+		RegistryURLBase: "https://registry.com",
+		RegistryAppID:   "app_name1",
+		RegistryTag:     "v1",
+	})
+	assert.Nil(t, err)
 }

@@ -6,6 +6,7 @@ import (
 	"github.com/eagraf/habitat-new/core/state/node"
 	"github.com/eagraf/habitat-new/internal/node/config"
 	"github.com/eagraf/habitat-new/internal/node/constants"
+	"github.com/eagraf/habitat-new/internal/node/hdb"
 	"github.com/eagraf/habitat-new/internal/node/hdb/hdbms"
 	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
@@ -21,7 +22,7 @@ type NodeController interface {
 }
 
 type BaseNodeController struct {
-	databaseManager *hdbms.DatabaseManager
+	databaseManager hdb.HDBManager
 	nodeConfig      *config.NodeConfig
 }
 

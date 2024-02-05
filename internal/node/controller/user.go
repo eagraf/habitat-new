@@ -8,16 +8,15 @@ import (
 	types "github.com/eagraf/habitat-new/core/api"
 	"github.com/eagraf/habitat-new/core/state/node"
 	"github.com/eagraf/habitat-new/internal/node/hdb"
-	"github.com/eagraf/habitat-new/internal/node/hdb/hdbms"
 )
 
 // Handlers
 
 type GetNodeHandler struct {
-	dbManager *hdbms.DatabaseManager
+	dbManager hdb.HDBManager
 }
 
-func NewGetNodeHandler(dbManager *hdbms.DatabaseManager) *GetNodeHandler {
+func NewGetNodeHandler(dbManager hdb.HDBManager) *GetNodeHandler {
 	return &GetNodeHandler{
 		dbManager: dbManager,
 	}
@@ -32,7 +31,7 @@ func (h *GetNodeHandler) Method() string {
 }
 
 func (h *GetNodeHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	dbClient, err := h.dbManager.GetDatabaseByName(NodeDBDefaultName)
+	dbClient, err := h.dbManager.GetDatabaseClientByName(NodeDBDefaultName)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -110,7 +109,7 @@ func (h *PostUserHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // Controller methods
 
 func (c *BaseNodeController) AddUser(userID, username, certificate string) error {
-	dbClient, err := c.databaseManager.GetDatabaseByName(NodeDBDefaultName)
+	dbClient, err := c.databaseManager.GetDatabaseClientByName(NodeDBDefaultName)
 	if err != nil {
 		return err
 	}
@@ -130,7 +129,7 @@ func (c *BaseNodeController) AddUser(userID, username, certificate string) error
 }
 
 func (c *BaseNodeController) GetUserByUsername(username string) (*node.User, error) {
-	dbClient, err := c.databaseManager.GetDatabaseByName(NodeDBDefaultName)
+	dbClient, err := c.databaseManager.GetDatabaseClientByName(NodeDBDefaultName)
 	if err != nil {
 		return nil, err
 	}

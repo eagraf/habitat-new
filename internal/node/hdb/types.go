@@ -60,9 +60,3 @@ func StateToJSONState(state State) (*JSONState, error) {
 
 	return jsonState, nil
 }
-
-type Client interface {
-	DatabaseID() string
-	ProposeTransitions(transitions []Transition) (*JSONState, error)
-	Bytes() []byte
-}

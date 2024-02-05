@@ -205,7 +205,7 @@ func (dm *DatabaseManager) GetDatabaseClient(id string) (hdb.Client, error) {
 	}
 }
 
-func (dm *DatabaseManager) GetDatabaseByName(name string) (hdb.Client, error) {
+func (dm *DatabaseManager) GetDatabaseClientByName(name string) (hdb.Client, error) {
 	for _, db := range dm.databases {
 		if db.Name == name {
 			return db, nil

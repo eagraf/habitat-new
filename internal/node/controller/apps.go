@@ -59,7 +59,7 @@ func (h *PostAppHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // Controller methods
 
 func (c *BaseNodeController) InstallApp(userID string, newApp *node.AppInstallation) error {
-	dbClient, err := c.databaseManager.GetDatabaseByName(NodeDBDefaultName)
+	dbClient, err := c.databaseManager.GetDatabaseClientByName(NodeDBDefaultName)
 	if err != nil {
 		return err
 	}

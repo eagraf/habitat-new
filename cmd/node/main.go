@@ -7,6 +7,7 @@ import (
 	"github.com/eagraf/habitat-new/internal/node/config"
 	"github.com/eagraf/habitat-new/internal/node/controller"
 	"github.com/eagraf/habitat-new/internal/node/docker"
+	"github.com/eagraf/habitat-new/internal/node/hdb"
 	"github.com/eagraf/habitat-new/internal/node/hdb/hdbms"
 	"github.com/eagraf/habitat-new/internal/node/hdb/state"
 	"github.com/eagraf/habitat-new/internal/node/logging"
@@ -69,7 +70,10 @@ func main() {
 			),
 		),
 		fx.Provide(
-			hdbms.NewHabitatDB,
+			fx.Annotate(
+				hdbms.NewHabitatDB,
+				fx.As(new(hdb.HDBManager)),
+			),
 		),
 		fx.Provide(
 			fx.Annotate(
