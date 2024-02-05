@@ -1,7 +1,8 @@
 .habitat
 
-# Debugger files
+#  Random files that can end up in the index
 **/__debug_bin*
+**/.DS_Store
 
 # Code coverage output
 coverage.out
