@@ -21,6 +21,7 @@ type NodeController interface {
 	AddUser(userID, username, certificate string) error
 	GetUserByUsername(username string) (*node.User, error)
 	InstallApp(userID string, newApp *node.AppInstallation) error
+	FinishAppInstallation(userID string, registryURLBase, appID string) error
 }
 
 type BaseNodeController struct {
@@ -56,6 +57,27 @@ func (c *BaseNodeController) InstallApp(userID string, newApp *node.AppInstallat
 		},
 	})
 	return err
+}
+
+// FinishAppInstallation marks the app lifecycle state as installed
+func (c *BaseNodeController) FinishAppInstallation(userID string, registryURLBase, registryAppID string) error {
+	dbClient, err := c.databaseManager.GetDatabaseClientByName(constants.NodeDBDefaultName)
+	if err != nil {
+		return err
+	}
+
+	_, err = dbClient.ProposeTransitions([]hdb.Transition{
+		&node.FinishInstallationTransition{
+			UserID:          userID,
+			RegistryURLBase: registryURLBase,
+			RegistryAppID:   registryAppID,
+		},
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (c *BaseNodeController) AddUser(userID, username, certificate string) error {
