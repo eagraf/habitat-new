@@ -3,16 +3,21 @@ package pubsub
 import (
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
 
 type TestEvent struct {
-	contents string
+	shouldError bool
 }
 
 type TestSubscriber struct {
 	consumedEvents []*TestEvent
+}
+
+func (s *TestSubscriber) Name() string {
+	return "TestSubscriber"
 }
 
 func (s *TestSubscriber) ConsumeEvent(e *TestEvent) error {
@@ -23,7 +28,7 @@ func (s *TestSubscriber) ConsumeEvent(e *TestEvent) error {
 	return nil
 }
 
-func TestSimplePublisher(t *testing.T) {
+func TestSimpleChannel(t *testing.T) {
 	subscriber1 := &TestSubscriber{
 		consumedEvents: make([]*TestEvent, 0),
 	}
@@ -32,15 +37,23 @@ func TestSimplePublisher(t *testing.T) {
 	}
 
 	sp := newSimplePublisher[TestEvent]()
-	sp.AddSubscriber(subscriber1)
-	sp.AddSubscriber(subscriber2)
 
-	err := sp.PublishEvent(&TestEvent{contents: "test"})
+	channel := newSimpleChannel[TestEvent]()
+	channel.publishers = append(channel.publishers, sp)
+	channel.subscribers = append(channel.subscribers, subscriber1, subscriber2)
+	go channel.Listen()
+
+	err := sp.PublishEvent(&TestEvent{shouldError: false})
 	assert.Nil(t, err)
+
+	time.Sleep(100 * time.Millisecond)
 
 	assert.Equal(t, len(subscriber1.consumedEvents), 1)
 	assert.Equal(t, len(subscriber2.consumedEvents), 1)
 
-	err = sp.PublishEvent(nil)
-	assert.NotNil(t, err)
+	err = sp.PublishEvent(&TestEvent{shouldError: true})
+	assert.Nil(t, err)
+
+	assert.Equal(t, len(subscriber1.consumedEvents), 1)
+	assert.Equal(t, len(subscriber2.consumedEvents), 1)
 }

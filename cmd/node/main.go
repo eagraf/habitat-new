@@ -7,7 +7,6 @@ import (
 	"github.com/eagraf/habitat-new/internal/node/config"
 	"github.com/eagraf/habitat-new/internal/node/controller"
 	"github.com/eagraf/habitat-new/internal/node/docker"
-	"github.com/eagraf/habitat-new/internal/node/hdb"
 	"github.com/eagraf/habitat-new/internal/node/hdb/hdbms"
 	"github.com/eagraf/habitat-new/internal/node/hdb/state"
 	"github.com/eagraf/habitat-new/internal/node/logging"
@@ -48,31 +47,37 @@ func main() {
 				fx.As(new(package_manager.PackageManager)),
 			),
 		),
-		fx.Provide(
-			fx.Annotate(
-				pubsub.NewSimplePublisher[state.StateUpdate],
-				fx.As(new(pubsub.Publisher[state.StateUpdate])),
-				fx.ParamTags(`group:"state_update"`),
-			),
-		),
+		//		fx.Provide(
+		//fx.Annotate(
+		//pubsub.NewSimplePublisher[state.StateUpdate],
+		//fx.As(new(pubsub.Publisher[state.StateUpdate])),
+		//fx.ResultTags(`group:"state_update_publishers"`),
+		//),
+		//),
 		fx.Provide(
 			fx.Annotate(
 				hdbms.NewStateUpdateLogger,
 				fx.As(new(pubsub.Subscriber[state.StateUpdate])),
-				fx.ResultTags(`group:"state_update"`),
+				fx.ResultTags(`group:"state_update_subscribers"`),
 			),
 		),
 		fx.Provide(
 			fx.Annotate(
 				package_manager.NewAppLifecycleSubscriber,
 				fx.As(new(pubsub.Subscriber[state.StateUpdate])),
-				fx.ResultTags(`group:"state_update"`),
+				fx.ResultTags(`group:"state_update_subscribers"`),
+			),
+		),
+		fx.Provide(
+			fx.Annotate(
+				pubsub.NewSimpleChannel[state.StateUpdate],
+				fx.As(new(pubsub.Channel[state.StateUpdate])),
+				fx.ParamTags(`group:"state_update_publishers"`, `group:"state_update_subscribers"`),
 			),
 		),
 		fx.Provide(
 			fx.Annotate(
 				hdbms.NewHabitatDB,
-				fx.As(new(hdb.HDBManager)),
 			),
 		),
 		fx.Provide(
@@ -83,5 +88,6 @@ func main() {
 		),
 		fx.Invoke(func(controller.NodeController) {}),
 		fx.Invoke(func(*http.Server) {}),
+		fx.Invoke(func(pubsub.Channel[state.StateUpdate]) {}),
 	).Run()
 }
