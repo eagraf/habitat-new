@@ -3,13 +3,21 @@ package hdbms
 import (
 	"context"
 
+	"github.com/eagraf/habitat-new/internal/node/hdb"
 	"github.com/eagraf/habitat-new/internal/node/hdb/state"
 	"github.com/eagraf/habitat-new/internal/node/pubsub"
 	"github.com/rs/zerolog"
 	"go.uber.org/fx"
 )
 
-func NewHabitatDB(lc fx.Lifecycle, logger *zerolog.Logger, publisher pubsub.Publisher[state.StateUpdate]) *DatabaseManager {
+type HDBResult struct {
+	fx.Out
+	HabitatDBManager     hdb.HDBManager
+	StateUpdatePublisher pubsub.Publisher[state.StateUpdate] `group:"state_update_publishers"`
+}
+
+func NewHabitatDB(lc fx.Lifecycle, logger *zerolog.Logger) HDBResult {
+	publisher := pubsub.NewSimplePublisher[state.StateUpdate]()
 	dbManager, err := NewDatabaseManager(publisher)
 	if err != nil {
 		logger.Fatal().Err(err).Msg("Error initializing Habitat DB")
@@ -29,11 +37,19 @@ func NewHabitatDB(lc fx.Lifecycle, logger *zerolog.Logger, publisher pubsub.Publ
 			return nil
 		},
 	})
-	return dbManager
+	return HDBResult{
+		HabitatDBManager:     dbManager,
+		StateUpdatePublisher: publisher,
+	}
 }
 
+// StateUpdateLogger is a subscriber for StateUpdates that logs them.
 type StateUpdateLogger struct {
 	logger *zerolog.Logger
+}
+
+func (s *StateUpdateLogger) Name() string {
+	return "StateUpdateLogger"
 }
 
 func (s *StateUpdateLogger) ConsumeEvent(event *state.StateUpdate) error {

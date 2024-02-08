@@ -1,15 +1,27 @@
 package pubsub
 
+import (
+	"reflect"
+
+	"github.com/rs/zerolog/log"
+)
+
 type Event interface {
 }
 
 type Publisher[E Event] interface {
 	PublishEvent(*E) error
-	AddSubscriber(Subscriber[E])
+	GetChan() <-chan *E
+	// AddSubscriber(Subscriber[E])
 }
 
 type Subscriber[E Event] interface {
+	Name() string
 	ConsumeEvent(*E) error
+}
+
+type Channel[E Event] interface {
+	Listen() error
 }
 
 // SimplePublisher is an extremely simple implementation of a Publisher that just
@@ -19,26 +31,65 @@ type Subscriber[E Event] interface {
 // TODO: Implement a channel based publisher.
 // TODO: Implement a topic based publisher.
 type SimplePublisher[E Event] struct {
-	subscribers []Subscriber[E]
+	//subscribers []Subscriber[E]
+	channel chan *E
 }
 
 func newSimplePublisher[E Event]() *SimplePublisher[E] {
 	return &SimplePublisher[E]{
-		subscribers: make([]Subscriber[E], 0),
+		channel: make(chan *E),
 	}
 }
 
 func (p *SimplePublisher[E]) PublishEvent(e *E) error {
-	for _, s := range p.subscribers {
-		err := s.ConsumeEvent(e)
-		if err != nil {
-			return err
-		}
-	}
+	p.channel <- e
 
 	return nil
 }
 
-func (p *SimplePublisher[E]) AddSubscriber(s Subscriber[E]) {
-	p.subscribers = append(p.subscribers, s)
+func (p *SimplePublisher[E]) GetChan() <-chan *E {
+	return p.channel
+}
+
+type SimpleChannel[E Event] struct {
+	subscribers []Subscriber[E]
+	publishers  []Publisher[E]
+}
+
+func newSimpleChannel[E Event]() *SimpleChannel[E] {
+	return &SimpleChannel[E]{
+		subscribers: make([]Subscriber[E], 0),
+		publishers:  make([]Publisher[E], 0),
+	}
+}
+
+func (c *SimpleChannel[E]) Listen() error {
+	chans := make([]<-chan *E, len(c.publishers))
+	for i, p := range c.publishers {
+		chans[i] = p.GetChan()
+	}
+
+	cases := make([]reflect.SelectCase, len(chans))
+	for i, ch := range chans {
+		cases[i] = reflect.SelectCase{Dir: reflect.SelectRecv, Chan: reflect.ValueOf(ch)}
+	}
+
+	for {
+
+		_, value, ok := reflect.Select(cases)
+		if !ok {
+			// TODO figure out what to do in this case
+			continue
+		}
+
+		for _, sub := range c.subscribers {
+			go func(s Subscriber[E], e *E) {
+				err := s.ConsumeEvent(e)
+				if err != nil {
+					log.Error().Err(err).Msgf("Subscriber %s had an error while consuming event: %s", s.Name(), err.Error())
+				}
+			}(sub, value.Interface().(*E))
+		}
+
+	}
 }
