@@ -13,6 +13,7 @@ import (
 	types "github.com/eagraf/habitat-new/core/api"
 	"github.com/eagraf/habitat-new/core/state/node"
 	"github.com/eagraf/habitat-new/internal/node/constants"
+	"github.com/eagraf/habitat-new/internal/node/controller/mocks"
 	hdb_mocks "github.com/eagraf/habitat-new/internal/node/hdb/mocks"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
@@ -24,7 +25,7 @@ import (
 func TestInstallAppHandler(t *testing.T) {
 	ctrl := gomock.NewController(t)
 
-	m := NewMockNodeController(ctrl)
+	m := mocks.NewMockNodeController(ctrl)
 
 	handler := NewInstallAppRoute(m)
 
@@ -120,7 +121,7 @@ func TestGetNodeHandler(t *testing.T) {
 func TestAddUserHandler(t *testing.T) {
 	ctrl := gomock.NewController(t)
 
-	m := NewMockNodeController(ctrl)
+	m := mocks.NewMockNodeController(ctrl)
 	m.EXPECT().AddUser("myUserID", "myUsername", "myCert").Return(nil)
 
 	handler := NewAddUserRoute(m)
