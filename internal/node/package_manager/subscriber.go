@@ -5,11 +5,17 @@ import (
 	"errors"
 
 	"github.com/eagraf/habitat-new/core/state/node"
+	"github.com/eagraf/habitat-new/internal/node/controller"
 	"github.com/eagraf/habitat-new/internal/node/hdb/state"
 )
 
 type AppLifecycleSubscriber struct {
 	packageManager PackageManager
+	nodeController controller.NodeController
+}
+
+func (s *AppLifecycleSubscriber) Name() string {
+	return "AppLifecycleSubscriber"
 }
 
 func (s *AppLifecycleSubscriber) ConsumeEvent(event *state.StateUpdate) error {
@@ -31,6 +37,16 @@ func (s *AppLifecycleSubscriber) ConsumeEvent(event *state.StateUpdate) error {
 			RegistryPackageID:  t.RegistryAppID,
 			RegistryPackageTag: t.RegistryTag,
 		}, t.Version)
+		if err != nil {
+			return err
+		}
+
+		// After finishing the installation, update the application's lifecycle state
+		err = s.nodeController.FinishAppInstallation(t.UserID, t.RegistryURLBase, t.RegistryAppID)
+		if err != nil {
+			return err
+		}
+
 		return err
 	case node.TransitionFinishInstallation:
 		// noop
