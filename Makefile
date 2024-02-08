@@ -44,7 +44,7 @@ run-dev:
 		-e HABITAT_PATH=/.habitat \
 		habitat_node
 
- clear-volumes:
+clear-volumes:
 	docker container rm -f habitat_node || true
 	docker volume prune -f
 
