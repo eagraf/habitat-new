@@ -5,8 +5,11 @@ package node
 // the component specific structs to be decoupled.
 
 const AppLifecycleStateInstalling = "installing"
+const AppLifecycleStateInstalled = "installed"
 
+// TODO some fields should be ignored by the REST api
 type AppInstallation struct {
+	ID              string `json:"id"`
 	Name            string `json:"name"`
 	Version         string `json:"version"`
 	Driver          string `json:"driver"`
