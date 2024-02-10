@@ -167,8 +167,8 @@ func (t *FinishInstallationTransition) Patch(oldState []byte) ([]byte, error) {
 					return []byte(fmt.Sprintf(`[{
 						"op": "replace",
 						"path": "/users/%d/app_installations/%d/state",
-						"value": "installed"
-					}]`, i, j)), nil
+						"value": "%s"
+					}]`, i, j, AppLifecycleStateInstalled)), nil
 				}
 			}
 		}

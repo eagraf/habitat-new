@@ -30,6 +30,7 @@ var nodeSchemaRaw = `
 		"app_installation": {
 			"type": "object",
 			"properties": {
+				"id": { "type": "string" },
 				"name": { "type": "string" },
 				"version": { "type": "string" },
 				"driver": { 
@@ -44,7 +45,7 @@ var nodeSchemaRaw = `
 					"enum": [ "installing", "installed", "uninstalled" ]
 				}
 			},
-			"required": [ "name", "version", "driver", "registry_url_base", "registry_app_id", "registry_tag", "state" ]
+			"required": [ "id", "name", "version", "driver", "registry_url_base", "registry_app_id", "registry_tag", "state" ]
 		}
 	},
 	"title": "Habitat Node State",
