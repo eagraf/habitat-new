@@ -3,7 +3,9 @@ package node
 import (
 	"encoding/json"
 	"fmt"
+	"time"
 
+	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
 )
 
@@ -13,6 +15,9 @@ var (
 	TransitionStartInstallation   = "start_installation"
 	TransitionFinishInstallation  = "finish_installation"
 	TransitionStartUninstallation = "start_uninstallation"
+	TransitionStartProcess        = "process_start"
+	TransitionProcessRunning      = "process_running"
+	TransitionStopProcess         = "process_stop"
 )
 
 type InitalizationTransition struct {
@@ -24,11 +29,18 @@ func (t *InitalizationTransition) Type() string {
 }
 
 func (t *InitalizationTransition) Patch(oldState []byte) ([]byte, error) {
+	if t.InitState.Users == nil {
+		t.InitState.Users = make([]*User, 0)
+	}
+
+	if t.InitState.Processes == nil {
+		t.InitState.Processes = make([]*ProcessState, 0)
+	}
+
 	marshaled, err := json.Marshal(t.InitState)
 	if err != nil {
 		return nil, err
 	}
-
 	return []byte(fmt.Sprintf(`[{
 		"op": "add",
 		"path": "",
@@ -37,6 +49,9 @@ func (t *InitalizationTransition) Patch(oldState []byte) ([]byte, error) {
 }
 
 func (t *InitalizationTransition) Validate(oldState []byte) error {
+	if t.InitState == nil {
+		return fmt.Errorf("init state cannot be nil")
+	}
 	return nil
 }
 
@@ -97,6 +112,9 @@ func (t *StartInstallationTransition) Patch(oldState []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	// Assign a UUID to this specific installation of the app
+	t.AppInstallation.ID = uuid.New().String()
 
 	appState := &AppInstallationState{
 		AppInstallation: t.AppInstallation,
@@ -201,3 +219,192 @@ func (t *FinishInstallationTransition) Validate(oldState []byte) error {
 }
 
 // TODO handle uninstallation
+
+type ProcessStartTransition struct {
+	*Process
+}
+
+func (t *ProcessStartTransition) Type() string {
+	return TransitionStartProcess
+}
+
+func (t *ProcessStartTransition) Patch(oldState []byte) ([]byte, error) {
+	var oldNode NodeState
+	err := json.Unmarshal(oldState, &oldNode)
+	if err != nil {
+		return nil, err
+	}
+
+	proc := ProcessState{
+		Process:     t.Process,
+		State:       ProcessStateStarting,
+		ExtDriverID: "", // this should not be set yet
+	}
+
+	proc.Process.Created = time.Now().Format(time.RFC3339)
+
+	marshaled, err := json.Marshal(proc)
+	if err != nil {
+		return nil, err
+	}
+
+	return []byte(fmt.Sprintf(`[{
+			"op": "add",
+			"path": "/processes/-",
+			"value": %s
+		}]`, marshaled)), nil
+}
+
+func (t *ProcessStartTransition) Validate(oldState []byte) error {
+	var oldNode NodeState
+	err := json.Unmarshal(oldState, &oldNode)
+	if err != nil {
+		return err
+	}
+
+	if t.Process == nil {
+		return fmt.Errorf("Process cannot be nil")
+	}
+
+	// Make sure that the user exists
+	userExists := false
+	appExists := false
+	for _, user := range oldNode.Users {
+		if user.ID == t.UserID {
+			userExists = true
+
+			// Make sure the user has the referenced application
+			for _, app := range user.AppInstallations {
+				if app.ID == t.AppID {
+					appExists = true
+				}
+				if app.State != AppLifecycleStateInstalled {
+					return fmt.Errorf("App with id %s for user %s is not in state %s", t.AppID, t.UserID, AppLifecycleStateInstalled)
+				}
+			}
+		}
+	}
+	if !userExists {
+		return fmt.Errorf("User with id %s does not exist", t.UserID)
+	}
+	if !appExists {
+		return fmt.Errorf("App with id %s does not exist for user %s", t.AppID, t.UserID)
+	}
+
+	for _, proc := range oldNode.Processes {
+		// Make sure that no process exists with the same ID
+		if proc.ID == t.ID {
+			return fmt.Errorf("Process with id %s already exists", t.ID)
+		}
+		// Make sure that no app with the same ID has a process
+		if proc.AppID == t.AppID {
+			return fmt.Errorf("App with id %s already has a process", t.AppID)
+		}
+	}
+
+	return nil
+}
+
+type ProcessRunningTransition struct {
+	ProcessID   string `json:"process_id"`
+	ExtDriverID string `json:"ext_driver_id"`
+}
+
+func (t *ProcessRunningTransition) Type() string {
+	return TransitionProcessRunning
+}
+
+func (t *ProcessRunningTransition) Patch(oldState []byte) ([]byte, error) {
+	var oldNode NodeState
+	err := json.Unmarshal(oldState, &oldNode)
+	if err != nil {
+		return nil, err
+	}
+
+	// Find the matching process
+	for i, proc := range oldNode.Processes {
+		if proc.ID == t.ProcessID {
+			proc.State = ProcessStateRunning
+			proc.ExtDriverID = t.ExtDriverID
+
+			marshaled, err := json.Marshal(proc)
+			if err != nil {
+				return nil, err
+			}
+
+			return []byte(fmt.Sprintf(`[{
+				"op": "replace",
+				"path": "/processes/%d",
+				"value": %s
+			}]`, i, marshaled)), nil
+		}
+	}
+	return nil, fmt.Errorf("Process with id %s not found", t.ProcessID)
+}
+
+func (t *ProcessRunningTransition) Validate(oldState []byte) error {
+	var oldNode NodeState
+	err := json.Unmarshal(oldState, &oldNode)
+	if err != nil {
+		return err
+	}
+
+	if t.ExtDriverID == "" {
+		return fmt.Errorf("ext_driver_id cannot be empty")
+	}
+
+	// Make sure there is a matching process
+	for _, proc := range oldNode.Processes {
+		if proc.ID == t.ProcessID {
+			if proc.State != ProcessStateStarting {
+				return fmt.Errorf("Process with id %s is in state %s, must be in state %s", t.ProcessID, proc.State, ProcessStateStarting)
+			}
+			return nil
+		}
+	}
+
+	return fmt.Errorf("Process with id %s not found", t.ProcessID)
+}
+
+type ProcessStopTransition struct {
+	ProcessID string `json:"process_id"`
+}
+
+func (t *ProcessStopTransition) Type() string {
+	return TransitionStopProcess
+}
+
+func (t *ProcessStopTransition) Patch(oldState []byte) ([]byte, error) {
+	var oldNode NodeState
+	err := json.Unmarshal(oldState, &oldNode)
+	if err != nil {
+		return nil, err
+	}
+
+	for i, proc := range oldNode.Processes {
+		if proc.ID == t.ProcessID {
+			return []byte(fmt.Sprintf(`[{
+				"op": "remove",
+				"path": "/processes/%d"
+			}]`, i)), nil
+		}
+	}
+	return nil, fmt.Errorf("Process with id %s not found", t.ProcessID)
+}
+
+func (t *ProcessStopTransition) Validate(oldState []byte) error {
+	var oldNode NodeState
+	err := json.Unmarshal(oldState, &oldNode)
+	if err != nil {
+		return err
+	}
+
+	// Make sure there is a matching process
+	for _, proc := range oldNode.Processes {
+		if proc.ID == t.ProcessID {
+			return nil
+		}
+	}
+
+	return fmt.Errorf("Process with id %s not found", t.ProcessID)
+}
