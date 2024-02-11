@@ -50,9 +50,6 @@ func (c *BaseNodeController) InstallApp(userID string, newApp *node.AppInstallat
 		return err
 	}
 
-	// Assign a UUID to this specific installation of the app
-	newApp.ID = uuid.New().String()
-
 	_, err = dbClient.ProposeTransitions([]hdb.Transition{
 		&node.StartInstallationTransition{
 			UserID:          userID,
