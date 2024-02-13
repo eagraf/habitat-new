@@ -22,6 +22,7 @@ type NodeController interface {
 	GetUserByUsername(username string) (*node.User, error)
 	InstallApp(userID string, newApp *node.AppInstallation) error
 	FinishAppInstallation(userID string, registryURLBase, appID string) error
+	StartProcess(process *node.Process) error
 }
 
 type BaseNodeController struct {
@@ -71,6 +72,24 @@ func (c *BaseNodeController) FinishAppInstallation(userID string, registryURLBas
 			UserID:          userID,
 			RegistryURLBase: registryURLBase,
 			RegistryAppID:   registryAppID,
+		},
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (c *BaseNodeController) StartProcess(process *node.Process) error {
+	dbClient, err := c.databaseManager.GetDatabaseClientByName(constants.NodeDBDefaultName)
+	if err != nil {
+		return err
+	}
+
+	_, err = dbClient.ProposeTransitions([]hdb.Transition{
+		&node.ProcessStartTransition{
+			Process: process,
 		},
 	})
 	if err != nil {

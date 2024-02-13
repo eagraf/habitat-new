@@ -37,6 +37,7 @@ func main() {
 			api.AsRoute(controller.NewGetNodeRoute),
 			api.AsRoute(controller.NewAddUserRoute),
 			api.AsRoute(controller.NewInstallAppRoute),
+			api.AsRoute(controller.NewStartProcessHandler),
 		),
 		fx.Provide(
 			reverse_proxy.NewProxyServer,
@@ -47,13 +48,6 @@ func main() {
 				fx.As(new(package_manager.PackageManager)),
 			),
 		),
-		//		fx.Provide(
-		//fx.Annotate(
-		//pubsub.NewSimplePublisher[state.StateUpdate],
-		//fx.As(new(pubsub.Publisher[state.StateUpdate])),
-		//fx.ResultTags(`group:"state_update_publishers"`),
-		//),
-		//),
 		fx.Provide(
 			fx.Annotate(
 				hdbms.NewStateUpdateLogger,

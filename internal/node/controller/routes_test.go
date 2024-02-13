@@ -71,6 +71,56 @@ func TestInstallAppHandler(t *testing.T) {
 	assert.Equal(t, http.StatusInternalServerError, resp.StatusCode)
 }
 
+func TestStartProcessHandler(t *testing.T) {
+	ctrl := gomock.NewController(t)
+
+	m := mocks.NewMockNodeController(ctrl)
+
+	handler := NewStartProcessHandler(m)
+
+	router := mux.NewRouter()
+	router.Handle(handler.Pattern(), handler).Methods(handler.Method())
+
+	server := httptest.NewServer(router)
+
+	body := &types.PostProcessRequest{
+		Process: &node.Process{
+			ID:     "process_1",
+			AppID:  "app_1",
+			UserID: "user_1",
+		},
+	}
+
+	bodyBytes, err := json.Marshal(body)
+	if err != nil {
+		t.Error(err)
+	}
+
+	m.EXPECT().StartProcess(&node.Process{
+		ID:     "process_1",
+		AppID:  "app_1",
+		UserID: "user_1",
+	}).Return(nil).Times(1)
+
+	client := server.Client()
+	url := fmt.Sprintf("%s/node/processes", server.URL)
+
+	// Test the happy path
+	resp, err := client.Post(url, "application/json", bytes.NewBuffer(bodyBytes))
+	assert.Nil(t, err)
+	assert.Equal(t, http.StatusCreated, resp.StatusCode)
+
+	respBody, err := io.ReadAll(resp.Body)
+	assert.Nil(t, err)
+	assert.Equal(t, 0, len(respBody))
+
+	// Test an error returned by the controller
+	m.EXPECT().StartProcess(body.Process).Return(errors.New("Couldn't install app")).Times(1)
+	resp, err = client.Post(url, "application/json", bytes.NewBuffer(bodyBytes))
+	assert.Nil(t, err)
+	assert.Equal(t, http.StatusInternalServerError, resp.StatusCode)
+}
+
 func TestGetNodeHandler(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	mockDB := hdb_mocks.NewMockHDBManager(ctrl)

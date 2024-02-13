@@ -50,3 +50,35 @@ func TestInstallAppController(t *testing.T) {
 	})
 	assert.Nil(t, err)
 }
+
+func TestStartProcessController(t *testing.T) {
+	ctrl := gomock.NewController(t)
+
+	mockedManager := hdb_mocks.NewMockHDBManager(ctrl)
+	mockedClient := hdb_mocks.NewMockClient(ctrl)
+
+	controller := &BaseNodeController{
+		databaseManager: mockedManager,
+		nodeConfig:      &config.NodeConfig{},
+	}
+
+	mockedManager.EXPECT().GetDatabaseClientByName(constants.NodeDBDefaultName).Return(mockedClient, nil).Times(1)
+	mockedClient.EXPECT().ProposeTransitions(gomock.Eq(
+		[]hdb.Transition{
+			&node.ProcessStartTransition{
+				Process: &node.Process{
+					ID:     "process_1",
+					AppID:  "app_1",
+					UserID: "user_1",
+				},
+			},
+		},
+	)).Return(nil, nil).Times(1)
+
+	err := controller.StartProcess(&node.Process{
+		ID:     "process_1",
+		AppID:  "app_1",
+		UserID: "user_1",
+	})
+	assert.Nil(t, err)
+}

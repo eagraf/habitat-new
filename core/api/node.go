@@ -15,3 +15,7 @@ type PostAddUserRequest struct {
 type PostAppRequest struct {
 	*node.AppInstallation
 }
+
+type PostProcessRequest struct {
+	*node.Process
+}
