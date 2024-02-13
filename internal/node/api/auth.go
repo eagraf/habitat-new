@@ -1,12 +1,14 @@
 package api
 
 import (
+	"context"
 	"crypto/x509"
 	"encoding/pem"
 	"errors"
 	"fmt"
 	"net/http"
 
+	"github.com/eagraf/habitat-new/core/state/node"
 	"github.com/eagraf/habitat-new/internal/node/config"
 	"github.com/eagraf/habitat-new/internal/node/constants"
 	"github.com/eagraf/habitat-new/internal/node/controller"
@@ -32,15 +34,18 @@ func (amw *authenticationMiddleware) Middleware(next http.Handler) http.Handler 
 		username := reqCert.Subject.CommonName
 
 		var storedCert *x509.Certificate
+		var userID string
 		if username == constants.RootUsername {
 			storedCert = amw.nodeConfig.RootUserCert()
 			username = constants.RootUsername
+			userID = constants.RootUserID
 		} else {
-			userCert, err := getUserCert(amw.nodeController, username)
+			userCert, user, err := getUserCertAndInfo(amw.nodeController, username)
 			if err != nil {
 				http.Error(w, fmt.Sprintf("Error getting user certificate: %s", err), http.StatusInternalServerError)
 				return
 			}
+			userID = user.ID
 			storedCert = userCert
 		}
 
@@ -51,31 +56,34 @@ func (amw *authenticationMiddleware) Middleware(next http.Handler) http.Handler 
 
 		log.Info().Msgf("Authenticated user: %s", username)
 
+		ctx := r.Context()
+		newCtx := context.WithValue(ctx, constants.ContextKeyUserID, userID)
+
 		// Pass down the request to the next middleware (or final handler)
-		next.ServeHTTP(w, r)
+		next.ServeHTTP(w, r.WithContext(newCtx))
 	})
 }
 
-func getUserCert(controller controller.NodeController, username string) (*x509.Certificate, error) {
+func getUserCertAndInfo(controller controller.NodeController, username string) (*x509.Certificate, *node.User, error) {
 	// Look up the user in the node's user list
 	user, err := controller.GetUserByUsername(username)
 	if err != nil {
-		return nil, fmt.Errorf("error getting user: %s", err)
+		return nil, nil, fmt.Errorf("error getting user: %s", err)
 	}
 
 	block, _ := pem.Decode([]byte(user.Certificate))
 	if block == nil {
-		return nil, errors.New("Got nil block after decoding PEM")
+		return nil, nil, errors.New("Got nil block after decoding PEM")
 	}
 
 	if block.Type != "CERTIFICATE" {
-		return nil, errors.New("Expected CERTIFICATE PEM block")
+		return nil, nil, errors.New("Expected CERTIFICATE PEM block")
 	}
 
 	cert, err := x509.ParseCertificate(block.Bytes)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return cert, nil
+	return cert, user, nil
 }

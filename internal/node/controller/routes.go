@@ -55,25 +55,25 @@ func (h *InstallAppRoute) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 }
 
-type PostProcessHandler struct {
+type StartProcessHandler struct {
 	nodeController NodeController
 }
 
-func NewStartProcessHandler(nodeController NodeController) *PostProcessHandler {
-	return &PostProcessHandler{
+func NewStartProcessHandler(nodeController NodeController) *StartProcessHandler {
+	return &StartProcessHandler{
 		nodeController: nodeController,
 	}
 }
 
-func (h *PostProcessHandler) Pattern() string {
+func (h *StartProcessHandler) Pattern() string {
 	return "/node/processes"
 }
 
-func (h *PostProcessHandler) Method() string {
+func (h *StartProcessHandler) Method() string {
 	return http.MethodPost
 }
 
-func (h *PostProcessHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (h *StartProcessHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "invalid method, require POST", http.StatusMethodNotAllowed)
 		return
@@ -85,6 +85,9 @@ func (h *PostProcessHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+
+	userID := r.Context().Value(constants.ContextKeyUserID).(string)
+	req.UserID = userID
 
 	err = h.nodeController.StartProcess(req.Process)
 	if err != nil {
