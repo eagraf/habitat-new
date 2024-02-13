@@ -21,7 +21,7 @@ type DatabaseManager struct {
 
 	databases map[string]*Database
 
-	publisher pubsub.Publisher[state.StateUpdate]
+	publisher pubsub.Publisher[hdb.StateUpdate]
 }
 
 type Database struct {
@@ -43,7 +43,7 @@ func (d *Database) Protocol() string {
 	return filepath.Join("/habitat-raft", "0.0.1", d.ID)
 }
 
-func NewDatabaseManager(publisher pubsub.Publisher[state.StateUpdate]) (*DatabaseManager, error) {
+func NewDatabaseManager(publisher pubsub.Publisher[hdb.StateUpdate]) (*DatabaseManager, error) {
 	// TODO this is obviously wrong
 	host := "localhost"
 	raft := consensus.NewClusterService(host)

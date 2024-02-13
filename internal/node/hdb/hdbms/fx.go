@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/eagraf/habitat-new/internal/node/hdb"
-	"github.com/eagraf/habitat-new/internal/node/hdb/state"
 	"github.com/eagraf/habitat-new/internal/node/pubsub"
 	"github.com/rs/zerolog"
 	"go.uber.org/fx"
@@ -13,11 +12,11 @@ import (
 type HDBResult struct {
 	fx.Out
 	HabitatDBManager     hdb.HDBManager
-	StateUpdatePublisher pubsub.Publisher[state.StateUpdate] `group:"state_update_publishers"`
+	StateUpdatePublisher pubsub.Publisher[hdb.StateUpdate] `group:"state_update_publishers"`
 }
 
 func NewHabitatDB(lc fx.Lifecycle, logger *zerolog.Logger) HDBResult {
-	publisher := pubsub.NewSimplePublisher[state.StateUpdate]()
+	publisher := pubsub.NewSimplePublisher[hdb.StateUpdate]()
 	dbManager, err := NewDatabaseManager(publisher)
 	if err != nil {
 		logger.Fatal().Err(err).Msg("Error initializing Habitat DB")
@@ -52,7 +51,7 @@ func (s *StateUpdateLogger) Name() string {
 	return "StateUpdateLogger"
 }
 
-func (s *StateUpdateLogger) ConsumeEvent(event *state.StateUpdate) error {
+func (s *StateUpdateLogger) ConsumeEvent(event *hdb.StateUpdate) error {
 	s.logger.Info().Msgf("Applying transition %s to %s", string(event.Transition), event.DatabaseID)
 	return nil
 }

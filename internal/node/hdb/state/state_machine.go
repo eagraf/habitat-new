@@ -11,15 +11,7 @@ import (
 
 type Replicator interface {
 	Dispatch([]byte) (*hdb.JSONState, error)
-	UpdateChannel() <-chan StateUpdate
-}
-
-type StateUpdate struct {
-	SchemaType     string
-	DatabaseID     string
-	NewState       []byte
-	Transition     []byte
-	TransitionType string
+	UpdateChannel() <-chan hdb.StateUpdate
 }
 
 type StateMachineController interface {
@@ -33,15 +25,15 @@ type StateMachineController interface {
 type StateMachine struct {
 	databaseID string
 	jsonState  *hdb.JSONState // this JSONState is maintained in addition to
-	publisher  pubsub.Publisher[StateUpdate]
+	publisher  pubsub.Publisher[hdb.StateUpdate]
 	replicator Replicator
-	updateChan <-chan StateUpdate
+	updateChan <-chan hdb.StateUpdate
 	doneChan   chan bool
 
 	schema []byte
 }
 
-func NewStateMachine(databaseID string, schema, initRawState []byte, replicator Replicator, publisher pubsub.Publisher[StateUpdate]) (StateMachineController, error) {
+func NewStateMachine(databaseID string, schema, initRawState []byte, replicator Replicator, publisher pubsub.Publisher[hdb.StateUpdate]) (StateMachineController, error) {
 	jsonState, err := hdb.NewJSONState(schema, initRawState)
 	if err != nil {
 		return nil, err

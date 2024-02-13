@@ -38,7 +38,7 @@ type Cluster struct {
 	instance     *raft.Raft
 	stateMachine *state.RaftFSMAdapter
 
-	updateChan <-chan state.StateUpdate
+	updateChan <-chan hdb.StateUpdate
 }
 
 func NewClusterService(host string) *ClusterService {
@@ -95,7 +95,7 @@ func (cs *ClusterService) RemoveCluster(databaseID string) error {
 // JoinCluster requests for this node to join a cluster.
 // In this implementation, the address is unused because the leader will begin sending
 // heartbeets to this node once its AddNode routine has been called.
-func (cs *ClusterService) JoinCluster(databaseID, filepath string, address string, raftFSM *state.RaftFSMAdapter) (<-chan state.StateUpdate, error) {
+func (cs *ClusterService) JoinCluster(databaseID, filepath string, address string, raftFSM *state.RaftFSMAdapter) (<-chan hdb.StateUpdate, error) {
 	if _, ok := cs.instances[databaseID]; ok {
 		return nil, fmt.Errorf("raft instance for database %s already initialized", databaseID)
 	}
@@ -294,7 +294,7 @@ func setupRaftInstance(databaseID, dbPath string, stateMachine *state.RaftFSMAda
 
 // Implement the state.Replicator interface
 
-func (c *Cluster) UpdateChannel() <-chan state.StateUpdate {
+func (c *Cluster) UpdateChannel() <-chan hdb.StateUpdate {
 	return c.updateChan
 }
 
