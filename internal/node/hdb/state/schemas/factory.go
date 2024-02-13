@@ -19,7 +19,7 @@ func GetSchema(schemaType string) (hdb.Schema, error) {
 }
 
 // TODO this should account for schema version too
-func StateMachineFactory(databaseID string, schemaType string, initState []byte, replicator state.Replicator, publisher pubsub.Publisher[state.StateUpdate]) (state.StateMachineController, error) {
+func StateMachineFactory(databaseID string, schemaType string, initState []byte, replicator state.Replicator, publisher pubsub.Publisher[hdb.StateUpdate]) (state.StateMachineController, error) {
 	var schema hdb.Schema
 
 	switch schemaType {

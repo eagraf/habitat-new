@@ -16,7 +16,7 @@ import (
 type RaftFSMAdapter struct {
 	databaseID string
 	jsonState  *hdb.JSONState
-	updateChan chan StateUpdate
+	updateChan chan hdb.StateUpdate
 	schema     hdb.Schema
 }
 
@@ -46,7 +46,7 @@ func NewRaftFSMAdapter(databaseID string, schema hdb.Schema, commState []byte) (
 	return &RaftFSMAdapter{
 		databaseID: databaseID,
 		jsonState:  jsonState,
-		updateChan: make(chan StateUpdate),
+		updateChan: make(chan hdb.StateUpdate),
 		schema:     schema,
 	}, nil
 }
@@ -55,7 +55,7 @@ func (sm *RaftFSMAdapter) JSONState() *hdb.JSONState {
 	return sm.jsonState
 }
 
-func (sm *RaftFSMAdapter) UpdateChan() <-chan StateUpdate {
+func (sm *RaftFSMAdapter) UpdateChan() <-chan hdb.StateUpdate {
 	return sm.updateChan
 }
 
@@ -81,7 +81,7 @@ func (sm *RaftFSMAdapter) Apply(entry *raft.Log) interface{} {
 			log.Error().Msgf("error applying patch: %s", err)
 		}
 
-		sm.updateChan <- StateUpdate{
+		sm.updateChan <- hdb.StateUpdate{
 			SchemaType:     sm.schema.Name(),
 			DatabaseID:     sm.databaseID,
 			TransitionType: w.Type,

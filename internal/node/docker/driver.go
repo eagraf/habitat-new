@@ -15,6 +15,10 @@ type DockerDriver struct {
 	client *client.Client
 }
 
+func (d *DockerDriver) IsInstalled(packageSpec *package_manager.PackageSpec, version string) (bool, error) {
+	return true, nil
+}
+
 // Implement the package manager interface
 func (d *DockerDriver) InstallPackage(packageSpec *package_manager.PackageSpec, version string) error {
 	if packageSpec.DriverType != "docker" {
