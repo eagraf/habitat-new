@@ -12,6 +12,7 @@ import (
 
 	types "github.com/eagraf/habitat-new/core/api"
 	"github.com/eagraf/habitat-new/core/state/node"
+	"github.com/eagraf/habitat-new/internal/node/api/test_helpers"
 	"github.com/eagraf/habitat-new/internal/node/constants"
 	"github.com/eagraf/habitat-new/internal/node/controller/mocks"
 	hdb_mocks "github.com/eagraf/habitat-new/internal/node/hdb/mocks"
@@ -79,6 +80,8 @@ func TestStartProcessHandler(t *testing.T) {
 	handler := NewStartProcessHandler(m)
 
 	router := mux.NewRouter()
+	middleware := &test_helpers.TestAuthMiddleware{UserID: "user_1"}
+	router.Use(middleware.Middleware)
 	router.Handle(handler.Pattern(), handler).Methods(handler.Method())
 
 	server := httptest.NewServer(router)
