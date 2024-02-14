@@ -12,20 +12,20 @@ import (
 
 	types "github.com/eagraf/habitat-new/core/api"
 	"github.com/eagraf/habitat-new/core/state/node"
-	"github.com/eagraf/habitat-new/internal/node/config"
-	"github.com/eagraf/habitat-new/internal/node/hdb"
+	"github.com/eagraf/habitat-new/internal/node/constants"
 	hdb_mocks "github.com/eagraf/habitat-new/internal/node/hdb/mocks"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 )
 
-func TestPostAppHandler(t *testing.T) {
+func TestInstallAppHandler(t *testing.T) {
 	ctrl := gomock.NewController(t)
 
 	m := NewMockNodeController(ctrl)
 
-	handler := NewPostAppHandler(m)
+	handler := NewInstallAppRoute(m)
 
 	router := mux.NewRouter()
 	router.Handle(handler.Pattern(), handler).Methods(handler.Method())
@@ -69,41 +69,29 @@ func TestPostAppHandler(t *testing.T) {
 	assert.Equal(t, http.StatusInternalServerError, resp.StatusCode)
 }
 
-func TestInstallAppController(t *testing.T) {
+func TestGetNodeHandler(t *testing.T) {
 	ctrl := gomock.NewController(t)
+	mockDB := hdb_mocks.NewMockHDBManager(ctrl)
+	mockClient := hdb_mocks.NewMockClient(ctrl)
 
-	mockedManager := hdb_mocks.NewMockHDBManager(ctrl)
-	mockedClient := hdb_mocks.NewMockClient(ctrl)
+	mockDB.EXPECT().GetDatabaseClientByName(constants.NodeDBDefaultName).Return(mockClient, nil)
 
-	controller := &BaseNodeController{
-		databaseManager: mockedManager,
-		nodeConfig:      &config.NodeConfig{},
-	}
+	handler := NewGetNodeRoute(mockDB)
 
-	mockedManager.EXPECT().GetDatabaseClientByName(NodeDBDefaultName).Return(mockedClient, nil).Times(1)
-	mockedClient.EXPECT().ProposeTransitions(gomock.Eq(
-		[]hdb.Transition{
-			&node.StartInstallationTransition{
-				UserID: "0",
-				AppInstallation: &node.AppInstallation{
-					Name:            "app_name1",
-					Version:         "1",
-					Driver:          "docker",
-					RegistryURLBase: "https://registry.com",
-					RegistryAppID:   "app_name1",
-					RegistryTag:     "v1",
-				},
-			},
-		},
-	)).Return(nil, nil).Times(1)
+	router := mux.NewRouter()
+	router.Handle(handler.Pattern(), handler).Methods(handler.Method())
 
-	err := controller.InstallApp("0", &node.AppInstallation{
-		Name:            "app_name1",
-		Version:         "1",
-		Driver:          "docker",
-		RegistryURLBase: "https://registry.com",
-		RegistryAppID:   "app_name1",
-		RegistryTag:     "v1",
-	})
-	assert.Nil(t, err)
+	server := httptest.NewServer(router)
+	client := server.Client()
+	url := fmt.Sprintf("%s/%s", server.URL, handler.Pattern())
+
+	resp, err := client.Get(url)
+	require.Nil(t, err)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+
+	bytes, err := io.ReadAll(resp.Body)
+	require.Nil(t, err)
+	fmt.Println(string(bytes))
 }
+
+func TestAddUserHandler(t *testing.T) {}

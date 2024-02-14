@@ -1,3 +1,6 @@
 package constants
 
-const RootUsername = "root"
+const (
+	RootUsername      = "root"
+	NodeDBDefaultName = "node"
+)
