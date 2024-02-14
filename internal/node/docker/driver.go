@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/client"
 	"github.com/eagraf/habitat-new/internal/node/package_manager"
 	"github.com/rs/zerolog/log"
@@ -16,7 +17,16 @@ type DockerDriver struct {
 }
 
 func (d *DockerDriver) IsInstalled(packageSpec *package_manager.PackageSpec, version string) (bool, error) {
-	return true, nil
+	// TODO review all contexts we create.
+	images, err := d.client.ImageList(context.Background(), types.ImageListOptions{
+		Filters: filters.NewArgs(
+			filters.Arg("reference", fmt.Sprintf("%s/%s:%s", packageSpec.RegistryURLBase, packageSpec.RegistryPackageID, packageSpec.RegistryPackageTag)),
+		),
+	})
+	if err != nil {
+		return false, err
+	}
+	return !(len(images) > 0), nil
 }
 
 // Implement the package manager interface
