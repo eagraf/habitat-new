@@ -87,9 +87,37 @@ func (c *BaseNodeController) StartProcess(process *node.Process) error {
 		return err
 	}
 
+	var nodeState node.NodeState
+	err = json.Unmarshal(dbClient.Bytes(), &nodeState)
+	if err != nil {
+		return nil
+	}
+
+	var user *node.User
+	for _, u := range nodeState.Users {
+		if u.ID == process.UserID {
+			user = u
+		}
+	}
+	if user == nil {
+		return fmt.Errorf("user %s not found", process.UserID)
+	}
+
+	var app *node.AppInstallation
+	for _, a := range user.AppInstallations {
+		if a.AppInstallation.ID == process.AppID {
+			app = a.AppInstallation
+		}
+	}
+
+	if app == nil {
+		return fmt.Errorf("user %s has no app with ID %s", process.UserID, process.AppID)
+	}
+
 	_, err = dbClient.ProposeTransitions([]hdb.Transition{
 		&node.ProcessStartTransition{
 			Process: process,
+			App:     app,
 		},
 	})
 	if err != nil {
