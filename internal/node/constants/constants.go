@@ -7,4 +7,7 @@ const (
 
 	// Request context keys
 	ContextKeyUserID = "user_id"
+
+	// App driver names
+	AppDriverDocker = "docker"
 )

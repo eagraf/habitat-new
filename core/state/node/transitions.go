@@ -222,6 +222,7 @@ func (t *FinishInstallationTransition) Validate(oldState []byte) error {
 
 type ProcessStartTransition struct {
 	*Process
+	App *AppInstallation `json:"app"`
 }
 
 func (t *ProcessStartTransition) Type() string {

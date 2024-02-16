@@ -27,6 +27,8 @@ type IdempotentStateUpdateExecutor interface {
 
 	// Execute the given state update.
 	Execute(*StateUpdate) error
+
+	PostHook(*StateUpdate) error
 }
 
 // IdempotentStateUpdateSubscriber will run a IdempotentStateUpdateExecutor when it receives
@@ -78,11 +80,20 @@ func (s *IdempotentStateUpdateSubscriber) ConsumeEvent(event *StateUpdate) error
 		return fmt.Errorf("Error checking if transition %s should execute: %w", event.TransitionType, err)
 	}
 
-	if !shouldExecute {
+	if shouldExecute {
+		err = executor.Execute(event)
+		if err != nil {
+			return fmt.Errorf("Error acting on state update for transition %s: %w", event.TransitionType, err)
+		}
+	} else {
 		// The desired state is already achieved.
 		log.Info().Msgf("Desired state achieved idempotently for transition %s", event.TransitionType)
-		return nil
 	}
 
-	return executor.Execute(event)
+	err = executor.PostHook(event)
+	if err != nil {
+		return fmt.Errorf("Error executing post-hook for transition %s: %s", event.TransitionType, err)
+	}
+
+	return nil
 }

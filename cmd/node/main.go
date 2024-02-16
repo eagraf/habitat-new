@@ -11,6 +11,7 @@ import (
 	"github.com/eagraf/habitat-new/internal/node/hdb/hdbms"
 	"github.com/eagraf/habitat-new/internal/node/logging"
 	"github.com/eagraf/habitat-new/internal/node/package_manager"
+	"github.com/eagraf/habitat-new/internal/node/processes"
 	"github.com/eagraf/habitat-new/internal/node/pubsub"
 	"github.com/eagraf/habitat-new/internal/node/reverse_proxy"
 	"github.com/rs/zerolog"
@@ -45,7 +46,6 @@ func main() {
 		fx.Provide(
 			fx.Annotate(
 				docker.NewDockerDriver,
-				fx.As(new(package_manager.PackageManager)),
 			),
 		),
 		fx.Provide(
@@ -60,6 +60,19 @@ func main() {
 				package_manager.NewAppLifecycleSubscriber,
 				fx.As(new(pubsub.Subscriber[hdb.StateUpdate])),
 				fx.ResultTags(`group:"state_update_subscribers"`),
+			),
+		),
+		fx.Provide(
+			fx.Annotate(
+				processes.NewProcessManagerStateUpdateSubscriber,
+				fx.As(new(pubsub.Subscriber[hdb.StateUpdate])),
+				fx.ResultTags(`group:"state_update_subscribers"`),
+			),
+		),
+		fx.Provide(
+			fx.Annotate(
+				processes.NewProcessManager,
+				fx.ParamTags(`group:"process_drivers"`),
 			),
 		),
 		fx.Provide(

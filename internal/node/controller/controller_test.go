@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/eagraf/habitat-new/core/state/node"
@@ -51,6 +52,22 @@ func TestInstallAppController(t *testing.T) {
 	assert.Nil(t, err)
 }
 
+var nodeState = &node.NodeState{
+	Users: []*node.User{
+		{
+			ID: "user_1",
+			AppInstallations: []*node.AppInstallationState{
+				{
+					AppInstallation: &node.AppInstallation{
+						ID: "app_1",
+					},
+					State: node.AppLifecycleStateInstalled,
+				},
+			},
+		},
+	},
+}
+
 func TestStartProcessController(t *testing.T) {
 	ctrl := gomock.NewController(t)
 
@@ -62,6 +79,13 @@ func TestStartProcessController(t *testing.T) {
 		nodeConfig:      &config.NodeConfig{},
 	}
 
+	marshaledNodeState, err := json.Marshal(nodeState)
+	if err != nil {
+		t.Error(err)
+	}
+
+	mockedClient.EXPECT().Bytes().Return(marshaledNodeState).Times(1)
+
 	mockedManager.EXPECT().GetDatabaseClientByName(constants.NodeDBDefaultName).Return(mockedClient, nil).Times(1)
 	mockedClient.EXPECT().ProposeTransitions(gomock.Eq(
 		[]hdb.Transition{
@@ -71,11 +95,14 @@ func TestStartProcessController(t *testing.T) {
 					AppID:  "app_1",
 					UserID: "user_1",
 				},
+				App: &node.AppInstallation{
+					ID: "app_1",
+				},
 			},
 		},
 	)).Return(nil, nil).Times(1)
 
-	err := controller.StartProcess(&node.Process{
+	err = controller.StartProcess(&node.Process{
 		ID:     "process_1",
 		AppID:  "app_1",
 		UserID: "user_1",

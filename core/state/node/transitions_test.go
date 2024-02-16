@@ -250,7 +250,7 @@ func TestProcesses(t *testing.T) {
 			},
 		},
 		&ProcessStartTransition{
-			&Process{
+			Process: &Process{
 				ID:     "proc1",
 				AppID:  "App1",
 				UserID: "123",

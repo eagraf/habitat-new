@@ -6,17 +6,21 @@ import (
 	"fmt"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/client"
+	"github.com/docker/go-connections/nat"
+	"github.com/eagraf/habitat-new/core/state/node"
+	"github.com/eagraf/habitat-new/internal/node/constants"
 	"github.com/eagraf/habitat-new/internal/node/package_manager"
 	"github.com/rs/zerolog/log"
 )
 
-type DockerDriver struct {
+type AppDriver struct {
 	client *client.Client
 }
 
-func (d *DockerDriver) IsInstalled(packageSpec *package_manager.PackageSpec, version string) (bool, error) {
+func (d *AppDriver) IsInstalled(packageSpec *package_manager.PackageSpec, version string) (bool, error) {
 	// TODO review all contexts we create.
 	images, err := d.client.ImageList(context.Background(), types.ImageListOptions{
 		Filters: filters.NewArgs(
@@ -30,7 +34,7 @@ func (d *DockerDriver) IsInstalled(packageSpec *package_manager.PackageSpec, ver
 }
 
 // Implement the package manager interface
-func (d *DockerDriver) InstallPackage(packageSpec *package_manager.PackageSpec, version string) error {
+func (d *AppDriver) InstallPackage(packageSpec *package_manager.PackageSpec, version string) error {
 	if packageSpec.DriverType != "docker" {
 		return fmt.Errorf("invalid package driver: %s, expected docker", packageSpec.DriverType)
 	}
@@ -45,6 +49,55 @@ func (d *DockerDriver) InstallPackage(packageSpec *package_manager.PackageSpec, 
 	return nil
 }
 
-func (d *DockerDriver) UninstallPackage(packageURL *package_manager.PackageSpec, version string) error {
+func (d *AppDriver) UninstallPackage(packageURL *package_manager.PackageSpec, version string) error {
 	return errors.New("not implemented")
+}
+
+type ProcessDriver struct {
+	client *client.Client
+}
+
+func (d *ProcessDriver) Type() string {
+	return constants.AppDriverDocker
+}
+
+// StartProcess helps implement processes.ProcessDriver
+func (d *ProcessDriver) StartProcess(process *node.Process, app *node.AppInstallation) (string, error) {
+	createResp, err := d.client.ContainerCreate(context.Background(), &container.Config{
+		Image: fmt.Sprintf("%s/%s:%s", app.RegistryURLBase, app.RegistryAppID, app.RegistryTag),
+		ExposedPorts: nat.PortSet{
+			"25565/tcp": struct{}{},
+		},
+		Env: []string{"EULA=TRUE"},
+	}, &container.HostConfig{
+		PortBindings: nat.PortMap{
+			"25565/tcp": []nat.PortBinding{
+				{
+					HostIP:   "127.0.0.1",
+					HostPort: "25565",
+				},
+			},
+		},
+	}, nil, nil, "")
+	if err != nil {
+		return "", err
+	}
+
+	err = d.client.ContainerStart(context.Background(), createResp.ID, container.StartOptions{})
+	if err != nil {
+		return "", err
+	}
+
+	log.Info().Msgf("Started container %s", createResp.ID)
+
+	return createResp.ID, nil
+}
+
+func (d *ProcessDriver) StopProcess(extProcessID string) error {
+	err := d.client.ContainerStop(context.Background(), extProcessID, container.StopOptions{})
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

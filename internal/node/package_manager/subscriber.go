@@ -99,6 +99,16 @@ func (e *InstallAppExecutor) Execute(update *hdb.StateUpdate) error {
 		return err
 	}
 
+	return nil
+}
+
+func (e *InstallAppExecutor) PostHook(update *hdb.StateUpdate) error {
+	var t node.StartInstallationTransition
+	err := json.Unmarshal(update.Transition, &t)
+	if err != nil {
+		return err
+	}
+
 	// After finishing the installation, update the application's lifecycle state
 	err = e.nodeController.FinishAppInstallation(t.UserID, t.RegistryURLBase, t.RegistryAppID)
 	if err != nil {

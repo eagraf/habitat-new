@@ -28,4 +28,5 @@ type Process struct {
 	AppID   string `json:"app_id"`
 	UserID  string `json:"user_id"`
 	Created string `json:"created"`
+	Driver  string `json:"driver"`
 }
