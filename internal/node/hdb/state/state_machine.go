@@ -12,6 +12,7 @@ import (
 type Replicator interface {
 	Dispatch([]byte) (*hdb.JSONState, error)
 	UpdateChannel() <-chan hdb.StateUpdate
+	LastIndex() uint64
 }
 
 type StateMachineController interface {
@@ -23,12 +24,13 @@ type StateMachineController interface {
 }
 
 type StateMachine struct {
-	databaseID string
-	jsonState  *hdb.JSONState // this JSONState is maintained in addition to
-	publisher  pubsub.Publisher[hdb.StateUpdate]
-	replicator Replicator
-	updateChan <-chan hdb.StateUpdate
-	doneChan   chan bool
+	restartIndex uint64
+	databaseID   string
+	jsonState    *hdb.JSONState // this JSONState is maintained in addition to
+	publisher    pubsub.Publisher[hdb.StateUpdate]
+	replicator   Replicator
+	updateChan   <-chan hdb.StateUpdate
+	doneChan     chan bool
 
 	schema []byte
 }
@@ -39,13 +41,14 @@ func NewStateMachine(databaseID string, schema, initRawState []byte, replicator 
 		return nil, err
 	}
 	return &StateMachine{
-		databaseID: databaseID,
-		jsonState:  jsonState,
-		updateChan: replicator.UpdateChannel(),
-		replicator: replicator,
-		doneChan:   make(chan bool),
-		publisher:  publisher,
-		schema:     schema,
+		restartIndex: replicator.LastIndex(),
+		databaseID:   databaseID,
+		jsonState:    jsonState,
+		updateChan:   replicator.UpdateChannel(),
+		replicator:   replicator,
+		doneChan:     make(chan bool),
+		publisher:    publisher,
+		schema:       schema,
 	}, nil
 }
 
@@ -60,9 +63,14 @@ func (sm *StateMachine) StartListening() {
 					log.Error().Err(err).Msgf("error getting new state from state update chan")
 				}
 				sm.jsonState = jsonState
-				err = sm.publisher.PublishEvent(&stateUpdate)
-				if err != nil {
-					log.Error().Err(err).Msgf("error publishing state update")
+
+				// When restoring the node, we ignore updates before the last index
+				log.Info().Msgf("Restart index: %d, State update index: %d, Transition type: %s", sm.restartIndex, stateUpdate.Index, stateUpdate.TransitionType)
+				if sm.restartIndex < stateUpdate.Index {
+					err = sm.publisher.PublishEvent(&stateUpdate)
+					if err != nil {
+						log.Error().Err(err).Msgf("error publishing state update")
+					}
 				}
 			case <-sm.doneChan:
 				return

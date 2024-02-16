@@ -82,6 +82,7 @@ func (sm *RaftFSMAdapter) Apply(entry *raft.Log) interface{} {
 		}
 
 		sm.updateChan <- hdb.StateUpdate{
+			Index:          entry.Index,
 			SchemaType:     sm.schema.Name(),
 			DatabaseID:     sm.databaseID,
 			TransitionType: w.Type,

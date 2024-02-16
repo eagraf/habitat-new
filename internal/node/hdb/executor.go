@@ -9,6 +9,7 @@ import (
 // StateUpdate includes all necessary information to update the state of an external system to match
 // the state machine.
 type StateUpdate struct {
+	Index          uint64
 	SchemaType     string
 	DatabaseID     string
 	NewState       []byte

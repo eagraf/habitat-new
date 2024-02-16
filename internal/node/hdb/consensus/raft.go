@@ -302,3 +302,7 @@ func (c *Cluster) Dispatch(transition []byte) (*hdb.JSONState, error) {
 	encoded := base64.StdEncoding.EncodeToString(transition)
 	return c.ProposeTransitions([]byte(encoded))
 }
+
+func (c *Cluster) LastIndex() uint64 {
+	return c.instance.LastIndex()
+}
