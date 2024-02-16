@@ -82,11 +82,6 @@ func (h *GetNodeRoute) ServeHTTP(w http.ResponseWriter, _ *http.Request) {
 	}
 
 	stateBytes := dbClient.Bytes()
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
 	var stateMap map[string]interface{}
 	err = json.Unmarshal(stateBytes, &stateMap)
 	if err != nil {
@@ -133,7 +128,7 @@ func (h *AddUserRoute) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req types.PostUserRequest
+	var req types.PostAddUserRequest
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)

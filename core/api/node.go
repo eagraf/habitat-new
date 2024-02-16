@@ -6,7 +6,7 @@ type GetNodeResponse struct {
 	State map[string]interface{} `json:"state"`
 }
 
-type PostUserRequest struct {
+type PostAddUserRequest struct {
 	UserID      string `json:"user_id"`
 	Username    string `json:"username"`
 	Certificate string `json:"certificate"`
