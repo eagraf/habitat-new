@@ -10,8 +10,7 @@ import (
 	"github.com/gorilla/mux"
 )
 
-// Handlers
-
+// InstallAppRoute calls nodeController.InstallApp()
 type InstallAppRoute struct {
 	nodeController NodeController
 }
@@ -56,6 +55,7 @@ func (h *InstallAppRoute) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 }
 
+// GetNodeRoute gets the node's database and returns its state map.
 type GetNodeRoute struct {
 	dbManager hdb.HDBManager
 }
@@ -104,6 +104,7 @@ func (h *GetNodeRoute) ServeHTTP(w http.ResponseWriter, _ *http.Request) {
 	w.Write(respBody)
 }
 
+// AddUserRoute calls nodeController.AddUser()
 type AddUserRoute struct {
 	nodeController NodeController
 }

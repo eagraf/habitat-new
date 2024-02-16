@@ -13,6 +13,9 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+// NodeController is an interface to manage common admin actions on a Habitat node.
+// For example, installing apps or adding users. This will likely expand to be a much bigger API as we move forward.
+
 type NodeController interface {
 	InitializeNodeDB() error
 	AddUser(userID, username, certificate string) error
@@ -25,8 +28,8 @@ type BaseNodeController struct {
 	nodeConfig      *config.NodeConfig
 }
 
+// InitializeNodeDB tries initializing the database; it is a noop if a database with the same name already exists
 func (c *BaseNodeController) InitializeNodeDB() error {
-	// Try initializing the database, is a noop if a database with the same name already exists
 	_, err := c.databaseManager.CreateDatabase(constants.NodeDBDefaultName, node.SchemaName, generateInitState(c.nodeConfig))
 	if err != nil {
 		if _, ok := err.(*hdbms.DatabaseAlreadyExistsError); ok {
@@ -39,6 +42,7 @@ func (c *BaseNodeController) InitializeNodeDB() error {
 	return nil
 }
 
+// InstallApp attempts to install the given app installation, with the userID as the action initiato.
 func (c *BaseNodeController) InstallApp(userID string, newApp *node.AppInstallation) error {
 	dbClient, err := c.databaseManager.GetDatabaseClientByName(constants.NodeDBDefaultName)
 	if err != nil {
@@ -51,11 +55,7 @@ func (c *BaseNodeController) InstallApp(userID string, newApp *node.AppInstallat
 			AppInstallation: newApp,
 		},
 	})
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return err
 }
 
 func (c *BaseNodeController) AddUser(userID, username, certificate string) error {
@@ -71,11 +71,7 @@ func (c *BaseNodeController) AddUser(userID, username, certificate string) error
 			Certificate: certificate,
 		},
 	})
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return err
 }
 
 func (c *BaseNodeController) GetUserByUsername(username string) (*node.User, error) {

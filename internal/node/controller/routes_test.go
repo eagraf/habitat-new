@@ -74,6 +74,8 @@ func TestGetNodeHandler(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	mockDB := hdb_mocks.NewMockHDBManager(ctrl)
 	mockClient := hdb_mocks.NewMockClient(ctrl)
+
+	// Note: not using generateInitState() to test
 	testState := map[string]interface{}{
 		"state_prop":   "state_val",
 		"state_prop_2": "state_val_2",
