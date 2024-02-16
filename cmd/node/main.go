@@ -35,9 +35,9 @@ func main() {
 		),
 		fx.Provide(
 			api.AsRoute(api.NewVersionHandler),
-			api.AsRoute(controller.NewGetNodeHandler),
-			api.AsRoute(controller.NewAddUserHandler),
-			api.AsRoute(controller.NewInstallAppHandler),
+			api.AsRoute(controller.NewGetNodeRoute),
+			api.AsRoute(controller.NewAddUserRoute),
+			api.AsRoute(controller.NewInstallAppRoute),
 		),
 		fx.Provide(
 			reverse_proxy.NewProxyServer,
