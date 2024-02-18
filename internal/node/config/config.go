@@ -89,6 +89,10 @@ func (n *NodeConfig) HabitatAppPath() string {
 	return viper.GetString("habitat_app_path")
 }
 
+func (n *NodeConfig) HDBPath() string {
+	return filepath.Join(n.HabitatPath(), "hdb")
+}
+
 func (n *NodeConfig) NodeCertPath() string {
 	return filepath.Join(n.HabitatPath(), "certificates", "dev_node_cert.pem")
 }
