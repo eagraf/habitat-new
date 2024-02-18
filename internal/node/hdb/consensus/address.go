@@ -16,7 +16,3 @@ func getDatabaseAddress(databaseID string) string {
 	//	return fmt.Sprintf("%s://%s/%s", Protocol, getMultiplexerAddress(), communityID)
 	return fmt.Sprintf("http://localhost:%s/%s", RaftPort, databaseID)
 }
-
-func getDataseRaftDirectory(databaseID string) string {
-	return fmt.Sprintf("raft/%s", databaseID)
-}

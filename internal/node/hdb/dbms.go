@@ -8,3 +8,8 @@ type HDBManager interface {
 	GetDatabaseClient(id string) (Client, error)
 	GetDatabaseClientByName(name string) (Client, error)
 }
+
+type DatabaseConfig interface {
+	ID() string
+	Path() string
+}

@@ -3,6 +3,7 @@ package hdbms
 import (
 	"context"
 
+	"github.com/eagraf/habitat-new/internal/node/config"
 	"github.com/eagraf/habitat-new/internal/node/hdb"
 	"github.com/eagraf/habitat-new/internal/node/pubsub"
 	"github.com/rs/zerolog"
@@ -15,9 +16,9 @@ type HDBResult struct {
 	StateUpdatePublisher pubsub.Publisher[hdb.StateUpdate] `group:"state_update_publishers"`
 }
 
-func NewHabitatDB(lc fx.Lifecycle, logger *zerolog.Logger) HDBResult {
+func NewHabitatDB(lc fx.Lifecycle, logger *zerolog.Logger, config *config.NodeConfig) HDBResult {
 	publisher := pubsub.NewSimplePublisher[hdb.StateUpdate]()
-	dbManager, err := NewDatabaseManager(publisher)
+	dbManager, err := NewDatabaseManager(config, publisher)
 	if err != nil {
 		logger.Fatal().Err(err).Msg("Error initializing Habitat DB")
 	}

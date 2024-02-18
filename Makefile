@@ -47,6 +47,7 @@ run-dev:
 clear-volumes:
 	docker container rm -f habitat_node || true
 	docker volume prune -f
+	rm -rf $(DEV_HABITAT_PATH)/hdb
 
 run-dev-fresh: clear-volumes run-dev
 

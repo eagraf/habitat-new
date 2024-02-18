@@ -57,19 +57,20 @@ func (cs *ClusterService) Start() error {
 }
 
 // CreateCluster initializes a new Raft cluster, and bootstraps it with this nodes address
-func (cs *ClusterService) CreateCluster(databaseID, filepath string, raftFSM *state.RaftFSMAdapter) (*Cluster, error) {
+func (cs *ClusterService) CreateCluster(dbConfig hdb.DatabaseConfig, raftFSM *state.RaftFSMAdapter) (*Cluster, error) {
+	databaseID := dbConfig.ID()
 	if _, ok := cs.instances[databaseID]; ok {
 		return nil, fmt.Errorf("raft instance for database %s already initialized", databaseID)
 	}
 
-	ra, err := setupRaftInstance(databaseID, filepath, raftFSM, true, cs.host)
+	ra, err := setupRaftInstance(dbConfig, raftFSM, true, cs.host)
 	if err != nil {
 		return nil, fmt.Errorf("failed to setup raft instance: %s", err.Error())
 	}
 
 	cluster := &Cluster{
 		databaseID:   databaseID,
-		filepath:     filepath,
+		filepath:     dbConfig.Path(),
 		serverID:     getServerID(databaseID),
 		address:      getDatabaseAddress(databaseID),
 		instance:     ra,
@@ -95,12 +96,13 @@ func (cs *ClusterService) RemoveCluster(databaseID string) error {
 // JoinCluster requests for this node to join a cluster.
 // In this implementation, the address is unused because the leader will begin sending
 // heartbeets to this node once its AddNode routine has been called.
-func (cs *ClusterService) JoinCluster(databaseID, filepath string, address string, raftFSM *state.RaftFSMAdapter) (<-chan hdb.StateUpdate, error) {
+func (cs *ClusterService) JoinCluster(dbConfig hdb.DatabaseConfig, address string, raftFSM *state.RaftFSMAdapter) (<-chan hdb.StateUpdate, error) {
+	databaseID := dbConfig.ID()
 	if _, ok := cs.instances[databaseID]; ok {
 		return nil, fmt.Errorf("raft instance for database %s already initialized", databaseID)
 	}
 
-	ra, err := setupRaftInstance(databaseID, filepath, raftFSM, false, cs.host)
+	ra, err := setupRaftInstance(dbConfig, raftFSM, false, cs.host)
 	if err != nil {
 		return nil, fmt.Errorf("failed to setup raft instance: %s", err.Error())
 	}
@@ -119,12 +121,13 @@ func (cs *ClusterService) JoinCluster(databaseID, filepath string, address strin
 
 // RestoreNode restarts this nodes raft instance if it has been stopped. All data is
 // restored from snapshots and the write ahead log in stable storage.
-func (cs *ClusterService) RestoreNode(databaseID, filepath string, raftFSM *state.RaftFSMAdapter) (*Cluster, error) {
+func (cs *ClusterService) RestoreNode(dbConfig hdb.DatabaseConfig, raftFSM *state.RaftFSMAdapter) (*Cluster, error) {
+	databaseID := dbConfig.ID()
 	if _, ok := cs.instances[databaseID]; ok {
 		log.Error().Msgf("raft instance for database %s already initialized", databaseID)
 	}
 
-	ra, err := setupRaftInstance(databaseID, filepath, raftFSM, false, cs.host)
+	ra, err := setupRaftInstance(dbConfig, raftFSM, false, cs.host)
 	if err != nil {
 		log.Error().Msgf("failed to setup raft instance: %s", err.Error())
 	}
@@ -222,15 +225,15 @@ func (c *Cluster) RemoveNode(databaseID string, nodeID string) error {
 }
 
 // Internal wrapper of Hashicorp raft stuff
-func setupRaftInstance(databaseID, dbPath string, stateMachine *state.RaftFSMAdapter, newCommunity bool, host string) (*raft.Raft, error) {
-	log.Info().Msgf("setting up raft instance for node %s at %s", getServerID(databaseID), getDatabaseAddress(databaseID))
+func setupRaftInstance(dbConfig hdb.DatabaseConfig, stateMachine *state.RaftFSMAdapter, newCommunity bool, host string) (*raft.Raft, error) {
+	log.Info().Msgf("setting up raft instance for node %s at %s", getServerID(dbConfig.ID()), getDatabaseAddress(dbConfig.ID()))
 
 	// setup raft folder
-	raftDBPath := filepath.Join(dbPath, "raft.db")
+	raftDBPath := filepath.Join(dbConfig.Path(), "raft.db")
 
 	_, err := os.Stat(raftDBPath)
 	if errors.Is(err, os.ErrNotExist) {
-		err := os.MkdirAll(dbPath, 0700)
+		err := os.MkdirAll(dbConfig.Path(), 0700)
 		if err != nil {
 			return nil, fmt.Errorf("error creating raft directory for new community: %s", err)
 		}
@@ -249,13 +252,13 @@ func setupRaftInstance(databaseID, dbPath string, stateMachine *state.RaftFSMAda
 	config.LocalID = raft.ServerID(host)
 
 	// Setup Raft communication.
-	httpTransport, err := transport.NewHTTPTransport(getDatabaseAddress(databaseID))
+	httpTransport, err := transport.NewHTTPTransport(getDatabaseAddress(dbConfig.ID()))
 	if err != nil {
 		return nil, err
 	}
 
 	// Create the snapshot store. This allows the Raft to truncate the log.
-	snapshots, err := raft.NewFileSnapshotStore(getDataseRaftDirectory(databaseID), RetainSnapshotCount, os.Stderr)
+	snapshots, err := raft.NewFileSnapshotStore(dbConfig.Path(), RetainSnapshotCount, os.Stderr)
 	if err != nil {
 		return nil, fmt.Errorf("file snapshot store: %s", err)
 	}
@@ -263,7 +266,7 @@ func setupRaftInstance(databaseID, dbPath string, stateMachine *state.RaftFSMAda
 	// Create the log store and stable store.
 	var logStore raft.LogStore
 	var stableStore raft.StableStore
-	boltDB, err := raftboltdb.NewBoltStore(filepath.Join(getDataseRaftDirectory(databaseID), "raft.db"))
+	boltDB, err := raftboltdb.NewBoltStore(filepath.Join(dbConfig.Path(), "raft.db"))
 	if err != nil {
 		return nil, fmt.Errorf("new bolt store: %s", err)
 	}
@@ -282,7 +285,7 @@ func setupRaftInstance(databaseID, dbPath string, stateMachine *state.RaftFSMAda
 			Servers: []raft.Server{
 				{
 					ID:      config.LocalID,
-					Address: raft.ServerAddress(getDatabaseAddress(databaseID)),
+					Address: raft.ServerAddress(getDatabaseAddress(dbConfig.ID())),
 				},
 			},
 		}

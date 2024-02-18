@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/eagraf/habitat-new/internal/node/config"
 	"github.com/eagraf/habitat-new/internal/node/hdb"
 	"github.com/eagraf/habitat-new/internal/node/hdb/consensus"
 	"github.com/eagraf/habitat-new/internal/node/hdb/state"
@@ -14,10 +15,9 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-const PersistenceDirectory string = "/var/lib/hdb/0.1"
-
 type DatabaseManager struct {
-	raft *consensus.ClusterService
+	nodeConfig *config.NodeConfig
+	raft       *consensus.ClusterService
 
 	databases map[string]*Database
 
@@ -25,38 +25,48 @@ type DatabaseManager struct {
 }
 
 type Database struct {
-	ID   string
-	Name string
+	id   string
+	name string
+	path string
 
 	state.StateMachineController
 }
 
-func (d *Database) StateDirectory() string {
-	return filepath.Join(PersistenceDirectory, d.ID)
+func (d *Database) ID() string {
+	return d.id
+}
+
+func (d *Database) Name() string {
+	return d.name
+}
+
+func (d *Database) Path() string {
+	return d.path
 }
 
 func (d *Database) DatabaseAddress() string {
-	return fmt.Sprintf("http://localhost:7000/%s", d.ID)
+	return fmt.Sprintf("http://localhost:7000/%s", d.id)
 }
 
 func (d *Database) Protocol() string {
-	return filepath.Join("/habitat-raft", "0.0.1", d.ID)
+	return filepath.Join("/habitat-raft", "0.0.1", d.id)
 }
 
-func NewDatabaseManager(publisher pubsub.Publisher[hdb.StateUpdate]) (*DatabaseManager, error) {
+func NewDatabaseManager(config *config.NodeConfig, publisher pubsub.Publisher[hdb.StateUpdate]) (*DatabaseManager, error) {
 	// TODO this is obviously wrong
 	host := "localhost"
 	raft := consensus.NewClusterService(host)
 
-	err := os.MkdirAll(PersistenceDirectory, 0600)
+	err := os.MkdirAll(config.HDBPath(), 0700)
 	if err != nil {
 		return nil, err
 	}
 
 	dm := &DatabaseManager{
-		publisher: publisher,
-		databases: make(map[string]*Database),
-		raft:      raft,
+		nodeConfig: config,
+		publisher:  publisher,
+		databases:  make(map[string]*Database),
+		raft:       raft,
 	}
 
 	return dm, nil
@@ -75,14 +85,14 @@ func (dm *DatabaseManager) Stop() {
 }
 
 func (dm *DatabaseManager) RestartDBs() error {
-	dirs, err := os.ReadDir(PersistenceDirectory)
+	dirs, err := os.ReadDir(dm.nodeConfig.HDBPath())
 	if err != nil {
 		return fmt.Errorf("Error reading existing databases : %s", err)
 	}
 	for _, dir := range dirs {
 		dbID := dir.Name()
 		log.Info().Msgf("Restoring database %s", dbID)
-		dbDir := filepath.Join(PersistenceDirectory, dbID)
+		dbDir := filepath.Join(dm.nodeConfig.HDBPath(), dbID)
 
 		typeBytes, err := os.ReadFile(filepath.Join(dbDir, "schema_type"))
 		if err != nil {
@@ -106,7 +116,13 @@ func (dm *DatabaseManager) RestartDBs() error {
 			return fmt.Errorf("Error creating Raft adapter for database %s: %s", dbID, err)
 		}
 
-		cluster, err := dm.raft.RestoreNode(dbID, dbDir, fsm)
+		db := &Database{
+			id:   dbID,
+			name: name,
+			path: filepath.Join(dm.nodeConfig.HabitatPath(), "hdb", dbID),
+		}
+
+		cluster, err := dm.raft.RestoreNode(db, fsm)
 		if err != nil {
 			return fmt.Errorf("Error restoring database %s: %s", dbID, err)
 		}
@@ -116,11 +132,7 @@ func (dm *DatabaseManager) RestartDBs() error {
 			return err
 		}
 
-		db := &Database{
-			ID:                     dbID,
-			Name:                   name,
-			StateMachineController: stateMachineController,
-		}
+		db.StateMachineController = stateMachineController
 
 		dm.databases[dbID] = db
 		db.StateMachineController.StartListening()
@@ -140,11 +152,12 @@ func (dm *DatabaseManager) CreateDatabase(name string, schemaType string, initSt
 	id := uuid.New().String()
 
 	db := &Database{
-		ID:   id,
-		Name: name,
+		id:   id,
+		name: name,
+		path: filepath.Join(dm.nodeConfig.HabitatPath(), "hdb", id),
 	}
 
-	err = os.MkdirAll(db.StateDirectory(), 0600)
+	err = os.MkdirAll(db.Path(), 0700)
 	if err != nil {
 		return nil, err
 	}
@@ -154,27 +167,27 @@ func (dm *DatabaseManager) CreateDatabase(name string, schemaType string, initSt
 		return nil, err
 	}
 
-	err = os.WriteFile(filepath.Join(db.StateDirectory(), "schema_type"), []byte(schema.Name()), 0600)
+	err = os.WriteFile(filepath.Join(db.Path(), "schema_type"), []byte(schema.Name()), 0600)
 	if err != nil {
 		return nil, err
 	}
 
-	err = os.WriteFile(filepath.Join(db.StateDirectory(), "name"), []byte(db.Name), 0600)
+	err = os.WriteFile(filepath.Join(db.Path(), "name"), []byte(db.name), 0600)
 	if err != nil {
 		return nil, err
 	}
 
-	fsm, err := state.NewRaftFSMAdapter(db.ID, schema, nil)
+	fsm, err := state.NewRaftFSMAdapter(db.id, schema, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	cluster, err := dm.raft.CreateCluster(id, db.StateDirectory(), fsm)
+	cluster, err := dm.raft.CreateCluster(db, fsm)
 	if err != nil {
 		return nil, err
 	}
 
-	stateMachineController, err := schemas.StateMachineFactory(db.ID, schemaType, nil, cluster, dm.publisher)
+	stateMachineController, err := schemas.StateMachineFactory(db.id, schemaType, nil, cluster, dm.publisher)
 	if err != nil {
 		return nil, err
 	}
@@ -207,7 +220,7 @@ func (dm *DatabaseManager) GetDatabaseClient(id string) (hdb.Client, error) {
 
 func (dm *DatabaseManager) GetDatabaseClientByName(name string) (hdb.Client, error) {
 	for _, db := range dm.databases {
-		if db.Name == name {
+		if db.name == name {
 			return db, nil
 		}
 	}
@@ -216,12 +229,12 @@ func (dm *DatabaseManager) GetDatabaseClientByName(name string) (hdb.Client, err
 
 func (dm *DatabaseManager) checkDatabaseExists(name string) error {
 	// TODO we need a much cleaner way to do this. Maybe a db metadata file.
-	dirs, err := os.ReadDir(PersistenceDirectory)
+	dirs, err := os.ReadDir(dm.nodeConfig.HDBPath())
 	if err != nil {
 		return fmt.Errorf("Error reading existing databases : %s", err)
 	}
 	for _, dir := range dirs {
-		nameFilePath := filepath.Join(PersistenceDirectory, dir.Name(), "name")
+		nameFilePath := filepath.Join(dm.nodeConfig.HDBPath(), dir.Name(), "name")
 		dbName, err := os.ReadFile(nameFilePath)
 		if err != nil {
 			return fmt.Errorf("Error reading name for database %s: %s", dir.Name(), err)
