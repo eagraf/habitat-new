@@ -12,7 +12,8 @@ import (
 type Replicator interface {
 	Dispatch([]byte) (*hdb.JSONState, error)
 	UpdateChannel() <-chan hdb.StateUpdate
-	LastIndex() uint64
+	IsLeader() bool
+	GetLastCommandIndex() (uint64, error)
 }
 
 type StateMachineController interface {
@@ -40,8 +41,13 @@ func NewStateMachine(databaseID string, schema, initRawState []byte, replicator 
 	if err != nil {
 		return nil, err
 	}
+
+	restartIndex, err := replicator.GetLastCommandIndex()
+	if err != nil {
+		return nil, err
+	}
 	return &StateMachine{
-		restartIndex: replicator.LastIndex(),
+		restartIndex: restartIndex,
 		databaseID:   databaseID,
 		jsonState:    jsonState,
 		updateChan:   replicator.UpdateChannel(),
@@ -57,19 +63,29 @@ func (sm *StateMachine) StartListening() {
 		for {
 			select {
 			case stateUpdate := <-sm.updateChan:
-				// execute state update
-				jsonState, err := hdb.NewJSONState(sm.schema, stateUpdate.NewState)
-				if err != nil {
-					log.Error().Err(err).Msgf("error getting new state from state update chan")
-				}
-				sm.jsonState = jsonState
 
-				// When restoring the node, we ignore updates before the last index
-				log.Info().Msgf("Restart index: %d, State update index: %d, Transition type: %s", sm.restartIndex, stateUpdate.Index, stateUpdate.TransitionType)
-				if sm.restartIndex < stateUpdate.Index {
-					err = sm.publisher.PublishEvent(&stateUpdate)
-					if err != nil {
-						log.Error().Err(err).Msgf("error publishing state update")
+				// Only publish state updates if this node is the leader node.
+				if sm.replicator.IsLeader() {
+					// When restoring the node, we ignore updates before the last index
+					if sm.restartIndex < stateUpdate.Index {
+						// execute state update
+						jsonState, err := hdb.NewJSONState(sm.schema, stateUpdate.NewState)
+						if err != nil {
+							log.Error().Err(err).Msgf("error getting new state from state update chan")
+						}
+						sm.jsonState = jsonState
+
+						err = sm.publisher.PublishEvent(&stateUpdate)
+						if err != nil {
+							log.Error().Err(err).Msgf("error publishing state update")
+						}
+					} else if sm.restartIndex == stateUpdate.Index {
+						log.Info().Msg("Restoring node state")
+						err := sm.publisher.PublishEvent(&stateUpdate)
+						if err != nil {
+							log.Error().Err(err).Msgf("error sending restore message")
+						}
+
 					}
 				}
 			case <-sm.doneChan:
