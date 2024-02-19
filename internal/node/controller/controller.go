@@ -23,6 +23,8 @@ type NodeController interface {
 	InstallApp(userID string, newApp *node.AppInstallation) error
 	FinishAppInstallation(userID string, registryURLBase, appID string) error
 	StartProcess(process *node.Process) error
+	SetProcessRunning(processID string) error
+	StopProcess(processID string) error
 }
 
 type BaseNodeController struct {
@@ -118,6 +120,42 @@ func (c *BaseNodeController) StartProcess(process *node.Process) error {
 		&node.ProcessStartTransition{
 			Process: process,
 			App:     app,
+		},
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (c *BaseNodeController) SetProcessRunning(processID string) error {
+	dbClient, err := c.databaseManager.GetDatabaseClientByName(constants.NodeDBDefaultName)
+	if err != nil {
+		return err
+	}
+
+	_, err = dbClient.ProposeTransitions([]hdb.Transition{
+		&node.ProcessRunningTransition{
+			ProcessID: processID,
+		},
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (c *BaseNodeController) StopProcess(processID string) error {
+	dbClient, err := c.databaseManager.GetDatabaseClientByName(constants.NodeDBDefaultName)
+	if err != nil {
+		return err
+	}
+
+	_, err = dbClient.ProposeTransitions([]hdb.Transition{
+		&node.ProcessStopTransition{
+			ProcessID: processID,
 		},
 	})
 	if err != nil {

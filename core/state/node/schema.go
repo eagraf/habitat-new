@@ -2,6 +2,7 @@ package node
 
 import (
 	"encoding/json"
+	"fmt"
 	"reflect"
 
 	"github.com/eagraf/habitat-new/internal/node/hdb"
@@ -130,6 +131,17 @@ func (s NodeState) Bytes() ([]byte, error) {
 		return nil, err
 	}
 	return marshaled, nil
+}
+
+func (s NodeState) GetAppByID(appID string) (*AppInstallationState, error) {
+	for _, user := range s.Users {
+		for _, app := range user.AppInstallations {
+			if app.ID == appID {
+				return app, nil
+			}
+		}
+	}
+	return nil, fmt.Errorf("App with ID %s not found", appID)
 }
 
 type NodeSchema struct {

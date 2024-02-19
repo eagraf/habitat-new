@@ -4,11 +4,13 @@ import (
 	"encoding/json"
 
 	"github.com/eagraf/habitat-new/core/state/node"
+	"github.com/eagraf/habitat-new/internal/node/controller"
 	"github.com/eagraf/habitat-new/internal/node/hdb"
 )
 
 type StartProcessExecutor struct {
 	processManager ProcessManager
+	nodeController controller.NodeController
 }
 
 func (e *StartProcessExecutor) TransitionType() string {
@@ -37,7 +39,17 @@ func (e *StartProcessExecutor) Execute(update *hdb.StateUpdate) error {
 		return err
 	}
 
-	return e.processManager.StartProcess(processStartTransition.Process, processStartTransition.App)
+	err = e.processManager.StartProcess(processStartTransition.Process, processStartTransition.App)
+	if err != nil {
+		return err
+	}
+
+	err = e.nodeController.SetProcessRunning(processStartTransition.Process.ID)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (e *StartProcessExecutor) PostHook(update *hdb.StateUpdate) error {

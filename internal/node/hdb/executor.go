@@ -3,6 +3,7 @@ package hdb
 import (
 	"fmt"
 
+	"github.com/eagraf/habitat-new/internal/node/pubsub"
 	"github.com/rs/zerolog/log"
 )
 
@@ -15,6 +16,7 @@ type StateUpdate struct {
 	NewState       []byte
 	Transition     []byte
 	TransitionType string
+	Restore        bool
 }
 
 // IdempoentStateUpdateExecutor is an interface for a state update executor that will check
@@ -32,12 +34,22 @@ type IdempotentStateUpdateExecutor interface {
 	PostHook(*StateUpdate) error
 }
 
+type StateRestorer interface {
+	Restore(*StateUpdate) error
+}
+
+type StateUpdateSubscriber interface {
+	pubsub.Subscriber[StateUpdate]
+	StateRestorer
+}
+
 // IdempotentStateUpdateSubscriber will run a IdempotentStateUpdateExecutor when it receives
 // a state update for a matching transition.
 type IdempotentStateUpdateSubscriber struct {
 	name       string
 	schemaName string
 	executors  map[string]IdempotentStateUpdateExecutor
+	StateRestorer
 }
 
 func NewIdempotentStateUpdateSubscriber(name, schemaName string, executors []IdempotentStateUpdateExecutor) (*IdempotentStateUpdateSubscriber, error) {
@@ -63,6 +75,16 @@ func (s *IdempotentStateUpdateSubscriber) Name() string {
 }
 
 func (s *IdempotentStateUpdateSubscriber) ConsumeEvent(event *StateUpdate) error {
+	// If the restore flag is set, we restore the entire state rather than processing the individual state update.
+	if event.Restore {
+		err := s.Restore(event)
+		if err != nil {
+			return fmt.Errorf("Error restoring node state: %w", err)
+		}
+		return nil
+	}
+
+	// Otherwise, process the state update.
 	if s.schemaName != event.SchemaType {
 		// This is a no-op. We don't error since the pubsub system isn't sophisticated enough to
 		// filter by topic.

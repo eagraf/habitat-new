@@ -110,6 +110,20 @@ func (mr *MockNodeControllerMockRecorder) InstallApp(userID, newApp any) *gomock
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InstallApp", reflect.TypeOf((*MockNodeController)(nil).InstallApp), userID, newApp)
 }
 
+// SetProcessRunning mocks base method.
+func (m *MockNodeController) SetProcessRunning(processID string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SetProcessRunning", processID)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SetProcessRunning indicates an expected call of SetProcessRunning.
+func (mr *MockNodeControllerMockRecorder) SetProcessRunning(processID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetProcessRunning", reflect.TypeOf((*MockNodeController)(nil).SetProcessRunning), processID)
+}
+
 // StartProcess mocks base method.
 func (m *MockNodeController) StartProcess(process *node.Process) error {
 	m.ctrl.T.Helper()
@@ -122,4 +136,18 @@ func (m *MockNodeController) StartProcess(process *node.Process) error {
 func (mr *MockNodeControllerMockRecorder) StartProcess(process any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StartProcess", reflect.TypeOf((*MockNodeController)(nil).StartProcess), process)
+}
+
+// StopProcess mocks base method.
+func (m *MockNodeController) StopProcess(processID string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "StopProcess", processID)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// StopProcess indicates an expected call of StopProcess.
+func (mr *MockNodeControllerMockRecorder) StopProcess(processID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StopProcess", reflect.TypeOf((*MockNodeController)(nil).StopProcess), processID)
 }
