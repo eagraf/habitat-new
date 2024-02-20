@@ -135,7 +135,10 @@ type FSMSnapshot struct {
 // Persist should dump all necessary state to the WriteCloser 'sink',
 // and call sink.Close() when finished or call sink.Cancel() on error.
 func (s *FSMSnapshot) Persist(sink raft.SnapshotSink) error {
-	sink.Write(s.state)
+	_, err := sink.Write(s.state)
+	if err != nil {
+		return err
+	}
 	return sink.Close()
 }
 

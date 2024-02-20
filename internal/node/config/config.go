@@ -12,11 +12,18 @@ import (
 	viper "github.com/spf13/viper"
 )
 
-func loadEnv() {
-	viper.BindEnv("habitat_path", "HABITAT_PATH")
+func loadEnv() error {
+	err := viper.BindEnv("habitat_path", "HABITAT_PATH")
+	if err != nil {
+		return err
+	}
 	viper.SetDefault("habitat_path", "$HOME/.habitat")
 
-	viper.BindEnv("habitat_app_path")
+	err = viper.BindEnv("habitat_app_path")
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func loadConfig() (*NodeConfig, error) {

@@ -41,7 +41,12 @@ func TestSimpleChannel(t *testing.T) {
 	channel := newSimpleChannel[TestEvent]()
 	channel.publishers = append(channel.publishers, sp)
 	channel.subscribers = append(channel.subscribers, subscriber1, subscriber2)
-	go channel.Listen()
+	go func() {
+		err := channel.Listen()
+		if err != nil {
+			t.Error(err)
+		}
+	}()
 
 	err := sp.PublishEvent(&TestEvent{shouldError: false})
 	assert.Nil(t, err)

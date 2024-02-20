@@ -34,10 +34,13 @@ func NewAPIServer(lc fx.Lifecycle, router *mux.Router, logger *zerolog.Logger, p
 			if err != nil {
 				return fmt.Errorf("Error parsing URL: %s", err)
 			}
-			proxyRules.Add("Habitat API", &reverse_proxy.RedirectRule{
+			err = proxyRules.Add("Habitat API", &reverse_proxy.RedirectRule{
 				ForwardLocation: url,
 				Matcher:         "/habitat/api",
 			})
+			if err != nil {
+				return fmt.Errorf("Error adding proxy rule: %s", err)
+			}
 
 			logger.Info().Msgf("Starting Habitat API server at %s", srv.Addr)
 			go func() {

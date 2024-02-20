@@ -35,21 +35,23 @@ func TestProxy(t *testing.T) {
 		log.Fatalf(err.Error())
 	}
 
-	file.Write([]byte("Hello, World!"))
+	_, _ = file.Write([]byte("Hello, World!"))
 	file.Close()
 
 	// Create proxy server
 	proxy := &ProxyServer{
 		Rules: make(RuleSet),
 	}
-	proxy.Rules.Add("backend1", &RedirectRule{
+	err = proxy.Rules.Add("backend1", &RedirectRule{
 		Matcher:         "/backend1",
 		ForwardLocation: redirectedServerURL,
 	})
-	proxy.Rules.Add("fileserver", &FileServerRule{
+	assert.Nil(t, err)
+	err = proxy.Rules.Add("fileserver", &FileServerRule{
 		Matcher: "/fileserver",
 		Path:    fileDir,
 	})
+	assert.Nil(t, err)
 
 	frontendServer := httptest.NewServer(proxy)
 	defer frontendServer.Close()

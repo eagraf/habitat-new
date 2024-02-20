@@ -1,6 +1,9 @@
 package config
 
 func NewNodeConfig() (*NodeConfig, error) {
-	loadEnv()
+	err := loadEnv()
+	if err != nil {
+		return nil, err
+	}
 	return loadConfig()
 }
