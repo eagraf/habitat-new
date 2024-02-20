@@ -17,11 +17,14 @@ DOCKER_WORKDIR = /go/src/github.com/eagraf/habitat-new
 DEV_HABITAT_PATH = $(TOPDIR)/.habitat
 CERT_DIR = $(DEV_HABITAT_PATH)/certificates
 
+GOBIN ?= $$(go env GOPATH)/bin
+
 test::
 	go test ./... -timeout 1s
 
 test-coverage:
-	go test -coverprofile=coverage.out ./...
+	go test ./... -covermode=atomic -coverprofile=coverage.out
+	${GOBIN}/go-test-coverage --config=./.testcoverage.yml || true
 	go tool cover -html=coverage.out
 
 lint::

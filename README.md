@@ -5,6 +5,7 @@ To run all the code and tooling in this repository, you will need to have the fo
 * GNU Make > v4 (this should be available through xcode)
 * Docker Engine and the Docker CLI: https://docs.docker.com/engine/install/
 * golangci-lint: https://golangci-lint.run/usage/install/
+* go-test-coverage: Run `go install github.com/vladopajic/go-test-coverage/v2@v2.8.2`
 * Postman: https://www.postman.com/downloads/
 
 ## Local Development
