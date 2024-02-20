@@ -18,5 +18,5 @@ func (h *VersionHandler) Method() string {
 }
 
 func (h *VersionHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte("v0.0.1"))
+	_, _ = w.Write([]byte("v0.0.1"))
 }

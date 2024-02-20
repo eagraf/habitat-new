@@ -56,10 +56,10 @@ func (s *ProxyServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotFound)
 }
 
-func (s *ProxyServer) Start(addr string) error {
+func (s *ProxyServer) Start(addr string) {
 	ln, err := net.Listen("tcp", addr)
 	if err != nil {
-		return err
+		log.Fatal().Err(err).Msg("reverse proxy server failed to start")
 	}
 	httpServer := &http.Server{
 		Addr:    addr,
@@ -67,7 +67,6 @@ func (s *ProxyServer) Start(addr string) error {
 	}
 	s.server = httpServer
 	log.Fatal().Err(httpServer.Serve(ln)).Msg("reverse proxy server failed")
-	return nil
 }
 
 func (r RuleSet) Add(name string, rule Rule) error {
@@ -121,7 +120,7 @@ func (h *FileServerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	if oldPath == r.URL.Path {
 		// Something weird happened
-		w.Write([]byte("unable to remove url path prefix"))
+		_, _ = w.Write([]byte("unable to remove url path prefix"))
 		w.WriteHeader(http.StatusInternalServerError)
 	}
 
@@ -158,8 +157,8 @@ func (r *RedirectRule) Handler() http.Handler {
 		},
 		ErrorHandler: func(rw http.ResponseWriter, r *http.Request, err error) {
 			log.Error().Err(err).Msg("reverse proxy request forwarding error")
+			_, _ = rw.Write([]byte(err.Error()))
 			rw.WriteHeader(http.StatusInternalServerError)
-			rw.Write([]byte(err.Error()))
 		},
 	}
 }

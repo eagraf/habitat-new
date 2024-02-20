@@ -144,7 +144,7 @@ func (h *GetNodeRoute) ServeHTTP(w http.ResponseWriter, _ *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	w.Write(respBody)
+	_, _ = w.Write(respBody)
 }
 
 // AddUserRoute calls nodeController.AddUser()
