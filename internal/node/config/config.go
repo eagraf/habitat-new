@@ -48,13 +48,13 @@ func loadConfig() (*NodeConfig, error) {
 	if err != nil {
 		return nil, err
 	}
-	config.rootUserCert = rootCert
+	config.RootUserCert = rootCert
 
 	nodeCert, err := decodePemCert(config.NodeCertPath())
 	if err != nil {
 		return nil, err
 	}
-	config.nodeCert = nodeCert
+	config.NodeCert = nodeCert
 
 	log.Debug().Msgf("Loaded node config: %+v", config)
 
@@ -84,8 +84,8 @@ func decodePemCert(certPath string) (*x509.Certificate, error) {
 }
 
 type NodeConfig struct {
-	rootUserCert *x509.Certificate
-	nodeCert     *x509.Certificate
+	RootUserCert *x509.Certificate
+	NodeCert     *x509.Certificate
 }
 
 func (n *NodeConfig) HabitatPath() string {
@@ -112,10 +112,6 @@ func (n *NodeConfig) RootUserCertPath() string {
 	return filepath.Join(n.HabitatPath(), "certificates", "dev_root_user_cert.pem")
 }
 
-func (n *NodeConfig) RootUserCert() *x509.Certificate {
-	return n.rootUserCert
-}
-
 func (n *NodeConfig) RootUserCertB64() string {
-	return base64.StdEncoding.EncodeToString(n.rootUserCert.Raw)
+	return base64.StdEncoding.EncodeToString(n.RootUserCert.Raw)
 }
