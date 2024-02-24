@@ -20,7 +20,8 @@ func (r *ProcessRestorer) Restore(restoreEvent *hdb.StateUpdate) error {
 	}
 
 	for _, process := range nodeState.Processes {
-		if _, err := r.processManager.GetProcess(process.ID); err != nil {
+		if _, err := r.processManager.GetProcess(process.ID); err == nil {
+			// If the process is already running, we don't need to do anything
 			continue
 		}
 		if process.State == node.ProcessStateRunning {
