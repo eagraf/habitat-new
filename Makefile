@@ -23,7 +23,7 @@ test::
 	go test ./... -timeout 1s
 
 test-coverage:
-	go test ./... -covermode=atomic -coverprofile=coverage.out
+	go test ./... -coverprofile=coverage.out
 	${GOBIN}/go-test-coverage --config=./.testcoverage.yml || true
 	go tool cover -html=coverage.out
 
