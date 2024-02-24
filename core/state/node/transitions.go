@@ -149,7 +149,7 @@ func (t *StartInstallationTransition) Validate(oldState []byte) error {
 			for _, app := range user.AppInstallations {
 				if app.RegistryURLBase == t.RegistryURLBase && app.RegistryAppID == t.RegistryAppID {
 					if app.Version == t.Version {
-						return fmt.Errorf("app %s version %s for user %s found in state %s", t.Name, t.Version, t.UserID, app.Version)
+						return fmt.Errorf("app %s version %s for user %s found in state %s", t.Name, t.Version, t.UserID, app.State)
 					} else {
 						return fmt.Errorf("app %s for user %s found in state with different version %s", t.Name, t.UserID, app.Version)
 					}
