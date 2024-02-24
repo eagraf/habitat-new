@@ -47,11 +47,20 @@ func TestProxy(t *testing.T) {
 		ForwardLocation: redirectedServerURL,
 	})
 	assert.Nil(t, err)
+
+	// Test adding naming conflict
+	err = proxy.Rules.Add("backend1", &RedirectRule{
+		Matcher:         "/backend1",
+		ForwardLocation: redirectedServerURL,
+	})
+	assert.NotNil(t, err)
+
 	err = proxy.Rules.Add("fileserver", &FileServerRule{
 		Matcher: "/fileserver",
 		Path:    fileDir,
 	})
 	assert.Nil(t, err)
+	assert.Equal(t, 2, len(proxy.Rules))
 
 	frontendServer := httptest.NewServer(proxy)
 	defer frontendServer.Close()
@@ -85,4 +94,24 @@ func TestProxy(t *testing.T) {
 	}
 
 	assert.Equal(t, "Hello, World!", string(b))
+
+	// Check getting a file that doesn't exist
+	resp, err = http.Get(fmt.Sprintf("%s/fileserver/%s", frontendServer.URL, "nonexistentfile"))
+	if err != nil {
+		t.Errorf(err.Error())
+	}
+
+	assert.Equal(t, http.StatusNotFound, resp.StatusCode)
+
+	// Test removing a rule
+	err = proxy.Rules.Remove("fileserver")
+	assert.Nil(t, err)
+
+	assert.Equal(t, 1, len(proxy.Rules))
+
+	// Removing it again should fail
+	err = proxy.Rules.Remove("fileserver")
+	assert.NotNil(t, err)
+
+	assert.Equal(t, 1, len(proxy.Rules))
 }

@@ -1,75 +1,20 @@
 package reverse_proxy
 
 import (
-	"context"
 	"fmt"
 	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
-	"path/filepath"
 	"strings"
 	"time"
 
-	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"go.uber.org/fx"
 )
 
-type RuleSet map[string]Rule
+type RuleSet map[string]RuleHandler
 
-const ReverseProxyPort = "3001"
-
-type ProxyServer struct {
-	logger *zerolog.Logger
-	server *http.Server
-	Rules  RuleSet
-}
-
-func NewProxyServer(lc fx.Lifecycle, logger *zerolog.Logger) (*ProxyServer, RuleSet) {
-	srv := &ProxyServer{
-		logger: logger,
-		Rules:  make(RuleSet),
-	}
-	lc.Append(fx.Hook{
-		OnStart: func(ctx context.Context) error {
-			listenAddr := fmt.Sprintf(":%s", ReverseProxyPort)
-			logger.Info().Msgf("Starting Habitat reverse proxy server at %s", listenAddr)
-			go srv.Start(listenAddr)
-			return nil
-		},
-		OnStop: func(ctx context.Context) error {
-			return srv.server.Shutdown(ctx)
-		},
-	})
-	return srv, srv.Rules
-}
-
-func (s *ProxyServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	for _, rule := range s.Rules {
-		if rule.Match(r.URL) {
-			rule.Handler().ServeHTTP(w, r)
-			return
-		}
-	}
-	// No rules matched
-	w.WriteHeader(http.StatusNotFound)
-}
-
-func (s *ProxyServer) Start(addr string) {
-	ln, err := net.Listen("tcp", addr)
-	if err != nil {
-		log.Fatal().Err(err).Msg("reverse proxy server failed to start")
-	}
-	httpServer := &http.Server{
-		Addr:    addr,
-		Handler: s,
-	}
-	s.server = httpServer
-	log.Fatal().Err(httpServer.Serve(ln)).Msg("reverse proxy server failed")
-}
-
-func (r RuleSet) Add(name string, rule Rule) error {
+func (r RuleSet) Add(name string, rule RuleHandler) error {
 	if _, ok := r[name]; ok {
 		return fmt.Errorf("rule name %s is already taken", name)
 	}
@@ -85,7 +30,7 @@ func (r RuleSet) Remove(name string) error {
 	return nil
 }
 
-type Rule interface {
+type RuleHandler interface {
 	Match(url *url.URL) bool
 	Handler() http.Handler
 }
@@ -160,28 +105,5 @@ func (r *RedirectRule) Handler() http.Handler {
 			_, _ = rw.Write([]byte(err.Error()))
 			rw.WriteHeader(http.StatusInternalServerError)
 		},
-	}
-}
-
-func GetRuleFromConfig(config *ProxyRule, appPath string) (Rule, error) {
-	switch config.Type {
-	// TODO apps need to hook into the fileserver so that the necessary files are loaded into the
-	// container when the application is active.
-	case ProxyRuleFileServer:
-		return &FileServerRule{
-			Matcher: config.Matcher,
-			Path:    filepath.Join(appPath, config.Target),
-		}, nil
-	case ProxyRuleRedirect:
-		targetURL, err := url.Parse(config.Target)
-		if err != nil {
-			return nil, fmt.Errorf("error parsing url for RedirectRule: %s", err)
-		}
-		return &RedirectRule{
-			Matcher:         config.Matcher,
-			ForwardLocation: targetURL,
-		}, nil
-	default:
-		return nil, fmt.Errorf("no proxy rule type %s", config.Type)
 	}
 }
