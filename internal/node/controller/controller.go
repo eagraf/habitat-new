@@ -8,7 +8,6 @@ import (
 	"github.com/eagraf/habitat-new/internal/node/config"
 	"github.com/eagraf/habitat-new/internal/node/constants"
 	"github.com/eagraf/habitat-new/internal/node/hdb"
-	"github.com/eagraf/habitat-new/internal/node/hdb/hdbms"
 	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
 )
@@ -36,7 +35,7 @@ type BaseNodeController struct {
 func (c *BaseNodeController) InitializeNodeDB() error {
 	_, err := c.databaseManager.CreateDatabase(constants.NodeDBDefaultName, node.SchemaName, generateInitState(c.nodeConfig))
 	if err != nil {
-		if _, ok := err.(*hdbms.DatabaseAlreadyExistsError); ok {
+		if _, ok := err.(*hdb.DatabaseAlreadyExistsError); ok {
 			log.Info().Msg("Node database already exists, doing nothing.")
 		} else {
 			return err

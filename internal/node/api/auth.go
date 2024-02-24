@@ -36,7 +36,7 @@ func (amw *authenticationMiddleware) Middleware(next http.Handler) http.Handler 
 		var storedCert *x509.Certificate
 		var userID string
 		if username == constants.RootUsername {
-			storedCert = amw.nodeConfig.RootUserCert()
+			storedCert = amw.nodeConfig.RootUserCert
 			username = constants.RootUsername
 			userID = constants.RootUserID
 		} else {

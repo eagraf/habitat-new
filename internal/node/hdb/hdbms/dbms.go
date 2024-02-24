@@ -214,7 +214,7 @@ func (dm *DatabaseManager) GetDatabaseClient(id string) (hdb.Client, error) {
 	if db, ok := dm.databases[id]; ok {
 		return db, nil
 	} else {
-		return nil, &DatabaseNotFoundError{databaseID: id}
+		return nil, &hdb.DatabaseNotFoundError{DatabaseID: id}
 	}
 }
 
@@ -224,7 +224,7 @@ func (dm *DatabaseManager) GetDatabaseClientByName(name string) (hdb.Client, err
 			return db, nil
 		}
 	}
-	return nil, &DatabaseNotFoundError{databaseName: name}
+	return nil, &hdb.DatabaseNotFoundError{DatabaseName: name}
 }
 
 func (dm *DatabaseManager) checkDatabaseExists(name string) error {
@@ -241,7 +241,7 @@ func (dm *DatabaseManager) checkDatabaseExists(name string) error {
 		}
 
 		if string(dbName) == name {
-			return &DatabaseAlreadyExistsError{databaseName: name}
+			return &hdb.DatabaseAlreadyExistsError{DatabaseName: name}
 		}
 	}
 	return nil
