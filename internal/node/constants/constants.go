@@ -12,4 +12,8 @@ const (
 
 	// App driver names
 	AppDriverDocker = "docker"
+
+	// Default port values
+	DefaultPortHabitatAPI   = "3000"
+	DefaultPortReverseProxy = "3001"
 )

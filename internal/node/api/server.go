@@ -10,17 +10,17 @@ import (
 	"os"
 
 	"github.com/eagraf/habitat-new/internal/node/config"
+	"github.com/eagraf/habitat-new/internal/node/constants"
 	"github.com/eagraf/habitat-new/internal/node/reverse_proxy"
 	"github.com/gorilla/mux"
 	"github.com/rs/zerolog"
 	"go.uber.org/fx"
 )
 
-const HabitatAPIPort = "3000"
 const CertificateDir = "/dev_certificates"
 
 func NewAPIServer(lc fx.Lifecycle, router *mux.Router, logger *zerolog.Logger, proxyRules reverse_proxy.RuleSet, nodeConfig *config.NodeConfig) *http.Server {
-	srv := &http.Server{Addr: fmt.Sprintf(":%s", HabitatAPIPort), Handler: router}
+	srv := &http.Server{Addr: fmt.Sprintf(":%s", constants.DefaultPortHabitatAPI), Handler: router}
 	lc.Append(fx.Hook{
 		OnStart: func(ctx context.Context) error {
 			tlsConfig, err := generateTLSConfig(nodeConfig)
