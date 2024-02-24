@@ -70,6 +70,12 @@ func TestInstallAppHandler(t *testing.T) {
 	resp, err = client.Post(url, "application/json", bytes.NewBuffer(bodyBytes))
 	assert.Nil(t, err)
 	assert.Equal(t, http.StatusInternalServerError, resp.StatusCode)
+
+	// Test invalid request
+	m.EXPECT().StartProcess(body.AppInstallation).Times(0)
+	resp, err = client.Post(url, "application/json", bytes.NewBuffer([]byte("invalid")))
+	assert.Nil(t, err)
+	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
 }
 
 func TestStartProcessHandler(t *testing.T) {
@@ -122,6 +128,12 @@ func TestStartProcessHandler(t *testing.T) {
 	resp, err = client.Post(url, "application/json", bytes.NewBuffer(bodyBytes))
 	assert.Nil(t, err)
 	assert.Equal(t, http.StatusInternalServerError, resp.StatusCode)
+
+	// Test invalid request
+	m.EXPECT().StartProcess(body.Process).Times(0)
+	resp, err = client.Post(url, "application/json", bytes.NewBuffer([]byte("invalid")))
+	assert.Nil(t, err)
+	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
 }
 
 func TestGetNodeHandler(t *testing.T) {
@@ -175,8 +187,6 @@ func TestAddUserHandler(t *testing.T) {
 	ctrl := gomock.NewController(t)
 
 	m := mocks.NewMockNodeController(ctrl)
-	m.EXPECT().AddUser("myUserID", "myUsername", "myCert").Return(nil)
-
 	handler := NewAddUserRoute(m)
 
 	router := mux.NewRouter()
@@ -194,7 +204,22 @@ func TestAddUserHandler(t *testing.T) {
 	b, err := json.Marshal(body)
 	require.Nil(t, err)
 
+	m.EXPECT().AddUser("myUserID", "myUsername", "myCert").Return(nil)
+
 	resp, err := client.Post(url, "application/json", bytes.NewBuffer(b))
 	require.Nil(t, err)
 	require.Equal(t, http.StatusCreated, resp.StatusCode)
+
+	// Test internal server error
+	m.EXPECT().AddUser("myUserID", "myUsername", "myCert").Return(errors.New("error adding user"))
+
+	resp, err = client.Post(url, "application/json", bytes.NewBuffer(b))
+	require.Nil(t, err)
+	require.Equal(t, http.StatusInternalServerError, resp.StatusCode)
+
+	// Test invalid request
+	m.EXPECT().AddUser("myUserID", "myUsername", "myCert").Times(0)
+	resp, err = client.Post(url, "application/json", bytes.NewBuffer([]byte("invalid")))
+	require.Nil(t, err)
+	require.Equal(t, http.StatusBadRequest, resp.StatusCode)
 }

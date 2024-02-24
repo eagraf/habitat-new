@@ -101,6 +101,13 @@ func TestNodeInitialization(t *testing.T) {
 	assert.Equal(t, "New Node", state.Name)
 	assert.Equal(t, 0, len(state.Users))
 	assert.Equal(t, 0, len(state.Processes))
+
+	state, err = testTransitions(nil, []hdb.Transition{
+		&InitalizationTransition{
+			InitState: nil,
+		},
+	})
+	assert.NotNil(t, err)
 }
 
 func TestAddingUsers(t *testing.T) {
@@ -135,7 +142,7 @@ func TestAddingUsers(t *testing.T) {
 		},
 	}
 
-	newState, err = testTransitionsOnCopy(newState, testSecondUserConflictOnUsername)
+	_, err = testTransitionsOnCopy(newState, testSecondUserConflictOnUsername)
 	assert.NotNil(t, err)
 
 	testSecondUserConflictOnUserID := []hdb.Transition{
@@ -205,6 +212,16 @@ func TestAppLifecycle(t *testing.T) {
 	_, err = testTransitionsOnCopy(newState, testSecondAppConflict)
 	assert.NotNil(t, err)
 
+	testUserDoesntExistOnFinish := []hdb.Transition{
+		&FinishInstallationTransition{
+			UserID:          "456",
+			RegistryURLBase: "https://registry.com",
+			RegistryAppID:   "app_name1",
+		},
+	}
+	_, err = testTransitionsOnCopy(newState, testUserDoesntExistOnFinish)
+	assert.NotNil(t, err)
+
 	testInstallationCompleted := []hdb.Transition{
 		&FinishInstallationTransition{
 			UserID:          "123",
@@ -216,6 +233,50 @@ func TestAppLifecycle(t *testing.T) {
 	newState, err = testTransitionsOnCopy(newState, testInstallationCompleted)
 	assert.Nil(t, err)
 	assert.Equal(t, "installed", newState.Users[0].AppInstallations[0].State)
+
+	testUserDoesntExist := []hdb.Transition{
+		&StartInstallationTransition{
+			UserID: "456",
+			AppInstallation: &AppInstallation{
+				Name:            "app_name1",
+				Version:         "1",
+				Driver:          "docker",
+				RegistryURLBase: "https://registry.com",
+				RegistryAppID:   "app_name1",
+				RegistryTag:     "v1",
+			},
+		},
+	}
+
+	_, err = testTransitionsOnCopy(newState, testUserDoesntExist)
+	assert.NotNil(t, err)
+
+	testDifferentVersion := []hdb.Transition{
+		&StartInstallationTransition{
+			UserID: "123",
+			AppInstallation: &AppInstallation{
+				Name:            "app_name1",
+				Version:         "2",
+				Driver:          "docker",
+				RegistryURLBase: "https://registry.com",
+				RegistryAppID:   "app_name1",
+				RegistryTag:     "v2",
+			},
+		},
+	}
+	_, err = testTransitionsOnCopy(newState, testDifferentVersion)
+	assert.NotNil(t, err)
+
+	testFinishOnAppThatsNotInstalling := []hdb.Transition{
+		&FinishInstallationTransition{
+			UserID:          "123",
+			RegistryURLBase: "https://registry.com",
+			RegistryAppID:   "app_name1",
+		},
+	}
+
+	_, err = testTransitionsOnCopy(newState, testFinishOnAppThatsNotInstalling)
+	assert.NotNil(t, err)
 }
 
 func TestProcesses(t *testing.T) {
@@ -288,6 +349,51 @@ func TestProcesses(t *testing.T) {
 	assert.Equal(t, "running", newState.Processes[0].State)
 	assert.Equal(t, "docker_container_1", newState.Processes[0].ExtDriverID)
 
+	testProcessRunningNoMatchingID := []hdb.Transition{
+		&ProcessRunningTransition{
+			ProcessID:   "proc2",
+			ExtDriverID: "docker_container_1",
+		},
+	}
+	_, err = testTransitionsOnCopy(newState, testProcessRunningNoMatchingID)
+	assert.NotNil(t, err)
+
+	testProcessIDConflict := []hdb.Transition{
+		&ProcessStartTransition{
+			Process: &Process{
+				ID:     "proc1",
+				AppID:  "App1",
+				UserID: "123",
+			},
+		},
+	}
+
+	_, err = testTransitionsOnCopy(newState, testProcessIDConflict)
+	assert.NotNil(t, err)
+
+	testProcessAlreadyRunning := []hdb.Transition{
+		&ProcessRunningTransition{
+			ProcessID:   "proc1",
+			ExtDriverID: "docker_container_1",
+		},
+	}
+
+	_, err = testTransitionsOnCopy(newState, testProcessAlreadyRunning)
+	assert.NotNil(t, err)
+
+	testAppIDConflict := []hdb.Transition{
+		&ProcessStartTransition{
+			Process: &Process{
+				ID:     "proc2",
+				AppID:  "App1",
+				UserID: "123",
+			},
+		},
+	}
+
+	_, err = testTransitionsOnCopy(newState, testAppIDConflict)
+	assert.NotNil(t, err)
+
 	// Test stopping the app
 	newState, err = testTransitionsOnCopy(newState, []hdb.Transition{
 		&ProcessStopTransition{
@@ -297,4 +403,39 @@ func TestProcesses(t *testing.T) {
 
 	assert.Nil(t, err)
 	assert.Equal(t, 0, len(newState.Processes))
+
+	testUserDoesntExist := []hdb.Transition{
+		&ProcessStartTransition{
+			Process: &Process{
+				ID:     "proc2",
+				AppID:  "App1",
+				UserID: "456",
+			},
+		},
+	}
+
+	_, err = testTransitionsOnCopy(newState, testUserDoesntExist)
+	assert.NotNil(t, err)
+
+	testAppDoesntExist := []hdb.Transition{
+		&ProcessStartTransition{
+			Process: &Process{
+				ID:     "proc3",
+				AppID:  "App2",
+				UserID: "123",
+			},
+		},
+	}
+
+	_, err = testTransitionsOnCopy(newState, testAppDoesntExist)
+	assert.NotNil(t, err)
+
+	testProcessStopNoMatchingID := []hdb.Transition{
+		&ProcessStopTransition{
+			ProcessID: "proc500",
+		},
+	}
+	_, err = testTransitionsOnCopy(newState, testProcessStopNoMatchingID)
+	assert.NotNil(t, err)
+
 }
