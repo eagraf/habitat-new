@@ -27,4 +27,5 @@ exclude:
     - \/mocks\/.*?$
     - ^internal/node/hdb
     - \/fx\.go$
+    - \/test_helpers\.go$
     - ^pkg\/raft\/transport
