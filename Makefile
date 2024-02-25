@@ -23,7 +23,7 @@ test::
 	go test ./... -timeout 1s
 
 test-coverage:
-	go test ./... -coverprofile=coverage.out
+	go test ./... -coverprofile=coverage.out -coverpkg=./... -timeout 1s
 	${GOBIN}/go-test-coverage --config=./.testcoverage.yml || true
 	go tool cover -html=coverage.out
 
