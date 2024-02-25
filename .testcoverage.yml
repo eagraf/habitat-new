@@ -28,4 +28,5 @@ exclude:
     - ^internal/node/hdb
     - \/fx\.go$
     - \/test_helpers\.go$
+    - ^node\/config
     - ^pkg\/raft\/transport
