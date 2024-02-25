@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/eagraf/habitat-new/core/state/node"
+	"github.com/eagraf/habitat-new/core/state/node/test_helpers"
 	"github.com/eagraf/habitat-new/internal/node/processes/mocks"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
@@ -22,23 +23,27 @@ func TestProcessRestorer(t *testing.T) {
 		processManager: pm,
 	}
 
-	restoreUpdate, err := stateUpdateTestHelper(&node.InitalizationTransition{}, &node.NodeState{
+	restoreUpdate, err := test_helpers.StateUpdateTestHelper(&node.InitalizationTransition{}, &node.NodeState{
 		Users: []*node.User{
 			{
 				ID: "user1",
 				AppInstallations: []*node.AppInstallationState{
 					{
 						AppInstallation: &node.AppInstallation{
-							ID:     "app1",
-							Name:   "appname1",
-							Driver: "test",
+							ID:   "app1",
+							Name: "appname1",
+							Package: node.Package{
+								Driver: "test",
+							},
 						},
 					},
 					{
 						AppInstallation: &node.AppInstallation{
-							ID:     "app3",
-							Name:   "appname3",
-							Driver: "test",
+							ID:   "app3",
+							Name: "appname3",
+							Package: node.Package{
+								Driver: "test",
+							},
 						},
 					},
 				},
@@ -88,9 +93,11 @@ func TestProcessRestorer(t *testing.T) {
 		),
 		gomock.Eq(
 			&node.AppInstallation{
-				ID:     "app1",
-				Name:   "appname1",
-				Driver: "test",
+				ID:   "app1",
+				Name: "appname1",
+				Package: node.Package{
+					Driver: "test",
+				},
 			},
 		),
 	).Return("ext_proc1", nil).Times(1)
@@ -104,9 +111,11 @@ func TestProcessRestorer(t *testing.T) {
 		),
 		gomock.Eq(
 			&node.AppInstallation{
-				ID:     "app3",
-				Name:   "appname3",
-				Driver: "test",
+				ID:   "app3",
+				Name: "appname3",
+				Package: node.Package{
+					Driver: "test",
+				},
 			},
 		),
 	).Return("", errors.New("Error starting process")).Times(1)

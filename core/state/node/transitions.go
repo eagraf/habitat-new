@@ -147,7 +147,7 @@ func (t *StartInstallationTransition) Validate(oldState []byte) error {
 	for _, user := range oldNode.Users {
 		if user.ID == t.UserID {
 			for _, app := range user.AppInstallations {
-				if app.RegistryURLBase == t.RegistryURLBase && app.RegistryAppID == t.RegistryAppID {
+				if app.RegistryURLBase == t.RegistryURLBase && app.RegistryPackageID == t.RegistryPackageID {
 					if app.Version == t.Version {
 						return fmt.Errorf("app %s version %s for user %s found in state %s", t.Name, t.Version, t.UserID, app.State)
 					} else {
@@ -181,7 +181,7 @@ func (t *FinishInstallationTransition) Patch(oldState []byte) ([]byte, error) {
 	for i, user := range oldNode.Users {
 		if user.ID == t.UserID {
 			for j, app := range user.AppInstallations {
-				if app.RegistryURLBase == t.RegistryURLBase && app.RegistryAppID == t.RegistryAppID {
+				if app.RegistryURLBase == t.RegistryURLBase && app.RegistryPackageID == t.RegistryAppID {
 					return []byte(fmt.Sprintf(`[{
 						"op": "replace",
 						"path": "/users/%d/app_installations/%d/state",
@@ -204,7 +204,7 @@ func (t *FinishInstallationTransition) Validate(oldState []byte) error {
 	for _, user := range oldNode.Users {
 		if user.ID == t.UserID {
 			for _, app := range user.AppInstallations {
-				if app.RegistryURLBase == t.RegistryURLBase && app.RegistryAppID == t.RegistryAppID {
+				if app.RegistryURLBase == t.RegistryURLBase && app.RegistryPackageID == t.RegistryAppID {
 					if app.State != "installing" {
 						return fmt.Errorf("app %s for user %s is in state %s", app.Name, t.UserID, app.State)
 					} else {

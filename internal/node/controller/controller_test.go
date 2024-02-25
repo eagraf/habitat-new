@@ -30,24 +30,28 @@ func TestInstallAppController(t *testing.T) {
 			&node.StartInstallationTransition{
 				UserID: "0",
 				AppInstallation: &node.AppInstallation{
-					Name:            "app_name1",
-					Version:         "1",
-					Driver:          "docker",
-					RegistryURLBase: "https://registry.com",
-					RegistryAppID:   "app_name1",
-					RegistryTag:     "v1",
+					Name:    "app_name1",
+					Version: "1",
+					Package: node.Package{
+						Driver:             "docker",
+						RegistryURLBase:    "https://registry.com",
+						RegistryPackageID:  "app_name1",
+						RegistryPackageTag: "v1",
+					},
 				},
 			},
 		},
 	)).Return(nil, nil).Times(1)
 
 	err := controller.InstallApp("0", &node.AppInstallation{
-		Name:            "app_name1",
-		Version:         "1",
-		Driver:          "docker",
-		RegistryURLBase: "https://registry.com",
-		RegistryAppID:   "app_name1",
-		RegistryTag:     "v1",
+		Name:    "app_name1",
+		Version: "1",
+		Package: node.Package{
+			Driver:             "docker",
+			RegistryURLBase:    "https://registry.com",
+			RegistryPackageID:  "app_name1",
+			RegistryPackageTag: "v1",
+		},
 	})
 	assert.Nil(t, err)
 }
