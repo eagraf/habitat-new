@@ -175,12 +175,14 @@ func TestAppLifecycle(t *testing.T) {
 		&StartInstallationTransition{
 			UserID: "123",
 			AppInstallation: &AppInstallation{
-				Name:            "app_name1",
-				Version:         "1",
-				Driver:          "docker",
-				RegistryURLBase: "https://registry.com",
-				RegistryAppID:   "app_name1",
-				RegistryTag:     "v1",
+				Name:    "app_name1",
+				Version: "1",
+				Package: Package{
+					Driver:             "docker",
+					RegistryURLBase:    "https://registry.com",
+					RegistryPackageID:  "app_name1",
+					RegistryPackageTag: "v1",
+				},
 			},
 		},
 	}
@@ -200,11 +202,13 @@ func TestAppLifecycle(t *testing.T) {
 		&StartInstallationTransition{
 			UserID: "123",
 			AppInstallation: &AppInstallation{
-				Version:         "1",
-				Driver:          "docker",
-				RegistryURLBase: "https://registry.com",
-				RegistryAppID:   "app_name1",
-				RegistryTag:     "v1",
+				Version: "1",
+				Package: Package{
+					Driver:             "docker",
+					RegistryURLBase:    "https://registry.com",
+					RegistryPackageID:  "app_name1",
+					RegistryPackageTag: "v1",
+				},
 			},
 		},
 	}
@@ -238,12 +242,14 @@ func TestAppLifecycle(t *testing.T) {
 		&StartInstallationTransition{
 			UserID: "456",
 			AppInstallation: &AppInstallation{
-				Name:            "app_name1",
-				Version:         "1",
-				Driver:          "docker",
-				RegistryURLBase: "https://registry.com",
-				RegistryAppID:   "app_name1",
-				RegistryTag:     "v1",
+				Name:    "app_name1",
+				Version: "1",
+				Package: Package{
+					Driver:             "docker",
+					RegistryURLBase:    "https://registry.com",
+					RegistryPackageID:  "app_name1",
+					RegistryPackageTag: "v1",
+				},
 			},
 		},
 	}
@@ -255,12 +261,14 @@ func TestAppLifecycle(t *testing.T) {
 		&StartInstallationTransition{
 			UserID: "123",
 			AppInstallation: &AppInstallation{
-				Name:            "app_name1",
-				Version:         "2",
-				Driver:          "docker",
-				RegistryURLBase: "https://registry.com",
-				RegistryAppID:   "app_name1",
-				RegistryTag:     "v2",
+				Name:    "app_name1",
+				Version: "2",
+				Package: Package{
+					Driver:             "docker",
+					RegistryURLBase:    "https://registry.com",
+					RegistryPackageID:  "app_name1",
+					RegistryPackageTag: "v2",
+				},
 			},
 		},
 	}
@@ -295,13 +303,15 @@ func TestProcesses(t *testing.T) {
 						AppInstallations: []*AppInstallationState{
 							{
 								AppInstallation: &AppInstallation{
-									ID:              "App1",
-									Name:            "app_name1",
-									Version:         "1",
-									Driver:          "docker",
-									RegistryURLBase: "https://registry.com",
-									RegistryAppID:   "app_name1",
-									RegistryTag:     "v1",
+									ID:      "App1",
+									Name:    "app_name1",
+									Version: "1",
+									Package: Package{
+										Driver:             "docker",
+										RegistryURLBase:    "https://registry.com",
+										RegistryPackageID:  "app_name1",
+										RegistryPackageTag: "v1",
+									},
 								},
 								State: "installed",
 							},

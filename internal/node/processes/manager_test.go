@@ -25,9 +25,11 @@ func TestProcessManager(t *testing.T) {
 		),
 		gomock.Eq(
 			&node.AppInstallation{
-				ID:     "app1",
-				Name:   "appname1",
-				Driver: "test",
+				ID:   "app1",
+				Name: "appname1",
+				Package: node.Package{
+					Driver: "test",
+				},
 			},
 		),
 	).Return("ext_proc1", nil)
@@ -37,9 +39,11 @@ func TestProcessManager(t *testing.T) {
 			Driver: "test",
 		},
 		&node.AppInstallation{
-			ID:     "app1",
-			Name:   "appname1",
-			Driver: "test",
+			ID:   "app1",
+			Name: "appname1",
+			Package: node.Package{
+				Driver: "test",
+			},
 		},
 	)
 	assert.Nil(t, err)

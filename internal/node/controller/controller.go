@@ -21,7 +21,7 @@ type NodeController interface {
 	AddUser(userID, username, certificate string) error
 	GetUserByUsername(username string) (*node.User, error)
 	InstallApp(userID string, newApp *node.AppInstallation) error
-	FinishAppInstallation(userID string, registryURLBase, appID string) error
+	FinishAppInstallation(userID string, registryURLBase, registryPackageID string) error
 	StartProcess(process *node.Process) error
 	SetProcessRunning(processID string) error
 	StopProcess(processID string) error

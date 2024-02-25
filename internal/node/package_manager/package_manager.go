@@ -1,14 +1,9 @@
 package package_manager
 
-type PackageSpec struct {
-	DriverType         string
-	RegistryURLBase    string
-	RegistryPackageID  string
-	RegistryPackageTag string
-}
+import "github.com/eagraf/habitat-new/core/state/node"
 
 type PackageManager interface {
-	IsInstalled(packageSpec *PackageSpec, version string) (bool, error)
-	InstallPackage(packageSpec *PackageSpec, version string) error
-	UninstallPackage(packageSpec *PackageSpec, version string) error
+	IsInstalled(packageSpec *node.Package, version string) (bool, error)
+	InstallPackage(packageSpec *node.Package, version string) error
+	UninstallPackage(packageSpec *node.Package, version string) error
 }

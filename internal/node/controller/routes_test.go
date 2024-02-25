@@ -37,12 +37,14 @@ func TestInstallAppHandler(t *testing.T) {
 
 	body := &types.PostAppRequest{
 		AppInstallation: &node.AppInstallation{
-			Name:            "app_name1",
-			Version:         "1",
-			Driver:          "docker",
-			RegistryURLBase: "https://registry.com",
-			RegistryAppID:   "app_name1",
-			RegistryTag:     "v1",
+			Name:    "app_name1",
+			Version: "1",
+			Package: node.Package{
+				Driver:             "docker",
+				RegistryURLBase:    "https://registry.com",
+				RegistryPackageID:  "app_name1",
+				RegistryPackageTag: "v1",
+			},
 		},
 	}
 

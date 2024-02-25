@@ -1,35 +1,15 @@
 package processes
 
 import (
-	"encoding/json"
 	"testing"
 
 	"github.com/eagraf/habitat-new/core/state/node"
+	"github.com/eagraf/habitat-new/core/state/node/test_helpers"
 	ctrl_mocks "github.com/eagraf/habitat-new/internal/node/controller/mocks"
-	"github.com/eagraf/habitat-new/internal/node/hdb"
 	"github.com/eagraf/habitat-new/internal/node/processes/mocks"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 )
-
-func stateUpdateTestHelper(transition hdb.Transition, newState *node.NodeState) (*hdb.StateUpdate, error) {
-	transBytes, err := json.Marshal(transition)
-	if err != nil {
-		return nil, err
-	}
-
-	stateBytes, err := json.Marshal(newState)
-	if err != nil {
-		return nil, err
-	}
-
-	return &hdb.StateUpdate{
-		SchemaType:     node.SchemaName,
-		Transition:     transBytes,
-		TransitionType: transition.Type(),
-		NewState:       stateBytes,
-	}, nil
-}
 
 func TestSubscriber(t *testing.T) {
 	ctrl := gomock.NewController(t)
@@ -45,15 +25,17 @@ func TestSubscriber(t *testing.T) {
 		nodeController: nc,
 	}
 
-	startProcessStateUpdate, err := stateUpdateTestHelper(&node.ProcessStartTransition{
+	startProcessStateUpdate, err := test_helpers.StateUpdateTestHelper(&node.ProcessStartTransition{
 		Process: &node.Process{
 			ID:     "proc1",
 			Driver: "test",
 		},
 		App: &node.AppInstallation{
-			ID:     "app1",
-			Name:   "appname1",
-			Driver: "test",
+			ID:   "app1",
+			Name: "appname1",
+			Package: node.Package{
+				Driver: "test",
+			},
 		},
 	}, &node.NodeState{
 		Processes: []*node.ProcessState{},
@@ -73,9 +55,11 @@ func TestSubscriber(t *testing.T) {
 		),
 		gomock.Eq(
 			&node.AppInstallation{
-				ID:     "app1",
-				Name:   "appname1",
-				Driver: "test",
+				ID:   "app1",
+				Name: "appname1",
+				Package: node.Package{
+					Driver: "test",
+				},
 			},
 		),
 	).Return("ext_proc1", nil)
