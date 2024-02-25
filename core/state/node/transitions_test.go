@@ -102,7 +102,7 @@ func TestNodeInitialization(t *testing.T) {
 	assert.Equal(t, 0, len(state.Users))
 	assert.Equal(t, 0, len(state.Processes))
 
-	state, err = testTransitions(nil, []hdb.Transition{
+	_, err = testTransitions(nil, []hdb.Transition{
 		&InitalizationTransition{
 			InitState: nil,
 		},

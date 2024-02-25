@@ -70,6 +70,6 @@ func TestGetAppByID(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, "app1", app.ID)
 
-	app, err = state.GetAppByID("app2")
+	_, err = state.GetAppByID("app2")
 	assert.NotNil(t, err)
 }
