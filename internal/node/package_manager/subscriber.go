@@ -57,7 +57,7 @@ func (e *InstallAppExecutor) PostHook(update *hdb.StateUpdate) error {
 	}
 
 	// After finishing the installation, update the application's lifecycle state
-	err = e.nodeController.FinishAppInstallation(t.UserID, t.RegistryURLBase, t.RegistryPackageID)
+	err = e.nodeController.FinishAppInstallation(t.UserID, t.AppInstallation.ID, t.RegistryURLBase, t.RegistryPackageID)
 	if err != nil {
 		return err
 	}

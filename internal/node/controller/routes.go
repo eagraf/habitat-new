@@ -45,7 +45,10 @@ func (h *InstallAppRoute) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.nodeController.InstallApp(userID, req.AppInstallation)
+	appInstallation := req.AppInstallation
+	appInstallation.UserID = userID
+
+	err = h.nodeController.InstallApp(userID, appInstallation)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

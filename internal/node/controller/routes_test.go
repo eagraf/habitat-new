@@ -53,7 +53,9 @@ func TestInstallAppHandler(t *testing.T) {
 		t.Error(err)
 	}
 
-	m.EXPECT().InstallApp("0", body.AppInstallation).Return(nil).Times(1)
+	testAppInstallation := body.AppInstallation
+	testAppInstallation.UserID = "0"
+	m.EXPECT().InstallApp("0", testAppInstallation).Return(nil).Times(1)
 
 	client := server.Client()
 	url := fmt.Sprintf("%s/node/users/0/apps", server.URL)
@@ -68,7 +70,7 @@ func TestInstallAppHandler(t *testing.T) {
 	assert.Equal(t, 0, len(respBody))
 
 	// Test an error returned by the controller
-	m.EXPECT().InstallApp("0", body.AppInstallation).Return(errors.New("Couldn't install app")).Times(1)
+	m.EXPECT().InstallApp("0", testAppInstallation).Return(errors.New("Couldn't install app")).Times(1)
 	resp, err = client.Post(url, "application/json", bytes.NewBuffer(bodyBytes))
 	assert.Nil(t, err)
 	assert.Equal(t, http.StatusInternalServerError, resp.StatusCode)

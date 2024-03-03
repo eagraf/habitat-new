@@ -2,6 +2,7 @@ package processes
 
 import (
 	"github.com/eagraf/habitat-new/core/state/node"
+	"github.com/eagraf/habitat-new/internal/node/controller"
 	"github.com/eagraf/habitat-new/internal/node/hdb"
 )
 
@@ -13,7 +14,7 @@ func NewProcessManager(drivers []ProcessDriver) ProcessManager {
 	return pm
 }
 
-func NewProcessManagerStateUpdateSubscriber(processManager ProcessManager) (*hdb.IdempotentStateUpdateSubscriber, error) {
+func NewProcessManagerStateUpdateSubscriber(processManager ProcessManager, controller controller.NodeController) (*hdb.IdempotentStateUpdateSubscriber, error) {
 	return hdb.NewIdempotentStateUpdateSubscriber(
 		"StartProcessSubscriber",
 		node.SchemaName,
@@ -21,6 +22,10 @@ func NewProcessManagerStateUpdateSubscriber(processManager ProcessManager) (*hdb
 			&StartProcessExecutor{
 				processManager: processManager,
 			},
+		},
+		&ProcessRestorer{
+			processManager: processManager,
+			nodeController: controller,
 		},
 	)
 }

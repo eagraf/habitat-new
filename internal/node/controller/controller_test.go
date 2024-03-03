@@ -38,9 +38,9 @@ func TestInitializeNodeDB(t *testing.T) {
 			assert.Nil(t, err)
 
 			assert.Equal(t, 1, len(state.Users))
-			assert.Equal(t, constants.RootUsername, state.Users[0].Username)
-			assert.Equal(t, constants.RootUserID, state.Users[0].ID)
-			assert.Equal(t, "cm9vdF9jZXJ0", state.Users[0].Certificate)
+			assert.Equal(t, constants.RootUsername, state.Users["0"].Username)
+			assert.Equal(t, constants.RootUserID, state.Users["0"].ID)
+			assert.Equal(t, "cm9vdF9jZXJ0", state.Users["0"].Certificate)
 
 			return mockedClient, nil
 		}).Times(1)
@@ -100,18 +100,18 @@ func TestInstallAppController(t *testing.T) {
 }
 
 var nodeState = &node.NodeState{
-	Users: []*node.User{
-		{
+	Users: map[string]*node.User{
+		"user_1": {
 			ID:       "user_1",
 			Username: "username_1",
-			AppInstallations: []*node.AppInstallationState{
-				{
-					AppInstallation: &node.AppInstallation{
-						ID: "app_1",
-					},
-					State: node.AppLifecycleStateInstalled,
-				},
+		},
+	},
+	AppInstallations: map[string]*node.AppInstallationState{
+		"app_1": {
+			AppInstallation: &node.AppInstallation{
+				ID: "app_1",
 			},
+			State: node.AppLifecycleStateInstalled,
 		},
 	},
 }
@@ -131,6 +131,7 @@ func TestFinishAppInstallationController(t *testing.T) {
 	mockedClient.EXPECT().ProposeTransitions(gomock.Eq(
 		[]hdb.Transition{
 			&node.FinishInstallationTransition{
+				AppID:           "app1",
 				UserID:          "user_1",
 				RegistryURLBase: "https://registry.com",
 				RegistryAppID:   "app_1",
@@ -138,7 +139,7 @@ func TestFinishAppInstallationController(t *testing.T) {
 		},
 	)).Return(nil, nil).Times(1)
 
-	err := controller.FinishAppInstallation("user_1", "https://registry.com", "app_1")
+	err := controller.FinishAppInstallation("user_1", "app1", "https://registry.com", "app_1")
 	assert.Nil(t, err)
 }
 

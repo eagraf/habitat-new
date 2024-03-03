@@ -62,30 +62,33 @@ func (sm *StateMachine) StartListening() {
 	go func() {
 		for {
 			select {
+			// TODO this bit of code should be well tested
 			case stateUpdate := <-sm.updateChan:
 
 				// Only publish state updates if this node is the leader node.
 				if sm.replicator.IsLeader() {
-					// When restoring the node, we ignore updates before the last index
-					if sm.restartIndex < stateUpdate.Index {
-						// execute state update
-						jsonState, err := hdb.NewJSONState(sm.schema, stateUpdate.NewState)
-						if err != nil {
-							log.Error().Err(err).Msgf("error getting new state from state update chan")
-						}
-						sm.jsonState = jsonState
+					// Only apply state updates if the update index is greater than the restart index.
+					// If the update index is equal to the restart index, then the state update is a
+					// restore message which tells the subscribers to restore everything from the most up to date state.
+					if sm.restartIndex > stateUpdate.Index {
+						continue
+					}
 
-						err = sm.publisher.PublishEvent(&stateUpdate)
-						if err != nil {
-							log.Error().Err(err).Msgf("error publishing state update")
-						}
-					} else if sm.restartIndex == stateUpdate.Index {
-						log.Info().Msg("Restoring node state")
-						err := sm.publisher.PublishEvent(&stateUpdate)
-						if err != nil {
-							log.Error().Err(err).Msgf("error sending restore message")
-						}
+					// execute state update
+					jsonState, err := hdb.NewJSONState(sm.schema, stateUpdate.NewState)
+					if err != nil {
+						log.Error().Err(err).Msgf("error getting new state from state update chan")
+					}
+					sm.jsonState = jsonState
 
+					if sm.restartIndex == stateUpdate.Index {
+						log.Info().Msgf("Restoring node state: %s", string(stateUpdate.NewState))
+						stateUpdate.Restore = true
+					}
+
+					err = sm.publisher.PublishEvent(&stateUpdate)
+					if err != nil {
+						log.Error().Err(err).Msgf("error publishing state update")
 					}
 				}
 			case <-sm.doneChan:

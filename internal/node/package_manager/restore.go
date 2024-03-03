@@ -18,14 +18,12 @@ func (r *PackageManagerRestorer) Restore(restoreEvent *hdb.StateUpdate) error {
 		return err
 	}
 
-	for _, user := range nodeState.Users {
-		for _, app := range user.AppInstallations {
-			// Only try to install the app if it was in the state "installing"
-			if app.State == node.AppLifecycleStateInstalling {
-				err = r.packageManager.InstallPackage(&app.Package, app.Version)
-				if err != nil {
-					return err
-				}
+	for _, app := range nodeState.AppInstallations {
+		// Only try to install the app if it was in the state "installing"
+		if app.State == node.AppLifecycleStateInstalling {
+			err = r.packageManager.InstallPackage(&app.Package, app.Version)
+			if err != nil {
+				return err
 			}
 		}
 	}

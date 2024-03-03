@@ -52,12 +52,13 @@ type IdempotentStateUpdateSubscriber struct {
 	StateRestorer
 }
 
-func NewIdempotentStateUpdateSubscriber(name, schemaName string, executors []IdempotentStateUpdateExecutor) (*IdempotentStateUpdateSubscriber, error) {
+func NewIdempotentStateUpdateSubscriber(name, schemaName string, executors []IdempotentStateUpdateExecutor, stateRestorer StateRestorer) (*IdempotentStateUpdateSubscriber, error) {
 
 	res := &IdempotentStateUpdateSubscriber{
-		name:       name,
-		schemaName: schemaName,
-		executors:  make(map[string]IdempotentStateUpdateExecutor),
+		name:          name,
+		schemaName:    schemaName,
+		executors:     make(map[string]IdempotentStateUpdateExecutor),
+		StateRestorer: stateRestorer,
 	}
 
 	for _, executor := range executors {

@@ -54,17 +54,17 @@ func (mr *MockNodeControllerMockRecorder) AddUser(userID, username, certificate 
 }
 
 // FinishAppInstallation mocks base method.
-func (m *MockNodeController) FinishAppInstallation(userID, registryURLBase, appID string) error {
+func (m *MockNodeController) FinishAppInstallation(userID, appID, registryURLBase, registryPackageID string) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "FinishAppInstallation", userID, registryURLBase, appID)
+	ret := m.ctrl.Call(m, "FinishAppInstallation", userID, appID, registryURLBase, registryPackageID)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // FinishAppInstallation indicates an expected call of FinishAppInstallation.
-func (mr *MockNodeControllerMockRecorder) FinishAppInstallation(userID, registryURLBase, appID any) *gomock.Call {
+func (mr *MockNodeControllerMockRecorder) FinishAppInstallation(userID, appID, registryURLBase, registryPackageID any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FinishAppInstallation", reflect.TypeOf((*MockNodeController)(nil).FinishAppInstallation), userID, registryURLBase, appID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FinishAppInstallation", reflect.TypeOf((*MockNodeController)(nil).FinishAppInstallation), userID, appID, registryURLBase, registryPackageID)
 }
 
 // GetUserByUsername mocks base method.

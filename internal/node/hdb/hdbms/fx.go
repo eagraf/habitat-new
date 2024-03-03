@@ -53,8 +53,13 @@ func (s *StateUpdateLogger) Name() string {
 }
 
 func (s *StateUpdateLogger) ConsumeEvent(event *hdb.StateUpdate) error {
-	s.logger.Info().Msgf("Applying transition %s to %s", string(event.Transition), event.DatabaseID)
-	return nil
+	if event.Restore {
+		s.logger.Info().Msgf("Restoring state for %s", event.DatabaseID)
+		return nil
+	} else {
+		s.logger.Info().Msgf("Applying transition %s to %s", string(event.Transition), event.DatabaseID)
+		return nil
+	}
 }
 
 func NewStateUpdateLogger(logger *zerolog.Logger) *StateUpdateLogger {

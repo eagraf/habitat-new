@@ -38,7 +38,7 @@ func TestSubscriber(t *testing.T) {
 			},
 		},
 	}, &node.NodeState{
-		Processes: []*node.ProcessState{},
+		Processes: map[string]*node.ProcessState{},
 	})
 	assert.Nil(t, err)
 
