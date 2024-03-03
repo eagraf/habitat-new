@@ -53,14 +53,10 @@ func TestInitializationTransition(t *testing.T) {
 
 func TestGetAppByID(t *testing.T) {
 	state := &NodeState{
-		Users: []*User{
-			{
-				AppInstallations: []*AppInstallationState{
-					{
-						AppInstallation: &AppInstallation{
-							ID: "app1",
-						},
-					},
+		AppInstallations: map[string]*AppInstallationState{
+			"app1": {
+				AppInstallation: &AppInstallation{
+					ID: "app1",
 				},
 			},
 		},

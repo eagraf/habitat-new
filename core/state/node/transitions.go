@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/rs/zerolog/log"
 )
 
 var (
@@ -30,11 +29,15 @@ func (t *InitalizationTransition) Type() string {
 
 func (t *InitalizationTransition) Patch(oldState []byte) ([]byte, error) {
 	if t.InitState.Users == nil {
-		t.InitState.Users = make([]*User, 0)
+		t.InitState.Users = make(map[string]*User, 0)
+	}
+
+	if t.InitState.AppInstallations == nil {
+		t.InitState.AppInstallations = make(map[string]*AppInstallationState)
 	}
 
 	if t.InitState.Processes == nil {
-		t.InitState.Processes = make([]*ProcessState, 0)
+		t.InitState.Processes = make(map[string]*ProcessState)
 	}
 
 	marshaled, err := json.Marshal(t.InitState)
@@ -68,14 +71,14 @@ func (t *AddUserTransition) Type() string {
 func (t *AddUserTransition) Patch(oldState []byte) ([]byte, error) {
 	return []byte(fmt.Sprintf(`[{
 		"op": "add",
-		"path": "/users/-",
+		"path": "/users/%s",
 		"value": {
 			"id": "%s",
 			"username": "%s",
 			"certificate": "%s",
 			"app_installations": []
 		}
-	}]`, t.UserID, t.Username, t.Certificate)), nil
+	}]`, t.UserID, t.UserID, t.Username, t.Certificate)), nil
 }
 
 func (t *AddUserTransition) Validate(oldState []byte) error {
@@ -86,11 +89,14 @@ func (t *AddUserTransition) Validate(oldState []byte) error {
 		return err
 	}
 
+	_, ok := oldNode.Users[t.UserID]
+	if ok {
+		return fmt.Errorf("user with id %s already exists", t.UserID)
+	}
+
+	// Check for conflicting usernames
 	for _, user := range oldNode.Users {
-		log.Debug().Msgf("%+v", user)
-		if user.ID == t.UserID {
-			return fmt.Errorf("user with id %s already exists", t.UserID)
-		} else if user.Username == t.Username {
+		if user.Username == t.Username {
 			return fmt.Errorf("user with username %s already exists", t.Username)
 		}
 	}
@@ -113,8 +119,8 @@ func (t *StartInstallationTransition) Patch(oldState []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	// Assign a UUID to this specific installation of the app
-	t.AppInstallation.ID = uuid.New().String()
+	appInstallation := t.AppInstallation
+	appInstallation.ID = uuid.New().String()
 
 	appState := &AppInstallationState{
 		AppInstallation: t.AppInstallation,
@@ -125,16 +131,23 @@ func (t *StartInstallationTransition) Patch(oldState []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	for i, user := range oldNode.Users {
-		if user.ID == t.UserID {
-			return []byte(fmt.Sprintf(`[{
-				"op": "add",
-				"path": "/users/%d/app_installations/-",
-				"value": %s
-			}]`, i, string(marshalledApp))), nil
-		}
+	_, ok := oldNode.Users[t.UserID]
+	if !ok {
+		return nil, fmt.Errorf("user with id %s not found", t.UserID)
 	}
-	return nil, fmt.Errorf("user with id %s not found", t.UserID)
+
+	return []byte(fmt.Sprintf(`[
+		{
+			"op": "add",
+			"path": "/app_installations/%s",
+			"value": %s
+		},
+		{
+			"op" : "add",
+			"path": "/users/%s/app_installations/-",
+			"value": "%s"
+		}
+	]`, t.AppInstallation.ID, string(marshalledApp), t.AppInstallation.UserID, t.AppInstallation.ID)), nil
 }
 
 func (t *StartInstallationTransition) Validate(oldState []byte) error {
@@ -144,17 +157,25 @@ func (t *StartInstallationTransition) Validate(oldState []byte) error {
 		return err
 	}
 
-	for _, user := range oldNode.Users {
-		if user.ID == t.UserID {
-			for _, app := range user.AppInstallations {
-				if app.RegistryURLBase == t.RegistryURLBase && app.RegistryPackageID == t.RegistryPackageID {
-					if app.Version == t.Version {
-						return fmt.Errorf("app %s version %s for user %s found in state %s", t.Name, t.Version, t.UserID, app.State)
-					} else {
-						return fmt.Errorf("app %s for user %s found in state with different version %s", t.Name, t.UserID, app.Version)
-					}
-				}
-			}
+	_, ok := oldNode.Users[t.UserID]
+	if !ok {
+		return fmt.Errorf("user with id %s not found", t.UserID)
+	}
+
+	app, ok := oldNode.AppInstallations[t.AppInstallation.ID]
+	if ok {
+		if app.Version == t.Version {
+			return fmt.Errorf("app %s version %s for user %s found in state %s", t.Name, t.Version, t.UserID, app.State)
+		} else {
+			// TODO eventually this will be part of an upgrade flow
+			return fmt.Errorf("app %s for user %s found in state with different version %s", t.Name, t.UserID, app.Version)
+		}
+	}
+
+	// Look for matching registry URL and package ID
+	for _, app := range oldNode.AppInstallations {
+		if app.RegistryURLBase == t.RegistryURLBase && app.RegistryPackageID == t.RegistryPackageID {
+			return fmt.Errorf("app %s for user %s found in state with different version %s", app.Name, t.UserID, app.Version)
 		}
 	}
 
@@ -163,6 +184,7 @@ func (t *StartInstallationTransition) Validate(oldState []byte) error {
 
 type FinishInstallationTransition struct {
 	UserID          string `json:"user_id"`
+	AppID           string `json:"app_id"`
 	RegistryURLBase string `json:"registry_url_base"`
 	RegistryAppID   string `json:"registry_app_id"`
 }
@@ -178,20 +200,11 @@ func (t *FinishInstallationTransition) Patch(oldState []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	for i, user := range oldNode.Users {
-		if user.ID == t.UserID {
-			for j, app := range user.AppInstallations {
-				if app.RegistryURLBase == t.RegistryURLBase && app.RegistryPackageID == t.RegistryAppID {
-					return []byte(fmt.Sprintf(`[{
-						"op": "replace",
-						"path": "/users/%d/app_installations/%d/state",
-						"value": "%s"
-					}]`, i, j, AppLifecycleStateInstalled)), nil
-				}
-			}
-		}
-	}
-	return nil, fmt.Errorf("user with id %s not found", t.UserID)
+	return []byte(fmt.Sprintf(`[{
+		"op": "replace",
+		"path": "/app_installations/%s/state",
+		"value": "%s"
+	}]`, t.AppID, AppLifecycleStateInstalled)), nil
 }
 
 func (t *FinishInstallationTransition) Validate(oldState []byte) error {
@@ -201,21 +214,25 @@ func (t *FinishInstallationTransition) Validate(oldState []byte) error {
 		return err
 	}
 
-	for _, user := range oldNode.Users {
-		if user.ID == t.UserID {
-			for _, app := range user.AppInstallations {
-				if app.RegistryURLBase == t.RegistryURLBase && app.RegistryPackageID == t.RegistryAppID {
-					if app.State != "installing" {
-						return fmt.Errorf("app %s for user %s is in state %s", app.Name, t.UserID, app.State)
-					} else {
-						return nil
-					}
-				}
-			}
-		}
+	app, ok := oldNode.AppInstallations[t.AppID]
+	if !ok {
+		return fmt.Errorf("app with id %s not found", t.AppID)
 	}
 
-	return fmt.Errorf("app %s for user %s not found", t.RegistryAppID, t.UserID)
+	_, ok = oldNode.Users[t.UserID]
+	if !ok {
+		return fmt.Errorf("user with id %s not found", t.UserID)
+	}
+
+	if app.RegistryURLBase != t.RegistryURLBase || app.RegistryPackageID != t.RegistryAppID {
+		return fmt.Errorf("app %s for user %s found in state with different registry url %s and package id %s", app.Name, t.UserID, app.RegistryURLBase, app.RegistryPackageID)
+	}
+
+	if app.State != "installing" {
+		return fmt.Errorf("app %s for user %s is in state %s", app.Name, t.UserID, app.State)
+	}
+
+	return nil
 }
 
 // TODO handle uninstallation
@@ -251,9 +268,9 @@ func (t *ProcessStartTransition) Patch(oldState []byte) ([]byte, error) {
 
 	return []byte(fmt.Sprintf(`[{
 			"op": "add",
-			"path": "/processes/-",
+			"path": "/processes/%s",
 			"value": %s
-		}]`, marshaled)), nil
+		}]`, t.ID, marshaled)), nil
 }
 
 func (t *ProcessStartTransition) Validate(oldState []byte) error {
@@ -267,39 +284,29 @@ func (t *ProcessStartTransition) Validate(oldState []byte) error {
 		return fmt.Errorf("Process cannot be nil")
 	}
 
-	// Make sure that the user exists
-	userExists := false
-	appExists := false
-	for _, user := range oldNode.Users {
-		if user.ID == t.UserID {
-			userExists = true
-
-			// Make sure the user has the referenced application
-			for _, app := range user.AppInstallations {
-				if app.ID == t.AppID {
-					appExists = true
-				}
-				if app.State != AppLifecycleStateInstalled {
-					return fmt.Errorf("App with id %s for user %s is not in state %s", t.AppID, t.UserID, AppLifecycleStateInstalled)
-				}
-			}
-		}
+	// Make sure the app installation exists
+	app, ok := oldNode.AppInstallations[t.App.ID]
+	if !ok {
+		return fmt.Errorf("app with id %s does not exist", t.App.ID)
 	}
-	if !userExists {
-		return fmt.Errorf("User with id %s does not exist", t.UserID)
-	}
-	if !appExists {
-		return fmt.Errorf("App with id %s does not exist for user %s", t.AppID, t.UserID)
+	if app.State != AppLifecycleStateInstalled {
+		return fmt.Errorf("app with id %s for user %s is not in state %s", t.AppID, t.UserID, AppLifecycleStateInstalled)
 	}
 
-	for _, proc := range oldNode.Processes {
+	// Check user exists
+	_, ok = oldNode.Users[t.UserID]
+	if !ok {
+		return fmt.Errorf("user with id %s does not exist", t.UserID)
+	}
+
+	for procID, proc := range oldNode.Processes {
 		// Make sure that no process exists with the same ID
-		if proc.ID == t.ID {
+		if procID == t.ID {
 			return fmt.Errorf("Process with id %s already exists", t.ID)
 		}
 		// Make sure that no app with the same ID has a process
 		if proc.AppID == t.AppID {
-			return fmt.Errorf("App with id %s already has a process", t.AppID)
+			return fmt.Errorf("app with id %s already has a process", t.AppID)
 		}
 	}
 
@@ -307,8 +314,7 @@ func (t *ProcessStartTransition) Validate(oldState []byte) error {
 }
 
 type ProcessRunningTransition struct {
-	ProcessID   string `json:"process_id"`
-	ExtDriverID string `json:"ext_driver_id"`
+	ProcessID string `json:"process_id"`
 }
 
 func (t *ProcessRunningTransition) Type() string {
@@ -323,24 +329,22 @@ func (t *ProcessRunningTransition) Patch(oldState []byte) ([]byte, error) {
 	}
 
 	// Find the matching process
-	for i, proc := range oldNode.Processes {
-		if proc.ID == t.ProcessID {
-			proc.State = ProcessStateRunning
-			proc.ExtDriverID = t.ExtDriverID
-
-			marshaled, err := json.Marshal(proc)
-			if err != nil {
-				return nil, err
-			}
-
-			return []byte(fmt.Sprintf(`[{
-				"op": "replace",
-				"path": "/processes/%d",
-				"value": %s
-			}]`, i, marshaled)), nil
-		}
+	proc, ok := oldNode.Processes[t.ProcessID]
+	if !ok {
+		return nil, fmt.Errorf("process with id %s not found", t.ProcessID)
 	}
-	return nil, fmt.Errorf("Process with id %s not found", t.ProcessID)
+	proc.State = ProcessStateRunning
+
+	marshaled, err := json.Marshal(proc)
+	if err != nil {
+		return nil, err
+	}
+
+	return []byte(fmt.Sprintf(`[{
+		"op": "replace",
+		"path": "/processes/%s",
+		"value": %s
+	}]`, t.ProcessID, marshaled)), nil
 }
 
 func (t *ProcessRunningTransition) Validate(oldState []byte) error {
@@ -350,21 +354,16 @@ func (t *ProcessRunningTransition) Validate(oldState []byte) error {
 		return err
 	}
 
-	if t.ExtDriverID == "" {
-		return fmt.Errorf("ext_driver_id cannot be empty")
-	}
-
 	// Make sure there is a matching process
-	for _, proc := range oldNode.Processes {
-		if proc.ID == t.ProcessID {
-			if proc.State != ProcessStateStarting {
-				return fmt.Errorf("Process with id %s is in state %s, must be in state %s", t.ProcessID, proc.State, ProcessStateStarting)
-			}
-			return nil
-		}
+	proc, ok := oldNode.Processes[t.ProcessID]
+	if !ok {
+		return fmt.Errorf("process with id %s not found", t.ProcessID)
+	}
+	if proc.State != ProcessStateStarting {
+		return fmt.Errorf("Process with id %s is in state %s, must be in state %s", t.ProcessID, proc.State, ProcessStateStarting)
 	}
 
-	return fmt.Errorf("Process with id %s not found", t.ProcessID)
+	return nil
 }
 
 type ProcessStopTransition struct {
@@ -382,15 +381,15 @@ func (t *ProcessStopTransition) Patch(oldState []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	for i, proc := range oldNode.Processes {
-		if proc.ID == t.ProcessID {
-			return []byte(fmt.Sprintf(`[{
-				"op": "remove",
-				"path": "/processes/%d"
-			}]`, i)), nil
-		}
+	_, ok := oldNode.Processes[t.ProcessID]
+	if !ok {
+		return nil, fmt.Errorf("process with id %s not found", t.ProcessID)
 	}
-	return nil, fmt.Errorf("Process with id %s not found", t.ProcessID)
+
+	return []byte(fmt.Sprintf(`[{
+		"op": "remove",
+		"path": "/processes/%s"
+	}]`, t.ProcessID)), nil
 }
 
 func (t *ProcessStopTransition) Validate(oldState []byte) error {
@@ -401,11 +400,9 @@ func (t *ProcessStopTransition) Validate(oldState []byte) error {
 	}
 
 	// Make sure there is a matching process
-	for _, proc := range oldNode.Processes {
-		if proc.ID == t.ProcessID {
-			return nil
-		}
+	_, ok := oldNode.Processes[t.ProcessID]
+	if !ok {
+		return fmt.Errorf("process with id %s not found", t.ProcessID)
 	}
-
-	return fmt.Errorf("Process with id %s not found", t.ProcessID)
+	return nil
 }

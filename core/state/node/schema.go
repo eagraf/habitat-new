@@ -22,11 +22,11 @@ var nodeSchemaRaw = `
 				"app_installations": {
 					"type": "array",
 					"items": {
-						"$ref": "#/$defs/app_installation"
+						"type": "string"
 					}
 				}
 			},
-			"required": [ "id", "username", "certificate" ]
+			"required": [ "id", "username", "certificate", "app_installations" ]
 		},
 		"app_installation": {
 			"type": "object",
@@ -74,15 +74,21 @@ var nodeSchemaRaw = `
 			"type": "string"
 		},
 		"users": {
-			"type": "array",
-			"items": {
-				"$ref": "#/$defs/user"
+			"type": "object",
+			"properties": {
+				"itemType": { "$ref": "#/$defs/user" }
+			}
+		},
+		"app_installations": {
+			"type": "object",
+			"properties": {
+				"itemType": { "$ref": "#/$defs/app_installation" }
 			}
 		},
 		"processes": {
-			"type": "array",
-			"items": {
-				"$ref": "#/$defs/process"
+			"type": "object",
+			"properties": {
+				"itemType": { "$ref": "#/$defs/process" }
 			}
 		}
 	},
@@ -92,18 +98,19 @@ var nodeSchemaRaw = `
 // TODO structs defined here can embed the immutable structs, but also include mutable fields.
 
 type NodeState struct {
-	NodeID      string          `json:"node_id"`
-	Name        string          `json:"name"`
-	Certificate string          `json:"certificate"` // TODO turn this into b64
-	Users       []*User         `json:"users"`
-	Processes   []*ProcessState `json:"processes"`
+	NodeID           string                           `json:"node_id"`
+	Name             string                           `json:"name"`
+	Certificate      string                           `json:"certificate"` // TODO turn this into b64
+	Users            map[string]*User                 `json:"users"`
+	Processes        map[string]*ProcessState         `json:"processes"`
+	AppInstallations map[string]*AppInstallationState `json:"app_installations"`
 }
 
 type User struct {
-	ID               string                  `json:"id"`
-	Username         string                  `json:"username"`
-	Certificate      string                  `json:"certificate"` // TODO turn this into b64
-	AppInstallations []*AppInstallationState `json:"app_installations"`
+	ID               string   `json:"id"`
+	Username         string   `json:"username"`
+	Certificate      string   `json:"certificate"` // TODO turn this into b64
+	AppInstallations []string `json:"app_installations"`
 }
 
 const AppStateInstalling = "installing"
@@ -134,14 +141,12 @@ func (s NodeState) Bytes() ([]byte, error) {
 }
 
 func (s NodeState) GetAppByID(appID string) (*AppInstallationState, error) {
-	for _, user := range s.Users {
-		for _, app := range user.AppInstallations {
-			if app.ID == appID {
-				return app, nil
-			}
+	for _, app := range s.AppInstallations {
+		if app.ID == appID {
+			return app, nil
 		}
 	}
-	return nil, fmt.Errorf("App with ID %s not found", appID)
+	return nil, fmt.Errorf("app with ID %s not found", appID)
 }
 
 type NodeSchema struct {
@@ -153,8 +158,9 @@ func (s *NodeSchema) Name() string {
 
 func (s *NodeSchema) InitState() (hdb.State, error) {
 	return &NodeState{
-		Users:     make([]*User, 0),
-		Processes: make([]*ProcessState, 0),
+		Users:            make(map[string]*User),
+		Processes:        make(map[string]*ProcessState),
+		AppInstallations: make(map[string]*AppInstallationState),
 	}, nil
 }
 

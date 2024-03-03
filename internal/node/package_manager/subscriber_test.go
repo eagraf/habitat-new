@@ -28,10 +28,10 @@ func TestSubscriber(t *testing.T) {
 			},
 		},
 		&node.NodeState{
-			Users: []*node.User{
-				{
+			Users: map[string]*node.User{
+				"user1": {
 					ID:               "user1",
-					AppInstallations: []*node.AppInstallationState{},
+					AppInstallations: []string{},
 				},
 			},
 		})
@@ -80,7 +80,7 @@ func TestSubscriber(t *testing.T) {
 	err = installAppExecutor.Execute(stateUpdate)
 	assert.Nil(t, err)
 
-	nc.EXPECT().FinishAppInstallation(gomock.Eq("user1"), gomock.Eq("registry.com"), gomock.Eq("package1")).Return(nil).Times(1)
+	nc.EXPECT().FinishAppInstallation(gomock.Eq("user1"), gomock.Any(), gomock.Eq("registry.com"), gomock.Eq("package1")).Return(nil).Times(1)
 
 	err = installAppExecutor.PostHook(stateUpdate)
 	assert.Nil(t, err)

@@ -19,6 +19,7 @@ type Package struct {
 // TODO some fields should be ignored by the REST api
 type AppInstallation struct {
 	ID      string `json:"id"`
+	UserID  string `json:"user_id"`
 	Name    string `json:"name"`
 	Version string `json:"version"`
 	Package

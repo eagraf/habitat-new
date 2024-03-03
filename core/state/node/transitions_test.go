@@ -164,7 +164,7 @@ func TestAppLifecycle(t *testing.T) {
 				NodeID:      "abc",
 				Certificate: "123",
 				Name:        "New Node",
-				Users:       make([]*User, 0),
+				Users:       make(map[string]*User, 0),
 			},
 		},
 		&AddUserTransition{
@@ -175,6 +175,7 @@ func TestAppLifecycle(t *testing.T) {
 		&StartInstallationTransition{
 			UserID: "123",
 			AppInstallation: &AppInstallation{
+				UserID:  "123",
 				Name:    "app_name1",
 				Version: "1",
 				Package: Package{
@@ -194,9 +195,13 @@ func TestAppLifecycle(t *testing.T) {
 	assert.Equal(t, "123", newState.Certificate)
 	assert.Equal(t, "New Node", newState.Name)
 	assert.Equal(t, 1, len(newState.Users))
-	assert.Equal(t, 1, len(newState.Users[0].AppInstallations))
-	assert.Equal(t, "app_name1", newState.Users[0].AppInstallations[0].Name)
-	assert.Equal(t, "installing", newState.Users[0].AppInstallations[0].State)
+	assert.Equal(t, 1, len(newState.AppInstallations))
+
+	appID := newState.Users["123"].AppInstallations[0]
+	app, ok := newState.AppInstallations[appID]
+	assert.Equal(t, ok, true)
+	assert.Equal(t, "app_name1", app.Name)
+	assert.Equal(t, "installing", app.State)
 
 	testSecondAppConflict := []hdb.Transition{
 		&StartInstallationTransition{
@@ -218,6 +223,7 @@ func TestAppLifecycle(t *testing.T) {
 
 	testUserDoesntExistOnFinish := []hdb.Transition{
 		&FinishInstallationTransition{
+			AppID:           app.ID,
 			UserID:          "456",
 			RegistryURLBase: "https://registry.com",
 			RegistryAppID:   "app_name1",
@@ -229,6 +235,7 @@ func TestAppLifecycle(t *testing.T) {
 	testInstallationCompleted := []hdb.Transition{
 		&FinishInstallationTransition{
 			UserID:          "123",
+			AppID:           app.ID,
 			RegistryURLBase: "https://registry.com",
 			RegistryAppID:   "app_name1",
 		},
@@ -236,7 +243,7 @@ func TestAppLifecycle(t *testing.T) {
 
 	newState, err = testTransitionsOnCopy(newState, testInstallationCompleted)
 	assert.Nil(t, err)
-	assert.Equal(t, "installed", newState.Users[0].AppInstallations[0].State)
+	assert.Equal(t, "installed", newState.AppInstallations[app.ID].State)
 
 	testUserDoesntExist := []hdb.Transition{
 		&StartInstallationTransition{
@@ -261,6 +268,7 @@ func TestAppLifecycle(t *testing.T) {
 		&StartInstallationTransition{
 			UserID: "123",
 			AppInstallation: &AppInstallation{
+				ID:      "app1",
 				Name:    "app_name1",
 				Version: "2",
 				Package: Package{
@@ -295,27 +303,27 @@ func TestProcesses(t *testing.T) {
 				NodeID:      "abc",
 				Certificate: "123",
 				Name:        "New Node",
-				Users: []*User{
-					{
+				Users: map[string]*User{
+					"123": {
 						ID:          "123",
 						Username:    "eagraf",
 						Certificate: "placeholder",
-						AppInstallations: []*AppInstallationState{
-							{
-								AppInstallation: &AppInstallation{
-									ID:      "App1",
-									Name:    "app_name1",
-									Version: "1",
-									Package: Package{
-										Driver:             "docker",
-										RegistryURLBase:    "https://registry.com",
-										RegistryPackageID:  "app_name1",
-										RegistryPackageTag: "v1",
-									},
-								},
-								State: "installed",
+					},
+				},
+				AppInstallations: map[string]*AppInstallationState{
+					"App1": {
+						AppInstallation: &AppInstallation{
+							ID:      "App1",
+							Name:    "app_name1",
+							Version: "1",
+							Package: Package{
+								Driver:             "docker",
+								RegistryURLBase:    "https://registry.com",
+								RegistryPackageID:  "app_name1",
+								RegistryPackageTag: "v1",
 							},
 						},
+						State: "installed",
 					},
 				},
 			},
@@ -325,6 +333,17 @@ func TestProcesses(t *testing.T) {
 				ID:     "proc1",
 				AppID:  "App1",
 				UserID: "123",
+			},
+			App: &AppInstallation{
+				ID:      "App1",
+				Name:    "app_name1",
+				Version: "1",
+				Package: Package{
+					Driver:             "docker",
+					RegistryURLBase:    "https://registry.com",
+					RegistryPackageID:  "app_name1",
+					RegistryPackageTag: "v1",
+				},
 			},
 		},
 	}
@@ -336,33 +355,30 @@ func TestProcesses(t *testing.T) {
 	assert.Equal(t, "123", newState.Certificate)
 	assert.Equal(t, "New Node", newState.Name)
 	assert.Equal(t, 1, len(newState.Users))
-	assert.Equal(t, 1, len(newState.Users[0].AppInstallations))
-	assert.Equal(t, "app_name1", newState.Users[0].AppInstallations[0].Name)
-	assert.Equal(t, "installed", newState.Users[0].AppInstallations[0].State)
+	assert.Equal(t, 1, len(newState.AppInstallations))
+	assert.Equal(t, "app_name1", newState.AppInstallations["App1"].Name)
+	assert.Equal(t, "installed", newState.AppInstallations["App1"].State)
 	assert.Equal(t, 1, len(newState.Processes))
-	assert.Equal(t, "proc1", newState.Processes[0].ID)
-	assert.Equal(t, "starting", newState.Processes[0].State)
-	assert.Equal(t, "App1", newState.Processes[0].AppID)
-	assert.Equal(t, "123", newState.Processes[0].UserID)
+	assert.Equal(t, "proc1", newState.Processes["proc1"].ID)
+	assert.Equal(t, "starting", newState.Processes["proc1"].State)
+	assert.Equal(t, "App1", newState.Processes["proc1"].AppID)
+	assert.Equal(t, "123", newState.Processes["proc1"].UserID)
 
 	// The app moves to running state
 
 	testProcessRunning := []hdb.Transition{
 		&ProcessRunningTransition{
-			ProcessID:   "proc1",
-			ExtDriverID: "docker_container_1",
+			ProcessID: "proc1",
 		},
 	}
 
 	newState, err = testTransitionsOnCopy(newState, testProcessRunning)
 	assert.Nil(t, err)
-	assert.Equal(t, "running", newState.Processes[0].State)
-	assert.Equal(t, "docker_container_1", newState.Processes[0].ExtDriverID)
+	assert.Equal(t, "running", newState.Processes["proc1"].State)
 
 	testProcessRunningNoMatchingID := []hdb.Transition{
 		&ProcessRunningTransition{
-			ProcessID:   "proc2",
-			ExtDriverID: "docker_container_1",
+			ProcessID: "proc2",
 		},
 	}
 	_, err = testTransitionsOnCopy(newState, testProcessRunningNoMatchingID)
@@ -375,6 +391,17 @@ func TestProcesses(t *testing.T) {
 				AppID:  "App1",
 				UserID: "123",
 			},
+			App: &AppInstallation{
+				ID:      "App1",
+				Name:    "app_name1",
+				Version: "1",
+				Package: Package{
+					Driver:             "docker",
+					RegistryURLBase:    "https://registry.com",
+					RegistryPackageID:  "app_name1",
+					RegistryPackageTag: "v1",
+				},
+			},
 		},
 	}
 
@@ -383,8 +410,7 @@ func TestProcesses(t *testing.T) {
 
 	testProcessAlreadyRunning := []hdb.Transition{
 		&ProcessRunningTransition{
-			ProcessID:   "proc1",
-			ExtDriverID: "docker_container_1",
+			ProcessID: "proc1",
 		},
 	}
 
@@ -397,6 +423,17 @@ func TestProcesses(t *testing.T) {
 				ID:     "proc2",
 				AppID:  "App1",
 				UserID: "123",
+			},
+			App: &AppInstallation{
+				ID:      "App1",
+				Name:    "app_name1",
+				Version: "1",
+				Package: Package{
+					Driver:             "docker",
+					RegistryURLBase:    "https://registry.com",
+					RegistryPackageID:  "app_name1",
+					RegistryPackageTag: "v1",
+				},
 			},
 		},
 	}
@@ -421,6 +458,17 @@ func TestProcesses(t *testing.T) {
 				AppID:  "App1",
 				UserID: "456",
 			},
+			App: &AppInstallation{
+				ID:      "App1",
+				Name:    "app_name1",
+				Version: "1",
+				Package: Package{
+					Driver:             "docker",
+					RegistryURLBase:    "https://registry.com",
+					RegistryPackageID:  "app_name1",
+					RegistryPackageTag: "v1",
+				},
+			},
 		},
 	}
 
@@ -433,6 +481,17 @@ func TestProcesses(t *testing.T) {
 				ID:     "proc3",
 				AppID:  "App2",
 				UserID: "123",
+			},
+			App: &AppInstallation{
+				ID:      "App2",
+				Name:    "app_name1",
+				Version: "1",
+				Package: Package{
+					Driver:             "docker",
+					RegistryURLBase:    "https://registry.com",
+					RegistryPackageID:  "app_name1",
+					RegistryPackageTag: "v1",
+				},
 			},
 		},
 	}

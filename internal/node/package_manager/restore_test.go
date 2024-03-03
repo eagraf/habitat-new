@@ -12,23 +12,23 @@ import (
 
 func TestRestore(t *testing.T) {
 	restoreUpdate, err := test_helpers.StateUpdateTestHelper(&node.InitalizationTransition{}, &node.NodeState{
-		Users: []*node.User{
-			{
+		Users: map[string]*node.User{
+			"user1": &node.User{
 				ID: "user1",
-				AppInstallations: []*node.AppInstallationState{
-					{
-						AppInstallation: &node.AppInstallation{
-							ID: "app1",
-						},
-						State: node.AppLifecycleStateInstalling,
-					},
-					{
-						AppInstallation: &node.AppInstallation{
-							ID: "app2",
-						},
-						State: node.AppLifecycleStateInstalled,
-					},
+			},
+		},
+		AppInstallations: map[string]*node.AppInstallationState{
+			"app1": {
+				AppInstallation: &node.AppInstallation{
+					ID: "app1",
 				},
+				State: node.AppLifecycleStateInstalling,
+			},
+			"app2": {
+				AppInstallation: &node.AppInstallation{
+					ID: "app2",
+				},
+				State: node.AppLifecycleStateInstalled,
 			},
 		},
 	})

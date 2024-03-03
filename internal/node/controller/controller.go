@@ -20,7 +20,7 @@ type NodeController interface {
 	AddUser(userID, username, certificate string) error
 	GetUserByUsername(username string) (*node.User, error)
 	InstallApp(userID string, newApp *node.AppInstallation) error
-	FinishAppInstallation(userID string, registryURLBase, registryPackageID string) error
+	FinishAppInstallation(userID string, appID, registryURLBase, registryPackageID string) error
 	StartProcess(process *node.Process) error
 	SetProcessRunning(processID string) error
 	StopProcess(processID string) error
@@ -62,7 +62,7 @@ func (c *BaseNodeController) InstallApp(userID string, newApp *node.AppInstallat
 }
 
 // FinishAppInstallation marks the app lifecycle state as installed
-func (c *BaseNodeController) FinishAppInstallation(userID string, registryURLBase, registryAppID string) error {
+func (c *BaseNodeController) FinishAppInstallation(userID string, appID, registryURLBase, registryAppID string) error {
 	dbClient, err := c.databaseManager.GetDatabaseClientByName(constants.NodeDBDefaultName)
 	if err != nil {
 		return err
@@ -71,6 +71,7 @@ func (c *BaseNodeController) FinishAppInstallation(userID string, registryURLBas
 	_, err = dbClient.ProposeTransitions([]hdb.Transition{
 		&node.FinishInstallationTransition{
 			UserID:          userID,
+			AppID:           appID,
 			RegistryURLBase: registryURLBase,
 			RegistryAppID:   registryAppID,
 		},
@@ -105,15 +106,11 @@ func (c *BaseNodeController) StartProcess(process *node.Process) error {
 	}
 
 	var app *node.AppInstallation
-	for _, a := range user.AppInstallations {
-		if a.AppInstallation.ID == process.AppID {
-			app = a.AppInstallation
-		}
+	appState, ok := nodeState.AppInstallations[process.AppID]
+	if !ok {
+		return fmt.Errorf("app with ID %s not found", process.AppID)
 	}
-
-	if app == nil {
-		return fmt.Errorf("user %s has no app with ID %s", process.UserID, process.AppID)
-	}
+	app = appState.AppInstallation
 
 	_, err = dbClient.ProposeTransitions([]hdb.Transition{
 		&node.ProcessStartTransition{
@@ -212,13 +209,13 @@ func generateInitState(nodeConfig *config.NodeConfig) []byte {
 			"node_id": "%s",
 			"name": "My Habitat node",
 			"certificate": "placeholder",
-			"users": [
-				{
-					"id": "%d",
+			"users": {
+				"%s": {
+					"id": "%s",
 					"username": "%s",
 					"certificate": "%s",
 					"app_installations": []
 				}
-			]
-		}`, nodeUUID, 0, constants.RootUsername, rootCert))
+			}
+		}`, nodeUUID, constants.RootUserID, constants.RootUserID, constants.RootUsername, rootCert))
 }
