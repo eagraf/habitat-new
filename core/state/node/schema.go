@@ -1,6 +1,7 @@
 package node
 
 import (
+	_ "embed"
 	"encoding/json"
 	"fmt"
 	"reflect"
@@ -10,82 +11,8 @@ import (
 
 const SchemaName = "node"
 
-var nodeSchemaRaw = `
-{
-	"title": "Habitat Node State",
-	"type": "object",
-	"properties": {
-		"node_id": {
-			"type": "string"
-		},
-		"name": {
-			"type": "string"
-		},
-		"certificate": {
-			"type": "string"
-		},
-		"users": {
-			"type": "object",
-			"additionalProperties": {
-				"type": "object",
-				"properties": {
-					"id": { "type": "string" },
-					"username": { "type": "string" },
-					"certificate": { "type": "string" }
-				},
-				"additionalProperties": false,
-				"required": [ "id", "username", "certificate" ]
-			}
-		},
-		"app_installations": {
-			"type": "object",
-			"additionalProperties": {
-				"type": "object",
-				"properties": {
-					"id": { "type": "string" },
-					"name": { "type": "string" },
-					"user_id": { "type": "string" },
-					"version": { "type": "string" },
-					"driver": { 
-						"type": "string",
-						"enum": [ "docker" ]
-					},
-					"registry_url_base": { "type": "string" },
-					"registry_app_id": { "type": "string" },
-					"registry_tag": { "type": "string" },
-					"state": {
-						"type": "string",
-						"enum": [ "installing", "installed", "uninstalled" ]
-					}
-				},
-				"additionalProperties": false,
-				"required": [ "id", "name", "user_id", "version", "driver", "registry_url_base", "registry_app_id", "registry_tag", "state" ]
-			}
-		},
-		"processes": {
-			"type": "object",
-			"additionalProperties": {
-				"type": "object",
-				"properties": {
-					"id": {"type": "string"},
-					"app_id": { "type": "string" },
-					"user_id": { "type": "string" },
-					"driver": { 
-						"type": "string",
-						"enum": [ "docker" ]
-					},
-					"created": { "type": "string" },
-					"state": { "type": "string" },
-					"ext_driver_id": { "type": "string" }
-				},
-				"additionalProperties": false,
-				"required": [ "id", "app_id", "driver", "ext_driver_id", "user_id", "state", "created" ]
-			}
-		}
-	},
-	"additionalProperties": false,
-	"required": [ "node_id", "name", "certificate", "users" ]
-}`
+//go:embed schema/schema.json
+var nodeSchemaRaw string
 
 // TODO structs defined here can embed the immutable structs, but also include mutable fields.
 
