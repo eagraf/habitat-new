@@ -7,6 +7,7 @@ import (
 
 type Schema interface {
 	Name() string
+	ID(version string) string
 	InitState() (State, error)
 	Bytes() []byte
 	Type() reflect.Type
