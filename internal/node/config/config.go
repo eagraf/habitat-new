@@ -24,6 +24,16 @@ func loadEnv() error {
 	}
 	viper.SetDefault("habitat_path", filepath.Join(homedir, ".habitat"))
 
+	err = viper.BindEnv("ts_authkey", "TS_AUTHKEY")
+	if err != nil {
+		return err
+	}
+
+	err = viper.BindEnv("tailnet", "TS_TAILNET")
+	if err != nil {
+		return err
+	}
+
 	err = viper.BindEnv("habitat_app_path")
 	if err != nil {
 		return err
@@ -67,7 +77,7 @@ func loadConfig() (*NodeConfig, error) {
 	}
 	config.NodeCert = nodeCert
 
-	log.Debug().Msgf("Loaded node config: %+v", config)
+	log.Debug().Msgf("Loaded node config: node cert: %s root cert: %s node key: %s", config.NodeCertPath(), config.RootUserCertPath(), config.NodeKeyPath())
 
 	return &config, nil
 }
@@ -125,6 +135,15 @@ func (n *NodeConfig) RootUserCertPath() string {
 
 func (n *NodeConfig) RootUserCertB64() string {
 	return base64.StdEncoding.EncodeToString(n.RootUserCert.Raw)
+}
+
+// Currently unused, but may be necessary to implement adding members to the community.
+func (n *NodeConfig) TailnetName() string {
+	return viper.GetString("tailnet")
+}
+
+func (n *NodeConfig) TailscaleAuthkey() string {
+	return viper.GetString("ts_authkey")
 }
 
 func homedir() (string, error) {
