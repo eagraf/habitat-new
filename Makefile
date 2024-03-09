@@ -36,23 +36,15 @@ install:: $(DEV_HABITAT_PATH)/habitat.yml $(CERT_DIR)/dev_node_cert.pem $(CERT_D
 docker-build:
 	docker build -t habitat_node -f ./build/node.dev.Dockerfile .
 
-run-dev:
-	docker run -p 3000:3000 -p 3001:3001 -p 4000:4000 \
-		-v $(TOPDIR)/core:$(DOCKER_WORKDIR)/core\
-		-v $(TOPDIR)/cmd:$(DOCKER_WORKDIR)/cmd \
-		-v $(TOPDIR)/internal:$(DOCKER_WORKDIR)/internal \
-		-v $(TOPDIR)/pkg:$(DOCKER_WORKDIR)/pkg \
-		-v $(TOPDIR)/.habitat:/.habitat \
-		-v /var/run/docker.sock:/var/run/docker.sock \
-		-e HABITAT_PATH=/.habitat \
-		habitat_node
+run-dev-compose:
+	TOPDIR=$(TOPDIR) DOCKER_WORKDIR=$(DOCKER_WORKDIR) DEV_HABITAT_PATH=$(DEV_HABITAT_PATH) docker-compose -f ./build/compose.yml up
 
 clear-volumes:
 	docker container rm -f habitat_node || true
 	docker volume prune -f
 	rm -rf $(DEV_HABITAT_PATH)/hdb
 
-run-dev-fresh: clear-volumes run-dev
+run-dev-fresh: clear-volumes run-dev-compose
 
 $(DEV_HABITAT_PATH):
 	mkdir -p $(DEV_HABITAT_PATH)
