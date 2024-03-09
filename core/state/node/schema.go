@@ -1,15 +1,19 @@
 package node
 
 import (
+	"context"
 	_ "embed"
 	"encoding/json"
 	"fmt"
 	"reflect"
 
 	"github.com/eagraf/habitat-new/internal/node/hdb"
+	"github.com/qri-io/jsonschema"
 )
 
 const SchemaName = "node"
+const CurrentVersion = "v0.0.1"
+const LatestVersion = "v0.0.3"
 
 //go:embed schema/schema.json
 var nodeSchemaRaw string
@@ -20,6 +24,8 @@ type NodeState struct {
 	NodeID           string                           `json:"node_id"`
 	Name             string                           `json:"name"`
 	Certificate      string                           `json:"certificate"` // TODO turn this into b64
+	SchemaVersion    string                           `json:"schema_version"`
+	TestField        string                           `json:"test_field,omitempty"`
 	Users            map[string]*User                 `json:"users"`
 	Processes        map[string]*ProcessState         `json:"processes"`
 	AppInstallations map[string]*AppInstallationState `json:"app_installations"`
@@ -87,11 +93,29 @@ func (s NodeState) GetProcessesForUser(userID string) ([]*ProcessState, error) {
 	return procs, nil
 }
 
+func (s NodeState) Copy() (*NodeState, error) {
+	marshaled, err := s.Bytes()
+	if err != nil {
+		return nil, err
+	}
+	var copy NodeState
+	err = json.Unmarshal(marshaled, &copy)
+	if err != nil {
+		return nil, err
+	}
+	return &copy, nil
+}
+
 type NodeSchema struct {
+	schemaBytes []byte
 }
 
 func (s *NodeSchema) Name() string {
 	return SchemaName
+}
+
+func (s *NodeSchema) ID(version string) string {
+	return fmt.Sprintf("https://github.com/eagraf/habitat-new/archive/refs/tags/%s-%s.json", SchemaName, CurrentVersion)
 }
 
 func (s *NodeSchema) InitState() (hdb.State, error) {
@@ -103,6 +127,9 @@ func (s *NodeSchema) InitState() (hdb.State, error) {
 }
 
 func (s *NodeSchema) Bytes() []byte {
+	if s.schemaBytes != nil {
+		return s.schemaBytes
+	}
 	return []byte(nodeSchemaRaw)
 }
 
@@ -116,7 +143,28 @@ func (s *NodeSchema) InitializationTransition(initState []byte) (hdb.Transition,
 	if err != nil {
 		return nil, err
 	}
+	is.SchemaVersion = CurrentVersion
 	return &InitalizationTransition{
 		InitState: is,
 	}, nil
+}
+
+func (s *NodeSchema) JSONSchema() *jsonschema.Schema {
+	var schema jsonschema.Schema
+	err := json.Unmarshal(s.Bytes(), &schema)
+	if err != nil {
+		panic(err)
+	}
+	return &schema
+}
+
+func (s *NodeSchema) ValidateState(state []byte) error {
+	keyErrs, err := s.JSONSchema().ValidateBytes(context.Background(), state)
+	if err != nil {
+		return err
+	}
+	if len(keyErrs) > 0 {
+		return fmt.Errorf("validation failed: %v", keyErrs)
+	}
+	return nil
 }
