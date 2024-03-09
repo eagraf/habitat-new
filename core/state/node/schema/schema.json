@@ -2,6 +2,9 @@
     "title": "Habitat Node State",
     "type": "object",
     "properties": {
+        "schema_version": {
+            "type": "string"
+        },
         "node_id": {
             "type": "string"
         },
