@@ -69,22 +69,42 @@ func (t *MigrationUpTransition) Type() string {
 }
 
 func (t *MigrationUpTransition) Patch(oldState []byte) ([]byte, error) {
-	//var state NodeState
-	//err := json.Unmarshal(oldState, &state)
-	//if err != nil {
-	//return nil, err
-	//}
+	var oldNode NodeState
+	err := json.Unmarshal(oldState, &oldNode)
+	if err != nil {
+		return nil, err
+	}
 
-	//patch, err := getMigrateUpPatch(state.SchemaVersion, t.TargetVersion, &state)
-	//if err != nil {
-	//return nil, err
-	//}
+	patch, err := NodeDataMigrations.GetMigrationPatch(oldNode.SchemaVersion, t.TargetVersion, &oldNode)
+	if err != nil {
+		return nil, err
+	}
 
-	//return []byte(patch.String()), nil
-	return nil, nil
+	return json.Marshal(patch)
 }
 
 func (t *MigrationUpTransition) Validate(oldState []byte) error {
+	var oldNode NodeState
+	err := json.Unmarshal(oldState, &oldNode)
+	if err != nil {
+		return err
+	}
+
+	patch, err := NodeDataMigrations.GetMigrationPatch(oldNode.SchemaVersion, t.TargetVersion, &oldNode)
+	if err != nil {
+		return err
+	}
+
+	newState, err := applyPatchToState(patch, &oldNode)
+	if err != nil {
+		return err
+	}
+
+	err = newState.Validate()
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 

@@ -1,7 +1,6 @@
 package hdb
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -21,28 +20,21 @@ func keyError(errs []jsonschema.KeyError) error {
 }
 
 type JSONState struct {
-	schema *jsonschema.Schema
+	schema Schema
 	state  []byte
 
 	*sync.Mutex
 }
 
-func NewJSONState(jsonSchema []byte, initState []byte) (*JSONState, error) {
-	rs := &jsonschema.Schema{}
-	err := json.Unmarshal(jsonSchema, rs)
-	if err != nil {
-		return nil, fmt.Errorf("invalid JSON schema: %s", err)
-	}
-	keyErrs, err := rs.ValidateBytes(context.Background(), initState)
+func NewJSONState(schema Schema, initState []byte) (*JSONState, error) {
+
+	err := schema.ValidateState(initState)
 	if err != nil {
 		return nil, fmt.Errorf("error validating initial state: %s", err)
 	}
-	if len(keyErrs) != 0 {
-		return nil, keyError(keyErrs)
-	}
 
 	return &JSONState{
-		schema: rs,
+		schema: schema,
 		state:  initState,
 		Mutex:  &sync.Mutex{},
 	}, nil
@@ -83,12 +75,9 @@ func (s *JSONState) applyImpl(patchJSON []byte) ([]byte, error) {
 	}
 
 	// check that updated state still fulfills the schema
-	keyErrs, err := s.schema.ValidateBytes(context.Background(), updated)
+	err = s.schema.ValidateState(updated)
 	if err != nil {
 		return nil, fmt.Errorf("error validating updated state: %s", err)
-	}
-	if len(keyErrs) != 0 {
-		return nil, keyError(keyErrs)
 	}
 	return updated, nil
 }
@@ -102,9 +91,5 @@ func (s *JSONState) Bytes() []byte {
 }
 
 func (s *JSONState) Copy() (*JSONState, error) {
-	schema, err := json.Marshal(s.schema)
-	if err != nil {
-		return nil, err
-	}
-	return NewJSONState(schema, s.state)
+	return NewJSONState(s.schema, s.state)
 }
