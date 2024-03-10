@@ -33,7 +33,7 @@ type Migration struct {
 	downBytes []byte
 }
 
-func getSchemaVersion(migrations []*Migration, targetVersion string) (*NodeSchema, error) {
+func getSchemaVersion(migrations []*Migration, targetVersion string) ([]byte, error) {
 	// TODO validate up to a certain point. Right now this just validates
 	// all migrations up to the full schema, but we might want to stop at an
 	// intermediate state.
@@ -56,13 +56,11 @@ func getSchemaVersion(migrations []*Migration, targetVersion string) (*NodeSchem
 		if mig.NewVersion == targetVersion {
 			break
 		} else if semver.Compare(mig.NewVersion, targetVersion) > 0 {
-			return nil, fmt.Errorf("target version not found in migrations")
+			return nil, fmt.Errorf("target version %s not found in migrations. latest version found: %s", targetVersion, mig.NewVersion)
 		}
 	}
 
-	return &NodeSchema{
-		schemaBytes: []byte(curSchema),
-	}, nil
+	return []byte(curSchema), nil
 }
 
 func validateMigrations() error {
@@ -167,12 +165,9 @@ func validateNodeSchemaMigrations() error {
 		return err
 	}
 
-	// Test going up
-
-	curSchema := schema.schemaBytes
-	err = compareSchemas(nodeSchemaRaw, string(curSchema))
+	err = compareSchemas(nodeSchemaRaw, string(schema))
 	if err != nil {
-		return err
+		return fmt.Errorf("latest schema: %s\nderived schema: %s\ndiff: %s", nodeSchemaRaw, string(schema), err)
 	}
 
 	return nil
@@ -291,6 +286,8 @@ func (m MigrationsList) GetMigrationPatch(currentVersion, targetVersion string, 
 		}
 	}
 
+	curState.SchemaVersion = targetVersion
+
 	patch, err := jsondiff.Compare(startState, curState)
 	if err != nil {
 		return nil, err
@@ -387,4 +384,34 @@ var NodeDataMigrations = MigrationsList{
 			return newState, nil
 		},
 	},
+}
+
+func applyPatchToState(diffPatch jsondiff.Patch, state *NodeState) (*NodeState, error) {
+	stateBytes, err := state.Bytes()
+	if err != nil {
+		return nil, err
+	}
+
+	patchBytes, err := json.Marshal(diffPatch)
+	if err != nil {
+		return nil, err
+	}
+
+	patch, err := jsonpatch.DecodePatch(patchBytes)
+	if err != nil {
+		return nil, err
+	}
+
+	updated, err := patch.Apply(stateBytes)
+	if err != nil {
+		return nil, err
+	}
+
+	var updatedNodeState *NodeState
+	err = json.Unmarshal(updated, &updatedNodeState)
+	if err != nil {
+		return nil, err
+	}
+
+	return updatedNodeState, nil
 }

@@ -32,12 +32,12 @@ func NewRaftFSMAdapter(databaseID string, schema hdb.Schema, commState []byte) (
 		if err != nil {
 			return nil, err
 		}
-		jsonState, err = hdb.NewJSONState(schema.Bytes(), initStateBytes)
+		jsonState, err = hdb.NewJSONState(schema, initStateBytes)
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		jsonState, err = hdb.NewJSONState(schema.Bytes(), commState)
+		jsonState, err = hdb.NewJSONState(schema, commState)
 		if err != nil {
 			return nil, err
 		}
@@ -115,7 +115,7 @@ func (sm *RaftFSMAdapter) Restore(reader io.ReadCloser) error {
 		return err
 	}
 
-	state, err := hdb.NewJSONState(sm.schema.Bytes(), buf)
+	state, err := hdb.NewJSONState(sm.schema, buf)
 	if err != nil {
 		return err
 	}

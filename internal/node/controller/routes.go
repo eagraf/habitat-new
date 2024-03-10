@@ -2,6 +2,7 @@ package controller
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	types "github.com/eagraf/habitat-new/core/api"
@@ -9,7 +10,56 @@ import (
 	"github.com/eagraf/habitat-new/internal/node/constants"
 	"github.com/eagraf/habitat-new/internal/node/hdb"
 	"github.com/gorilla/mux"
+	"golang.org/x/mod/semver"
 )
+
+// MigrationRoute calls nodeController.Migrate()
+type MigrationRoute struct {
+	nodeController NodeController
+}
+
+func NewMigrationRoute(nodeController NodeController) *MigrationRoute {
+	return &MigrationRoute{
+		nodeController: nodeController,
+	}
+}
+
+func (h *MigrationRoute) Pattern() string {
+	return "/node/migrate"
+}
+
+func (h *MigrationRoute) Method() string {
+	return http.MethodPost
+}
+
+func (h *MigrationRoute) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "invalid method, require POST", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req types.MigrateRequest
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// Validate semver
+	valid := semver.IsValid(req.TargetVersion)
+	if !valid {
+		http.Error(w, fmt.Sprintf("invalid semver %s", req.TargetVersion), http.StatusBadRequest)
+		return
+	}
+
+	err = h.nodeController.MigrateNodeDB(req.TargetVersion)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
 
 // InstallAppRoute calls nodeController.InstallApp()
 type InstallAppRoute struct {

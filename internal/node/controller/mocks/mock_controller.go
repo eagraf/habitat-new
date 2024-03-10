@@ -125,6 +125,20 @@ func (mr *MockNodeControllerMockRecorder) InstallApp(userID, newApp any) *gomock
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InstallApp", reflect.TypeOf((*MockNodeController)(nil).InstallApp), userID, newApp)
 }
 
+// MigrateNodeDB mocks base method.
+func (m *MockNodeController) MigrateNodeDB(targetVersion string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "MigrateNodeDB", targetVersion)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// MigrateNodeDB indicates an expected call of MigrateNodeDB.
+func (mr *MockNodeControllerMockRecorder) MigrateNodeDB(targetVersion any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MigrateNodeDB", reflect.TypeOf((*MockNodeController)(nil).MigrateNodeDB), targetVersion)
+}
+
 // SetProcessRunning mocks base method.
 func (m *MockNodeController) SetProcessRunning(processID string) error {
 	m.ctrl.T.Helper()

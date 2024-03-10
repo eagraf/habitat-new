@@ -41,7 +41,7 @@ func StateMachineFactory(databaseID string, schemaType string, initState []byte,
 		initState = initStateBytes
 	}
 
-	stateMachineController, err := state.NewStateMachine(databaseID, schema.Bytes(), initState, replicator, publisher)
+	stateMachineController, err := state.NewStateMachine(databaseID, schema, initState, replicator, publisher)
 	if err != nil {
 		return nil, err
 	}

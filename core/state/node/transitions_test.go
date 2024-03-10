@@ -47,7 +47,7 @@ func testTransitions(oldState *NodeState, transitions []hdb.Transition) (*NodeSt
 			return nil, err
 		}
 
-		newState, err := hdb.NewJSONState(schema.Bytes(), newStateBytes)
+		newState, err := hdb.NewJSONState(schema, newStateBytes)
 		if err != nil {
 			return nil, err
 		}
@@ -86,9 +86,10 @@ func TestNodeInitialization(t *testing.T) {
 	transitions := []hdb.Transition{
 		&InitalizationTransition{
 			InitState: &NodeState{
-				NodeID:      "abc",
-				Certificate: "123",
-				Name:        "New Node",
+				NodeID:        "abc",
+				Certificate:   "123",
+				Name:          "New Node",
+				SchemaVersion: "v0.0.1",
 			},
 		},
 	}
@@ -114,9 +115,10 @@ func TestAddingUsers(t *testing.T) {
 	transitions := []hdb.Transition{
 		&InitalizationTransition{
 			InitState: &NodeState{
-				NodeID:      "abc",
-				Certificate: "123",
-				Name:        "New Node",
+				NodeID:        "abc",
+				Certificate:   "123",
+				Name:          "New Node",
+				SchemaVersion: "v0.0.1",
 			},
 		},
 		&AddUserTransition{
@@ -161,10 +163,11 @@ func TestAppLifecycle(t *testing.T) {
 	transitions := []hdb.Transition{
 		&InitalizationTransition{
 			InitState: &NodeState{
-				NodeID:      "abc",
-				Certificate: "123",
-				Name:        "New Node",
-				Users:       make(map[string]*User, 0),
+				NodeID:        "abc",
+				Certificate:   "123",
+				Name:          "New Node",
+				SchemaVersion: "v0.0.1",
+				Users:         make(map[string]*User, 0),
 			},
 		},
 		&AddUserTransition{
@@ -304,9 +307,10 @@ func TestProcesses(t *testing.T) {
 	transitions := []hdb.Transition{
 		&InitalizationTransition{
 			InitState: &NodeState{
-				NodeID:      "abc",
-				Certificate: "123",
-				Name:        "New Node",
+				NodeID:        "abc",
+				Certificate:   "123",
+				Name:          "New Node",
+				SchemaVersion: "v0.0.1",
 				Users: map[string]*User{
 					"123": {
 						ID:          "123",
