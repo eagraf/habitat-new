@@ -52,8 +52,9 @@ type ProcessState struct {
 	ExtDriverID string `json:"ext_driver_id"`
 }
 
-func (s NodeState) Schema() []byte {
-	return []byte(nodeSchemaRaw)
+func (s NodeState) Schema() hdb.Schema {
+	ns := &NodeSchema{}
+	return ns
 }
 
 func (s NodeState) Bytes() ([]byte, error) {
@@ -106,6 +107,29 @@ func (s NodeState) Copy() (*NodeState, error) {
 	return &copy, nil
 }
 
+func (s NodeState) Validate() error {
+	schemaVersion := s.SchemaVersion
+
+	ns := &NodeSchema{}
+	jsonSchema, err := ns.JSONSchemaForVersion(schemaVersion)
+	if err != nil {
+		return err
+	}
+	stateBytes, err := s.Bytes()
+	if err != nil {
+		return err
+	}
+	keyErrs, err := jsonSchema.ValidateBytes(context.Background(), stateBytes)
+	if err != nil {
+		return err
+	}
+
+	if len(keyErrs) > 0 {
+		return fmt.Errorf("validation failed: %v", keyErrs)
+	}
+	return nil
+}
+
 type NodeSchema struct {
 	schemaBytes []byte
 }
@@ -120,6 +144,7 @@ func (s *NodeSchema) ID(version string) string {
 
 func (s *NodeSchema) InitState() (hdb.State, error) {
 	return &NodeState{
+		SchemaVersion:    CurrentVersion,
 		Users:            make(map[string]*User),
 		Processes:        make(map[string]*ProcessState),
 		AppInstallations: make(map[string]*AppInstallationState),
@@ -149,17 +174,42 @@ func (s *NodeSchema) InitializationTransition(initState []byte) (hdb.Transition,
 	}, nil
 }
 
-func (s *NodeSchema) JSONSchema() *jsonschema.Schema {
-	var schema jsonschema.Schema
-	err := json.Unmarshal(s.Bytes(), &schema)
+func (s *NodeSchema) JSONSchemaForVersion(version string) (*jsonschema.Schema, error) {
+
+	migrations, err := readSchemaMigrationFiles()
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
-	return &schema
+
+	schema, err := getSchemaVersion(migrations, version)
+	if err != nil {
+		return nil, err
+	}
+
+	rs := &jsonschema.Schema{}
+	err = json.Unmarshal([]byte(schema), rs)
+	if err != nil {
+		return nil, fmt.Errorf("invalid JSON schema: %s", err)
+	}
+
+	return rs, nil
 }
 
 func (s *NodeSchema) ValidateState(state []byte) error {
-	keyErrs, err := s.JSONSchema().ValidateBytes(context.Background(), state)
+	var stateObj NodeState
+	err := json.Unmarshal(state, &stateObj)
+	if err != nil {
+		return err
+	}
+
+	version := stateObj.SchemaVersion
+
+	jsonSchema, err := s.JSONSchemaForVersion(version)
+	if err != nil {
+		return err
+	}
+
+	keyErrs, err := jsonSchema.ValidateBytes(context.Background(), state)
 	if err != nil {
 		return err
 	}

@@ -33,10 +33,10 @@ type StateMachine struct {
 	updateChan   <-chan hdb.StateUpdate
 	doneChan     chan bool
 
-	schema []byte
+	schema hdb.Schema
 }
 
-func NewStateMachine(databaseID string, schema, initRawState []byte, replicator Replicator, publisher pubsub.Publisher[hdb.StateUpdate]) (StateMachineController, error) {
+func NewStateMachine(databaseID string, schema hdb.Schema, initRawState []byte, replicator Replicator, publisher pubsub.Publisher[hdb.StateUpdate]) (StateMachineController, error) {
 	jsonState, err := hdb.NewJSONState(schema, initRawState)
 	if err != nil {
 		return nil, err
@@ -139,7 +139,7 @@ func (sm *StateMachine) ProposeTransitions(transitions []hdb.Transition) (*hdb.J
 			return nil, err
 		}
 
-		wrapped, err := hdb.WrapTransition(t, jsonStateBranch.Bytes())
+		wrapped, err := hdb.WrapTransition(t, patch, jsonStateBranch.Bytes())
 		if err != nil {
 			return nil, err
 		}
