@@ -42,6 +42,7 @@ func WrapTransition(t Transition, patch []byte, oldState []byte) (*TransitionWra
 type State interface {
 	Schema() Schema
 	Bytes() ([]byte, error)
+	Validate() error
 }
 
 func StateToJSONState(state State) (*JSONState, error) {

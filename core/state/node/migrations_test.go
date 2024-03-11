@@ -2,17 +2,28 @@ package node
 
 import (
 	"encoding/json"
+	"fmt"
+	"strings"
 	"testing"
 
+	jsonpatch "github.com/evanphx/json-patch/v5"
 	"github.com/stretchr/testify/assert"
 )
 
-func TestMigrations(t *testing.T) {
-	err := validateMigrations()
+func TestSchemaMigrations(t *testing.T) {
+	err := validateSchemaMigrations()
 	assert.Nil(t, err)
 
-	err = validateNodeSchemaMigrations()
+	err = validateNodeSchemaMigrations(LatestVersion)
 	assert.Nil(t, err)
+
+	// Test non-existant high version
+	err = validateNodeSchemaMigrations("v1000.0.1")
+	assert.NotNil(t, err)
+
+	// Test skipped version
+	err = validateNodeSchemaMigrations("v0.0.2-rc1")
+	assert.NotNil(t, err)
 }
 
 func TestDataMigrations(t *testing.T) {
@@ -54,6 +65,21 @@ func TestDataMigrations(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, "test", updated3.TestField)
 	assert.Equal(t, "v0.0.2", updated3.SchemaVersion)
+
+	// Test migrating to a nonsensically high version
+	_, err = NodeDataMigrations.GetMigrationPatch("v0.0.1", "v1000.0.4", initState.(*NodeState))
+	assert.NotNil(t, err)
+}
+
+func TestValidationFailure(t *testing.T) {
+	// Test that validation fails when the state is invalid
+	nodeSchema := &NodeSchema{}
+	state, err := nodeSchema.InitState()
+	assert.Nil(t, err)
+
+	state.(*NodeState).TestField = "test"
+	err = state.Validate()
+	assert.NotNil(t, err)
 }
 
 func TestBackwardsCompatibility(t *testing.T) {
@@ -62,7 +88,7 @@ func TestBackwardsCompatibility(t *testing.T) {
 	// so it is mostly testing that data from very early versions will travel up and down correctly.
 	// Specific important migrations should have their own tests.
 	//
-	// IMPORTANT: Any code that breaks this test breaks backwards compatibility. Think hard before
+	// WARNING: Any code that breaks this test breaks backwards compatibility. Think hard before
 	// changing this test to make your code pass.
 
 	// NodeSchema in v0.0.1
@@ -161,4 +187,118 @@ func TestBackwardsCompatibility(t *testing.T) {
 	assert.Nil(t, err)
 
 	assert.Equal(t, string(serialized), string(serializedDown))
+}
+
+// Helpers for testing migrating schemas up and down
+func validateSchemaMigrations() error {
+	// TODO validate up to a certain point. Right now this just validates
+	// all migrations up to the full schema, but we might want to stop at an
+	// intermediate state.
+
+	// WARNING: Any code that breaks this test breaks backwards compatibility. Think hard before
+	// changing this test to make your code pass.
+
+	migrationsFiles, err := migrationsDir.ReadDir("migrations")
+	if err != nil {
+		return err
+	}
+
+	// Read in all the migration data
+	migrations := make([]*Migration, 0)
+	for _, migFile := range migrationsFiles {
+		if migFile.IsDir() {
+			continue
+		}
+		if !strings.HasSuffix(migFile.Name(), ".json") {
+			continue
+		}
+
+		migFileData, err := migrationsDir.ReadFile("migrations/" + migFile.Name())
+		if err != nil {
+			return err
+		}
+
+		var migration Migration
+		err = json.Unmarshal(migFileData, &migration)
+		if err != nil {
+			return err
+		}
+
+		// Convert the JSONPatch arrays to bytes
+		migration.upBytes, err = json.Marshal(migration.Up)
+		if err != nil {
+			return err
+		}
+		migration.downBytes, err = json.Marshal(migration.Down)
+		if err != nil {
+			return err
+		}
+
+		migrations = append(migrations, &migration)
+	}
+
+	curSchema := "{}"
+
+	// Test going up
+	for _, mig := range migrations {
+
+		patch, err := jsonpatch.DecodePatch(mig.upBytes)
+		if err != nil {
+			return err
+		}
+
+		updated, err := patch.Apply([]byte(curSchema))
+		if err != nil {
+			return err
+		}
+
+		curSchema = string(updated)
+	}
+
+	err = compareSchemas(nodeSchemaRaw, curSchema)
+	if err != nil {
+		return err
+	}
+
+	// Test going down
+	for i := len(migrations) - 1; i >= 0; i-- {
+		mig := migrations[i]
+
+		patch, err := jsonpatch.DecodePatch(mig.downBytes)
+		if err != nil {
+			return err
+		}
+
+		updated, err := patch.Apply([]byte(curSchema))
+		if err != nil {
+			return err
+		}
+
+		curSchema = string(updated)
+	}
+
+	if curSchema != "{}" {
+		return fmt.Errorf("down migrations do not result in {}")
+	}
+
+	return nil
+}
+
+func validateNodeSchemaMigrations(targetVersion string) error {
+	migrations, err := readSchemaMigrationFiles()
+	if err != nil {
+		return err
+	}
+
+	schema, err := getSchemaVersion(migrations, targetVersion)
+	if err != nil {
+		return err
+	}
+
+	err = compareSchemas(nodeSchemaRaw, string(schema))
+	if err != nil {
+		return fmt.Errorf("latest schema: %s\nderived schema: %s\ndiff: %s", nodeSchemaRaw, string(schema), err)
+	}
+
+	return nil
 }

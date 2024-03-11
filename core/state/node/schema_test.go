@@ -18,6 +18,8 @@ func TestSchemaParsing(t *testing.T) {
 	ns := &NodeSchema{}
 	initState, err := ns.InitState()
 	assert.Nil(t, err)
+	assert.NotNil(t, ns.Type())
+	assert.Equal(t, "node", ns.Name())
 
 	marshaled, err := json.Marshal(initState)
 	assert.Nil(t, err)
