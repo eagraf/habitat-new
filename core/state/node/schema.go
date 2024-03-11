@@ -138,10 +138,6 @@ func (s *NodeSchema) Name() string {
 	return SchemaName
 }
 
-func (s *NodeSchema) ID(version string) string {
-	return fmt.Sprintf("https://github.com/eagraf/habitat-new/archive/refs/tags/%s-%s.json", SchemaName, CurrentVersion)
-}
-
 func (s *NodeSchema) InitState() (hdb.State, error) {
 	return &NodeState{
 		SchemaVersion:    CurrentVersion,
@@ -149,13 +145,6 @@ func (s *NodeSchema) InitState() (hdb.State, error) {
 		Processes:        make(map[string]*ProcessState),
 		AppInstallations: make(map[string]*AppInstallationState),
 	}, nil
-}
-
-func (s *NodeSchema) Bytes() []byte {
-	if s.schemaBytes != nil {
-		return s.schemaBytes
-	}
-	return []byte(nodeSchemaRaw)
 }
 
 func (s *NodeSchema) Type() reflect.Type {
