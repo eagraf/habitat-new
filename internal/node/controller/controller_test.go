@@ -56,6 +56,58 @@ func TestInitializeNodeDB(t *testing.T) {
 	assert.Nil(t, err)
 }
 
+func TestMigrationController(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	mockDB := hdb_mocks.NewMockHDBManager(ctrl)
+	mockClient := hdb_mocks.NewMockClient(ctrl)
+
+	controller := &BaseNodeController{
+		databaseManager: mockDB,
+		nodeConfig: &config.NodeConfig{
+			RootUserCert: &x509.Certificate{
+				Raw: []byte("root_cert"),
+			},
+		},
+	}
+
+	nodeState := &node.NodeState{
+		SchemaVersion: "v0.0.2",
+	}
+	marshaled, err := nodeState.Bytes()
+	assert.Equal(t, nil, err)
+
+	mockDB.EXPECT().GetDatabaseClientByName(constants.NodeDBDefaultName).Return(mockClient, nil).Times(1)
+	mockClient.EXPECT().Bytes().Return(marshaled).Times(1)
+	mockClient.EXPECT().ProposeTransitions(gomock.Eq(
+		[]hdb.Transition{
+			&node.MigrationUpTransition{
+				TargetVersion: "v0.0.3",
+			},
+		},
+	)).Return(nil, nil).Times(1)
+
+	err = controller.MigrateNodeDB("v0.0.3")
+	assert.Nil(t, err)
+
+	// Test no-op by migrating to the same version
+
+	mockDB.EXPECT().GetDatabaseClientByName(constants.NodeDBDefaultName).Return(mockClient, nil).Times(1)
+	mockClient.EXPECT().Bytes().Return(marshaled).Times(1)
+	mockClient.EXPECT().ProposeTransitions(gomock.Any()).Times(0)
+
+	err = controller.MigrateNodeDB("v0.0.2")
+	assert.Nil(t, err)
+
+	// Test  migrating to a lower version
+
+	mockDB.EXPECT().GetDatabaseClientByName(constants.NodeDBDefaultName).Return(mockClient, nil).Times(1)
+	mockClient.EXPECT().Bytes().Return(marshaled).Times(1)
+	mockClient.EXPECT().ProposeTransitions(gomock.Any()).Times(0)
+
+	err = controller.MigrateNodeDB("v0.0.1")
+	assert.NotNil(t, err)
+}
+
 func TestInstallAppController(t *testing.T) {
 	ctrl := gomock.NewController(t)
 
