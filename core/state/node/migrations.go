@@ -242,17 +242,24 @@ func compareSchemas(expected, actual string) error {
 
 type MigrationsList []DataMigration
 
+// GetNeededMigrations returns the list of migrations needed to go from the current version to the target version
+// This works in both forward and reverse orders. The migrations are returned in the order they should run.
+// Assumes the migration list is sorted oldest to newest.
 func (m MigrationsList) GetNeededMigrations(currentVersion, targetVersion string) ([]DataMigration, error) {
+	if semver.Compare(currentVersion, targetVersion) == 0 {
+		return nil, fmt.Errorf("current version and target version are the same")
+	}
+
 	migrations := make([]DataMigration, 0)
 	inMigration := false
 	for _, dataMigration := range NodeDataMigrations {
-		if dataMigration.UpVersion() == currentVersion {
+		if (dataMigration.UpVersion() == currentVersion || dataMigration.UpVersion() == targetVersion) && !inMigration {
 			inMigration = true
 			continue
 		} else if inMigration {
 			migrations = append(migrations, dataMigration)
 		}
-		if dataMigration.UpVersion() == targetVersion {
+		if (dataMigration.UpVersion() == targetVersion || dataMigration.UpVersion() == currentVersion) && inMigration {
 			inMigration = false
 			break
 		}
@@ -261,8 +268,18 @@ func (m MigrationsList) GetNeededMigrations(currentVersion, targetVersion string
 		return nil, fmt.Errorf("no migrations found")
 	}
 	if inMigration {
-		return nil, fmt.Errorf("couldn't migrate up to target version, latest was %s", migrations[len(migrations)-1].UpVersion())
+		return nil, fmt.Errorf("couldn't find full migration range, latest was %s", migrations[len(migrations)-1].UpVersion())
 	}
+
+	// If going downward, reverse the order of the migrations
+	if semver.Compare(currentVersion, targetVersion) > 0 {
+		downMigrations := make([]DataMigration, len(migrations))
+		for i := len(migrations) - 1; i >= 0; i-- {
+			downMigrations[len(migrations)-1-i] = migrations[i]
+		}
+		return downMigrations, nil
+	}
+
 	return migrations, nil
 }
 
@@ -277,9 +294,18 @@ func (m MigrationsList) GetMigrationPatch(currentVersion, targetVersion string, 
 	}
 	for _, dataMigration := range migrations {
 		// Run the up migration
-		curState, err = dataMigration.Up(curState)
-		if err != nil {
-			return nil, err
+		if semver.Compare(currentVersion, targetVersion) < 0 {
+			curState, err = dataMigration.Up(curState)
+			if err != nil {
+				return nil, err
+			}
+		} else if semver.Compare(currentVersion, targetVersion) > 0 {
+			curState, err = dataMigration.Down(curState)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			return nil, fmt.Errorf("current version and target version are the same, but at least one migration was still selected. this should never happen. current: %s, target: %s", currentVersion, targetVersion)
 		}
 		if dataMigration.UpVersion() == targetVersion {
 			break
