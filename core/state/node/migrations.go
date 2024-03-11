@@ -54,124 +54,13 @@ func getSchemaVersion(migrations []*Migration, targetVersion string) ([]byte, er
 		curSchema = string(updated)
 
 		if mig.NewVersion == targetVersion {
-			break
+			return updated, nil
 		} else if semver.Compare(mig.NewVersion, targetVersion) > 0 {
 			return nil, fmt.Errorf("target version %s not found in migrations. latest version found: %s", targetVersion, mig.NewVersion)
 		}
 	}
 
-	return []byte(curSchema), nil
-}
-
-func validateMigrations() error {
-	// TODO validate up to a certain point. Right now this just validates
-	// all migrations up to the full schema, but we might want to stop at an
-	// intermediate state.
-
-	migrationsFiles, err := migrationsDir.ReadDir("migrations")
-	if err != nil {
-		return err
-	}
-
-	// Read in all the migration data
-	migrations := make([]*Migration, 0)
-	for _, migFile := range migrationsFiles {
-		if migFile.IsDir() {
-			continue
-		}
-		if !strings.HasSuffix(migFile.Name(), ".json") {
-			continue
-		}
-
-		migFileData, err := migrationsDir.ReadFile("migrations/" + migFile.Name())
-		if err != nil {
-			return err
-		}
-
-		var migration Migration
-		err = json.Unmarshal(migFileData, &migration)
-		if err != nil {
-			return err
-		}
-
-		// Convert the JSONPatch arrays to bytes
-		migration.upBytes, err = json.Marshal(migration.Up)
-		if err != nil {
-			return err
-		}
-		migration.downBytes, err = json.Marshal(migration.Down)
-		if err != nil {
-			return err
-		}
-
-		migrations = append(migrations, &migration)
-	}
-
-	curSchema := "{}"
-
-	// Test going up
-	for _, mig := range migrations {
-
-		patch, err := jsonpatch.DecodePatch(mig.upBytes)
-		if err != nil {
-			return err
-		}
-
-		updated, err := patch.Apply([]byte(curSchema))
-		if err != nil {
-			return err
-		}
-
-		curSchema = string(updated)
-	}
-
-	err = compareSchemas(nodeSchemaRaw, curSchema)
-	if err != nil {
-		return err
-	}
-
-	// Test going down
-	for i := len(migrations) - 1; i >= 0; i-- {
-		mig := migrations[i]
-
-		patch, err := jsonpatch.DecodePatch(mig.downBytes)
-		if err != nil {
-			return err
-		}
-
-		updated, err := patch.Apply([]byte(curSchema))
-		if err != nil {
-			return err
-		}
-
-		curSchema = string(updated)
-	}
-
-	if curSchema != "{}" {
-		return fmt.Errorf("down migrations do not result in {}")
-	}
-
-	return nil
-}
-
-func validateNodeSchemaMigrations() error {
-	migrations, err := readSchemaMigrationFiles()
-	if err != nil {
-		return err
-	}
-
-	schema, err := getSchemaVersion(migrations, LatestVersion)
-	if err != nil {
-		return err
-	}
-
-	err = compareSchemas(nodeSchemaRaw, string(schema))
-	if err != nil {
-		return fmt.Errorf("latest schema: %s\nderived schema: %s\ndiff: %s", nodeSchemaRaw, string(schema), err)
-	}
-
-	return nil
-
+	return nil, fmt.Errorf("target version not found in migrations: %s", targetVersion)
 }
 
 func readSchemaMigrationFiles() ([]*Migration, error) {
