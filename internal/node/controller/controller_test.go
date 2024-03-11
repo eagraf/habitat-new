@@ -80,7 +80,7 @@ func TestMigrationController(t *testing.T) {
 	mockClient.EXPECT().Bytes().Return(marshaled).Times(1)
 	mockClient.EXPECT().ProposeTransitions(gomock.Eq(
 		[]hdb.Transition{
-			&node.MigrationUpTransition{
+			&node.MigrationTransition{
 				TargetVersion: "v0.0.3",
 			},
 		},
@@ -102,10 +102,16 @@ func TestMigrationController(t *testing.T) {
 
 	mockDB.EXPECT().GetDatabaseClientByName(constants.NodeDBDefaultName).Return(mockClient, nil).Times(1)
 	mockClient.EXPECT().Bytes().Return(marshaled).Times(1)
-	mockClient.EXPECT().ProposeTransitions(gomock.Any()).Times(0)
+	mockClient.EXPECT().ProposeTransitions(gomock.Eq(
+		[]hdb.Transition{
+			&node.MigrationTransition{
+				TargetVersion: "v0.0.1",
+			},
+		},
+	)).Times(1)
 
 	err = controller.MigrateNodeDB("v0.0.1")
-	assert.NotNil(t, err)
+	assert.Nil(t, err)
 }
 
 func TestInstallAppController(t *testing.T) {

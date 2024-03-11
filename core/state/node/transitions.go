@@ -59,16 +59,15 @@ func (t *InitalizationTransition) Validate(oldState []byte) error {
 	return nil
 }
 
-type MigrationUpTransition struct {
+type MigrationTransition struct {
 	TargetVersion string
-	//Migration *Migration `json:"migration"`
 }
 
-func (t *MigrationUpTransition) Type() string {
+func (t *MigrationTransition) Type() string {
 	return TransitionMigrationUp
 }
 
-func (t *MigrationUpTransition) Patch(oldState []byte) ([]byte, error) {
+func (t *MigrationTransition) Patch(oldState []byte) ([]byte, error) {
 	var oldNode NodeState
 	err := json.Unmarshal(oldState, &oldNode)
 	if err != nil {
@@ -83,7 +82,7 @@ func (t *MigrationUpTransition) Patch(oldState []byte) ([]byte, error) {
 	return json.Marshal(patch)
 }
 
-func (t *MigrationUpTransition) Validate(oldState []byte) error {
+func (t *MigrationTransition) Validate(oldState []byte) error {
 	var oldNode NodeState
 	err := json.Unmarshal(oldState, &oldNode)
 	if err != nil {

@@ -536,7 +536,7 @@ func TestMigrationsTransition(t *testing.T) {
 				},
 			},
 		},
-		&MigrationUpTransition{
+		&MigrationTransition{
 			TargetVersion: "v0.0.2",
 		},
 	}
@@ -547,7 +547,7 @@ func TestMigrationsTransition(t *testing.T) {
 	assert.Equal(t, "test", newState.TestField)
 
 	testRemovingField := []hdb.Transition{
-		&MigrationUpTransition{
+		&MigrationTransition{
 			TargetVersion: "v0.0.3",
 		},
 	}
@@ -555,5 +555,16 @@ func TestMigrationsTransition(t *testing.T) {
 	newState, err = testTransitionsOnCopy(newState, testRemovingField)
 	assert.Nil(t, err)
 	assert.Equal(t, "v0.0.3", newState.SchemaVersion)
+	assert.Equal(t, "", newState.TestField)
+
+	// Test migrating down
+	testDown := []hdb.Transition{
+		&MigrationTransition{
+			TargetVersion: "v0.0.1",
+		},
+	}
+	newState, err = testTransitionsOnCopy(newState, testDown)
+	assert.Nil(t, err)
+	assert.Equal(t, "v0.0.1", newState.SchemaVersion)
 	assert.Equal(t, "", newState.TestField)
 }
