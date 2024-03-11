@@ -68,13 +68,8 @@ func (c *BaseNodeController) MigrateNodeDB(targetVersion string) error {
 		return nil
 	}
 
-	// Only allowed if we are migrating up
-	if semver.Compare(nodeState.SchemaVersion, targetVersion) > 0 {
-		return fmt.Errorf("taget version %s is less than current version: %s", targetVersion, nodeState.SchemaVersion)
-	}
-
 	_, err = dbClient.ProposeTransitions([]hdb.Transition{
-		&node.MigrationUpTransition{
+		&node.MigrationTransition{
 			TargetVersion: targetVersion,
 		},
 	})
