@@ -520,5 +520,44 @@ func TestProcesses(t *testing.T) {
 	}
 	_, err = testTransitionsOnCopy(newState, testProcessStopNoMatchingID)
 	assert.NotNil(t, err)
+}
 
+func TestMigrationsTransition(t *testing.T) {
+
+	transitions := []hdb.Transition{
+		&InitalizationTransition{
+			InitState: &NodeState{
+				NodeID:        "abc",
+				Certificate:   "123",
+				Name:          "New Node",
+				SchemaVersion: "v0.0.1",
+				Users: map[string]*User{
+					"123": {
+						ID:          "123",
+						Username:    "eagraf",
+						Certificate: "placeholder",
+					},
+				},
+			},
+		},
+		&MigrationUpTransition{
+			TargetVersion: "v0.0.2",
+		},
+	}
+
+	newState, err := testTransitions(nil, transitions)
+	assert.Nil(t, err)
+	assert.Equal(t, "v0.0.2", newState.SchemaVersion)
+	assert.Equal(t, "test", newState.TestField)
+
+	testRemovingField := []hdb.Transition{
+		&MigrationUpTransition{
+			TargetVersion: "v0.0.3",
+		},
+	}
+
+	newState, err = testTransitionsOnCopy(newState, testRemovingField)
+	assert.Nil(t, err)
+	assert.Equal(t, "v0.0.3", newState.SchemaVersion)
+	assert.Equal(t, "", newState.TestField)
 }

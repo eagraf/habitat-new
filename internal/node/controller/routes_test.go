@@ -23,6 +23,55 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
+func TestMigrations(t *testing.T) {
+	ctrl := gomock.NewController(t)
+
+	m := mocks.NewMockNodeController(ctrl)
+	handler := NewMigrationRoute(m)
+
+	router := mux.NewRouter()
+	router.Handle(handler.Pattern(), handler).Methods(handler.Method())
+	server := httptest.NewServer(router)
+
+	body := &types.MigrateRequest{
+		TargetVersion: "v0.0.2",
+	}
+
+	bodyBytes, err := json.Marshal(body)
+	if err != nil {
+		t.Error(err)
+	}
+
+	client := server.Client()
+	url := fmt.Sprintf("%s%s", server.URL, handler.Pattern())
+
+	m.EXPECT().MigrateNodeDB("v0.0.2").Return(nil).Times(1)
+
+	resp, err := client.Post(url, "application/json", bytes.NewBuffer(bodyBytes))
+	assert.Nil(t, err)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+	// Test error from node controller
+	m.EXPECT().MigrateNodeDB("v0.0.2").Return(errors.New("invalid version")).Times(1)
+
+	resp, err = client.Post(url, "application/json", bytes.NewBuffer(bodyBytes))
+	assert.Nil(t, err)
+	assert.Equal(t, http.StatusInternalServerError, resp.StatusCode)
+
+	// Test invalid semver
+	body.TargetVersion = "invalid"
+	bodyBytes, err = json.Marshal(body)
+	if err != nil {
+		t.Error(err)
+	}
+
+	m.EXPECT().MigrateNodeDB("invalid").Times(0)
+	resp, err = client.Post(url, "application/json", bytes.NewBuffer(bodyBytes))
+	assert.Nil(t, err)
+	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+
+}
+
 func TestInstallAppHandler(t *testing.T) {
 	ctrl := gomock.NewController(t)
 
