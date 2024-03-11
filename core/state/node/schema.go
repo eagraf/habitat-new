@@ -58,11 +58,7 @@ func (s NodeState) Schema() hdb.Schema {
 }
 
 func (s NodeState) Bytes() ([]byte, error) {
-	marshaled, err := json.Marshal(s)
-	if err != nil {
-		return nil, err
-	}
-	return marshaled, nil
+	return json.Marshal(s)
 }
 
 func (s NodeState) GetAppByID(appID string) (*AppInstallationState, error) {
@@ -130,9 +126,7 @@ func (s NodeState) Validate() error {
 	return nil
 }
 
-type NodeSchema struct {
-	schemaBytes []byte
-}
+type NodeSchema struct{}
 
 func (s *NodeSchema) Name() string {
 	return SchemaName

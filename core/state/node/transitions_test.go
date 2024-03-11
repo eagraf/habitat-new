@@ -31,6 +31,9 @@ func testTransitions(oldState *NodeState, transitions []hdb.Transition) (*NodeSt
 		oldJSONState = ojs
 	}
 	for _, t := range transitions {
+		if t.Type() == "" {
+			return nil, fmt.Errorf("transition type is empty")
+		}
 
 		err := t.Validate(oldJSONState.Bytes())
 		if err != nil {
