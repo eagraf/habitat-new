@@ -30,8 +30,7 @@ func TestSubscriber(t *testing.T) {
 		&node.NodeState{
 			Users: map[string]*node.User{
 				"user1": {
-					ID:               "user1",
-					AppInstallations: []string{},
+					ID: "user1",
 				},
 			},
 		})

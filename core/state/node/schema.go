@@ -18,15 +18,9 @@ var nodeSchemaRaw = `
 			"properties": {
 				"id": { "type": "string" },
 				"username": { "type": "string" },
-				"certificate": { "type": "string" },
-				"app_installations": {
-					"type": "array",
-					"items": {
-						"type": "string"
-					}
-				}
+				"certificate": { "type": "string" }
 			},
-			"required": [ "id", "username", "certificate", "app_installations" ]
+			"required": [ "id", "username", "certificate" ]
 		},
 		"app_installation": {
 			"type": "object",
@@ -107,10 +101,9 @@ type NodeState struct {
 }
 
 type User struct {
-	ID               string   `json:"id"`
-	Username         string   `json:"username"`
-	Certificate      string   `json:"certificate"` // TODO turn this into b64
-	AppInstallations []string `json:"app_installations"`
+	ID          string `json:"id"`
+	Username    string `json:"username"`
+	Certificate string `json:"certificate"` // TODO turn this into b64
 }
 
 const AppStateInstalling = "installing"
@@ -147,6 +140,16 @@ func (s NodeState) GetAppByID(appID string) (*AppInstallationState, error) {
 		}
 	}
 	return nil, fmt.Errorf("app with ID %s not found", appID)
+}
+
+func (s NodeState) GetAppsForUser(userID string) ([]*AppInstallationState, error) {
+	apps := make([]*AppInstallationState, 0)
+	for _, app := range s.AppInstallations {
+		if app.UserID == userID {
+			apps = append(apps, app)
+		}
+	}
+	return apps, nil
 }
 
 type NodeSchema struct {
