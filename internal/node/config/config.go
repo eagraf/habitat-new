@@ -24,12 +24,12 @@ func loadEnv() error {
 	}
 	viper.SetDefault("habitat_path", filepath.Join(homedir, ".habitat"))
 
-	err = viper.BindEnv("ts_authkey", "TS_AUTHKEY")
+	err = viper.BindEnv("tailscale_authkey", "TAILSCALE_AUTHKEY")
 	if err != nil {
 		return err
 	}
 
-	err = viper.BindEnv("tailnet", "TS_TAILNET")
+	err = viper.BindEnv("tailnet", "TAILSCALE_TAILNET")
 	if err != nil {
 		return err
 	}
@@ -143,7 +143,7 @@ func (n *NodeConfig) TailnetName() string {
 }
 
 func (n *NodeConfig) TailscaleAuthkey() string {
-	return viper.GetString("ts_authkey")
+	return viper.GetString("tailscale_authkey")
 }
 
 func homedir() (string, error) {

@@ -32,3 +32,4 @@ services:
     depends_on:
         - tailscale
     image: habitat_node
+    build: node.dev.Dockerfile
