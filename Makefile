@@ -36,7 +36,7 @@ install:: $(DEV_HABITAT_PATH)/habitat.yml $(CERT_DIR)/dev_node_cert.pem $(CERT_D
 docker-build:
 	docker build -t habitat_node -f ./build/node.dev.Dockerfile .
 
-run-dev-compose:
+run-dev:
 	TOPDIR=$(TOPDIR) DOCKER_WORKDIR=$(DOCKER_WORKDIR) DEV_HABITAT_PATH=$(DEV_HABITAT_PATH) docker-compose -f ./build/compose.yml up
 
 clear-volumes:
@@ -44,7 +44,7 @@ clear-volumes:
 	docker volume prune -f
 	rm -rf $(DEV_HABITAT_PATH)/hdb
 
-run-dev-fresh: clear-volumes run-dev-compose
+run-dev-fresh: clear-volumes run-dev
 
 $(DEV_HABITAT_PATH):
 	mkdir -p $(DEV_HABITAT_PATH)
