@@ -197,8 +197,11 @@ func TestAppLifecycle(t *testing.T) {
 	assert.Equal(t, 1, len(newState.Users))
 	assert.Equal(t, 1, len(newState.AppInstallations))
 
-	appID := newState.Users["123"].AppInstallations[0]
-	app, ok := newState.AppInstallations[appID]
+	apps, err := newState.GetAppsForUser("123")
+	assert.Nil(t, err)
+
+	app := apps[0]
+	_, ok := newState.AppInstallations[app.ID]
 	assert.Equal(t, ok, true)
 	assert.Equal(t, "app_name1", app.Name)
 	assert.Equal(t, "installing", app.State)

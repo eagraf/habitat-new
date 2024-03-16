@@ -45,6 +45,8 @@ func (h *InstallAppRoute) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// TODO the user id should come from the authentication
+	// TODO request types that aren't coupled with the core domain types
 	appInstallation := req.AppInstallation
 	appInstallation.UserID = userID
 
