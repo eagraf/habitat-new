@@ -102,10 +102,6 @@ func TestBackwardsCompatibility(t *testing.T) {
 				ID:          "user1",
 				Username:    "username1",
 				Certificate: "fake user certificate",
-				AppInstallations: []string{
-					"app1",
-					"app2",
-				},
 			},
 		},
 		AppInstallations: map[string]*AppInstallationState{
@@ -115,12 +111,13 @@ func TestBackwardsCompatibility(t *testing.T) {
 					Name:    "appname1",
 					Version: "1.0.0",
 					Package: Package{
-						Driver:             "test",
+						Driver:             "docker",
 						RegistryURLBase:    "https://registry.example.com",
 						RegistryPackageID:  "appname1",
 						RegistryPackageTag: "1.0.0",
 					},
 				},
+				State: AppLifecycleStateInstalled,
 			},
 			"app2": {
 				AppInstallation: &AppInstallation{
@@ -128,12 +125,13 @@ func TestBackwardsCompatibility(t *testing.T) {
 					Name:    "appname2",
 					Version: "1.0.0",
 					Package: Package{
-						Driver:             "test",
+						Driver:             "docker",
 						RegistryURLBase:    "https://registry.example.com",
 						RegistryPackageID:  "appname1",
 						RegistryPackageTag: "1.0.0",
 					},
 				},
+				State: AppLifecycleStateInstalled,
 			},
 		},
 		Processes: map[string]*ProcessState{
@@ -143,7 +141,7 @@ func TestBackwardsCompatibility(t *testing.T) {
 					AppID:   "app1",
 					UserID:  "user1",
 					Created: "now",
-					Driver:  "test",
+					Driver:  "docker",
 				},
 				State: ProcessStateRunning,
 			},
@@ -154,7 +152,7 @@ func TestBackwardsCompatibility(t *testing.T) {
 					AppID:   "app2",
 					UserID:  "user1",
 					Created: "now",
-					Driver:  "test",
+					Driver:  "docker",
 				},
 				State: ProcessStateStarting,
 			},
