@@ -6,3 +6,6 @@
 
 # Code coverage output
 coverage.out
+
+# Build directory
+build/
