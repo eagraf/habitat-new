@@ -19,7 +19,7 @@ CERT_DIR = $(DEV_HABITAT_PATH)/certificates
 
 GOBIN ?= $$(go env GOPATH)/bin
 
-build: $(TOPDIR)/build/amd64-linux/habitat $(TOPDIR)/build/amd64-darwin/habitat
+build: $(TOPDIR)/bin/amd64-linux/habitat $(TOPDIR)/bin/amd64-darwin/habitat
 
 test::
 	go test ./... -timeout 1s
@@ -81,11 +81,11 @@ $(CERT_DIR)/dev_root_user_cert.pem: $(CERT_DIR)
 		-keyout $(CERT_DIR)/dev_root_user_key.pem \
 		-subj "/C=US/ST=California/L=Mountain View/O=Habitat/CN=root"
 
-$(TOPDIR)/build: $(TOPDIR)
-	mkdir -p $(TOPDIR)/build
+$(TOPDIR)/bin: $(TOPDIR)
+	mkdir -p $(TOPDIR)/bin
 
-$(TOPDIR)/build/amd64-linux/habitat: $(TOPDIR)/build
-	GOARCH=amd64 GOOS=linux go build -o $(TOPDIR)/build/amd64-linux/habitat $(TOPDIR)/cmd/node/main.go
+$(TOPDIR)/bin/amd64-linux/habitat: $(TOPDIR)/bin
+	GOARCH=amd64 GOOS=linux go build -o $(TOPDIR)/bin/amd64-linux/habitat $(TOPDIR)/cmd/node/main.go
 
-$(TOPDIR)/build/amd64-darwin/habitat: $(TOPDIR)/build
-	GOARCH=amd64 GOOS=darwin go build -o $(TOPDIR)/build/amd64-darwin/habitat $(TOPDIR)/cmd/node/main.go
+$(TOPDIR)/bin/amd64-darwin/habitat: $(TOPDIR)/bin
+	GOARCH=amd64 GOOS=darwin go build -o $(TOPDIR)/bin/amd64-darwin/habitat $(TOPDIR)/cmd/node/main.go
