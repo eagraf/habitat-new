@@ -102,10 +102,6 @@ func TestBackwardsCompatibility(t *testing.T) {
 				ID:          "user1",
 				Username:    "username1",
 				Certificate: "fake user certificate",
-				AppInstallations: []string{
-					"app1",
-					"app2",
-				},
 			},
 		},
 		AppInstallations: map[string]*AppInstallationState{
