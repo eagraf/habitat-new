@@ -21,6 +21,8 @@ GOBIN ?= $$(go env GOPATH)/bin
 
 build: $(TOPDIR)/bin/amd64-linux/habitat $(TOPDIR)/bin/amd64-darwin/habitat
 
+archive: $(TOPDIR)/bin/amd64-linux/habitat.tar.gz $(TOPDIR)/bin/amd64-darwin/habitat.tar.gz
+
 test::
 	go test ./... -timeout 1s
 
@@ -84,8 +86,16 @@ $(CERT_DIR)/dev_root_user_cert.pem: $(CERT_DIR)
 $(TOPDIR)/bin: $(TOPDIR)
 	mkdir -p $(TOPDIR)/bin
 
+# Linux AMD64 Builds
 $(TOPDIR)/bin/amd64-linux/habitat: $(TOPDIR)/bin
 	GOARCH=amd64 GOOS=linux go build -o $(TOPDIR)/bin/amd64-linux/habitat $(TOPDIR)/cmd/node/main.go
 
+$(TOPDIR)/bin/amd64-linux/habitat.tar.gz: $(TOPDIR)/bin/amd64-linux/habitat
+	tar -czf $(TOPDIR)/bin/amd64-linux/habitat.tar.gz -C $(TOPDIR)/bin/amd64-linux habitat
+
+# Darwin AMD64 Builds
 $(TOPDIR)/bin/amd64-darwin/habitat: $(TOPDIR)/bin
 	GOARCH=amd64 GOOS=darwin go build -o $(TOPDIR)/bin/amd64-darwin/habitat $(TOPDIR)/cmd/node/main.go
+
+$(TOPDIR)/bin/amd64-darwin/habitat.tar.gz: $(TOPDIR)/bin/amd64-darwin/habitat
+	tar -czf $(TOPDIR)/bin/amd64-darwin/habitat.tar.gz -C $(TOPDIR)/bin/amd64-darwin habitat
