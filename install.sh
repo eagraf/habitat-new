@@ -46,7 +46,7 @@ echo
 if [[ $REPLY =~ ^[Yy]$ ]] ; then
     openssl req -newkey rsa:2048 \
         -new -nodes -x509 \
-        -out "$CERT_DIR/dev_node_cert.pem" \
-        -keyout "$CERT_DIR/dev_node_key.pem" \
+        -out "$CERT_DIR/dev_root_user_cert.pem" \
+        -keyout "$CERT_DIR/dev_root_user_key.pem" \
         -subj "/C=US/ST=California/L=Mountain View/O=Habitat/CN=dev_node"
 fi

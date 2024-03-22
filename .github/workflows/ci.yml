@@ -48,7 +48,9 @@ jobs:
       uses: softprops/action-gh-release@v2
       if: startsWith(github.ref, 'refs/tags/')
       with:
-        files: bin/**/*.tar.gz
+        files: |
+          bin/**/*.tar.gz
+          install.sh
 
     permissions:
       contents: write
