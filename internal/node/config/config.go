@@ -6,6 +6,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"os"
+	"os/user"
 	"path/filepath"
 
 	"github.com/rs/zerolog/log"
@@ -17,7 +18,11 @@ func loadEnv() error {
 	if err != nil {
 		return err
 	}
-	viper.SetDefault("habitat_path", "$HOME/.habitat")
+	homedir, err := homedir()
+	if err != nil {
+		return err
+	}
+	viper.SetDefault("habitat_path", filepath.Join(homedir, ".habitat"))
 
 	err = viper.BindEnv("habitat_app_path")
 	if err != nil {
@@ -27,7 +32,13 @@ func loadEnv() error {
 }
 
 func loadConfig() (*NodeConfig, error) {
-	viper.AddConfigPath("$HOME/.habitat")
+
+	homedir, err := homedir()
+	if err != nil {
+		return nil, err
+	}
+
+	viper.AddConfigPath(filepath.Join(homedir, ".habitat"))
 	viper.AddConfigPath(viper.GetString("habitat_path"))
 
 	viper.SetConfigType("yml")
@@ -38,7 +49,7 @@ func loadConfig() (*NodeConfig, error) {
 	}
 
 	var config NodeConfig
-	err := viper.Unmarshal(&config)
+	err = viper.Unmarshal(&config)
 	if err != nil {
 		return nil, err
 	}
@@ -69,11 +80,11 @@ func decodePemCert(certPath string) (*x509.Certificate, error) {
 
 	block, _ := pem.Decode(pemBytes)
 	if block == nil {
-		return nil, errors.New("Got nil block after decoding PEM")
+		return nil, errors.New("got nil block after decoding PEM")
 	}
 
 	if block.Type != "CERTIFICATE" {
-		return nil, errors.New("Expected CERTIFICATE PEM block")
+		return nil, errors.New("expected CERTIFICATE PEM block")
 	}
 
 	cert, err := x509.ParseCertificate(block.Bytes)
@@ -114,4 +125,13 @@ func (n *NodeConfig) RootUserCertPath() string {
 
 func (n *NodeConfig) RootUserCertB64() string {
 	return base64.StdEncoding.EncodeToString(n.RootUserCert.Raw)
+}
+
+func homedir() (string, error) {
+	usr, err := user.Current()
+	if err != nil {
+		return "", err
+	}
+	dir := usr.HomeDir
+	return dir, nil
 }
