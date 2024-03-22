@@ -31,7 +31,7 @@ mkdir -p "$CERT_DIR"
 
 touch $HOME/.habitat/habitat.yml
 
-read -p "Would you like to generate a new user identity key? [y/n]" -n 1 -r
+read -p "Would you like to generate a new user identity key? [y/n]" -n 1 -r < /dev/tty
 echo
 if [[ $REPLY =~ ^[Yy]$ ]] ; then
     openssl req -newkey rsa:2048 \
@@ -41,7 +41,7 @@ if [[ $REPLY =~ ^[Yy]$ ]] ; then
         -subj "/C=US/ST=California/L=Mountain View/O=Habitat/CN=dev_node"
 fi
 
-read -p "Would you like to generate a new user identity key? [y/n]" -n 1 -r
+read -p "Would you like to generate a new user identity key? [y/n]" -n 1 -r < /dev/tty
 echo
 if [[ $REPLY =~ ^[Yy]$ ]] ; then
     openssl req -newkey rsa:2048 \
