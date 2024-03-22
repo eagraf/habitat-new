@@ -66,3 +66,19 @@ This repository follows the [standard go project structure](https://github.com/g
  The main application framework is the [Fx](https://uber-go.github.io/fx/) dependency injetion framework. This allows for easy wiring together of components, and testability when components are defined as interfaces. 
 
 
+## Install & Release Process
+To install an officially released version of Habitat, run the following:
+```
+curl -sL https://github.com/eagraf/habitat-new/releases/latest/download/install.sh 2>&1 | bash
+```
+Note: we know that doing this is insecure, but this is a quick way to bootstrap an installation process without too much fuss. Feel free to inspect the installation file before running the command if you are concerned.
+
+The installer will ask you to generate some credentials. If you have done this before, you can skip this step. After finishing the installer, you can now run habitat like this:
+```
+habitat
+```
+
+Currently, there is no way to run Habitat as a daemon, but this will be supported in the future.
+
+### Release Process
+Releases are managed with Github's release feature. When a release is created, a Github action is triggered that builds `.tar.gz` files for all supported platforms, and attaches them as artifacts to the release. The installer script downloads the artifacts for the correct operating system and chip architecture, untars the file, and installs the Habitat binary on the users PATH.
