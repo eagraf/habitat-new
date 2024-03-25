@@ -12,49 +12,6 @@ const SchemaName = "node"
 
 var nodeSchemaRaw = `
 {
-	"$defs": {
-		"user": {
-			"type": "object",
-			"properties": {
-				"id": { "type": "string" },
-				"username": { "type": "string" },
-				"certificate": { "type": "string" }
-			},
-			"required": [ "id", "username", "certificate" ]
-		},
-		"app_installation": {
-			"type": "object",
-			"properties": {
-				"id": { "type": "string" },
-				"name": { "type": "string" },
-				"version": { "type": "string" },
-				"driver": { 
-					"type": "string",
-					"enum": [ "docker" ]
-				},
-				"registry_url_base": { "type": "string" },
-				"registry_app_id": { "type": "string" },
-				"registry_tag": { "type": "string" },
-				"state": {
-					"type": "string",
-					"enum": [ "installing", "installed", "uninstalled" ]
-				}
-			},
-			"required": [ "id", "name", "version", "driver", "registry_url_base", "registry_app_id", "registry_tag", "state" ]
-		},
-		"process": {
-			"type": "object",
-			"properties": {
-				"id": {"type": "string"},
-				"app_id": { "type": "string" },
-				"user_id": { "type": "string" },
-				"created": { "type": "string" },
-				"state": { "type": "string" },
-				"ext_driver_id": { "type": "string" }
-			},
-			"required": [ "id", "app_id", "ext_driver_id", "user_id", "state", "created" ]
-		}
-	},
 	"title": "Habitat Node State",
 	"type": "object",
 	"properties": {
@@ -68,24 +25,61 @@ var nodeSchemaRaw = `
 			"type": "string"
 		},
 		"users": {
+
 			"type": "object",
-			"properties": {
-				"itemType": { "$ref": "#/$defs/user" }
+			"additionalProperties": {
+				"type": "object",
+				"properties": {
+					"id": { "type": "string" },
+					"username": { "type": "string" },
+					"certificate": { "type": "string" }
+				},
+				"additionalProperties": false,
+				"required": [ "id", "username", "certificate" ]
 			}
 		},
 		"app_installations": {
 			"type": "object",
-			"properties": {
-				"itemType": { "$ref": "#/$defs/app_installation" }
+			"additionalProperties": {
+				"type": "object",
+				"properties": {
+					"id": { "type": "string" },
+					"name": { "type": "string" },
+					"version": { "type": "string" },
+					"driver": { 
+						"type": "string",
+						"enum": [ "docker" ]
+					},
+					"registry_url_base": { "type": "string" },
+					"registry_app_id": { "type": "string" },
+					"registry_tag": { "type": "string" },
+					"state": {
+						"type": "string",
+						"enum": [ "installing", "installed", "uninstalled" ]
+					}
+				},
+				"additionalProperties": false,
+				"required": [ "id", "name", "version", "driver", "registry_url_base", "registry_app_id", "registry_tag", "state" ]
 			}
 		},
 		"processes": {
 			"type": "object",
-			"properties": {
-				"itemType": { "$ref": "#/$defs/process" }
+			"additionalProperties": {
+				"type": "object",
+				"properties": {
+					"id": {"type": "string"},
+					"app_id": { "type": "string" },
+					"user_id": { "type": "string" },
+					"created": { "type": "string" },
+					"state": { "type": "string" },
+					"ext_driver_id": { "type": "string" }
+				},
+				"additionalProperties": false,
+				"required": [ "id", "app_id", "ext_driver_id", "user_id", "state", "created" ]
 			}
 		}
 	},
+	"additionalProperties": false,
 	"required": [ "node_id", "name", "certificate", "users" ]
 }`
 
