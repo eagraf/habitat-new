@@ -10,6 +10,7 @@ import (
 	"github.com/eagraf/habitat-new/internal/node/hdb"
 	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
+	"golang.org/x/mod/semver"
 )
 
 // NodeController is an interface to manage common admin actions on a Habitat node.
@@ -17,6 +18,7 @@ import (
 
 type NodeController interface {
 	InitializeNodeDB() error
+	MigrateNodeDB(targetVersion string) error
 	AddUser(userID, username, certificate string) error
 	GetUserByUsername(username string) (*node.User, error)
 	InstallApp(userID string, newApp *node.AppInstallation) error
@@ -43,6 +45,31 @@ func (c *BaseNodeController) InitializeNodeDB() error {
 	}
 
 	return nil
+}
+
+func (c *BaseNodeController) MigrateNodeDB(targetVersion string) error {
+	dbClient, err := c.databaseManager.GetDatabaseClientByName(constants.NodeDBDefaultName)
+	if err != nil {
+		return err
+	}
+
+	var nodeState node.NodeState
+	err = json.Unmarshal(dbClient.Bytes(), &nodeState)
+	if err != nil {
+		return nil
+	}
+
+	// No-op if version is already the target
+	if semver.Compare(nodeState.SchemaVersion, targetVersion) == 0 {
+		return nil
+	}
+
+	_, err = dbClient.ProposeTransitions([]hdb.Transition{
+		&node.MigrationTransition{
+			TargetVersion: targetVersion,
+		},
+	})
+	return err
 }
 
 // InstallApp attempts to install the given app installation, with the userID as the action initiato.

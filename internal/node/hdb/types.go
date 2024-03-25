@@ -8,9 +8,9 @@ import (
 type Schema interface {
 	Name() string
 	InitState() (State, error)
-	Bytes() []byte
 	Type() reflect.Type
 	InitializationTransition(initState []byte) (Transition, error)
+	ValidateState(state []byte) error
 }
 
 type TransitionWrapper struct {
@@ -25,11 +25,7 @@ type Transition interface {
 	Validate(oldState []byte) error
 }
 
-func WrapTransition(t Transition, oldState []byte) (*TransitionWrapper, error) {
-	patch, err := t.Patch(oldState)
-	if err != nil {
-		return nil, err
-	}
+func WrapTransition(t Transition, patch []byte, oldState []byte) (*TransitionWrapper, error) {
 
 	transition, err := json.Marshal(t)
 	if err != nil {
@@ -44,8 +40,9 @@ func WrapTransition(t Transition, oldState []byte) (*TransitionWrapper, error) {
 }
 
 type State interface {
-	Schema() []byte
+	Schema() Schema
 	Bytes() ([]byte, error)
+	Validate() error
 }
 
 func StateToJSONState(state State) (*JSONState, error) {

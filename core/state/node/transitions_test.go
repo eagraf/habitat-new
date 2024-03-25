@@ -31,6 +31,9 @@ func testTransitions(oldState *NodeState, transitions []hdb.Transition) (*NodeSt
 		oldJSONState = ojs
 	}
 	for _, t := range transitions {
+		if t.Type() == "" {
+			return nil, fmt.Errorf("transition type is empty")
+		}
 
 		err := t.Validate(oldJSONState.Bytes())
 		if err != nil {
@@ -47,7 +50,7 @@ func testTransitions(oldState *NodeState, transitions []hdb.Transition) (*NodeSt
 			return nil, err
 		}
 
-		newState, err := hdb.NewJSONState(schema.Bytes(), newStateBytes)
+		newState, err := hdb.NewJSONState(schema, newStateBytes)
 		if err != nil {
 			return nil, err
 		}
@@ -86,9 +89,10 @@ func TestNodeInitialization(t *testing.T) {
 	transitions := []hdb.Transition{
 		&InitalizationTransition{
 			InitState: &NodeState{
-				NodeID:      "abc",
-				Certificate: "123",
-				Name:        "New Node",
+				NodeID:        "abc",
+				Certificate:   "123",
+				Name:          "New Node",
+				SchemaVersion: "v0.0.1",
 			},
 		},
 	}
@@ -114,9 +118,10 @@ func TestAddingUsers(t *testing.T) {
 	transitions := []hdb.Transition{
 		&InitalizationTransition{
 			InitState: &NodeState{
-				NodeID:      "abc",
-				Certificate: "123",
-				Name:        "New Node",
+				NodeID:        "abc",
+				Certificate:   "123",
+				Name:          "New Node",
+				SchemaVersion: "v0.0.1",
 			},
 		},
 		&AddUserTransition{
@@ -161,10 +166,11 @@ func TestAppLifecycle(t *testing.T) {
 	transitions := []hdb.Transition{
 		&InitalizationTransition{
 			InitState: &NodeState{
-				NodeID:      "abc",
-				Certificate: "123",
-				Name:        "New Node",
-				Users:       make(map[string]*User, 0),
+				NodeID:        "abc",
+				Certificate:   "123",
+				Name:          "New Node",
+				SchemaVersion: "v0.0.1",
+				Users:         make(map[string]*User, 0),
 			},
 		},
 		&AddUserTransition{
@@ -303,9 +309,10 @@ func TestProcesses(t *testing.T) {
 	transitions := []hdb.Transition{
 		&InitalizationTransition{
 			InitState: &NodeState{
-				NodeID:      "abc",
-				Certificate: "123",
-				Name:        "New Node",
+				NodeID:        "abc",
+				Certificate:   "123",
+				Name:          "New Node",
+				SchemaVersion: "v0.0.1",
 				Users: map[string]*User{
 					"123": {
 						ID:          "123",
@@ -509,5 +516,55 @@ func TestProcesses(t *testing.T) {
 	}
 	_, err = testTransitionsOnCopy(newState, testProcessStopNoMatchingID)
 	assert.NotNil(t, err)
+}
 
+func TestMigrationsTransition(t *testing.T) {
+
+	transitions := []hdb.Transition{
+		&InitalizationTransition{
+			InitState: &NodeState{
+				NodeID:        "abc",
+				Certificate:   "123",
+				Name:          "New Node",
+				SchemaVersion: "v0.0.1",
+				Users: map[string]*User{
+					"123": {
+						ID:          "123",
+						Username:    "eagraf",
+						Certificate: "placeholder",
+					},
+				},
+			},
+		},
+		&MigrationTransition{
+			TargetVersion: "v0.0.2",
+		},
+	}
+
+	newState, err := testTransitions(nil, transitions)
+	assert.Nil(t, err)
+	assert.Equal(t, "v0.0.2", newState.SchemaVersion)
+	assert.Equal(t, "test", newState.TestField)
+
+	testRemovingField := []hdb.Transition{
+		&MigrationTransition{
+			TargetVersion: "v0.0.3",
+		},
+	}
+
+	newState, err = testTransitionsOnCopy(newState, testRemovingField)
+	assert.Nil(t, err)
+	assert.Equal(t, "v0.0.3", newState.SchemaVersion)
+	assert.Equal(t, "", newState.TestField)
+
+	// Test migrating down
+	testDown := []hdb.Transition{
+		&MigrationTransition{
+			TargetVersion: "v0.0.1",
+		},
+	}
+	newState, err = testTransitionsOnCopy(newState, testDown)
+	assert.Nil(t, err)
+	assert.Equal(t, "v0.0.1", newState.SchemaVersion)
+	assert.Equal(t, "", newState.TestField)
 }

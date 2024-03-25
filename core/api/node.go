@@ -2,6 +2,10 @@ package types
 
 import "github.com/eagraf/habitat-new/core/state/node"
 
+type MigrateRequest struct {
+	TargetVersion string `json:"target_version"`
+}
+
 type GetNodeResponse struct {
 	State map[string]interface{} `json:"state"`
 }

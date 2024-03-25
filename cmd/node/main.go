@@ -39,6 +39,7 @@ func main() {
 			api.AsRoute(controller.NewAddUserRoute),
 			api.AsRoute(controller.NewInstallAppRoute),
 			api.AsRoute(controller.NewStartProcessHandler),
+			api.AsRoute(controller.NewMigrationRoute),
 		),
 		fx.Provide(
 			reverse_proxy.NewProxyServer,

@@ -10,6 +10,7 @@ import (
 
 var (
 	TransitionInitialize          = "initialize"
+	TransitionMigrationUp         = "migration_up"
 	TransitionAddUser             = "add_user"
 	TransitionStartInstallation   = "start_installation"
 	TransitionFinishInstallation  = "finish_installation"
@@ -55,6 +56,54 @@ func (t *InitalizationTransition) Validate(oldState []byte) error {
 	if t.InitState == nil {
 		return fmt.Errorf("init state cannot be nil")
 	}
+	return nil
+}
+
+type MigrationTransition struct {
+	TargetVersion string
+}
+
+func (t *MigrationTransition) Type() string {
+	return TransitionMigrationUp
+}
+
+func (t *MigrationTransition) Patch(oldState []byte) ([]byte, error) {
+	var oldNode NodeState
+	err := json.Unmarshal(oldState, &oldNode)
+	if err != nil {
+		return nil, err
+	}
+
+	patch, err := NodeDataMigrations.GetMigrationPatch(oldNode.SchemaVersion, t.TargetVersion, &oldNode)
+	if err != nil {
+		return nil, err
+	}
+
+	return json.Marshal(patch)
+}
+
+func (t *MigrationTransition) Validate(oldState []byte) error {
+	var oldNode NodeState
+	err := json.Unmarshal(oldState, &oldNode)
+	if err != nil {
+		return err
+	}
+
+	patch, err := NodeDataMigrations.GetMigrationPatch(oldNode.SchemaVersion, t.TargetVersion, &oldNode)
+	if err != nil {
+		return err
+	}
+
+	newState, err := applyPatchToState(patch, &oldNode)
+	if err != nil {
+		return err
+	}
+
+	err = newState.Validate()
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
