@@ -25,7 +25,6 @@ var nodeSchemaRaw = `
 			"type": "string"
 		},
 		"users": {
-
 			"type": "object",
 			"additionalProperties": {
 				"type": "object",
@@ -45,6 +44,7 @@ var nodeSchemaRaw = `
 				"properties": {
 					"id": { "type": "string" },
 					"name": { "type": "string" },
+					"user_id": { "type": "string" },
 					"version": { "type": "string" },
 					"driver": { 
 						"type": "string",
@@ -59,7 +59,7 @@ var nodeSchemaRaw = `
 					}
 				},
 				"additionalProperties": false,
-				"required": [ "id", "name", "version", "driver", "registry_url_base", "registry_app_id", "registry_tag", "state" ]
+				"required": [ "id", "name", "user_id", "version", "driver", "registry_url_base", "registry_app_id", "registry_tag", "state" ]
 			}
 		},
 		"processes": {
@@ -70,12 +70,16 @@ var nodeSchemaRaw = `
 					"id": {"type": "string"},
 					"app_id": { "type": "string" },
 					"user_id": { "type": "string" },
+					"driver": { 
+						"type": "string",
+						"enum": [ "docker" ]
+					},
 					"created": { "type": "string" },
 					"state": { "type": "string" },
 					"ext_driver_id": { "type": "string" }
 				},
 				"additionalProperties": false,
-				"required": [ "id", "app_id", "ext_driver_id", "user_id", "state", "created" ]
+				"required": [ "id", "app_id", "driver", "ext_driver_id", "user_id", "state", "created" ]
 			}
 		}
 	},
