@@ -336,6 +336,7 @@ func TestProcesses(t *testing.T) {
 				ID:     "proc1",
 				AppID:  "App1",
 				UserID: "123",
+				Driver: "docker",
 			},
 			App: &AppInstallation{
 				ID:      "App1",

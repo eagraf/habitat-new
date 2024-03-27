@@ -75,8 +75,7 @@ func (t *AddUserTransition) Patch(oldState []byte) ([]byte, error) {
 		"value": {
 			"id": "%s",
 			"username": "%s",
-			"certificate": "%s",
-			"app_installations": []
+			"certificate": "%s"
 		}
 	}]`, t.UserID, t.UserID, t.Username, t.Certificate)), nil
 }
@@ -141,13 +140,8 @@ func (t *StartInstallationTransition) Patch(oldState []byte) ([]byte, error) {
 			"op": "add",
 			"path": "/app_installations/%s",
 			"value": %s
-		},
-		{
-			"op" : "add",
-			"path": "/users/%s/app_installations/-",
-			"value": "%s"
 		}
-	]`, t.AppInstallation.ID, string(marshalledApp), t.AppInstallation.UserID, t.AppInstallation.ID)), nil
+	]`, t.AppInstallation.ID, string(marshalledApp))), nil
 }
 
 func (t *StartInstallationTransition) Validate(oldState []byte) error {
