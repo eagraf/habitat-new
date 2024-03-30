@@ -203,6 +203,7 @@ func TestAppLifecycle(t *testing.T) {
 	app := apps[0]
 	_, ok := newState.AppInstallations[app.ID]
 	assert.Equal(t, ok, true)
+	assert.NotEmpty(t, app.ID)
 	assert.Equal(t, "app_name1", app.Name)
 	assert.Equal(t, "installing", app.State)
 
@@ -366,6 +367,7 @@ func TestProcesses(t *testing.T) {
 	procs, err := newState.GetProcessesForUser("123")
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(procs))
+
 	proc := procs[0]
 	assert.NotEmpty(t, proc.ID)
 	assert.Equal(t, "starting", proc.State)
