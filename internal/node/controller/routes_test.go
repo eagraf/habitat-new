@@ -97,11 +97,7 @@ func TestStartProcessHandler(t *testing.T) {
 	server := httptest.NewServer(router)
 
 	body := &types.PostProcessRequest{
-		Process: &node.Process{
-			ID:     "process_1",
-			AppID:  "app_1",
-			UserID: "user_1",
-		},
+		AppInstallationID: "app_1",
 	}
 
 	bodyBytes, err := json.Marshal(body)
@@ -109,11 +105,23 @@ func TestStartProcessHandler(t *testing.T) {
 		t.Error(err)
 	}
 
-	m.EXPECT().StartProcess(&node.Process{
-		ID:     "process_1",
-		AppID:  "app_1",
-		UserID: "user_1",
-	}).Return(nil).Times(1)
+	m.EXPECT().GetAppByID("app_1").Return(&node.AppInstallation{
+		ID:      "app_1",
+		Package: node.Package{Driver: "docker"},
+	}, nil).Times(1)
+
+	m.EXPECT().StartProcess(
+		gomock.Any(),
+	).DoAndReturn(func(process *node.Process) error {
+		assert.NotNil(t, process)
+		assert.Equal(t, "app_1", process.AppID)
+		assert.Equal(t, "user_1", process.UserID)
+		assert.Equal(t, "docker", process.Driver)
+		assert.Equal(t, "", process.Created)
+		assert.Equal(t, "", process.ID)
+
+		return nil
+	}).Times(1)
 
 	client := server.Client()
 	url := fmt.Sprintf("%s/node/processes", server.URL)
@@ -128,13 +136,21 @@ func TestStartProcessHandler(t *testing.T) {
 	assert.Equal(t, 0, len(respBody))
 
 	// Test an error returned by the controller
-	m.EXPECT().StartProcess(body.Process).Return(errors.New("Couldn't install app")).Times(1)
+	m.EXPECT().GetAppByID("app_1").Return(&node.AppInstallation{
+		ID:      "app_1",
+		Package: node.Package{Driver: "docker"},
+	}, nil).Times(1)
+	m.EXPECT().StartProcess(gomock.Any()).Return(errors.New("Couldn't install app")).Times(1)
 	resp, err = client.Post(url, "application/json", bytes.NewBuffer(bodyBytes))
 	assert.Nil(t, err)
 	assert.Equal(t, http.StatusInternalServerError, resp.StatusCode)
 
 	// Test invalid request
-	m.EXPECT().StartProcess(body.Process).Times(0)
+	m.EXPECT().GetAppByID("app_1").Return(&node.AppInstallation{
+		ID:      "app_1",
+		Package: node.Package{Driver: "docker"},
+	}, nil).Times(0)
+	m.EXPECT().StartProcess(gomock.Any()).Times(0)
 	resp, err = client.Post(url, "application/json", bytes.NewBuffer([]byte("invalid")))
 	assert.Nil(t, err)
 	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)

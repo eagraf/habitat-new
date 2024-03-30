@@ -253,6 +253,7 @@ func (t *ProcessStartTransition) Patch(oldState []byte) ([]byte, error) {
 		ExtDriverID: "", // this should not be set yet
 	}
 
+	proc.ID = uuid.New().String()
 	proc.Process.Created = time.Now().Format(time.RFC3339)
 
 	marshaled, err := json.Marshal(proc)

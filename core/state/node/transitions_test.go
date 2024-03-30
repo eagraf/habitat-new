@@ -333,7 +333,6 @@ func TestProcesses(t *testing.T) {
 		},
 		&ProcessStartTransition{
 			Process: &Process{
-				ID:     "proc1",
 				AppID:  "App1",
 				UserID: "123",
 				Driver: "docker",
@@ -363,22 +362,27 @@ func TestProcesses(t *testing.T) {
 	assert.Equal(t, "app_name1", newState.AppInstallations["App1"].Name)
 	assert.Equal(t, "installed", newState.AppInstallations["App1"].State)
 	assert.Equal(t, 1, len(newState.Processes))
-	assert.Equal(t, "proc1", newState.Processes["proc1"].ID)
-	assert.Equal(t, "starting", newState.Processes["proc1"].State)
-	assert.Equal(t, "App1", newState.Processes["proc1"].AppID)
-	assert.Equal(t, "123", newState.Processes["proc1"].UserID)
+
+	procs, err := newState.GetProcessesForUser("123")
+	assert.Nil(t, err)
+	assert.Equal(t, 1, len(procs))
+	proc := procs[0]
+	assert.NotEmpty(t, proc.ID)
+	assert.Equal(t, "starting", proc.State)
+	assert.Equal(t, "App1", proc.AppID)
+	assert.Equal(t, "123", proc.UserID)
 
 	// The app moves to running state
 
 	testProcessRunning := []hdb.Transition{
 		&ProcessRunningTransition{
-			ProcessID: "proc1",
+			ProcessID: proc.ID,
 		},
 	}
 
 	newState, err = testTransitionsOnCopy(newState, testProcessRunning)
 	assert.Nil(t, err)
-	assert.Equal(t, "running", newState.Processes["proc1"].State)
+	assert.Equal(t, "running", newState.Processes[proc.ID].State)
 
 	testProcessRunningNoMatchingID := []hdb.Transition{
 		&ProcessRunningTransition{
@@ -448,7 +452,7 @@ func TestProcesses(t *testing.T) {
 	// Test stopping the app
 	newState, err = testTransitionsOnCopy(newState, []hdb.Transition{
 		&ProcessStopTransition{
-			ProcessID: "proc1",
+			ProcessID: proc.ID,
 		},
 	})
 

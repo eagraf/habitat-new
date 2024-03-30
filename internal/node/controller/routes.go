@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	types "github.com/eagraf/habitat-new/core/api"
+	"github.com/eagraf/habitat-new/core/state/node"
 	"github.com/eagraf/habitat-new/internal/node/constants"
 	"github.com/eagraf/habitat-new/internal/node/hdb"
 	"github.com/gorilla/mux"
@@ -92,9 +93,20 @@ func (h *StartProcessHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 	}
 
 	userID := r.Context().Value(constants.ContextKeyUserID).(string)
-	req.UserID = userID
 
-	err = h.nodeController.StartProcess(req.Process)
+	app, err := h.nodeController.GetAppByID(req.AppInstallationID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	process := &node.Process{
+		UserID: userID,
+		Driver: app.Driver,
+		AppID:  app.ID,
+	}
+
+	err = h.nodeController.StartProcess(process)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
