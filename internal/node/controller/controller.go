@@ -17,10 +17,14 @@ import (
 
 type NodeController interface {
 	InitializeNodeDB() error
+
 	AddUser(userID, username, certificate string) error
 	GetUserByUsername(username string) (*node.User, error)
+
 	InstallApp(userID string, newApp *node.AppInstallation) error
 	FinishAppInstallation(userID string, appID, registryURLBase, registryPackageID string) error
+	GetAppByID(appID string) (*node.AppInstallation, error)
+
 	StartProcess(process *node.Process) error
 	SetProcessRunning(processID string) error
 	StopProcess(processID string) error
@@ -81,6 +85,26 @@ func (c *BaseNodeController) FinishAppInstallation(userID string, appID, registr
 	}
 
 	return nil
+}
+
+func (c *BaseNodeController) GetAppByID(appID string) (*node.AppInstallation, error) {
+	dbClient, err := c.databaseManager.GetDatabaseClientByName(constants.NodeDBDefaultName)
+	if err != nil {
+		return nil, err
+	}
+
+	var nodeState node.NodeState
+	err = json.Unmarshal(dbClient.Bytes(), &nodeState)
+	if err != nil {
+		return nil, err
+	}
+
+	app, ok := nodeState.AppInstallations[appID]
+	if !ok {
+		return nil, fmt.Errorf("app with ID %s not found", appID)
+	}
+
+	return app.AppInstallation, nil
 }
 
 func (c *BaseNodeController) StartProcess(process *node.Process) error {

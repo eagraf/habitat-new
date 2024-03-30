@@ -143,6 +143,35 @@ func TestFinishAppInstallationController(t *testing.T) {
 	assert.Nil(t, err)
 }
 
+func TestGetAppByID(t *testing.T) {
+	ctrl := gomock.NewController(t)
+
+	mockedManager := hdb_mocks.NewMockHDBManager(ctrl)
+	mockedClient := hdb_mocks.NewMockClient(ctrl)
+	controller := &BaseNodeController{
+		databaseManager: mockedManager,
+		nodeConfig:      &config.NodeConfig{},
+	}
+
+	marshaledNodeState, err := json.Marshal(nodeState)
+	if err != nil {
+		t.Error(err)
+	}
+
+	mockedClient.EXPECT().Bytes().Return(marshaledNodeState).Times(2)
+
+	mockedManager.EXPECT().GetDatabaseClientByName(constants.NodeDBDefaultName).Return(mockedClient, nil).Times(2)
+
+	app, err := controller.GetAppByID("app_1")
+	assert.Nil(t, err)
+	assert.Equal(t, "app_1", app.ID)
+
+	// Test username not found
+	app, err = controller.GetAppByID("app_2")
+	assert.NotNil(t, err)
+	assert.Nil(t, app)
+}
+
 func TestStartProcessController(t *testing.T) {
 	ctrl := gomock.NewController(t)
 

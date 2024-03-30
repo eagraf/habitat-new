@@ -67,6 +67,21 @@ func (mr *MockNodeControllerMockRecorder) FinishAppInstallation(userID, appID, r
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FinishAppInstallation", reflect.TypeOf((*MockNodeController)(nil).FinishAppInstallation), userID, appID, registryURLBase, registryPackageID)
 }
 
+// GetAppByID mocks base method.
+func (m *MockNodeController) GetAppByID(appID string) (*node.AppInstallation, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetAppByID", appID)
+	ret0, _ := ret[0].(*node.AppInstallation)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetAppByID indicates an expected call of GetAppByID.
+func (mr *MockNodeControllerMockRecorder) GetAppByID(appID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAppByID", reflect.TypeOf((*MockNodeController)(nil).GetAppByID), appID)
+}
+
 // GetUserByUsername mocks base method.
 func (m *MockNodeController) GetUserByUsername(username string) (*node.User, error) {
 	m.ctrl.T.Helper()

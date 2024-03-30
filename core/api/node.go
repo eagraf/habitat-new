@@ -17,5 +17,5 @@ type PostAppRequest struct {
 }
 
 type PostProcessRequest struct {
-	*node.Process
+	AppInstallationID string `json:"app_id"`
 }

@@ -150,6 +150,16 @@ func (s NodeState) GetAppsForUser(userID string) ([]*AppInstallationState, error
 	return apps, nil
 }
 
+func (s NodeState) GetProcessesForUser(userID string) ([]*ProcessState, error) {
+	procs := make([]*ProcessState, 0)
+	for _, proc := range s.Processes {
+		if proc.UserID == userID {
+			procs = append(procs, proc)
+		}
+	}
+	return procs, nil
+}
+
 type NodeSchema struct {
 }
 
