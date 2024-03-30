@@ -293,12 +293,11 @@ func (t *ProcessStartTransition) Validate(oldState []byte) error {
 	if !ok {
 		return fmt.Errorf("user with id %s does not exist", t.UserID)
 	}
+	if _, ok := oldNode.Processes[t.ID]; ok {
+		return fmt.Errorf("Process with id %s already exists", t.ID)
+	}
 
-	for procID, proc := range oldNode.Processes {
-		// Make sure that no process exists with the same ID
-		if procID == t.ID {
-			return fmt.Errorf("Process with id %s already exists", t.ID)
-		}
+	for _, proc := range oldNode.Processes {
 		// Make sure that no app with the same ID has a process
 		if proc.AppID == t.AppID {
 			return fmt.Errorf("app with id %s already has a process", t.AppID)
