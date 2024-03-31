@@ -21,6 +21,7 @@ func NewProcessManagerStateUpdateSubscriber(processManager ProcessManager, contr
 		[]hdb.IdempotentStateUpdateExecutor{
 			&StartProcessExecutor{
 				processManager: processManager,
+				nodeController: controller,
 			},
 		},
 		&ProcessRestorer{
