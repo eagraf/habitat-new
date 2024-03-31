@@ -40,6 +40,9 @@
                         "type": "string",
                         "enum": [ "docker" ]
                     },
+                    "driver_config": {
+                        "type": "object"
+                    },
                     "registry_url_base": { "type": "string" },
                     "registry_app_id": { "type": "string" },
                     "registry_tag": { "type": "string" },
@@ -49,7 +52,7 @@
                     }
                 },
                 "additionalProperties": false,
-                "required": [ "id", "name", "user_id", "version", "driver", "registry_url_base", "registry_app_id", "registry_tag", "state" ]
+                "required": [ "id", "name", "user_id", "version", "driver", "registry_url_base", "registry_app_id", "registry_tag", "state",  "driver_config" ]
             }
         },
         "processes": {

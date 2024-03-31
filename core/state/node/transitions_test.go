@@ -169,7 +169,7 @@ func TestAppLifecycle(t *testing.T) {
 				NodeID:        "abc",
 				Certificate:   "123",
 				Name:          "New Node",
-				SchemaVersion: "v0.0.1",
+				SchemaVersion: LatestVersion,
 				Users:         make(map[string]*User, 0),
 			},
 		},
@@ -189,6 +189,7 @@ func TestAppLifecycle(t *testing.T) {
 					RegistryURLBase:    "https://registry.com",
 					RegistryPackageID:  "app_name1",
 					RegistryPackageTag: "v1",
+					DriverConfig:       map[string]interface{}{},
 				},
 			},
 		},
@@ -313,7 +314,7 @@ func TestProcesses(t *testing.T) {
 				NodeID:        "abc",
 				Certificate:   "123",
 				Name:          "New Node",
-				SchemaVersion: "v0.0.1",
+				SchemaVersion: LatestVersion,
 				Users: map[string]*User{
 					"123": {
 						ID:          "123",
@@ -332,6 +333,7 @@ func TestProcesses(t *testing.T) {
 								RegistryURLBase:    "https://registry.com",
 								RegistryPackageID:  "app_name1",
 								RegistryPackageTag: "v1",
+								DriverConfig:       map[string]interface{}{},
 							},
 						},
 						State: "installed",

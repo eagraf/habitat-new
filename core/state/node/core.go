@@ -10,10 +10,11 @@ const AppLifecycleStateInstalling = "installing"
 const AppLifecycleStateInstalled = "installed"
 
 type Package struct {
-	Driver             string `json:"driver"`
-	RegistryURLBase    string `json:"registry_url_base"`
-	RegistryPackageID  string `json:"registry_app_id"`
-	RegistryPackageTag string `json:"registry_tag"`
+	Driver             string                 `json:"driver"`
+	DriverConfig       map[string]interface{} `json:"driver_config"`
+	RegistryURLBase    string                 `json:"registry_url_base"`
+	RegistryPackageID  string                 `json:"registry_app_id"`
+	RegistryPackageTag string                 `json:"registry_tag"`
 }
 
 // TODO some fields should be ignored by the REST api

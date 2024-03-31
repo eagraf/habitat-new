@@ -2,18 +2,27 @@ package docker
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
 	"github.com/eagraf/habitat-new/core/state/node"
 	"github.com/eagraf/habitat-new/internal/node/constants"
 	"github.com/rs/zerolog/log"
 )
+
+type DockerAppInstallationConfig struct {
+	ExposedPorts []string      `json:"exposed_ports"`
+	Env          []string      `json:"env"`
+	PortBindings nat.PortMap   `json:"port_bindings"`
+	Mounts       []mount.Mount `json:"mounts"`
+}
 
 type AppDriver struct {
 	client *client.Client
@@ -62,21 +71,30 @@ func (d *ProcessDriver) Type() string {
 
 // StartProcess helps implement processes.ProcessDriver
 func (d *ProcessDriver) StartProcess(process *node.Process, app *node.AppInstallation) (string, error) {
+
+	var dockerConfig DockerAppInstallationConfig
+	dockerConfigBytes, err := json.Marshal(app.DriverConfig)
+	if err != nil {
+		return "", err
+	}
+
+	err = json.Unmarshal(dockerConfigBytes, &dockerConfig)
+	if err != nil {
+		return "", err
+	}
+
+	exposedPorts := make(nat.PortSet)
+	for _, port := range dockerConfig.ExposedPorts {
+		exposedPorts[nat.Port(port)] = struct{}{}
+	}
+
 	createResp, err := d.client.ContainerCreate(context.Background(), &container.Config{
-		Image: fmt.Sprintf("%s/%s:%s", app.RegistryURLBase, app.RegistryPackageID, app.RegistryPackageTag),
-		ExposedPorts: nat.PortSet{
-			"25565/tcp": struct{}{},
-		},
-		Env: []string{"EULA=TRUE"},
+		Image:        fmt.Sprintf("%s/%s:%s", app.RegistryURLBase, app.RegistryPackageID, app.RegistryPackageTag),
+		ExposedPorts: exposedPorts,
+		Env:          dockerConfig.Env,
 	}, &container.HostConfig{
-		PortBindings: nat.PortMap{
-			"25565/tcp": []nat.PortBinding{
-				{
-					HostIP:   "127.0.0.1",
-					HostPort: "25565",
-				},
-			},
-		},
+		PortBindings: dockerConfig.PortBindings,
+		Mounts:       dockerConfig.Mounts,
 	}, nil, nil, "")
 	if err != nil {
 		return "", err

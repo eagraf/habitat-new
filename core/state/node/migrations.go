@@ -299,6 +299,30 @@ var NodeDataMigrations = MigrationsList{
 			return newState, nil
 		},
 	},
+	&basicDataMigration{
+		upVersion:   "v0.0.4",
+		downVersion: "v0.0.3",
+		up: func(state *NodeState) (*NodeState, error) {
+			newState, err := state.Copy()
+			if err != nil {
+				return nil, err
+			}
+			for _, appInstallation := range newState.AppInstallations {
+				appInstallation.DriverConfig = map[string]interface{}{}
+			}
+			return newState, nil
+		},
+		down: func(state *NodeState) (*NodeState, error) {
+			newState, err := state.Copy()
+			if err != nil {
+				return nil, err
+			}
+			for _, appInstallation := range newState.AppInstallations {
+				appInstallation.DriverConfig = nil
+			}
+			return newState, nil
+		},
+	},
 }
 
 func applyPatchToState(diffPatch jsondiff.Patch, state *NodeState) (*NodeState, error) {
