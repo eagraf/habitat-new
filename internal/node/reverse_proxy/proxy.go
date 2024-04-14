@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"path"
 	"strings"
 	"time"
 
@@ -110,7 +111,8 @@ func (r *RedirectRule) Handler() http.Handler {
 		Director: func(req *http.Request) {
 			req.URL.Scheme = r.ForwardLocation.Scheme
 			req.URL.Host = target
-			req.URL.Path = strings.TrimPrefix(req.URL.Path, r.Matcher) // TODO this needs to be fixed when globs are implemented
+			// TODO implement globs
+			req.URL.Path = path.Join(r.ForwardLocation.Path, strings.TrimPrefix(req.URL.Path, r.Matcher))
 		},
 		Transport: &http.Transport{
 			Dial: (&net.Dialer{
