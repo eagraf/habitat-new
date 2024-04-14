@@ -23,7 +23,11 @@ make install
 
 Now you are able to start Habitat. To run the node, run one of the following:
 ```
-make run-dev          # Runs the habitat node in dev mode
+make run-dev-compose          # Runs the habitat node in dev mode
+```
+To get added to the Tailscale tailnet the first time you run Habitat in dev mode, get an auth key issued from Tailscale and run. You only need to do this once, unless you remove the volumes in `.habitat`.
+```
+TAILSCALE_AUTHKEY=<authkey> make run-dev-compose
 ```
 The container saves node state in an anonymous volume. If you'd like to run the Habitat node with completely new state, run:
 ```
@@ -38,8 +42,8 @@ submit it along with the request.
 Go to `Postman > Preferences > Certificates` and press `Add Certificate`. Fill in the following fields:
 ```
 HOST: localhost:3000
-CRT File: <full path to habitat>/.habitat/certificates/dev_node_cert.pem`
-KEY File: <full path to habitat>/.habitat/certificates/dev_node_cert.key`
+CRT File: <full path to habitat>/.habitat/certificates/dev_root_user_cert.pem`
+KEY File: <full path to habitat>/.habitat/certificates/dev_root_user_key.pem`
 ```
 Now Postman will submit all requests over HTTPS with your certificate. Try `GET https://localhost:3000/node` to verify this is working. To use other API endpoints, look at their handlers to determine the required input and expected output.
 
