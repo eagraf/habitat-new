@@ -42,8 +42,8 @@ submit it along with the request.
 Go to `Postman > Preferences > Certificates` and press `Add Certificate`. Fill in the following fields:
 ```
 HOST: localhost:3000
-CRT File: <full path to habitat>/.habitat/certificates/dev_node_cert.pem`
-KEY File: <full path to habitat>/.habitat/certificates/dev_node_key.pem`
+CRT File: <full path to habitat>/.habitat/certificates/dev_root_user_cert.pem`
+KEY File: <full path to habitat>/.habitat/certificates/dev_root_user_key.pem`
 ```
 Now Postman will submit all requests over HTTPS with your certificate. Try `GET https://localhost:3000/node` to verify this is working. To use other API endpoints, look at their handlers to determine the required input and expected output.
 
