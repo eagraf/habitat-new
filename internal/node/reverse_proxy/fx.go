@@ -11,30 +11,23 @@ import (
 	"github.com/eagraf/habitat-new/internal/node/hdb"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"go.uber.org/fx"
 )
 
-func NewProxyServer(lc fx.Lifecycle, logger *zerolog.Logger, config *config.NodeConfig) (*ProxyServer, RuleSet) {
+func NewProxyServer(ctx context.Context, logger *zerolog.Logger, config *config.NodeConfig) (*ProxyServer, RuleSet, func()) {
 	srv := &ProxyServer{
 		logger:     logger,
 		Rules:      make(RuleSet),
 		nodeConfig: config,
 	}
-	lc.Append(fx.Hook{
-		OnStart: func(ctx context.Context) error {
-			listenAddr := fmt.Sprintf(":%s", constants.DefaultPortReverseProxy)
-			logger.Info().Msgf("Starting Habitat reverse proxy server at %s", listenAddr)
-			go func() {
-				err := srv.Start(listenAddr)
-				log.Fatal().Err(err).Msg("reverse proxy server failed")
-			}()
-			return nil
-		},
-		OnStop: func(ctx context.Context) error {
-			return srv.server.Shutdown(ctx)
-		},
-	})
-	return srv, srv.Rules
+
+	listenAddr := fmt.Sprintf(":%s", constants.DefaultPortReverseProxy)
+	logger.Info().Msgf("Starting Habitat reverse proxy server at %s", listenAddr)
+	go func() {
+		err := srv.Start(listenAddr)
+		log.Fatal().Err(err).Msg("reverse proxy server failed")
+	}()
+
+	return srv, srv.Rules, func() { srv.server.Shutdown(ctx) }
 }
 
 func NewProcessProxyRuleStateUpdateSubscriber(ruleSet RuleSet) (*hdb.IdempotentStateUpdateSubscriber, error) {

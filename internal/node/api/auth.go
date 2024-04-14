@@ -73,11 +73,11 @@ func getUserCertAndInfo(controller controller.NodeController, username string) (
 
 	block, _ := pem.Decode([]byte(user.Certificate))
 	if block == nil {
-		return nil, nil, errors.New("Got nil block after decoding PEM")
+		return nil, nil, errors.New("got nil block after decoding PEM")
 	}
 
 	if block.Type != "CERTIFICATE" {
-		return nil, nil, errors.New("Expected CERTIFICATE PEM block")
+		return nil, nil, errors.New("expected CERTIFICATE PEM block")
 	}
 
 	cert, err := x509.ParseCertificate(block.Bytes)

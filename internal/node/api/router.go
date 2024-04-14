@@ -28,7 +28,7 @@ func AsRoute(f any) any {
 	)
 }
 
-func NewRouter(routes []Route, logger *zerolog.Logger, nodeController controller.NodeController, nodConfig *config.NodeConfig) *mux.Router {
+func NewRouter(routes []Route, logger *zerolog.Logger, nodeController controller.NodeController, nodeConfig *config.NodeConfig) *mux.Router {
 	router := mux.NewRouter()
 	for _, route := range routes {
 		logger.Info().Msgf("Registering route: %s", route.Pattern())
@@ -37,7 +37,7 @@ func NewRouter(routes []Route, logger *zerolog.Logger, nodeController controller
 
 	authMiddleware := &authenticationMiddleware{
 		nodeController: nodeController,
-		nodeConfig:     nodConfig,
+		nodeConfig:     nodeConfig,
 	}
 
 	router.Use(authMiddleware.Middleware)
