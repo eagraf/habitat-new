@@ -3,6 +3,7 @@ package node
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -39,6 +40,11 @@ func (t *InitalizationTransition) Patch(oldState []byte) ([]byte, error) {
 
 	if t.InitState.Processes == nil {
 		t.InitState.Processes = make(map[string]*ProcessState)
+	}
+
+	if t.InitState.ReverseProxyRules == nil {
+		rules := make(map[string]*ReverseProxyRule)
+		t.InitState.ReverseProxyRules = &rules
 	}
 
 	marshaled, err := json.Marshal(t.InitState)
@@ -154,6 +160,7 @@ func (t *AddUserTransition) Validate(oldState []byte) error {
 type StartInstallationTransition struct {
 	UserID string `json:"user_id"`
 	*AppInstallation
+	NewProxyRules []*ReverseProxyRule `json:"new_proxy_rules"`
 }
 
 func (t *StartInstallationTransition) Type() string {
@@ -184,13 +191,34 @@ func (t *StartInstallationTransition) Patch(oldState []byte) ([]byte, error) {
 		return nil, fmt.Errorf("user with id %s not found", t.UserID)
 	}
 
+	marshaledRules := make([]string, 0)
+	for _, rule := range t.NewProxyRules {
+		rule.ID = uuid.New().String()
+		rule.AppID = appInstallation.ID
+		marshaled, err := json.Marshal(rule)
+		if err != nil {
+			return nil, err
+		}
+		op := fmt.Sprintf(`{
+			"op": "add",
+			"path": "/reverse_proxy_rules/%s",
+			"value": %s
+		}`, rule.ID, marshaled)
+		marshaledRules = append(marshaledRules, op)
+	}
+
+	rules := ""
+	if len(marshaledRules) != 0 {
+		rules = "," + strings.Join(marshaledRules, ",")
+	}
+
 	return []byte(fmt.Sprintf(`[
 		{
 			"op": "add",
 			"path": "/app_installations/%s",
 			"value": %s
-		}
-	]`, t.AppInstallation.ID, string(marshalledApp))), nil
+		}%s
+	]`, t.AppInstallation.ID, string(marshalledApp), rules)), nil
 }
 
 func (t *StartInstallationTransition) Validate(oldState []byte) error {

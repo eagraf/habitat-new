@@ -28,17 +28,16 @@ func TestSchemaMigrations(t *testing.T) {
 
 func TestDataMigrations(t *testing.T) {
 
-	nodeSchema := &NodeSchema{}
-	initState, err := nodeSchema.InitState()
+	initState, err := GetEmptyStateForVersion("v0.0.1")
 	if err != nil {
 		t.Error(err)
 	}
 
-	diffPatch, err := NodeDataMigrations.GetMigrationPatch("v0.0.1", "v0.0.2", initState.(*NodeState))
+	diffPatch, err := NodeDataMigrations.GetMigrationPatch("v0.0.1", "v0.0.2", initState)
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(diffPatch))
 
-	updated, err := applyPatchToState(diffPatch, initState.(*NodeState))
+	updated, err := applyPatchToState(diffPatch, initState)
 	assert.Nil(t, err)
 	assert.Equal(t, "test", updated.TestField)
 	assert.Equal(t, "v0.0.2", updated.SchemaVersion)
@@ -67,7 +66,7 @@ func TestDataMigrations(t *testing.T) {
 	assert.Equal(t, "v0.0.2", updated3.SchemaVersion)
 
 	// Test migrating to a nonsensically high version
-	_, err = NodeDataMigrations.GetMigrationPatch("v0.0.1", "v1000.0.4", initState.(*NodeState))
+	_, err = NodeDataMigrations.GetMigrationPatch("v0.0.1", "v1000.0.4", initState)
 	assert.NotNil(t, err)
 }
 

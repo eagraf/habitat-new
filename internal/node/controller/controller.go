@@ -23,7 +23,7 @@ type NodeController interface {
 	AddUser(userID, username, certificate string) error
 	GetUserByUsername(username string) (*node.User, error)
 
-	InstallApp(userID string, newApp *node.AppInstallation) error
+	InstallApp(userID string, newApp *node.AppInstallation, newProxyRules []*node.ReverseProxyRule) error
 	FinishAppInstallation(userID string, appID, registryURLBase, registryPackageID string) error
 	GetAppByID(appID string) (*node.AppInstallation, error)
 
@@ -77,7 +77,7 @@ func (c *BaseNodeController) MigrateNodeDB(targetVersion string) error {
 }
 
 // InstallApp attempts to install the given app installation, with the userID as the action initiato.
-func (c *BaseNodeController) InstallApp(userID string, newApp *node.AppInstallation) error {
+func (c *BaseNodeController) InstallApp(userID string, newApp *node.AppInstallation, newProxyRules []*node.ReverseProxyRule) error {
 	dbClient, err := c.databaseManager.GetDatabaseClientByName(constants.NodeDBDefaultName)
 	if err != nil {
 		return err
@@ -87,6 +87,7 @@ func (c *BaseNodeController) InstallApp(userID string, newApp *node.AppInstallat
 		&node.StartInstallationTransition{
 			UserID:          userID,
 			AppInstallation: newApp,
+			NewProxyRules:   newProxyRules,
 		},
 	})
 	return err

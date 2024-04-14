@@ -142,7 +142,10 @@ func (m MigrationsList) GetNeededMigrations(currentVersion, targetVersion string
 	migrations := make([]DataMigration, 0)
 	inMigration := false
 	for _, dataMigration := range NodeDataMigrations {
-		if (dataMigration.UpVersion() == currentVersion || dataMigration.UpVersion() == targetVersion) && !inMigration {
+		if dataMigration.DownVersion() == currentVersion && !inMigration {
+			inMigration = true
+			migrations = append(migrations, dataMigration)
+		} else if (dataMigration.UpVersion() == currentVersion || dataMigration.UpVersion() == targetVersion) && !inMigration {
 			inMigration = true
 			continue
 		} else if inMigration {
@@ -252,7 +255,12 @@ var NodeDataMigrations = MigrationsList{
 		upVersion:   "v0.0.1",
 		downVersion: "v0.0.0",
 		up: func(state *NodeState) (*NodeState, error) {
-			return state, nil
+			return &NodeState{
+				SchemaVersion:    "v0.0.1",
+				Users:            make(map[string]*User),
+				Processes:        make(map[string]*ProcessState),
+				AppInstallations: make(map[string]*AppInstallationState),
+			}, nil
 		},
 		down: func(state *NodeState) (*NodeState, error) {
 			// The first down migration can never be run
@@ -310,6 +318,8 @@ var NodeDataMigrations = MigrationsList{
 			for _, appInstallation := range newState.AppInstallations {
 				appInstallation.DriverConfig = map[string]interface{}{}
 			}
+			rules := make(map[string]*ReverseProxyRule)
+			newState.ReverseProxyRules = &rules
 			return newState, nil
 		},
 		down: func(state *NodeState) (*NodeState, error) {
@@ -320,6 +330,7 @@ var NodeDataMigrations = MigrationsList{
 			for _, appInstallation := range newState.AppInstallations {
 				appInstallation.DriverConfig = nil
 			}
+			newState.ReverseProxyRules = nil
 			return newState, nil
 		},
 	},
@@ -353,4 +364,21 @@ func applyPatchToState(diffPatch jsondiff.Patch, state *NodeState) (*NodeState, 
 	}
 
 	return updatedNodeState, nil
+}
+
+func GetEmptyStateForVersion(version string) (*NodeState, error) {
+
+	emptyState := &NodeState{}
+
+	diffPatch, err := NodeDataMigrations.GetMigrationPatch("v0.0.0", version, emptyState)
+	if err != nil {
+		return nil, err
+	}
+
+	initState, err := applyPatchToState(diffPatch, emptyState)
+	if err != nil {
+		return nil, err
+	}
+
+	return initState, nil
 }

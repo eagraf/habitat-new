@@ -140,6 +140,7 @@ func TestInstallAppController(t *testing.T) {
 						RegistryPackageTag: "v1",
 					},
 				},
+				NewProxyRules: []*node.ReverseProxyRule{},
 			},
 		},
 	)).Return(nil, nil).Times(1)
@@ -153,7 +154,7 @@ func TestInstallAppController(t *testing.T) {
 			RegistryPackageID:  "app_name1",
 			RegistryPackageTag: "v1",
 		},
-	})
+	}, []*node.ReverseProxyRule{})
 	assert.Nil(t, err)
 }
 

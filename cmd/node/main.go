@@ -72,6 +72,13 @@ func main() {
 		),
 		fx.Provide(
 			fx.Annotate(
+				reverse_proxy.NewProcessProxyRuleStateUpdateSubscriber,
+				fx.As(new(pubsub.Subscriber[hdb.StateUpdate])),
+				fx.ResultTags(`group:"state_update_subscribers"`),
+			),
+		),
+		fx.Provide(
+			fx.Annotate(
 				processes.NewProcessManager,
 				fx.ParamTags(`group:"process_drivers"`),
 			),

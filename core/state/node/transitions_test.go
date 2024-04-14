@@ -192,6 +192,7 @@ func TestAppLifecycle(t *testing.T) {
 					DriverConfig:       map[string]interface{}{},
 				},
 			},
+			NewProxyRules: []*ReverseProxyRule{},
 		},
 	}
 

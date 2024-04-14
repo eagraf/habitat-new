@@ -13,6 +13,28 @@
             "op": "add",
             "path": "/properties/app_installations/additionalProperties/required/9",
             "value": "driver_config"
+        },
+        {
+            "op": "add",
+            "path": "/properties/reverse_proxy_rules",
+            "value": {
+                "type": "object",
+                "additionalProperties": {
+                    "type": "object",
+                    "properties": {
+                        "id": { "type": "string" },
+                        "type": {
+                            "type": "string",
+                            "enum": [ "file", "redirect" ]
+                        },
+                        "matcher": { "type": "string" },
+                        "target": { "type": "string" },
+                        "app_id": { "type": "string" }
+                    },
+                    "additionalProperties": false,
+                    "required": [ "id", "type", "matcher", "target", "app_id" ]
+                }
+            }
         }
     ],
     "down": [
@@ -24,6 +46,10 @@
             "op": "remove",
             "path": "/properties/app_installations/additionalProperties/required/9",
             "value": "driver_config"
+        },
+        {
+            "op": "remove",
+            "path": "/properties/reverse_proxy_rules"
         }
     ]
 }
