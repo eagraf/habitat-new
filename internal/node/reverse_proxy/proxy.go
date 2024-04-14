@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/eagraf/habitat-new/core/state/node"
 	"github.com/rs/zerolog/log"
 )
 
@@ -19,6 +20,25 @@ func (r RuleSet) Add(name string, rule RuleHandler) error {
 		return fmt.Errorf("rule name %s is already taken", name)
 	}
 	r[name] = rule
+	return nil
+}
+
+func (r RuleSet) AddRule(rule *node.ReverseProxyRule) error {
+	if rule.Type == ProxyRuleRedirect {
+		url, err := url.Parse(rule.Target)
+		if err != nil {
+			return err
+		}
+		r.Add(rule.ID, &RedirectRule{
+			Matcher:         rule.Matcher,
+			ForwardLocation: url,
+		})
+	} else if rule.Type == ProxyRuleFileServer {
+		r.Add(rule.ID, &FileServerRule{
+			Matcher: rule.Matcher,
+			Path:    rule.Target,
+		})
+	}
 	return nil
 }
 
