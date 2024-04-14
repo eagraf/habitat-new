@@ -69,10 +69,6 @@ require (
 	go.opentelemetry.io/otel/sdk v1.22.0 // indirect
 	go.opentelemetry.io/otel/trace v1.22.0 // indirect
 	go.uber.org/atomic v1.9.0 // indirect
-<<<<<<< HEAD
-	go.uber.org/dig v1.17.0 // indirect
-=======
->>>>>>> 895f81e (delete fx and from go.mod)
 	go.uber.org/multierr v1.9.0 // indirect
 	golang.org/x/exp v0.0.0-20230905200255-921286631fa9 // indirect
 	golang.org/x/sys v0.16.0 // indirect
