@@ -23,12 +23,15 @@ func NewAPIServer(lc fx.Lifecycle, router *mux.Router, logger *zerolog.Logger, p
 	srv := &http.Server{Addr: fmt.Sprintf(":%s", constants.DefaultPortHabitatAPI), Handler: router}
 	lc.Append(fx.Hook{
 		OnStart: func(ctx context.Context) error {
-			tlsConfig, err := generateTLSConfig(nodeConfig)
-			if err != nil {
-				return err
-			}
-			srv.TLSConfig = tlsConfig
+			/*
+				tlsConfig, err := generateTLSConfig(nodeConfig)
+				if err != nil {
+					return err
+				}
+				srv.TLSConfig = tlsConfig
+			*/
 
+			srv.Addr = ":3000"
 			// Start the server
 			url, err := url.Parse("http://localhost:3000")
 			if err != nil {
@@ -44,7 +47,7 @@ func NewAPIServer(lc fx.Lifecycle, router *mux.Router, logger *zerolog.Logger, p
 
 			logger.Info().Msgf("Starting Habitat API server at %s", srv.Addr)
 			go func() {
-				err := srv.ListenAndServeTLS(nodeConfig.NodeCertPath(), nodeConfig.NodeKeyPath())
+				err := srv.ListenAndServe()
 				logger.Fatal().Msgf("Habitat API server error: %s", err)
 			}()
 			return nil
