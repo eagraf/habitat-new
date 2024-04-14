@@ -28,6 +28,7 @@ services:
         - /var/run/docker.sock:/var/run/docker.sock
     environment:
         - HABITAT_PATH=/.habitat
+        - TS_AUTHKEY=tskey-auth-kwjDAv6CNTRL-QXkg6Qrb5LiJdZqUyapNKij6JR94MyjaR
     network_mode: service:tailscale
     depends_on:
         - tailscale

@@ -26,6 +26,7 @@ func main() {
 		}),
 		fx.Provide(logging.NewLogger),
 		fx.Provide(config.NewNodeConfig),
+		fx.Provide(config.NewTsnetServer),
 		fx.Provide(
 			api.NewAPIServer,
 			fx.Annotate(

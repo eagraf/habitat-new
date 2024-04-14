@@ -15,19 +15,28 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/rs/zerolog"
 	"go.uber.org/fx"
+	"tailscale.com/tsnet"
 )
 
 const CertificateDir = "/dev_certificates"
+const Hostname = "habitat"
+const Addr = ":3000"
 
-func NewAPIServer(lc fx.Lifecycle, router *mux.Router, logger *zerolog.Logger, proxyRules reverse_proxy.RuleSet, nodeConfig *config.NodeConfig) *http.Server {
+func NewAPIServer(lc fx.Lifecycle, router *mux.Router, logger *zerolog.Logger, proxyRules reverse_proxy.RuleSet, nodeConfig *config.NodeConfig, s *tsnet.Server) *http.Server {
 	srv := &http.Server{Addr: fmt.Sprintf(":%s", constants.DefaultPortHabitatAPI), Handler: router}
 	lc.Append(fx.Hook{
 		OnStart: func(ctx context.Context) error {
-			tlsConfig, err := generateTLSConfig(nodeConfig)
-			if err != nil {
-				return err
-			}
-			srv.TLSConfig = tlsConfig
+			/*
+				tlsConfig, err := generateTLSConfig(nodeConfig)
+				if err != nil {
+					return err
+				}
+				srv.TLSConfig = tlsConfig
+			*/
+
+			s.Hostname = Hostname
+
+			fmt.Println("help meee", lc)
 
 			// Start the server
 			url, err := url.Parse("http://localhost:3000")
@@ -44,7 +53,11 @@ func NewAPIServer(lc fx.Lifecycle, router *mux.Router, logger *zerolog.Logger, p
 
 			logger.Info().Msgf("Starting Habitat API server at %s", srv.Addr)
 			go func() {
-				err := srv.ListenAndServeTLS(nodeConfig.NodeCertPath(), nodeConfig.NodeKeyPath())
+				ln, err := s.Listen("tcp", Addr)
+				if err != nil {
+					logger.Fatal().Msgf("tailscale Listen() error: %v", err)
+				}
+				err = srv.Serve(ln)
 				logger.Fatal().Msgf("Habitat API server error: %s", err)
 			}()
 			return nil
