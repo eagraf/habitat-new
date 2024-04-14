@@ -14,6 +14,8 @@ import (
 	"github.com/docker/go-connections/nat"
 	"github.com/eagraf/habitat-new/core/state/node"
 	"github.com/eagraf/habitat-new/internal/node/constants"
+	"github.com/eagraf/habitat-new/internal/node/package_manager"
+	"github.com/eagraf/habitat-new/internal/node/processes"
 	"github.com/rs/zerolog/log"
 )
 
@@ -150,4 +152,27 @@ func (d *ProcessDriver) StopProcess(extProcessID string) error {
 	}
 
 	return nil
+}
+
+type DriverResult struct {
+	PackageManager package_manager.PackageManager
+	ProcessDriver  processes.ProcessDriver `group:"process_drivers"`
+}
+
+func NewDockerDriver() (DriverResult, error) {
+	dockerClient, err := client.NewClientWithOpts(client.FromEnv)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to create docker client")
+	}
+
+	res := DriverResult{
+		PackageManager: &AppDriver{
+			client: dockerClient,
+		},
+		ProcessDriver: &ProcessDriver{
+			client: dockerClient,
+		},
+	}
+
+	return res, nil
 }

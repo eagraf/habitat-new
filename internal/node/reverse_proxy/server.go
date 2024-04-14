@@ -13,23 +13,6 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-func NewProxyServer(ctx context.Context, logger *zerolog.Logger, config *config.NodeConfig) (*ProxyServer, RuleSet, func()) {
-	srv := &ProxyServer{
-		logger:     logger,
-		Rules:      make(RuleSet),
-		nodeConfig: config,
-	}
-
-	listenAddr := fmt.Sprintf(":%s", constants.DefaultPortReverseProxy)
-	logger.Info().Msgf("Starting Habitat reverse proxy server at %s", listenAddr)
-	go func() {
-		err := srv.Start(listenAddr)
-		log.Fatal().Err(err).Msg("reverse proxy server failed")
-	}()
-
-	return srv, srv.Rules, func() { srv.server.Shutdown(ctx) }
-}
-
 func NewProcessProxyRuleStateUpdateSubscriber(ruleSet RuleSet) (*hdb.IdempotentStateUpdateSubscriber, error) {
 	return hdb.NewIdempotentStateUpdateSubscriber(
 		"ProcessProxyRulesSubscriber",
@@ -50,6 +33,23 @@ type ProxyServer struct {
 	server     *http.Server
 	nodeConfig *config.NodeConfig
 	Rules      RuleSet
+}
+
+func NewProxyServer(ctx context.Context, logger *zerolog.Logger, config *config.NodeConfig) (*ProxyServer, RuleSet, func()) {
+	srv := &ProxyServer{
+		logger:     logger,
+		Rules:      make(RuleSet),
+		nodeConfig: config,
+	}
+
+	listenAddr := fmt.Sprintf(":%s", constants.DefaultPortReverseProxy)
+	logger.Info().Msgf("Starting Habitat reverse proxy server at %s", listenAddr)
+	go func() {
+		err := srv.Start(listenAddr)
+		log.Fatal().Err(err).Msg("reverse proxy server failed")
+	}()
+
+	return srv, srv.Rules, func() { srv.server.Shutdown(ctx) }
 }
 
 func (s *ProxyServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {

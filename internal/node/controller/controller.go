@@ -37,6 +37,15 @@ type BaseNodeController struct {
 	nodeConfig      *config.NodeConfig
 }
 
+func NewNodeController(habitatDBManager hdb.HDBManager, config *config.NodeConfig) *BaseNodeController {
+	controller := &BaseNodeController{
+		databaseManager: habitatDBManager,
+		nodeConfig:      config,
+	}
+	controller.InitializeNodeDB()
+	return controller
+}
+
 // InitializeNodeDB tries initializing the database; it is a noop if a database with the same name already exists
 func (c *BaseNodeController) InitializeNodeDB() error {
 	initState, err := generateInitState(c.nodeConfig)

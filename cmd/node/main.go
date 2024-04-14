@@ -11,7 +11,6 @@ import (
 	"github.com/eagraf/habitat-new/internal/node/docker"
 	"github.com/eagraf/habitat-new/internal/node/hdb"
 	"github.com/eagraf/habitat-new/internal/node/hdb/hdbms"
-	"github.com/eagraf/habitat-new/internal/node/logging"
 	"github.com/eagraf/habitat-new/internal/node/package_manager"
 	"github.com/eagraf/habitat-new/internal/node/processes"
 	"github.com/eagraf/habitat-new/internal/node/pubsub"

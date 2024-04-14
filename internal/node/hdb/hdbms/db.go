@@ -5,11 +5,9 @@ import (
 	"github.com/eagraf/habitat-new/internal/node/hdb"
 	"github.com/eagraf/habitat-new/internal/node/pubsub"
 	"github.com/rs/zerolog"
-	"go.uber.org/fx"
 )
 
 type HDBResult struct {
-	fx.Out
 	Manager              hdb.HDBManager
 	StateUpdatePublisher pubsub.Publisher[hdb.StateUpdate] `group:"state_update_publishers"`
 }

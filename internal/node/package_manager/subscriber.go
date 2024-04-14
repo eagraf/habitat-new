@@ -64,3 +64,23 @@ func (e *InstallAppExecutor) PostHook(update *hdb.StateUpdate) error {
 
 	return nil
 }
+
+func NewAppLifecycleSubscriber(packageManager PackageManager, nodeController controller.NodeController) (*hdb.IdempotentStateUpdateSubscriber, error) {
+	// TODO this should have a fx cleanup hook to cleanly handle interrupted installs
+	// when the node shuts down.
+	pmRestorer := &PackageManagerRestorer{
+		packageManager: packageManager,
+	}
+
+	return hdb.NewIdempotentStateUpdateSubscriber(
+		"AppLifecycleSubscriber",
+		node.SchemaName,
+		[]hdb.IdempotentStateUpdateExecutor{
+			&InstallAppExecutor{
+				packageManager: packageManager,
+				nodeController: nodeController,
+			},
+		},
+		pmRestorer,
+	)
+}

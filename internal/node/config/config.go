@@ -110,6 +110,14 @@ type NodeConfig struct {
 	NodeCert     *x509.Certificate
 }
 
+func NewNodeConfig() (*NodeConfig, error) {
+	err := loadEnv()
+	if err != nil {
+		return nil, err
+	}
+	return loadConfig()
+}
+
 func (n *NodeConfig) HabitatPath() string {
 	return viper.GetString("habitat_path")
 }
