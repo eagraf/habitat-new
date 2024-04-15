@@ -27,7 +27,7 @@ make run-dev-compose          # Runs the habitat node in dev mode
 ```
 To get added to the Tailscale tailnet the first time you run Habitat in dev mode, get an auth key issued from Tailscale and run. You only need to do this once, unless you remove the volumes in `.habitat`.
 ```
-TAILSCALE_AUTHKEY=<authkey> make run-dev-compose
+TS_AUTHKEY=<authkey> make run-dev-compose
 ```
 The container saves node state in an anonymous volume. If you'd like to run the Habitat node with completely new state, run:
 ```
