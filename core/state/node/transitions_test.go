@@ -307,6 +307,54 @@ func TestAppLifecycle(t *testing.T) {
 	assert.NotNil(t, err)
 }
 
+func TestAppInstallReverseProxyRules(t *testing.T) {
+	proxyRules := make(map[string]*ReverseProxyRule)
+	transitions := []hdb.Transition{
+		&InitalizationTransition{
+			InitState: &NodeState{
+				NodeID:            "abc",
+				Certificate:       "123",
+				Name:              "New Node",
+				SchemaVersion:     LatestVersion,
+				Users:             make(map[string]*User, 0),
+				ReverseProxyRules: &proxyRules,
+			},
+		},
+		&AddUserTransition{
+			UserID:      "123",
+			Username:    "eagraf",
+			Certificate: "placeholder",
+		},
+		&StartInstallationTransition{
+			UserID: "123",
+			AppInstallation: &AppInstallation{
+				UserID:  "123",
+				Name:    "app_name1",
+				Version: "1",
+				Package: Package{
+					Driver:             "docker",
+					RegistryURLBase:    "https://registry.com",
+					RegistryPackageID:  "app_name1",
+					RegistryPackageTag: "v1",
+					DriverConfig:       map[string]interface{}{},
+				},
+			},
+			NewProxyRules: []*ReverseProxyRule{
+				{
+					AppID:   "app1",
+					Matcher: "/path",
+					Target:  "http://localhost:8080",
+					Type:    "redirect",
+				},
+			},
+		},
+	}
+
+	newState, err := testTransitions(nil, transitions)
+	assert.Nil(t, err)
+	assert.NotNil(t, newState)
+}
+
 func TestProcesses(t *testing.T) {
 
 	transitions := []hdb.Transition{

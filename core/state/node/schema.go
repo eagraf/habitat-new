@@ -214,7 +214,7 @@ func (s *NodeSchema) ValidateState(state []byte) error {
 		return err
 	}
 	if len(keyErrs) > 0 {
-		return fmt.Errorf("validation failed: %v", keyErrs)
+		return keyErrs[0]
 	}
 	return nil
 }

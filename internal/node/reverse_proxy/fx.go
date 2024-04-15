@@ -24,7 +24,10 @@ func NewProxyServer(lc fx.Lifecycle, logger *zerolog.Logger, config *config.Node
 		OnStart: func(ctx context.Context) error {
 			listenAddr := fmt.Sprintf(":%s", constants.DefaultPortReverseProxy)
 			logger.Info().Msgf("Starting Habitat reverse proxy server at %s", listenAddr)
-			go srv.Start(listenAddr)
+			go func() {
+				err := srv.Start(listenAddr)
+				log.Fatal().Err(err).Msg("reverse proxy server failed")
+			}()
 			return nil
 		},
 		OnStop: func(ctx context.Context) error {

@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/eagraf/habitat-new/core/state/node"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -114,4 +115,39 @@ func TestProxy(t *testing.T) {
 	assert.NotNil(t, err)
 
 	assert.Equal(t, 1, len(proxy.Rules))
+}
+
+func TestAddRule(t *testing.T) {
+	proxy := &ProxyServer{
+		Rules: make(RuleSet),
+	}
+
+	err := proxy.Rules.AddRule(&node.ReverseProxyRule{
+		ID:      "backend1",
+		Type:    "redirect",
+		Matcher: "/backend1",
+		Target:  "http://localhost:8080",
+	})
+	assert.Nil(t, err)
+	assert.Equal(t, 1, len(proxy.Rules))
+	assert.Equal(t, ProxyRuleRedirect, proxy.Rules["backend1"].Type())
+
+	err = proxy.Rules.AddRule(&node.ReverseProxyRule{
+		ID:      "backend2",
+		Type:    "file",
+		Matcher: "/backend2",
+		Target:  "http://localhost:8080",
+	})
+	assert.Nil(t, err)
+	assert.Equal(t, 2, len(proxy.Rules))
+	assert.Equal(t, ProxyRuleFileServer, proxy.Rules["backend2"].Type())
+
+	// Test unknown rule
+	err = proxy.Rules.AddRule(&node.ReverseProxyRule{
+		ID:      "backend3",
+		Type:    "unknown",
+		Matcher: "/backend3",
+		Target:  "http://localhost:8080",
+	})
+	assert.NotNil(t, err)
 }

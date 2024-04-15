@@ -42,10 +42,10 @@ func (t *InitalizationTransition) Patch(oldState []byte) ([]byte, error) {
 		t.InitState.Processes = make(map[string]*ProcessState)
 	}
 
-	if t.InitState.ReverseProxyRules == nil {
-		rules := make(map[string]*ReverseProxyRule)
-		t.InitState.ReverseProxyRules = &rules
-	}
+	//	if t.InitState.ReverseProxyRules == nil {
+	//rules := make(map[string]*ReverseProxyRule)
+	//t.InitState.ReverseProxyRules = &rules
+	//}
 
 	marshaled, err := json.Marshal(t.InitState)
 	if err != nil {

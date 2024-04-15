@@ -30,15 +30,23 @@ func (r RuleSet) AddRule(rule *node.ReverseProxyRule) error {
 		if err != nil {
 			return err
 		}
-		r.Add(rule.ID, &RedirectRule{
+		err = r.Add(rule.ID, &RedirectRule{
 			Matcher:         rule.Matcher,
 			ForwardLocation: url,
 		})
+		if err != nil {
+			return err
+		}
 	} else if rule.Type == ProxyRuleFileServer {
-		r.Add(rule.ID, &FileServerRule{
+		err := r.Add(rule.ID, &FileServerRule{
 			Matcher: rule.Matcher,
 			Path:    rule.Target,
 		})
+		if err != nil {
+			return err
+		}
+	} else {
+		return fmt.Errorf("unknown rule type %s", rule.Type)
 	}
 	return nil
 }
@@ -52,6 +60,7 @@ func (r RuleSet) Remove(name string) error {
 }
 
 type RuleHandler interface {
+	Type() string
 	Match(url *url.URL) bool
 	Handler() http.Handler
 }
@@ -59,6 +68,10 @@ type RuleHandler interface {
 type FileServerRule struct {
 	Matcher string
 	Path    string
+}
+
+func (r *FileServerRule) Type() string {
+	return ProxyRuleFileServer
 }
 
 func (r *FileServerRule) Match(url *url.URL) bool {
@@ -96,6 +109,10 @@ func (h *FileServerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 type RedirectRule struct {
 	Matcher         string
 	ForwardLocation *url.URL
+}
+
+func (r *RedirectRule) Type() string {
+	return ProxyRuleRedirect
 }
 
 func (r *RedirectRule) Match(url *url.URL) bool {

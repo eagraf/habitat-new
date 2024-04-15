@@ -29,7 +29,7 @@ func (r *ReverseProxyRestorer) Restore(restoreEvent *hdb.StateUpdate) error {
 			log.Info().Msgf("Restoring rule %s", rule)
 			err = r.ruleSet.AddRule(rule)
 			if err != nil {
-				return err
+				log.Error().Msgf("error restoring rule: %s", err)
 			}
 		}
 	}
