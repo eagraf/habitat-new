@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/eagraf/habitat-new/internal/node/api"
 	"github.com/eagraf/habitat-new/internal/node/config"
@@ -49,10 +48,8 @@ func main() {
 	}
 
 	router := api.NewRouter(routes, log, nodeCtrl, nodeConfig)
-	proxy, ruleset, proxyClose := reverse_proxy.NewProxyServer(ctx, log)
-	listenAddr := fmt.Sprintf(":%s", constants.DefaultPortReverseProxy)
-	log.Info().Msgf("Starting Habitat reverse proxy server at %s", listenAddr)
-	go proxy.Start(listenAddr)
+	proxy := reverse_proxy.NewProxyServer(ctx, log)
+	proxyClose := proxy.Start(ctx, constants.DefaultPortReverseProxy)
 	defer proxyClose()
 
 	dockerDriver, err := docker.NewDockerDriver()
@@ -72,9 +69,15 @@ func main() {
 		log.Fatal().Err(err)
 	}
 
-	pubsub.NewSimpleChannel([]pubsub.Publisher[hdb.StateUpdate]{hdbPublisher}, []pubsub.Subscriber[hdb.StateUpdate]{stateLogger, appLifecycleSubscriber, pmSub})
+	stateUpdates := pubsub.NewSimpleChannel([]pubsub.Publisher[hdb.StateUpdate]{hdbPublisher}, []pubsub.Subscriber[hdb.StateUpdate]{stateLogger, appLifecycleSubscriber, pmSub})
+	go func() {
+		err := stateUpdates.Listen()
+		if err != nil {
+			log.Fatal().Err(err).Msgf("unrecoverable error listening to channel")
+		}
+	}()
 
-	server, err := api.NewAPIServer(ctx, router, log, ruleset, nodeConfig)
+	server, err := api.NewAPIServer(ctx, router, log, proxy.Rules, nodeConfig)
 	if err != nil {
 		log.Fatal().Err(err)
 	}

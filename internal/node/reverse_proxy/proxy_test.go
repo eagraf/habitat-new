@@ -1,6 +1,7 @@
 package reverse_proxy
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"log"
@@ -12,10 +13,13 @@ import (
 	"testing"
 
 	"github.com/eagraf/habitat-new/core/state/node"
+	"github.com/eagraf/habitat-new/internal/node/logging"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestProxy(t *testing.T) {
+	ctx := context.Background()
 	// Simulate a server sitting behind the reverse proxy
 	redirectedServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(w, "Hello, World!")
@@ -40,9 +44,7 @@ func TestProxy(t *testing.T) {
 	file.Close()
 
 	// Create proxy server
-	proxy := &ProxyServer{
-		Rules: make(RuleSet),
-	}
+	proxy, rules, close := NewProxyServer(ctx, logging.NewLogger())
 	err = proxy.Rules.Add("backend1", &RedirectRule{
 		Matcher:         "/backend1",
 		ForwardLocation: redirectedServerURL,
@@ -63,11 +65,12 @@ func TestProxy(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(proxy.Rules))
 
-	frontendServer := httptest.NewServer(proxy)
-	defer frontendServer.Close()
+	close := proxy.Start(ctx, "1234")
+	defer close()
 
+	url := "http://127.0.0.1:" + proxy.server.Addr
 	// Check redirection
-	resp, err := http.Get(frontendServer.URL + "/backend1")
+	resp, err := http.Get(url + "/backend1")
 	if err != nil {
 		t.Errorf(err.Error())
 	}
@@ -82,7 +85,7 @@ func TestProxy(t *testing.T) {
 	assert.Equal(t, "Hello, World!", string(b))
 
 	// Check file serving
-	resp, err = http.Get(fmt.Sprintf("%s/fileserver/%s", frontendServer.URL, filepath.Base(file.Name())))
+	resp, err = http.Get(fmt.Sprintf("%s/fileserver/%s", url, filepath.Base(file.Name())))
 	if err != nil {
 		t.Errorf(err.Error())
 	}
@@ -97,7 +100,7 @@ func TestProxy(t *testing.T) {
 	assert.Equal(t, "Hello, World!", string(b))
 
 	// Check getting a file that doesn't exist
-	resp, err = http.Get(fmt.Sprintf("%s/fileserver/%s", frontendServer.URL, "nonexistentfile"))
+	resp, err = http.Get(fmt.Sprintf("%s/fileserver/%s", url, "nonexistentfile"))
 	if err != nil {
 		t.Errorf(err.Error())
 	}
@@ -107,7 +110,9 @@ func TestProxy(t *testing.T) {
 	// Test removing a rule
 	err = proxy.Rules.Remove("fileserver")
 	assert.Nil(t, err)
-
+	resp, err = http.Get(fmt.Sprintf("%s/fileserver/%s", url, "nonexistentfile"))
+	require.Nil(t, err)
+	assert.Equal(t, http.StatusNotFound, resp.StatusCode)
 	assert.Equal(t, 1, len(proxy.Rules))
 
 	// Removing it again should fail

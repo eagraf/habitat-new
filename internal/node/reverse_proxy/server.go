@@ -35,7 +35,7 @@ type ProxyServer struct {
 	Rules      RuleSet
 }
 
-func NewProxyServer(ctx context.Context, logger *zerolog.Logger, config *config.NodeConfig) (*ProxyServer, RuleSet, func()) {
+func NewProxyServer(ctx context.Context, logger *zerolog.Logger, config *config.NodeConfig) (*ProxyServer, func()) {
 	srv := &ProxyServer{
 		logger:     logger,
 		Rules:      make(RuleSet),
@@ -49,7 +49,7 @@ func NewProxyServer(ctx context.Context, logger *zerolog.Logger, config *config.
 		log.Fatal().Err(err).Msg("reverse proxy server failed")
 	}()
 
-	return srv, srv.Rules, func() {
+	return srv, func() {
 		err := srv.server.Shutdown(ctx)
 		if err != nil {
 			log.Err(err)
