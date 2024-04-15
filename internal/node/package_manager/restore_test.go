@@ -13,7 +13,7 @@ import (
 func TestRestore(t *testing.T) {
 	restoreUpdate, err := test_helpers.StateUpdateTestHelper(&node.InitalizationTransition{}, &node.NodeState{
 		Users: map[string]*node.User{
-			"user1": &node.User{
+			"user1": {
 				ID: "user1",
 			},
 		},

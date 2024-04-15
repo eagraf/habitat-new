@@ -72,7 +72,7 @@ func main() {
 		log.Fatal().Err(err)
 	}
 
-	go pubsub.NewSimpleChannel([]pubsub.Publisher[hdb.StateUpdate]{hdbPublisher}, []pubsub.Subscriber[hdb.StateUpdate]{stateLogger, appLifecycleSubscriber, pmSub})
+	pubsub.NewSimpleChannel([]pubsub.Publisher[hdb.StateUpdate]{hdbPublisher}, []pubsub.Subscriber[hdb.StateUpdate]{stateLogger, appLifecycleSubscriber, pmSub})
 
 	server, err := api.NewAPIServer(ctx, router, log, ruleset, nodeConfig)
 	if err != nil {

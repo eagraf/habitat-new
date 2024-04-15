@@ -99,7 +99,6 @@ func (pm *BaseProcessManager) StartProcess(process *node.Process, app *node.AppI
 	}
 
 	// TODO tell controller that we're in state running
-
 	return nil
 }
 
