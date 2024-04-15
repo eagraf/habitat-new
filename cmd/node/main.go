@@ -34,7 +34,10 @@ func main() {
 	}
 	defer dbClose()
 
-	nodeCtrl := controller.NewNodeController(db.Manager, nodeConfig)
+	nodeCtrl, err := controller.NewNodeController(db.Manager, nodeConfig)
+	if err != nil {
+		log.Fatal().Err(err)
+	}
 
 	routes := []api.Route{
 		api.NewVersionHandler(),

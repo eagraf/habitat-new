@@ -49,7 +49,12 @@ func NewProxyServer(ctx context.Context, logger *zerolog.Logger, config *config.
 		log.Fatal().Err(err).Msg("reverse proxy server failed")
 	}()
 
-	return srv, srv.Rules, func() { srv.server.Shutdown(ctx) }
+	return srv, srv.Rules, func() {
+		err := srv.server.Shutdown(ctx)
+		if err != nil {
+			log.Err(err)
+		}
+	}
 }
 
 func (s *ProxyServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
