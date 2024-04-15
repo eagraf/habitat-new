@@ -27,7 +27,7 @@ func NewAPIServer(lc fx.Lifecycle, router *mux.Router, logger *zerolog.Logger, p
 			srv.TLSConfig = tlsConfig
 
 			// Start the server
-			url, err := url.Parse("http://localhost:3000")
+			url, err := url.Parse("https://localhost:3000")
 			if err != nil {
 				return fmt.Errorf("error parsing URL: %s", err)
 			}
