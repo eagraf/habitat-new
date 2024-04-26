@@ -11,6 +11,7 @@ import (
 	"github.com/eagraf/habitat-new/internal/node/hdb"
 	hdb_mocks "github.com/eagraf/habitat-new/internal/node/hdb/mocks"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 )
 
@@ -20,14 +21,12 @@ func TestInitializeNodeDB(t *testing.T) {
 	mockedManager := hdb_mocks.NewMockHDBManager(ctrl)
 	mockedClient := hdb_mocks.NewMockClient(ctrl)
 
-	controller := &BaseNodeController{
-		databaseManager: mockedManager,
-		nodeConfig: &config.NodeConfig{
-			RootUserCert: &x509.Certificate{
-				Raw: []byte("root_cert"),
-			},
+	controller, err := NewNodeController(mockedManager, &config.NodeConfig{
+		RootUserCert: &x509.Certificate{
+			Raw: []byte("root_cert"),
 		},
-	}
+	})
+	require.Nil(t, err)
 
 	// Check that fakeInitState is based off of the config we pass in
 	mockedManager.EXPECT().CreateDatabase(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(
@@ -44,7 +43,7 @@ func TestInitializeNodeDB(t *testing.T) {
 
 			return mockedClient, nil
 		}).Times(1)
-	err := controller.InitializeNodeDB()
+	err = controller.InitializeNodeDB()
 	assert.Nil(t, err)
 
 	mockedManager.EXPECT().CreateDatabase(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, assert.AnError).Times(1)
@@ -58,17 +57,15 @@ func TestInitializeNodeDB(t *testing.T) {
 
 func TestMigrationController(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	mockDB := hdb_mocks.NewMockHDBManager(ctrl)
+	mockedManager := hdb_mocks.NewMockHDBManager(ctrl)
 	mockClient := hdb_mocks.NewMockClient(ctrl)
 
-	controller := &BaseNodeController{
-		databaseManager: mockDB,
-		nodeConfig: &config.NodeConfig{
-			RootUserCert: &x509.Certificate{
-				Raw: []byte("root_cert"),
-			},
+	controller, err := NewNodeController(mockedManager, &config.NodeConfig{
+		RootUserCert: &x509.Certificate{
+			Raw: []byte("root_cert"),
 		},
-	}
+	})
+	require.Nil(t, err)
 
 	nodeState := &node.NodeState{
 		SchemaVersion: "v0.0.2",
@@ -76,7 +73,7 @@ func TestMigrationController(t *testing.T) {
 	marshaled, err := nodeState.Bytes()
 	assert.Equal(t, nil, err)
 
-	mockDB.EXPECT().GetDatabaseClientByName(constants.NodeDBDefaultName).Return(mockClient, nil).Times(1)
+	mockedManager.EXPECT().GetDatabaseClientByName(constants.NodeDBDefaultName).Return(mockClient, nil).Times(1)
 	mockClient.EXPECT().Bytes().Return(marshaled).Times(1)
 	mockClient.EXPECT().ProposeTransitions(gomock.Eq(
 		[]hdb.Transition{
@@ -90,8 +87,7 @@ func TestMigrationController(t *testing.T) {
 	assert.Nil(t, err)
 
 	// Test no-op by migrating to the same version
-
-	mockDB.EXPECT().GetDatabaseClientByName(constants.NodeDBDefaultName).Return(mockClient, nil).Times(1)
+	mockedManager.EXPECT().GetDatabaseClientByName(constants.NodeDBDefaultName).Return(mockClient, nil).Times(1)
 	mockClient.EXPECT().Bytes().Return(marshaled).Times(1)
 	mockClient.EXPECT().ProposeTransitions(gomock.Any()).Times(0)
 
@@ -100,7 +96,7 @@ func TestMigrationController(t *testing.T) {
 
 	// Test  migrating to a lower version
 
-	mockDB.EXPECT().GetDatabaseClientByName(constants.NodeDBDefaultName).Return(mockClient, nil).Times(1)
+	mockedManager.EXPECT().GetDatabaseClientByName(constants.NodeDBDefaultName).Return(mockClient, nil).Times(1)
 	mockClient.EXPECT().Bytes().Return(marshaled).Times(1)
 	mockClient.EXPECT().ProposeTransitions(gomock.Eq(
 		[]hdb.Transition{
@@ -120,10 +116,12 @@ func TestInstallAppController(t *testing.T) {
 	mockedManager := hdb_mocks.NewMockHDBManager(ctrl)
 	mockedClient := hdb_mocks.NewMockClient(ctrl)
 
-	controller := &BaseNodeController{
-		databaseManager: mockedManager,
-		nodeConfig:      &config.NodeConfig{},
-	}
+	controller, err := NewNodeController(mockedManager, &config.NodeConfig{
+		RootUserCert: &x509.Certificate{
+			Raw: []byte("root_cert"),
+		},
+	})
+	require.Nil(t, err)
 
 	mockedManager.EXPECT().GetDatabaseClientByName(constants.NodeDBDefaultName).Return(mockedClient, nil).Times(1)
 	mockedClient.EXPECT().ProposeTransitions(gomock.Eq(
@@ -145,7 +143,7 @@ func TestInstallAppController(t *testing.T) {
 		},
 	)).Return(nil, nil).Times(1)
 
-	err := controller.InstallApp("0", &node.AppInstallation{
+	err = controller.InstallApp("0", &node.AppInstallation{
 		Name:    "app_name1",
 		Version: "1",
 		Package: node.Package{
@@ -180,11 +178,12 @@ func TestFinishAppInstallationController(t *testing.T) {
 
 	mockedManager := hdb_mocks.NewMockHDBManager(ctrl)
 	mockedClient := hdb_mocks.NewMockClient(ctrl)
-
-	controller := &BaseNodeController{
-		databaseManager: mockedManager,
-		nodeConfig:      &config.NodeConfig{},
-	}
+	controller, err := NewNodeController(mockedManager, &config.NodeConfig{
+		RootUserCert: &x509.Certificate{
+			Raw: []byte("root_cert"),
+		},
+	})
+	require.Nil(t, err)
 
 	mockedManager.EXPECT().GetDatabaseClientByName(constants.NodeDBDefaultName).Return(mockedClient, nil).Times(1)
 	mockedClient.EXPECT().ProposeTransitions(gomock.Eq(
@@ -198,7 +197,7 @@ func TestFinishAppInstallationController(t *testing.T) {
 		},
 	)).Return(nil, nil).Times(1)
 
-	err := controller.FinishAppInstallation("user_1", "app1", "https://registry.com", "app_1")
+	err = controller.FinishAppInstallation("user_1", "app1", "https://registry.com", "app_1")
 	assert.Nil(t, err)
 }
 
@@ -207,10 +206,12 @@ func TestGetAppByID(t *testing.T) {
 
 	mockedManager := hdb_mocks.NewMockHDBManager(ctrl)
 	mockedClient := hdb_mocks.NewMockClient(ctrl)
-	controller := &BaseNodeController{
-		databaseManager: mockedManager,
-		nodeConfig:      &config.NodeConfig{},
-	}
+	controller, err := NewNodeController(mockedManager, &config.NodeConfig{
+		RootUserCert: &x509.Certificate{
+			Raw: []byte("root_cert"),
+		},
+	})
+	require.Nil(t, err)
 
 	marshaledNodeState, err := json.Marshal(nodeState)
 	if err != nil {
@@ -237,10 +238,15 @@ func TestStartProcessController(t *testing.T) {
 	mockedManager := hdb_mocks.NewMockHDBManager(ctrl)
 	mockedClient := hdb_mocks.NewMockClient(ctrl)
 
-	controller := &BaseNodeController{
-		databaseManager: mockedManager,
-		nodeConfig:      &config.NodeConfig{},
+	conf := &config.NodeConfig{
+		RootUserCert: &x509.Certificate{
+			Raw: []byte("root_cert"),
+		},
 	}
+	bytes := generateInitState(conf)
+	mockedManager.EXPECT().CreateDatabase(constants.NodeDBDefaultName, node.SchemaName, bytes)
+	controller, err := NewNodeController(mockedManager, conf)
+	require.Nil(t, err)
 
 	marshaledNodeState, err := json.Marshal(nodeState)
 	if err != nil {
@@ -301,10 +307,12 @@ func TestAddUser(t *testing.T) {
 	mockedManager := hdb_mocks.NewMockHDBManager(ctrl)
 	mockedClient := hdb_mocks.NewMockClient(ctrl)
 
-	controller := &BaseNodeController{
-		databaseManager: mockedManager,
-		nodeConfig:      &config.NodeConfig{},
-	}
+	controller, err := NewNodeController(mockedManager, &config.NodeConfig{
+		RootUserCert: &x509.Certificate{
+			Raw: []byte("root_cert"),
+		},
+	})
+	require.Nil(t, err)
 
 	mockedManager.EXPECT().GetDatabaseClientByName(constants.NodeDBDefaultName).Return(mockedClient, nil).Times(1)
 	mockedClient.EXPECT().ProposeTransitions(gomock.Eq(
@@ -317,7 +325,7 @@ func TestAddUser(t *testing.T) {
 		},
 	)).Return(nil, nil).Times(1)
 
-	err := controller.AddUser("user_1", "username_1", "cert_1")
+	err = controller.AddUser("user_1", "username_1", "cert_1")
 	assert.Nil(t, err)
 }
 
@@ -327,10 +335,12 @@ func TestGetUserByUsername(t *testing.T) {
 	mockedManager := hdb_mocks.NewMockHDBManager(ctrl)
 	mockedClient := hdb_mocks.NewMockClient(ctrl)
 
-	controller := &BaseNodeController{
-		databaseManager: mockedManager,
-		nodeConfig:      &config.NodeConfig{},
-	}
+	controller, err := NewNodeController(mockedManager, &config.NodeConfig{
+		RootUserCert: &x509.Certificate{
+			Raw: []byte("root_cert"),
+		},
+	})
+	require.Nil(t, err)
 
 	marshaledNodeState, err := json.Marshal(nodeState)
 	if err != nil {

@@ -31,15 +31,11 @@ type BaseProcessManager struct {
 	processes map[string]*RunningProcess
 }
 
-func newBaseProcessManager() *BaseProcessManager {
-	return &BaseProcessManager{
+func NewProcessManager(drivers []ProcessDriver) ProcessManager {
+	pm := &BaseProcessManager{
 		processDrivers: make(map[string]ProcessDriver),
 		processes:      make(map[string]*RunningProcess),
 	}
-}
-
-func NewProcessManager(drivers []ProcessDriver) ProcessManager {
-	pm := newBaseProcessManager()
 	for _, driver := range drivers {
 		pm.processDrivers[driver.Type()] = driver
 	}

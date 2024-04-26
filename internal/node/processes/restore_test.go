@@ -18,8 +18,8 @@ func TestProcessRestorer(t *testing.T) {
 
 	mockDriver := mocks.NewMockProcessDriver(ctrl)
 
-	pm := newBaseProcessManager()
-	pm.processDrivers["test"] = mockDriver
+	mockDriver.EXPECT().Type().Return("test")
+	pm := NewProcessManager([]ProcessDriver{mockDriver})
 
 	nc := controller_mocks.NewMockNodeController(ctrl)
 

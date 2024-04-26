@@ -15,8 +15,8 @@ func TestSubscriber(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	mockDriver := mocks.NewMockProcessDriver(ctrl)
 
-	pm := newBaseProcessManager()
-	pm.processDrivers["test"] = mockDriver
+	mockDriver.EXPECT().Type().Return("test")
+	pm := NewProcessManager([]ProcessDriver{mockDriver})
 
 	nc := ctrl_mocks.NewMockNodeController(ctrl)
 

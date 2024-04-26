@@ -13,8 +13,8 @@ func TestProcessManager(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	mockDriver := mocks.NewMockProcessDriver(ctrl)
 
-	pm := newBaseProcessManager()
-	pm.processDrivers["test"] = mockDriver
+	mockDriver.EXPECT().Type().Return("test")
+	pm := NewProcessManager([]ProcessDriver{mockDriver})
 
 	mockDriver.EXPECT().StartProcess(
 		gomock.Eq(

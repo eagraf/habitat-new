@@ -51,12 +51,9 @@ func NewNodeController(habitatDBManager hdb.HDBManager, config *config.NodeConfi
 
 // InitializeNodeDB tries initializing the database; it is a noop if a database with the same name already exists
 func (c *BaseNodeController) InitializeNodeDB() error {
-	initState, err := generateInitState(c.nodeConfig)
-	if err != nil {
-		return err
-	}
+	initState := generateInitState(c.nodeConfig)
 
-	_, err = c.databaseManager.CreateDatabase(constants.NodeDBDefaultName, node.SchemaName, initState)
+	_, err := c.databaseManager.CreateDatabase(constants.NodeDBDefaultName, node.SchemaName, initState)
 	if err != nil {
 		if _, ok := err.(*hdb.DatabaseAlreadyExistsError); ok {
 			log.Info().Msg("Node database already exists, doing nothing.")
@@ -269,22 +266,20 @@ func (c *BaseNodeController) GetUserByUsername(username string) (*node.User, err
 
 // TODO this is basically a placeholder until we actually have a way of generating
 // the certificate for the node.
-func generateInitState(nodeConfig *config.NodeConfig) ([]byte, error) {
+func generateInitState(nodeConfig *config.NodeConfig) []byte {
 	nodeUUID := uuid.New().String()
-
 	rootCert := nodeConfig.RootUserCertB64()
-
-	emptyState, err := node.GetEmptyStateForVersion(node.LatestVersion)
-	if err != nil {
-		return nil, err
-	}
-
-	emptyState.NodeID = nodeUUID
-	emptyState.Users[constants.RootUserID] = &node.User{
-		ID:          constants.RootUserID,
-		Username:    constants.RootUsername,
-		Certificate: rootCert,
-	}
-
-	return json.Marshal(emptyState)
+	return []byte(fmt.Sprintf(`{
+			"node_id": "%s",
+			"name": "My Habitat node",
+			"certificate": "placeholder",
+			"users": {
+				"%s": {
+					"id": "%s",
+					"username": "%s",
+					"certificate": "%s",
+					"app_installations": []
+				}
+			}
+		}`, nodeUUID, constants.RootUserID, constants.RootUserID, constants.RootUsername, rootCert))
 }

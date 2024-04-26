@@ -43,7 +43,6 @@ func loadEnv() error {
 }
 
 func loadConfig() (*NodeConfig, error) {
-
 	homedir, err := homedir()
 	if err != nil {
 		return nil, err
