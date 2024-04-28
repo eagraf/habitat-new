@@ -17,11 +17,44 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+// Example docker driver configuration for a container configuration:
+
+/**
+	"driver_config": {
+		"env": [
+			"PDS_HOSTNAME=ethangraf.com",
+			"PDS_DATA_DIRECTORY=/pds",
+		],
+		"mounts": [
+			{
+				"Type": "bind",
+				"Source": "/Users/ethan/code/habitat/habitat-new/.habitat/pds",
+				"Target": "/pds"
+			}
+		],
+		"exposed_ports": [ "5000" ],
+		"port_bindings": {
+			"3000/tcp": [
+				{
+					"hostIp": "127.0.0.1",
+					"hostPort": "5000"
+				}
+			]
+		}
+	}
+**/
+
+// DockerAppInstallationConfig is a struct to hold the configuration for a docker container
+// Most of these types are taken directly from the Docker Go SDK
 type DockerAppInstallationConfig struct {
-	ExposedPorts []string      `json:"exposed_ports"`
-	Env          []string      `json:"env"`
-	PortBindings nat.PortMap   `json:"port_bindings"`
-	Mounts       []mount.Mount `json:"mounts"`
+	// ExposedPorts is a slice of ports exposed by the docker container
+	ExposedPorts []string `json:"exposed_ports"`
+	// Env is a slice of environment variables to be set in the container, specified as KEY=VALUE
+	Env []string `json:"env"`
+	// PortBindings is a map of ports to bind on the host to ports in the container. Host IPs can be specified as well
+	PortBindings nat.PortMap `json:"port_bindings"`
+	// Mounts is a slice of mounts to be mounted in the container
+	Mounts []mount.Mount `json:"mounts"`
 }
 
 type AppDriver struct {
