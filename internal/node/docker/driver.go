@@ -2,18 +2,60 @@ package docker
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
 	"github.com/eagraf/habitat-new/core/state/node"
 	"github.com/eagraf/habitat-new/internal/node/constants"
 	"github.com/rs/zerolog/log"
 )
+
+// Example docker driver configuration for a container configuration:
+
+/**
+	"driver_config": {
+		"env": [
+			"PDS_HOSTNAME=ethangraf.com",
+			"PDS_DATA_DIRECTORY=/pds",
+		],
+		"mounts": [
+			{
+				"Type": "bind",
+				"Source": "/Users/ethan/code/habitat/habitat-new/.habitat/pds",
+				"Target": "/pds"
+			}
+		],
+		"exposed_ports": [ "5000" ],
+		"port_bindings": {
+			"3000/tcp": [
+				{
+					"hostIp": "127.0.0.1",
+					"hostPort": "5000"
+				}
+			]
+		}
+	}
+**/
+
+// DockerAppInstallationConfig is a struct to hold the configuration for a docker container
+// Most of these types are taken directly from the Docker Go SDK
+type DockerAppInstallationConfig struct {
+	// ExposedPorts is a slice of ports exposed by the docker container
+	ExposedPorts []string `json:"exposed_ports"`
+	// Env is a slice of environment variables to be set in the container, specified as KEY=VALUE
+	Env []string `json:"env"`
+	// PortBindings is a map of ports to bind on the host to ports in the container. Host IPs can be specified as well
+	PortBindings nat.PortMap `json:"port_bindings"`
+	// Mounts is a slice of mounts to be mounted in the container
+	Mounts []mount.Mount `json:"mounts"`
+}
 
 type AppDriver struct {
 	client *client.Client
@@ -62,21 +104,30 @@ func (d *ProcessDriver) Type() string {
 
 // StartProcess helps implement processes.ProcessDriver
 func (d *ProcessDriver) StartProcess(process *node.Process, app *node.AppInstallation) (string, error) {
+
+	var dockerConfig DockerAppInstallationConfig
+	dockerConfigBytes, err := json.Marshal(app.DriverConfig)
+	if err != nil {
+		return "", err
+	}
+
+	err = json.Unmarshal(dockerConfigBytes, &dockerConfig)
+	if err != nil {
+		return "", err
+	}
+
+	exposedPorts := make(nat.PortSet)
+	for _, port := range dockerConfig.ExposedPorts {
+		exposedPorts[nat.Port(port)] = struct{}{}
+	}
+
 	createResp, err := d.client.ContainerCreate(context.Background(), &container.Config{
-		Image: fmt.Sprintf("%s/%s:%s", app.RegistryURLBase, app.RegistryPackageID, app.RegistryPackageTag),
-		ExposedPorts: nat.PortSet{
-			"25565/tcp": struct{}{},
-		},
-		Env: []string{"EULA=TRUE"},
+		Image:        fmt.Sprintf("%s/%s:%s", app.RegistryURLBase, app.RegistryPackageID, app.RegistryPackageTag),
+		ExposedPorts: exposedPorts,
+		Env:          dockerConfig.Env,
 	}, &container.HostConfig{
-		PortBindings: nat.PortMap{
-			"25565/tcp": []nat.PortBinding{
-				{
-					HostIP:   "127.0.0.1",
-					HostPort: "25565",
-				},
-			},
-		},
+		PortBindings: dockerConfig.PortBindings,
+		Mounts:       dockerConfig.Mounts,
 	}, nil, nil, "")
 	if err != nil {
 		return "", err

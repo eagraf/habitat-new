@@ -1,6 +1,7 @@
 package config
 
 import (
+	"crypto/tls"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/pem"
@@ -135,6 +136,21 @@ func (n *NodeConfig) RootUserCertPath() string {
 
 func (n *NodeConfig) RootUserCertB64() string {
 	return base64.StdEncoding.EncodeToString(n.RootUserCert.Raw)
+}
+
+func (n *NodeConfig) TLSConfig() (*tls.Config, error) {
+	rootCertBytes, err := os.ReadFile(n.RootUserCertPath())
+	if err != nil {
+		return nil, err
+	}
+
+	caCertPool := x509.NewCertPool()
+	caCertPool.AppendCertsFromPEM(rootCertBytes)
+
+	return &tls.Config{
+		ClientCAs:  caCertPool,
+		ClientAuth: tls.RequireAndVerifyClientCert,
+	}, nil
 }
 
 // Currently unused, but may be necessary to implement adding members to the community.

@@ -169,7 +169,7 @@ func TestAppLifecycle(t *testing.T) {
 				NodeID:        "abc",
 				Certificate:   "123",
 				Name:          "New Node",
-				SchemaVersion: "v0.0.1",
+				SchemaVersion: LatestVersion,
 				Users:         make(map[string]*User, 0),
 			},
 		},
@@ -189,8 +189,10 @@ func TestAppLifecycle(t *testing.T) {
 					RegistryURLBase:    "https://registry.com",
 					RegistryPackageID:  "app_name1",
 					RegistryPackageTag: "v1",
+					DriverConfig:       map[string]interface{}{},
 				},
 			},
+			NewProxyRules: []*ReverseProxyRule{},
 		},
 	}
 
@@ -305,6 +307,54 @@ func TestAppLifecycle(t *testing.T) {
 	assert.NotNil(t, err)
 }
 
+func TestAppInstallReverseProxyRules(t *testing.T) {
+	proxyRules := make(map[string]*ReverseProxyRule)
+	transitions := []hdb.Transition{
+		&InitalizationTransition{
+			InitState: &NodeState{
+				NodeID:            "abc",
+				Certificate:       "123",
+				Name:              "New Node",
+				SchemaVersion:     LatestVersion,
+				Users:             make(map[string]*User, 0),
+				ReverseProxyRules: &proxyRules,
+			},
+		},
+		&AddUserTransition{
+			UserID:      "123",
+			Username:    "eagraf",
+			Certificate: "placeholder",
+		},
+		&StartInstallationTransition{
+			UserID: "123",
+			AppInstallation: &AppInstallation{
+				UserID:  "123",
+				Name:    "app_name1",
+				Version: "1",
+				Package: Package{
+					Driver:             "docker",
+					RegistryURLBase:    "https://registry.com",
+					RegistryPackageID:  "app_name1",
+					RegistryPackageTag: "v1",
+					DriverConfig:       map[string]interface{}{},
+				},
+			},
+			NewProxyRules: []*ReverseProxyRule{
+				{
+					AppID:   "app1",
+					Matcher: "/path",
+					Target:  "http://localhost:8080",
+					Type:    "redirect",
+				},
+			},
+		},
+	}
+
+	newState, err := testTransitions(nil, transitions)
+	assert.Nil(t, err)
+	assert.NotNil(t, newState)
+}
+
 func TestProcesses(t *testing.T) {
 
 	transitions := []hdb.Transition{
@@ -313,7 +363,7 @@ func TestProcesses(t *testing.T) {
 				NodeID:        "abc",
 				Certificate:   "123",
 				Name:          "New Node",
-				SchemaVersion: "v0.0.1",
+				SchemaVersion: LatestVersion,
 				Users: map[string]*User{
 					"123": {
 						ID:          "123",
@@ -332,6 +382,7 @@ func TestProcesses(t *testing.T) {
 								RegistryURLBase:    "https://registry.com",
 								RegistryPackageID:  "app_name1",
 								RegistryPackageTag: "v1",
+								DriverConfig:       map[string]interface{}{},
 							},
 						},
 						State: "installed",

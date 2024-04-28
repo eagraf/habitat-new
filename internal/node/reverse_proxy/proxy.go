@@ -6,9 +6,11 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"path"
 	"strings"
 	"time"
 
+	"github.com/eagraf/habitat-new/core/state/node"
 	"github.com/rs/zerolog/log"
 )
 
@@ -22,6 +24,33 @@ func (r RuleSet) Add(name string, rule RuleHandler) error {
 	return nil
 }
 
+func (r RuleSet) AddRule(rule *node.ReverseProxyRule) error {
+	if rule.Type == ProxyRuleRedirect {
+		url, err := url.Parse(rule.Target)
+		if err != nil {
+			return err
+		}
+		err = r.Add(rule.ID, &RedirectRule{
+			Matcher:         rule.Matcher,
+			ForwardLocation: url,
+		})
+		if err != nil {
+			return err
+		}
+	} else if rule.Type == ProxyRuleFileServer {
+		err := r.Add(rule.ID, &FileServerRule{
+			Matcher: rule.Matcher,
+			Path:    rule.Target,
+		})
+		if err != nil {
+			return err
+		}
+	} else {
+		return fmt.Errorf("unknown rule type %s", rule.Type)
+	}
+	return nil
+}
+
 func (r RuleSet) Remove(name string) error {
 	if _, ok := r[name]; !ok {
 		return fmt.Errorf("rule %s does not exist", name)
@@ -31,6 +60,7 @@ func (r RuleSet) Remove(name string) error {
 }
 
 type RuleHandler interface {
+	Type() string
 	Match(url *url.URL) bool
 	Handler() http.Handler
 }
@@ -38,6 +68,10 @@ type RuleHandler interface {
 type FileServerRule struct {
 	Matcher string
 	Path    string
+}
+
+func (r *FileServerRule) Type() string {
+	return ProxyRuleFileServer
 }
 
 func (r *FileServerRule) Match(url *url.URL) bool {
@@ -77,6 +111,10 @@ type RedirectRule struct {
 	ForwardLocation *url.URL
 }
 
+func (r *RedirectRule) Type() string {
+	return ProxyRuleRedirect
+}
+
 func (r *RedirectRule) Match(url *url.URL) bool {
 	// TODO make this work with actual glob strings
 	// For now, just match based off of base path
@@ -90,7 +128,8 @@ func (r *RedirectRule) Handler() http.Handler {
 		Director: func(req *http.Request) {
 			req.URL.Scheme = r.ForwardLocation.Scheme
 			req.URL.Host = target
-			req.URL.Path = strings.TrimPrefix(req.URL.Path, r.Matcher) // TODO this needs to be fixed when globs are implemented
+			// TODO implement globs
+			req.URL.Path = path.Join(r.ForwardLocation.Path, strings.TrimPrefix(req.URL.Path, r.Matcher))
 		},
 		Transport: &http.Transport{
 			Dial: (&net.Dialer{

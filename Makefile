@@ -16,6 +16,8 @@ DOCKER_WORKDIR = /go/src/github.com/eagraf/habitat-new
 # Set up critical Habitat environment variables
 DEV_HABITAT_PATH = $(TOPDIR)/.habitat
 CERT_DIR = $(DEV_HABITAT_PATH)/certificates
+PDS_DIR = $(DEV_HABITAT_PATH)/pds
+PDS_BLOB_DIR = $(PDS_DIR)/blocks
 
 GOBIN ?= $$(go env GOPATH)/bin
 
@@ -35,7 +37,8 @@ lint::
 # To install: https://golangci-lint.run/usage/install/#local-installation
 	CGO_ENABLED=0 golangci-lint run ./...
 
-install:: $(DEV_HABITAT_PATH)/habitat.yml $(CERT_DIR)/dev_node_cert.pem $(CERT_DIR)/dev_root_user_cert.pem
+install:: $(DEV_HABITAT_PATH)/habitat.yml $(CERT_DIR)/dev_node_cert.pem $(CERT_DIR)/dev_root_user_cert.pem $(PDS_BLOB_DIR)
+	go install ./cmd/node
 
 docker-build:
 	docker build -t habitat_node -f ./build/node.dev.Dockerfile .
@@ -58,6 +61,9 @@ $(CERT_DIR): $(DEV_HABITAT_PATH)
 
 $(DEV_HABITAT_PATH)/habitat.yml: $(DEV_HABITAT_PATH)
 	cp $(TOPDIR)/config/habitat.dev.yml $(DEV_HABITAT_PATH)/habitat.yml
+
+$(PDS_BLOB_DIR):
+	mkdir -p $(PDS_BLOB_DIR)
 
 $(CERT_DIR)/dev_node_cert.pem: $(CERT_DIR)
 	@echo "Generating dev node certificate"

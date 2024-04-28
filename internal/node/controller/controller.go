@@ -23,7 +23,7 @@ type NodeController interface {
 	AddUser(userID, username, certificate string) error
 	GetUserByUsername(username string) (*node.User, error)
 
-	InstallApp(userID string, newApp *node.AppInstallation) error
+	InstallApp(userID string, newApp *node.AppInstallation, newProxyRules []*node.ReverseProxyRule) error
 	FinishAppInstallation(userID string, appID, registryURLBase, registryPackageID string) error
 	GetAppByID(appID string) (*node.AppInstallation, error)
 
@@ -39,7 +39,12 @@ type BaseNodeController struct {
 
 // InitializeNodeDB tries initializing the database; it is a noop if a database with the same name already exists
 func (c *BaseNodeController) InitializeNodeDB() error {
-	_, err := c.databaseManager.CreateDatabase(constants.NodeDBDefaultName, node.SchemaName, generateInitState(c.nodeConfig))
+	initState, err := generateInitState(c.nodeConfig)
+	if err != nil {
+		return err
+	}
+
+	_, err = c.databaseManager.CreateDatabase(constants.NodeDBDefaultName, node.SchemaName, initState)
 	if err != nil {
 		if _, ok := err.(*hdb.DatabaseAlreadyExistsError); ok {
 			log.Info().Msg("Node database already exists, doing nothing.")
@@ -77,7 +82,7 @@ func (c *BaseNodeController) MigrateNodeDB(targetVersion string) error {
 }
 
 // InstallApp attempts to install the given app installation, with the userID as the action initiato.
-func (c *BaseNodeController) InstallApp(userID string, newApp *node.AppInstallation) error {
+func (c *BaseNodeController) InstallApp(userID string, newApp *node.AppInstallation, newProxyRules []*node.ReverseProxyRule) error {
 	dbClient, err := c.databaseManager.GetDatabaseClientByName(constants.NodeDBDefaultName)
 	if err != nil {
 		return err
@@ -87,6 +92,7 @@ func (c *BaseNodeController) InstallApp(userID string, newApp *node.AppInstallat
 		&node.StartInstallationTransition{
 			UserID:          userID,
 			AppInstallation: newApp,
+			NewProxyRules:   newProxyRules,
 		},
 	})
 	return err
@@ -251,22 +257,22 @@ func (c *BaseNodeController) GetUserByUsername(username string) (*node.User, err
 
 // TODO this is basically a placeholder until we actually have a way of generating
 // the certificate for the node.
-func generateInitState(nodeConfig *config.NodeConfig) []byte {
+func generateInitState(nodeConfig *config.NodeConfig) ([]byte, error) {
 	nodeUUID := uuid.New().String()
 
 	rootCert := nodeConfig.RootUserCertB64()
 
-	return []byte(fmt.Sprintf(`{
-			"node_id": "%s",
-			"name": "My Habitat node",
-			"certificate": "placeholder",
-			"users": {
-				"%s": {
-					"id": "%s",
-					"username": "%s",
-					"certificate": "%s",
-					"app_installations": []
-				}
-			}
-		}`, nodeUUID, constants.RootUserID, constants.RootUserID, constants.RootUsername, rootCert))
+	emptyState, err := node.GetEmptyStateForVersion(node.LatestVersion)
+	if err != nil {
+		return nil, err
+	}
+
+	emptyState.NodeID = nodeUUID
+	emptyState.Users[constants.RootUserID] = &node.User{
+		ID:          constants.RootUserID,
+		Username:    constants.RootUsername,
+		Certificate: rootCert,
+	}
+
+	return json.Marshal(emptyState)
 }

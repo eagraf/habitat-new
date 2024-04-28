@@ -101,7 +101,7 @@ func (h *InstallAppRoute) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	appInstallation := req.AppInstallation
 	appInstallation.UserID = userID
 
-	err = h.nodeController.InstallApp(userID, appInstallation)
+	err = h.nodeController.InstallApp(userID, appInstallation, req.ReverseProxyRules)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

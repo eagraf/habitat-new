@@ -3,25 +3,31 @@ package reverse_proxy
 import (
 	"context"
 	"fmt"
-	"net"
 	"net/http"
 
+	"github.com/eagraf/habitat-new/core/state/node"
+	"github.com/eagraf/habitat-new/internal/node/config"
 	"github.com/eagraf/habitat-new/internal/node/constants"
+	"github.com/eagraf/habitat-new/internal/node/hdb"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"go.uber.org/fx"
 )
 
-func NewProxyServer(lc fx.Lifecycle, logger *zerolog.Logger) (*ProxyServer, RuleSet) {
+func NewProxyServer(lc fx.Lifecycle, logger *zerolog.Logger, config *config.NodeConfig) (*ProxyServer, RuleSet) {
 	srv := &ProxyServer{
-		logger: logger,
-		Rules:  make(RuleSet),
+		logger:     logger,
+		Rules:      make(RuleSet),
+		nodeConfig: config,
 	}
 	lc.Append(fx.Hook{
 		OnStart: func(ctx context.Context) error {
 			listenAddr := fmt.Sprintf(":%s", constants.DefaultPortReverseProxy)
 			logger.Info().Msgf("Starting Habitat reverse proxy server at %s", listenAddr)
-			go srv.Start(listenAddr)
+			go func() {
+				err := srv.Start(listenAddr)
+				log.Fatal().Err(err).Msg("reverse proxy server failed")
+			}()
 			return nil
 		},
 		OnStop: func(ctx context.Context) error {
@@ -31,10 +37,26 @@ func NewProxyServer(lc fx.Lifecycle, logger *zerolog.Logger) (*ProxyServer, Rule
 	return srv, srv.Rules
 }
 
+func NewProcessProxyRuleStateUpdateSubscriber(ruleSet RuleSet) (*hdb.IdempotentStateUpdateSubscriber, error) {
+	return hdb.NewIdempotentStateUpdateSubscriber(
+		"ProcessProxyRulesSubscriber",
+		node.SchemaName,
+		[]hdb.IdempotentStateUpdateExecutor{
+			&ProcessProxyRulesExecutor{
+				RuleSet: ruleSet,
+			},
+		},
+		&ReverseProxyRestorer{
+			ruleSet: ruleSet,
+		},
+	)
+}
+
 type ProxyServer struct {
-	logger *zerolog.Logger
-	server *http.Server
-	Rules  RuleSet
+	logger     *zerolog.Logger
+	server     *http.Server
+	nodeConfig *config.NodeConfig
+	Rules      RuleSet
 }
 
 func (s *ProxyServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -48,15 +70,20 @@ func (s *ProxyServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotFound)
 }
 
-func (s *ProxyServer) Start(addr string) {
-	ln, err := net.Listen("tcp", addr)
-	if err != nil {
-		log.Fatal().Err(err).Msg("reverse proxy server failed to start")
-	}
+func (s *ProxyServer) Start(addr string) error {
 	httpServer := &http.Server{
 		Addr:    addr,
 		Handler: s,
 	}
+
+	tlsConfig, err := s.nodeConfig.TLSConfig()
+	if err != nil {
+		return err
+	}
+	httpServer.TLSConfig = tlsConfig
+
 	s.server = httpServer
-	log.Fatal().Err(httpServer.Serve(ln)).Msg("reverse proxy server failed")
+	err = httpServer.ListenAndServeTLS(s.nodeConfig.NodeCertPath(), s.nodeConfig.NodeKeyPath())
+	log.Fatal().Err(err).Msg("reverse proxy server failed")
+	return nil
 }

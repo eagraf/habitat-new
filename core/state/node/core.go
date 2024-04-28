@@ -10,10 +10,11 @@ const AppLifecycleStateInstalling = "installing"
 const AppLifecycleStateInstalled = "installed"
 
 type Package struct {
-	Driver             string `json:"driver"`
-	RegistryURLBase    string `json:"registry_url_base"`
-	RegistryPackageID  string `json:"registry_app_id"`
-	RegistryPackageTag string `json:"registry_tag"`
+	Driver             string                 `json:"driver"`
+	DriverConfig       map[string]interface{} `json:"driver_config"`
+	RegistryURLBase    string                 `json:"registry_url_base"`
+	RegistryPackageID  string                 `json:"registry_app_id"`
+	RegistryPackageTag string                 `json:"registry_tag"`
 }
 
 // TODO some fields should be ignored by the REST api
@@ -34,4 +35,20 @@ type Process struct {
 	UserID  string `json:"user_id"`
 	Created string `json:"created"`
 	Driver  string `json:"driver"`
+}
+
+// ReverseProxyRule matches a URL path to a target of the given type.
+// There are two types of rules currently:
+//  1. File server: serves files from a given directory (useful for serving websites from Habitat)
+//  2. Redirect: redirects to a given URL (useful for exposing APIs for Habitat applications)
+//
+// The matcher field represents the path that the rule should match.
+// The semantics of the target field changes depending on the type. For file servers, it represents the
+// path to the directory to serve files from. For redirects, it represents the URL to redirect to.
+type ReverseProxyRule struct {
+	ID      string `json:"id"`
+	Type    string `json:"type"`
+	Matcher string `json:"matcher"`
+	Target  string `json:"target"`
+	AppID   string `json:"app_id"`
 }

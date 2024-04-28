@@ -112,17 +112,17 @@ func (mr *MockNodeControllerMockRecorder) InitializeNodeDB() *gomock.Call {
 }
 
 // InstallApp mocks base method.
-func (m *MockNodeController) InstallApp(userID string, newApp *node.AppInstallation) error {
+func (m *MockNodeController) InstallApp(userID string, newApp *node.AppInstallation, newProxyRules []*node.ReverseProxyRule) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "InstallApp", userID, newApp)
+	ret := m.ctrl.Call(m, "InstallApp", userID, newApp, newProxyRules)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // InstallApp indicates an expected call of InstallApp.
-func (mr *MockNodeControllerMockRecorder) InstallApp(userID, newApp any) *gomock.Call {
+func (mr *MockNodeControllerMockRecorder) InstallApp(userID, newApp, newProxyRules any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InstallApp", reflect.TypeOf((*MockNodeController)(nil).InstallApp), userID, newApp)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InstallApp", reflect.TypeOf((*MockNodeController)(nil).InstallApp), userID, newApp, newProxyRules)
 }
 
 // MigrateNodeDB mocks base method.
