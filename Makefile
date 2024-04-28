@@ -41,7 +41,7 @@ docker-build:
 	docker build -t habitat_node -f ./build/node.dev.Dockerfile .
 
 run-dev:
-	TOPDIR=$(TOPDIR) DOCKER_WORKDIR=$(DOCKER_WORKDIR) DEV_HABITAT_PATH=$(DEV_HABITAT_PATH) docker-compose -f ./build/compose.yml up
+	TOPDIR=$(TOPDIR) DOCKER_WORKDIR=$(DOCKER_WORKDIR) DEV_HABITAT_PATH=$(DEV_HABITAT_PATH) TS_AUTHKEY=$(origin TS_AUTHKEY) docker-compose -f ./build/compose.yml up
 
 clear-volumes:
 	docker container rm -f habitat_node || true

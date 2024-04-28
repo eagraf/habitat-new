@@ -18,6 +18,7 @@ services:
       - TS_STATE_DIR=/etc/ts-state/
       - TS_TAILNET=habitat.ts.test@gmail.com
       - TS_EXTRA_ARGS=--advertise-tags=tag:habitat-node-dev
+      - TS_AUTHKEY=${TS_AUTHKEY}
   habitat_node:
     volumes:
         - ${TOPDIR}/core:${DOCKER_WORKDIR}/core
