@@ -17,6 +17,7 @@ require (
 	github.com/wI2L/jsondiff v0.5.1
 	go.uber.org/mock v0.4.0
 	golang.org/x/mod v0.13.0
+	golang.org/x/sync v0.5.0
 )
 
 require (

@@ -48,8 +48,15 @@ func main() {
 	}
 
 	router := api.NewRouter(routes, log, nodeCtrl, nodeConfig)
-	proxy := reverse_proxy.NewProxyServer(ctx, log)
-	proxyClose := proxy.Start(ctx, constants.DefaultPortReverseProxy)
+	proxy := reverse_proxy.NewProxyServer(log, nodeConfig)
+	tlsConfig, err := nodeConfig.TLSConfig()
+	if err != nil {
+		log.Fatal().Err(err)
+	}
+	proxyClose, err := proxy.Start(ctx, constants.DefaultPortReverseProxy, tlsConfig)
+	if err != nil {
+		log.Fatal().Err(err)
+	}
 	defer proxyClose()
 
 	dockerDriver, err := docker.NewDockerDriver()

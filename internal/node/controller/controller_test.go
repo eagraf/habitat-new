@@ -21,13 +21,6 @@ func TestInitializeNodeDB(t *testing.T) {
 	mockedManager := hdb_mocks.NewMockHDBManager(ctrl)
 	mockedClient := hdb_mocks.NewMockClient(ctrl)
 
-	controller, err := NewNodeController(mockedManager, &config.NodeConfig{
-		RootUserCert: &x509.Certificate{
-			Raw: []byte("root_cert"),
-		},
-	})
-	require.Nil(t, err)
-
 	// Check that fakeInitState is based off of the config we pass in
 	mockedManager.EXPECT().CreateDatabase(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(
 		// signature of anonymous function must have the same number of input and output arguments as the mocked method.
@@ -43,22 +36,41 @@ func TestInitializeNodeDB(t *testing.T) {
 
 			return mockedClient, nil
 		}).Times(1)
-	err = controller.InitializeNodeDB()
-	assert.Nil(t, err)
-
+	controller, err := NewNodeController(mockedManager, &config.NodeConfig{
+		RootUserCert: &x509.Certificate{
+			Raw: []byte("root_cert"),
+		},
+	})
+	require.Nil(t, err)
 	mockedManager.EXPECT().CreateDatabase(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, assert.AnError).Times(1)
 	err = controller.InitializeNodeDB()
-	assert.NotNil(t, err)
+	require.NotNil(t, err)
 
 	mockedManager.EXPECT().CreateDatabase(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, &hdb.DatabaseAlreadyExistsError{}).Times(1)
 	err = controller.InitializeNodeDB()
-	assert.Nil(t, err)
+	require.Nil(t, err)
 }
 
 func TestMigrationController(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	mockedManager := hdb_mocks.NewMockHDBManager(ctrl)
 	mockClient := hdb_mocks.NewMockClient(ctrl)
+
+	// Check that fakeInitState is based off of the config we pass in
+	mockedManager.EXPECT().CreateDatabase(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(
+		// signature of anonymous function must have the same number of input and output arguments as the mocked method.
+		func(nodeName, schemaName string, initState []byte) (hdb.Client, error) {
+			var state node.NodeState
+			err := json.Unmarshal(initState, &state)
+			assert.Nil(t, err)
+
+			assert.Equal(t, 1, len(state.Users))
+			assert.Equal(t, constants.RootUsername, state.Users["0"].Username)
+			assert.Equal(t, constants.RootUserID, state.Users["0"].ID)
+			assert.Equal(t, "cm9vdF9jZXJ0", state.Users["0"].Certificate)
+
+			return mockClient, nil
+		}).Times(1)
 
 	controller, err := NewNodeController(mockedManager, &config.NodeConfig{
 		RootUserCert: &x509.Certificate{
@@ -115,6 +127,22 @@ func TestInstallAppController(t *testing.T) {
 
 	mockedManager := hdb_mocks.NewMockHDBManager(ctrl)
 	mockedClient := hdb_mocks.NewMockClient(ctrl)
+
+	// Check that fakeInitState is based off of the config we pass in
+	mockedManager.EXPECT().CreateDatabase(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(
+		// signature of anonymous function must have the same number of input and output arguments as the mocked method.
+		func(nodeName, schemaName string, initState []byte) (hdb.Client, error) {
+			var state node.NodeState
+			err := json.Unmarshal(initState, &state)
+			assert.Nil(t, err)
+
+			assert.Equal(t, 1, len(state.Users))
+			assert.Equal(t, constants.RootUsername, state.Users["0"].Username)
+			assert.Equal(t, constants.RootUserID, state.Users["0"].ID)
+			assert.Equal(t, "cm9vdF9jZXJ0", state.Users["0"].Certificate)
+
+			return mockedClient, nil
+		}).Times(1)
 
 	controller, err := NewNodeController(mockedManager, &config.NodeConfig{
 		RootUserCert: &x509.Certificate{
@@ -178,6 +206,23 @@ func TestFinishAppInstallationController(t *testing.T) {
 
 	mockedManager := hdb_mocks.NewMockHDBManager(ctrl)
 	mockedClient := hdb_mocks.NewMockClient(ctrl)
+
+	// Check that fakeInitState is based off of the config we pass in
+	mockedManager.EXPECT().CreateDatabase(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(
+		// signature of anonymous function must have the same number of input and output arguments as the mocked method.
+		func(nodeName, schemaName string, initState []byte) (hdb.Client, error) {
+			var state node.NodeState
+			err := json.Unmarshal(initState, &state)
+			assert.Nil(t, err)
+
+			assert.Equal(t, 1, len(state.Users))
+			assert.Equal(t, constants.RootUsername, state.Users["0"].Username)
+			assert.Equal(t, constants.RootUserID, state.Users["0"].ID)
+			assert.Equal(t, "cm9vdF9jZXJ0", state.Users["0"].Certificate)
+
+			return mockedClient, nil
+		}).Times(1)
+
 	controller, err := NewNodeController(mockedManager, &config.NodeConfig{
 		RootUserCert: &x509.Certificate{
 			Raw: []byte("root_cert"),
@@ -206,6 +251,23 @@ func TestGetAppByID(t *testing.T) {
 
 	mockedManager := hdb_mocks.NewMockHDBManager(ctrl)
 	mockedClient := hdb_mocks.NewMockClient(ctrl)
+
+	// Check that fakeInitState is based off of the config we pass in
+	mockedManager.EXPECT().CreateDatabase(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(
+		// signature of anonymous function must have the same number of input and output arguments as the mocked method.
+		func(nodeName, schemaName string, initState []byte) (hdb.Client, error) {
+			var state node.NodeState
+			err := json.Unmarshal(initState, &state)
+			assert.Nil(t, err)
+
+			assert.Equal(t, 1, len(state.Users))
+			assert.Equal(t, constants.RootUsername, state.Users["0"].Username)
+			assert.Equal(t, constants.RootUserID, state.Users["0"].ID)
+			assert.Equal(t, "cm9vdF9jZXJ0", state.Users["0"].Certificate)
+
+			return mockedClient, nil
+		}).Times(1)
+
 	controller, err := NewNodeController(mockedManager, &config.NodeConfig{
 		RootUserCert: &x509.Certificate{
 			Raw: []byte("root_cert"),
@@ -243,8 +305,22 @@ func TestStartProcessController(t *testing.T) {
 			Raw: []byte("root_cert"),
 		},
 	}
-	bytes := generateInitState(conf)
-	mockedManager.EXPECT().CreateDatabase(constants.NodeDBDefaultName, node.SchemaName, bytes)
+
+	mockedManager.EXPECT().CreateDatabase(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(
+		// signature of anonymous function must have the same number of input and output arguments as the mocked method.
+		func(nodeName, schemaName string, initState []byte) (hdb.Client, error) {
+			var state node.NodeState
+			err := json.Unmarshal(initState, &state)
+			assert.Nil(t, err)
+
+			assert.Equal(t, 1, len(state.Users))
+			assert.Equal(t, constants.RootUsername, state.Users["0"].Username)
+			assert.Equal(t, constants.RootUserID, state.Users["0"].ID)
+			assert.Equal(t, "cm9vdF9jZXJ0", state.Users["0"].Certificate)
+
+			return mockedClient, nil
+		}).Times(1)
+
 	controller, err := NewNodeController(mockedManager, conf)
 	require.Nil(t, err)
 
@@ -307,6 +383,22 @@ func TestAddUser(t *testing.T) {
 	mockedManager := hdb_mocks.NewMockHDBManager(ctrl)
 	mockedClient := hdb_mocks.NewMockClient(ctrl)
 
+	// Check that fakeInitState is based off of the config we pass in
+	mockedManager.EXPECT().CreateDatabase(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(
+		// signature of anonymous function must have the same number of input and output arguments as the mocked method.
+		func(nodeName, schemaName string, initState []byte) (hdb.Client, error) {
+			var state node.NodeState
+			err := json.Unmarshal(initState, &state)
+			assert.Nil(t, err)
+
+			assert.Equal(t, 1, len(state.Users))
+			assert.Equal(t, constants.RootUsername, state.Users["0"].Username)
+			assert.Equal(t, constants.RootUserID, state.Users["0"].ID)
+			assert.Equal(t, "cm9vdF9jZXJ0", state.Users["0"].Certificate)
+
+			return mockedClient, nil
+		}).Times(1)
+
 	controller, err := NewNodeController(mockedManager, &config.NodeConfig{
 		RootUserCert: &x509.Certificate{
 			Raw: []byte("root_cert"),
@@ -334,6 +426,22 @@ func TestGetUserByUsername(t *testing.T) {
 
 	mockedManager := hdb_mocks.NewMockHDBManager(ctrl)
 	mockedClient := hdb_mocks.NewMockClient(ctrl)
+
+	// Check that fakeInitState is based off of the config we pass in
+	mockedManager.EXPECT().CreateDatabase(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(
+		// signature of anonymous function must have the same number of input and output arguments as the mocked method.
+		func(nodeName, schemaName string, initState []byte) (hdb.Client, error) {
+			var state node.NodeState
+			err := json.Unmarshal(initState, &state)
+			assert.Nil(t, err)
+
+			assert.Equal(t, 1, len(state.Users))
+			assert.Equal(t, constants.RootUsername, state.Users["0"].Username)
+			assert.Equal(t, constants.RootUserID, state.Users["0"].ID)
+			assert.Equal(t, "cm9vdF9jZXJ0", state.Users["0"].Certificate)
+
+			return mockedClient, nil
+		}).Times(1)
 
 	controller, err := NewNodeController(mockedManager, &config.NodeConfig{
 		RootUserCert: &x509.Certificate{

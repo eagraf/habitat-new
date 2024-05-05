@@ -2,15 +2,16 @@ package reverse_proxy
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"net/http"
 
 	"github.com/eagraf/habitat-new/core/state/node"
 	"github.com/eagraf/habitat-new/internal/node/config"
-	"github.com/eagraf/habitat-new/internal/node/constants"
 	"github.com/eagraf/habitat-new/internal/node/hdb"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"golang.org/x/sync/errgroup"
 )
 
 func NewProcessProxyRuleStateUpdateSubscriber(ruleSet RuleSet) (*hdb.IdempotentStateUpdateSubscriber, error) {
@@ -35,25 +36,11 @@ type ProxyServer struct {
 	Rules      RuleSet
 }
 
-func NewProxyServer(ctx context.Context, logger *zerolog.Logger, config *config.NodeConfig) (*ProxyServer, func()) {
-	srv := &ProxyServer{
+func NewProxyServer(logger *zerolog.Logger, config *config.NodeConfig) *ProxyServer {
+	return &ProxyServer{
 		logger:     logger,
 		Rules:      make(RuleSet),
 		nodeConfig: config,
-	}
-
-	listenAddr := fmt.Sprintf(":%s", constants.DefaultPortReverseProxy)
-	logger.Info().Msgf("Starting Habitat reverse proxy server at %s", listenAddr)
-	go func() {
-		err := srv.Start(listenAddr)
-		log.Fatal().Err(err).Msg("reverse proxy server failed")
-	}()
-
-	return srv, func() {
-		err := srv.server.Shutdown(ctx)
-		if err != nil {
-			log.Err(err)
-		}
 	}
 }
 
@@ -68,20 +55,34 @@ func (s *ProxyServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotFound)
 }
 
-func (s *ProxyServer) Start(addr string) error {
+func (s *ProxyServer) Start(ctx context.Context, addr string, tlsConfig *tls.Config) (func(), error) {
 	httpServer := &http.Server{
-		Addr:    addr,
-		Handler: s,
+		Addr:      addr,
+		Handler:   s,
+		TLSConfig: tlsConfig,
 	}
-
-	tlsConfig, err := s.nodeConfig.TLSConfig()
-	if err != nil {
-		return err
-	}
-	httpServer.TLSConfig = tlsConfig
 
 	s.server = httpServer
-	err = httpServer.ListenAndServeTLS(s.nodeConfig.NodeCertPath(), s.nodeConfig.NodeKeyPath())
-	log.Fatal().Err(err).Msg("reverse proxy server failed")
-	return nil
+	s.logger.Info().Msgf("Starting Habitat reverse proxy server at %s", addr)
+
+	eg := &errgroup.Group{}
+	eg.Go(func() error {
+		var err error
+		if tlsConfig != nil {
+			err = httpServer.ListenAndServeTLS(s.nodeConfig.NodeCertPath(), s.nodeConfig.NodeKeyPath())
+		} else {
+			err = httpServer.ListenAndServe()
+		}
+		return err
+	})
+	return func() {
+		err := s.server.Shutdown(ctx)
+		if err != nil {
+			log.Error().Msg(fmt.Sprintf("error shutting down revere proxy server %v", err))
+		}
+		err = eg.Wait()
+		if err != nil {
+			log.Err(err)
+		}
+	}, nil
 }
