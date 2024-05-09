@@ -94,10 +94,12 @@ func TestInstallAppHandler(t *testing.T) {
 	m.EXPECT().InstallApp("0", testAppInstallation, []*node.ReverseProxyRule{}).Return(nil).Times(1)
 
 	// Test the happy path
+	req := httptest.NewRequest(http.MethodPost, handler.Pattern(), bytes.NewReader(b))
+	req.SetPathValue("user_id", "0")
 	resp := httptest.NewRecorder()
 	handler.ServeHTTP(
 		resp,
-		httptest.NewRequest(http.MethodPost, handler.Pattern(), bytes.NewReader(b)),
+		req,
 	)
 	require.Equal(t, http.StatusCreated, resp.Result().StatusCode)
 
@@ -110,10 +112,12 @@ func TestInstallAppHandler(t *testing.T) {
 		InstallApp("0", testAppInstallation, []*node.ReverseProxyRule{}).
 		Return(errors.New("Couldn't install app")).
 		Times(1)
+	req = httptest.NewRequest(http.MethodPost, handler.Pattern(), bytes.NewReader(b))
+	req.SetPathValue("user_id", "0")
 	resp = httptest.NewRecorder()
 	handler.ServeHTTP(
 		resp,
-		httptest.NewRequest(http.MethodPost, handler.Pattern(), bytes.NewReader(b)),
+		req,
 	)
 	require.Equal(t, http.StatusInternalServerError, resp.Result().StatusCode)
 
