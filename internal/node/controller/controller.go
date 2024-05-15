@@ -42,10 +42,6 @@ func NewNodeController(habitatDBManager hdb.HDBManager, config *config.NodeConfi
 		databaseManager: habitatDBManager,
 		nodeConfig:      config,
 	}
-	err := controller.InitializeNodeDB()
-	if err != nil {
-		return nil, err
-	}
 	return controller, nil
 }
 
