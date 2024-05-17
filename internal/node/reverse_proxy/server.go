@@ -1,7 +1,6 @@
 package reverse_proxy
 
 import (
-	"context"
 	"crypto/tls"
 	"fmt"
 	"net/http"
@@ -55,7 +54,7 @@ func (s *ProxyServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotFound)
 }
 
-func (s *ProxyServer) Start(ctx context.Context, addr string, tlsConfig *tls.Config) (func(), error) {
+func (s *ProxyServer) Start(addr string, tlsConfig *tls.Config) (func(), error) {
 	httpServer := &http.Server{
 		Addr:      addr,
 		Handler:   s,
@@ -76,7 +75,7 @@ func (s *ProxyServer) Start(ctx context.Context, addr string, tlsConfig *tls.Con
 		return err
 	})
 	return func() {
-		err := s.server.Shutdown(ctx)
+		err := s.server.Close()
 		if err != nil {
 			log.Error().Msg(fmt.Sprintf("error shutting down revere proxy server %v", err))
 		}

@@ -1,8 +1,6 @@
 package main
 
 import (
-	"context"
-
 	"github.com/eagraf/habitat-new/internal/node/api"
 	"github.com/eagraf/habitat-new/internal/node/config"
 	"github.com/eagraf/habitat-new/internal/node/constants"
@@ -18,7 +16,6 @@ import (
 )
 
 func main() {
-	ctx := context.Background()
 	log := logging.NewLogger()
 
 	nodeConfig, err := config.NewNodeConfig()
@@ -27,7 +24,7 @@ func main() {
 	}
 
 	hdbPublisher := pubsub.NewSimplePublisher[hdb.StateUpdate]()
-	db, dbClose, err := hdbms.NewHabitatDB(log, nodeConfig)
+	db, dbClose, err := hdbms.NewHabitatDB(log, hdbPublisher, nodeConfig)
 	if err != nil {
 		log.Fatal().Err(err)
 	}
@@ -53,7 +50,7 @@ func main() {
 	if err != nil {
 		log.Fatal().Err(err)
 	}
-	proxyClose, err := proxy.Start(ctx, constants.DefaultPortReverseProxy, tlsConfig)
+	proxyClose, err := proxy.Start(constants.DefaultPortReverseProxy, tlsConfig)
 	if err != nil {
 		log.Fatal().Err(err)
 	}
@@ -84,7 +81,7 @@ func main() {
 		}
 	}()
 
-	server, err := api.NewAPIServer(ctx, router, log, proxy.Rules, nodeConfig)
+	server, err := api.NewAPIServer(router, log, proxy.Rules, nodeConfig)
 	if err != nil {
 		log.Fatal().Err(err)
 	}

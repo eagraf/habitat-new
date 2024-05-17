@@ -1,7 +1,6 @@
 package api
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -15,7 +14,7 @@ import (
 
 const CertificateDir = "/dev_certificates"
 
-func NewAPIServer(ctx context.Context, router *mux.Router, logger *zerolog.Logger, proxyRules reverse_proxy.RuleSet, nodeConfig *config.NodeConfig) (*http.Server, error) {
+func NewAPIServer(router *mux.Router, logger *zerolog.Logger, proxyRules reverse_proxy.RuleSet, nodeConfig *config.NodeConfig) (*http.Server, error) {
 	srv := &http.Server{Addr: fmt.Sprintf(":%s", constants.DefaultPortHabitatAPI), Handler: router}
 	tlsConfig, err := nodeConfig.TLSConfig()
 	if err != nil {
