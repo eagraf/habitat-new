@@ -87,7 +87,7 @@ func (dm *DatabaseManager) Stop() {
 func (dm *DatabaseManager) RestartDBs() error {
 	dirs, err := os.ReadDir(dm.nodeConfig.HDBPath())
 	if err != nil {
-		return fmt.Errorf("Error reading existing databases : %s", err)
+		return fmt.Errorf("error reading existing databases : %s", err)
 	}
 	for _, dir := range dirs {
 		dbID := dir.Name()
@@ -96,13 +96,13 @@ func (dm *DatabaseManager) RestartDBs() error {
 
 		typeBytes, err := os.ReadFile(filepath.Join(dbDir, "schema_type"))
 		if err != nil {
-			return fmt.Errorf("Error reading schema for database %s: %s", dbID, err)
+			return fmt.Errorf("error reading schema for database %s: %s", dbID, err)
 		}
 		schemaType := string(typeBytes)
 
 		nameBytes, err := os.ReadFile(filepath.Join(dbDir, "name"))
 		if err != nil {
-			return fmt.Errorf("Error reading name for database %s: %s", dbID, err)
+			return fmt.Errorf("error reading name for database %s: %s", dbID, err)
 		}
 		name := string(nameBytes)
 
@@ -113,7 +113,7 @@ func (dm *DatabaseManager) RestartDBs() error {
 
 		fsm, err := state.NewRaftFSMAdapter(dbID, schema, nil)
 		if err != nil {
-			return fmt.Errorf("Error creating Raft adapter for database %s: %s", dbID, err)
+			return fmt.Errorf("error creating Raft adapter for database %s: %s", dbID, err)
 		}
 
 		db := &Database{
@@ -124,7 +124,7 @@ func (dm *DatabaseManager) RestartDBs() error {
 
 		cluster, err := dm.raft.RestoreNode(db, fsm)
 		if err != nil {
-			return fmt.Errorf("Error restoring database %s: %s", dbID, err)
+			return fmt.Errorf("error restoring database %s: %s", dbID, err)
 		}
 
 		stateMachineController, err := schemas.StateMachineFactory(dbID, schemaType, nil, cluster, dm.publisher)
@@ -231,13 +231,13 @@ func (dm *DatabaseManager) checkDatabaseExists(name string) error {
 	// TODO we need a much cleaner way to do this. Maybe a db metadata file.
 	dirs, err := os.ReadDir(dm.nodeConfig.HDBPath())
 	if err != nil {
-		return fmt.Errorf("Error reading existing databases : %s", err)
+		return fmt.Errorf("error reading existing databases : %s", err)
 	}
 	for _, dir := range dirs {
 		nameFilePath := filepath.Join(dm.nodeConfig.HDBPath(), dir.Name(), "name")
 		dbName, err := os.ReadFile(nameFilePath)
 		if err != nil {
-			return fmt.Errorf("Error reading name for database %s: %s", dir.Name(), err)
+			return fmt.Errorf("error reading name for database %s: %s", dir.Name(), err)
 		}
 
 		if string(dbName) == name {

@@ -4,6 +4,8 @@ import (
 	"fmt"
 
 	"github.com/eagraf/habitat-new/core/state/node"
+	"github.com/eagraf/habitat-new/internal/node/controller"
+	"github.com/eagraf/habitat-new/internal/node/hdb"
 )
 
 type RunningProcess struct {
@@ -29,11 +31,32 @@ type BaseProcessManager struct {
 	processes map[string]*RunningProcess
 }
 
-func newBaseProcessManager() *BaseProcessManager {
-	return &BaseProcessManager{
+func NewProcessManager(drivers []ProcessDriver) ProcessManager {
+	pm := &BaseProcessManager{
 		processDrivers: make(map[string]ProcessDriver),
 		processes:      make(map[string]*RunningProcess),
 	}
+	for _, driver := range drivers {
+		pm.processDrivers[driver.Type()] = driver
+	}
+	return pm
+}
+
+func NewProcessManagerStateUpdateSubscriber(processManager ProcessManager, controller controller.NodeController) (*hdb.IdempotentStateUpdateSubscriber, error) {
+	return hdb.NewIdempotentStateUpdateSubscriber(
+		"StartProcessSubscriber",
+		node.SchemaName,
+		[]hdb.IdempotentStateUpdateExecutor{
+			&StartProcessExecutor{
+				processManager: processManager,
+				nodeController: controller,
+			},
+		},
+		&ProcessRestorer{
+			processManager: processManager,
+			nodeController: controller,
+		},
+	)
 }
 
 func (pm *BaseProcessManager) ListProcesses() ([]*node.ProcessState, error) {
@@ -72,7 +95,6 @@ func (pm *BaseProcessManager) StartProcess(process *node.Process, app *node.AppI
 	}
 
 	// TODO tell controller that we're in state running
-
 	return nil
 }
 

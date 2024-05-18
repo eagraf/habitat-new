@@ -93,3 +93,14 @@ func (c *SimpleChannel[E]) Listen() error {
 
 	}
 }
+
+func NewSimplePublisher[E Event]() *SimplePublisher[E] {
+	return newSimplePublisher[E]()
+}
+
+func NewSimpleChannel[E Event](publishers []Publisher[E], subscribers []Subscriber[E]) *SimpleChannel[E] {
+	channel := newSimpleChannel[E]()
+	channel.publishers = publishers
+	channel.subscribers = subscribers
+	return channel
+}

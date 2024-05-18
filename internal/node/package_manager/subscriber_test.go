@@ -9,6 +9,7 @@ import (
 	controller_mocks "github.com/eagraf/habitat-new/internal/node/controller/mocks"
 	"github.com/eagraf/habitat-new/internal/node/package_manager/mocks"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 )
 
@@ -41,6 +42,10 @@ func TestSubscriber(t *testing.T) {
 	pm := mocks.NewMockPackageManager(ctrl)
 	nc := controller_mocks.NewMockNodeController(ctrl)
 
+	lifeCycleSubscriber, err := NewAppLifecycleSubscriber(pm, nc)
+	require.Equal(t, lifeCycleSubscriber.Name(), "AppLifecycleSubscriber")
+	require.Nil(t, err)
+
 	installAppExecutor := &InstallAppExecutor{
 		packageManager: pm,
 		nodeController: nc,
@@ -62,7 +67,7 @@ func TestSubscriber(t *testing.T) {
 		Driver:            "test",
 		RegistryURLBase:   "registry.com",
 		RegistryPackageID: "package1",
-	}), gomock.Eq("v1")).Return(true, nil).Times(1)
+	}), gomock.Eq("v1")).Return(true, nil).Times(2)
 
 	should, err = installAppExecutor.ShouldExecute(stateUpdate)
 	assert.Nil(t, err)
@@ -79,7 +84,7 @@ func TestSubscriber(t *testing.T) {
 	err = installAppExecutor.Execute(stateUpdate)
 	assert.Nil(t, err)
 
-	nc.EXPECT().FinishAppInstallation(gomock.Eq("user1"), gomock.Any(), gomock.Eq("registry.com"), gomock.Eq("package1")).Return(nil).Times(1)
+	nc.EXPECT().FinishAppInstallation(gomock.Eq("user1"), gomock.Any(), gomock.Eq("registry.com"), gomock.Eq("package1")).Return(nil).Times(2)
 
 	err = installAppExecutor.PostHook(stateUpdate)
 	assert.Nil(t, err)
@@ -96,4 +101,5 @@ func TestSubscriber(t *testing.T) {
 	assert.NotNil(t, err)
 
 	assert.Equal(t, node.TransitionStartInstallation, installAppExecutor.TransitionType())
+	require.NoError(t, lifeCycleSubscriber.ConsumeEvent(stateUpdate))
 }

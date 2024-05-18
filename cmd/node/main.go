@@ -1,10 +1,9 @@
 package main
 
 import (
-	"net/http"
-
 	"github.com/eagraf/habitat-new/internal/node/api"
 	"github.com/eagraf/habitat-new/internal/node/config"
+	"github.com/eagraf/habitat-new/internal/node/constants"
 	"github.com/eagraf/habitat-new/internal/node/controller"
 	"github.com/eagraf/habitat-new/internal/node/docker"
 	"github.com/eagraf/habitat-new/internal/node/hdb"
@@ -14,95 +13,79 @@ import (
 	"github.com/eagraf/habitat-new/internal/node/processes"
 	"github.com/eagraf/habitat-new/internal/node/pubsub"
 	"github.com/eagraf/habitat-new/internal/node/reverse_proxy"
-	"github.com/rs/zerolog"
-	"go.uber.org/fx"
-	"go.uber.org/fx/fxevent"
 )
 
 func main() {
-	fx.New(
-		fx.WithLogger(func(logger *zerolog.Logger) fxevent.Logger {
-			return &logging.FxEventLoggerWrapper{Logger: logger}
-		}),
-		fx.Provide(logging.NewLogger),
-		fx.Provide(config.NewNodeConfig),
-		fx.Provide(
-			api.NewAPIServer,
-			fx.Annotate(
-				api.NewRouter,
-				fx.ParamTags(`group:"routes"`),
-			),
-		),
-		fx.Provide(
-			api.AsRoute(api.NewVersionHandler),
-			api.AsRoute(controller.NewGetNodeRoute),
-			api.AsRoute(controller.NewAddUserRoute),
-			api.AsRoute(controller.NewInstallAppRoute),
-			api.AsRoute(controller.NewStartProcessHandler),
-			api.AsRoute(controller.NewMigrationRoute),
-		),
-		fx.Provide(
-			reverse_proxy.NewProxyServer,
-		),
-		fx.Provide(
-			fx.Annotate(
-				docker.NewDockerDriver,
-			),
-		),
-		fx.Provide(
-			fx.Annotate(
-				hdbms.NewStateUpdateLogger,
-				fx.As(new(pubsub.Subscriber[hdb.StateUpdate])),
-				fx.ResultTags(`group:"state_update_subscribers"`),
-			),
-		),
-		fx.Provide(
-			fx.Annotate(
-				package_manager.NewAppLifecycleSubscriber,
-				fx.As(new(pubsub.Subscriber[hdb.StateUpdate])),
-				fx.ResultTags(`group:"state_update_subscribers"`),
-			),
-		),
-		fx.Provide(
-			fx.Annotate(
-				processes.NewProcessManagerStateUpdateSubscriber,
-				fx.As(new(pubsub.Subscriber[hdb.StateUpdate])),
-				fx.ResultTags(`group:"state_update_subscribers"`),
-			),
-		),
-		fx.Provide(
-			fx.Annotate(
-				reverse_proxy.NewProcessProxyRuleStateUpdateSubscriber,
-				fx.As(new(pubsub.Subscriber[hdb.StateUpdate])),
-				fx.ResultTags(`group:"state_update_subscribers"`),
-			),
-		),
-		fx.Provide(
-			fx.Annotate(
-				processes.NewProcessManager,
-				fx.ParamTags(`group:"process_drivers"`),
-			),
-		),
-		fx.Provide(
-			fx.Annotate(
-				pubsub.NewSimpleChannel[hdb.StateUpdate],
-				fx.As(new(pubsub.Channel[hdb.StateUpdate])),
-				fx.ParamTags(`group:"state_update_publishers"`, `group:"state_update_subscribers"`),
-			),
-		),
-		fx.Provide(
-			fx.Annotate(
-				hdbms.NewHabitatDB,
-			),
-		),
-		fx.Provide(
-			fx.Annotate(
-				controller.NewNodeController,
-				fx.As(new(controller.NodeController)),
-			),
-		),
-		fx.Invoke(func(controller.NodeController) {}),
-		fx.Invoke(func(*http.Server) {}),
-		fx.Invoke(func(pubsub.Channel[hdb.StateUpdate]) {}),
-	).Run()
+	log := logging.NewLogger()
+
+	nodeConfig, err := config.NewNodeConfig()
+	if err != nil {
+		log.Fatal().Err(err)
+	}
+
+	hdbPublisher := pubsub.NewSimplePublisher[hdb.StateUpdate]()
+	db, dbClose, err := hdbms.NewHabitatDB(log, hdbPublisher, nodeConfig)
+	if err != nil {
+		log.Fatal().Err(err)
+	}
+	defer dbClose()
+
+	nodeCtrl, err := controller.NewNodeController(db.Manager, nodeConfig)
+	if err != nil {
+		log.Fatal().Err(err)
+	}
+
+	routes := []api.Route{
+		api.NewVersionHandler(),
+		controller.NewGetNodeRoute(db.Manager),
+		controller.NewAddUserRoute(nodeCtrl),
+		controller.NewInstallAppRoute(nodeCtrl),
+		controller.NewStartProcessHandler(nodeCtrl),
+		controller.NewMigrationRoute(nodeCtrl),
+	}
+
+	router := api.NewRouter(routes, log, nodeCtrl, nodeConfig)
+	proxy := reverse_proxy.NewProxyServer(log, nodeConfig)
+	tlsConfig, err := nodeConfig.TLSConfig()
+	if err != nil {
+		log.Fatal().Err(err)
+	}
+	proxyClose, err := proxy.Start(constants.DefaultPortReverseProxy, tlsConfig)
+	if err != nil {
+		log.Fatal().Err(err)
+	}
+	defer proxyClose()
+
+	dockerDriver, err := docker.NewDockerDriver()
+	if err != nil {
+		log.Fatal().Err(err)
+	}
+
+	stateLogger := hdbms.NewStateUpdateLogger(log)
+	appLifecycleSubscriber, err := package_manager.NewAppLifecycleSubscriber(dockerDriver.PackageManager, nodeCtrl)
+	if err != nil {
+		log.Fatal().Err(err)
+	}
+
+	pm := processes.NewProcessManager([]processes.ProcessDriver{dockerDriver.ProcessDriver})
+	pmSub, err := processes.NewProcessManagerStateUpdateSubscriber(pm, nodeCtrl)
+	if err != nil {
+		log.Fatal().Err(err)
+	}
+
+	stateUpdates := pubsub.NewSimpleChannel([]pubsub.Publisher[hdb.StateUpdate]{hdbPublisher}, []pubsub.Subscriber[hdb.StateUpdate]{stateLogger, appLifecycleSubscriber, pmSub})
+	go func() {
+		err := stateUpdates.Listen()
+		if err != nil {
+			log.Fatal().Err(err).Msgf("unrecoverable error listening to channel")
+		}
+	}()
+
+	server, err := api.NewAPIServer(router, log, proxy.Rules, nodeConfig)
+	if err != nil {
+		log.Fatal().Err(err)
+	}
+	defer server.Close()
+	err = server.ListenAndServeTLS(nodeConfig.NodeCertPath(), nodeConfig.NodeKeyPath())
+	log.Fatal().Msgf("Habitat API server error: %s", err)
 }

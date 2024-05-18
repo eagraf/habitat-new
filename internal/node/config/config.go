@@ -43,7 +43,6 @@ func loadEnv() error {
 }
 
 func loadConfig() (*NodeConfig, error) {
-
 	homedir, err := homedir()
 	if err != nil {
 		return nil, err
@@ -108,6 +107,14 @@ func decodePemCert(certPath string) (*x509.Certificate, error) {
 type NodeConfig struct {
 	RootUserCert *x509.Certificate
 	NodeCert     *x509.Certificate
+}
+
+func NewNodeConfig() (*NodeConfig, error) {
+	err := loadEnv()
+	if err != nil {
+		return nil, err
+	}
+	return loadConfig()
 }
 
 func (n *NodeConfig) HabitatPath() string {

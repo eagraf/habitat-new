@@ -12,7 +12,9 @@ import (
 	"testing"
 
 	"github.com/eagraf/habitat-new/core/state/node"
-	"github.com/stretchr/testify/assert"
+	"github.com/eagraf/habitat-new/internal/node/config"
+	"github.com/eagraf/habitat-new/internal/node/logging"
+	"github.com/stretchr/testify/require"
 )
 
 func TestProxy(t *testing.T) {
@@ -40,81 +42,83 @@ func TestProxy(t *testing.T) {
 	file.Close()
 
 	// Create proxy server
-	proxy := &ProxyServer{
-		Rules: make(RuleSet),
-	}
+	proxy := NewProxyServer(logging.NewLogger(), &config.NodeConfig{})
 	err = proxy.Rules.Add("backend1", &RedirectRule{
 		Matcher:         "/backend1",
 		ForwardLocation: redirectedServerURL,
 	})
-	assert.Nil(t, err)
+	require.Nil(t, err)
 
 	// Test adding naming conflict
 	err = proxy.Rules.Add("backend1", &RedirectRule{
 		Matcher:         "/backend1",
 		ForwardLocation: redirectedServerURL,
 	})
-	assert.NotNil(t, err)
+	require.NotNil(t, err)
 
 	err = proxy.Rules.Add("fileserver", &FileServerRule{
 		Matcher: "/fileserver",
 		Path:    fileDir,
 	})
-	assert.Nil(t, err)
-	assert.Equal(t, 2, len(proxy.Rules))
+	require.Nil(t, err)
+	require.Equal(t, 2, len(proxy.Rules))
 
-	frontendServer := httptest.NewServer(proxy)
-	defer frontendServer.Close()
+	close, err := proxy.Start("127.0.0.1:9898", nil)
+	require.Nil(t, err)
+	defer close()
 
+	url := "http://" + proxy.server.Addr
 	// Check redirection
-	resp, err := http.Get(frontendServer.URL + "/backend1")
+	resp, err := http.Get(url + "/backend1")
 	if err != nil {
 		t.Errorf(err.Error())
 	}
 
-	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
 
 	b, err := io.ReadAll(resp.Body)
 	if err != nil {
 		t.Errorf(err.Error())
 	}
 
-	assert.Equal(t, "Hello, World!", string(b))
+	require.Equal(t, "Hello, World!", string(b))
 
 	// Check file serving
-	resp, err = http.Get(fmt.Sprintf("%s/fileserver/%s", frontendServer.URL, filepath.Base(file.Name())))
+	resp, err = http.Get(fmt.Sprintf("%s/fileserver/%s", url, filepath.Base(file.Name())))
 	if err != nil {
 		t.Errorf(err.Error())
 	}
 
-	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
 
 	b, err = io.ReadAll(resp.Body)
 	if err != nil {
 		t.Errorf(err.Error())
 	}
 
-	assert.Equal(t, "Hello, World!", string(b))
+	require.Equal(t, "Hello, World!", string(b))
 
 	// Check getting a file that doesn't exist
-	resp, err = http.Get(fmt.Sprintf("%s/fileserver/%s", frontendServer.URL, "nonexistentfile"))
+	resp, err = http.Get(fmt.Sprintf("%s/fileserver/%s", url, "nonexistentfile"))
 	if err != nil {
 		t.Errorf(err.Error())
 	}
 
-	assert.Equal(t, http.StatusNotFound, resp.StatusCode)
+	require.Equal(t, http.StatusNotFound, resp.StatusCode)
 
 	// Test removing a rule
 	err = proxy.Rules.Remove("fileserver")
-	assert.Nil(t, err)
-
-	assert.Equal(t, 1, len(proxy.Rules))
+	require.Nil(t, err)
+	resp, err = http.Get(fmt.Sprintf("%s/fileserver/%s", url, "nonexistentfile"))
+	require.Nil(t, err)
+	require.Equal(t, http.StatusNotFound, resp.StatusCode)
+	require.Equal(t, 1, len(proxy.Rules))
 
 	// Removing it again should fail
 	err = proxy.Rules.Remove("fileserver")
-	assert.NotNil(t, err)
+	require.NotNil(t, err)
 
-	assert.Equal(t, 1, len(proxy.Rules))
+	require.Equal(t, 1, len(proxy.Rules))
 }
 
 func TestAddRule(t *testing.T) {
@@ -128,9 +132,9 @@ func TestAddRule(t *testing.T) {
 		Matcher: "/backend1",
 		Target:  "http://localhost:8080",
 	})
-	assert.Nil(t, err)
-	assert.Equal(t, 1, len(proxy.Rules))
-	assert.Equal(t, ProxyRuleRedirect, proxy.Rules["backend1"].Type())
+	require.Nil(t, err)
+	require.Equal(t, 1, len(proxy.Rules))
+	require.Equal(t, ProxyRuleRedirect, proxy.Rules["backend1"].Type())
 
 	err = proxy.Rules.AddRule(&node.ReverseProxyRule{
 		ID:      "backend2",
@@ -138,9 +142,9 @@ func TestAddRule(t *testing.T) {
 		Matcher: "/backend2",
 		Target:  "http://localhost:8080",
 	})
-	assert.Nil(t, err)
-	assert.Equal(t, 2, len(proxy.Rules))
-	assert.Equal(t, ProxyRuleFileServer, proxy.Rules["backend2"].Type())
+	require.Nil(t, err)
+	require.Equal(t, 2, len(proxy.Rules))
+	require.Equal(t, ProxyRuleFileServer, proxy.Rules["backend2"].Type())
 
 	// Test unknown rule
 	err = proxy.Rules.AddRule(&node.ReverseProxyRule{
@@ -149,5 +153,5 @@ func TestAddRule(t *testing.T) {
 		Matcher: "/backend3",
 		Target:  "http://localhost:8080",
 	})
-	assert.NotNil(t, err)
+	require.NotNil(t, err)
 }
