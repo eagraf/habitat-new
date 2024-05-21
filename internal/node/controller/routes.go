@@ -9,7 +9,6 @@ import (
 	"github.com/eagraf/habitat-new/core/state/node"
 	"github.com/eagraf/habitat-new/internal/node/constants"
 	"github.com/eagraf/habitat-new/internal/node/hdb"
-	"github.com/gorilla/mux"
 	"golang.org/x/mod/semver"
 )
 
@@ -86,8 +85,7 @@ func (h *InstallAppRoute) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	vars := mux.Vars(r)
-	userID := vars["user_id"]
+	userID := r.PathValue("user_id")
 
 	var req types.PostAppRequest
 	err := json.NewDecoder(r.Body).Decode(&req)
