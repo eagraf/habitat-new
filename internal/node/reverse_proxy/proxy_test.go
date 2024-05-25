@@ -19,9 +19,11 @@ import (
 
 func TestProxy(t *testing.T) {
 	// Simulate a server sitting behind the reverse proxy
-	redirectedServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, "Hello, World!")
-	}))
+	redirectedServer := httptest.NewServer(
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			fmt.Fprint(w, "Hello, World!")
+		}),
+	)
 	defer redirectedServer.Close()
 
 	redirectedServerURL, err := url.Parse(redirectedServer.URL)
@@ -63,7 +65,7 @@ func TestProxy(t *testing.T) {
 	require.Nil(t, err)
 	require.Equal(t, 2, len(proxy.Rules))
 
-	close, err := proxy.Start("127.0.0.1:9898", nil)
+	close, err := proxy.Start("localhost:9898", nil)
 	require.Nil(t, err)
 	defer close()
 

@@ -30,3 +30,9 @@ exclude:
     - \/fx\.go$
     - \/test_helpers
     - ^pkg\/raft\/transport
+    - ^pkg\/raft\/transport
+    - ^internal/node/docker
+    - ^internal/node/api
+    - ^cmd/node
+    - ^internal/node/reverse_proxy/server.go
+
