@@ -32,11 +32,6 @@ func (h *MigrationRoute) Method() string {
 }
 
 func (h *MigrationRoute) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "invalid method, require POST", http.StatusMethodNotAllowed)
-		return
-	}
-
 	var req types.MigrateRequest
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
@@ -80,11 +75,6 @@ func (h *InstallAppRoute) Method() string {
 }
 
 func (h *InstallAppRoute) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "invalid method, require POST", http.StatusMethodNotAllowed)
-		return
-	}
-
 	userID := r.PathValue("user_id")
 
 	var req types.PostAppRequest
@@ -128,11 +118,6 @@ func (h *StartProcessHandler) Method() string {
 }
 
 func (h *StartProcessHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "invalid method, require POST", http.StatusMethodNotAllowed)
-		return
-	}
-
 	var req types.PostProcessRequest
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
@@ -232,11 +217,6 @@ func (h *AddUserRoute) Method() string {
 }
 
 func (h *AddUserRoute) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "invalid method, require POST", http.StatusMethodNotAllowed)
-		return
-	}
-
 	var req types.PostAddUserRequest
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
