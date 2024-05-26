@@ -3,10 +3,11 @@ package main
 import (
 	"context"
 	"fmt"
+	"net"
 	"net/http"
 	"net/url"
-	"os"
 	"os/signal"
+	"syscall"
 
 	"github.com/eagraf/habitat-new/internal/node/api"
 	"github.com/eagraf/habitat-new/internal/node/config"
@@ -74,22 +75,25 @@ func main() {
 	}
 	// ctx.Done() returns when SIGINT is called or cancel() is called.
 	// calling cancel() unregisters the signal trapping.
-	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
 
 	// egCtx is cancelled if any function called with eg.Go() returns an error.
 	eg, egCtx := errgroup.WithContext(ctx)
+
 	proxy := reverse_proxy.NewProxyServer(log, nodeConfig)
 	tlsConfig, err := nodeConfig.TLSConfig()
 	if err != nil {
 		log.Fatal().Err(err)
 	}
 	proxyServer := &http.Server{
-		Addr:      constants.DefaultPortReverseProxy,
-		TLSConfig: tlsConfig,
-		Handler:   proxy,
+		Addr:        fmt.Sprintf(":%s", constants.DefaultPortReverseProxy),
+		TLSConfig:   tlsConfig,
+		Handler:     proxy,
+		BaseContext: func(net.Listener) context.Context { return context.Background() },
 	}
 
-	eg.Go(serveFn(proxyServer, "proxy-server"))
+	eg.Go(serveFn(proxyServer, "proxy-server", WithTLSConfig(nodeConfig.NodeCertPath(), nodeConfig.NodeKeyPath())))
 
 	routes := []api.Route{
 		api.NewVersionHandler(),
@@ -102,9 +106,10 @@ func main() {
 
 	router := api.NewRouter(routes, log, nodeCtrl, nodeConfig)
 	apiServer := &http.Server{
-		Addr:      fmt.Sprintf(":%s", constants.DefaultPortHabitatAPI),
-		TLSConfig: tlsConfig,
-		Handler:   router,
+		Addr:        fmt.Sprintf(":%s", constants.DefaultPortHabitatAPI),
+		TLSConfig:   tlsConfig,
+		Handler:     router,
+		BaseContext: func(net.Listener) context.Context { return context.Background() },
 	}
 	url, err := url.Parse(fmt.Sprintf("http://localhost:%s", constants.DefaultPortHabitatAPI))
 	if err != nil {
@@ -117,35 +122,38 @@ func main() {
 	if err != nil {
 		log.Fatal().Err(fmt.Errorf("error adding Habitat API proxy rule: %v", err))
 	}
-	eg.Go(serveFn(apiServer, "api-server"))
+	eg.Go(serveFn(apiServer, "api-server", WithTLSConfig(nodeConfig.NodeCertPath(), nodeConfig.NodeKeyPath())))
 
 	// Wait for either os.Interrupt which triggers ctx.Done()
 	// Or one of the servers to error, which triggers egCtx.Done()
 	select {
 	case <-egCtx.Done():
-		log.Err(fmt.Errorf("sub-service errored: shutting down Habitat %v", egCtx.Err()))
-		cancel()
+		log.Err(egCtx.Err()).Msg("sub-service errored: shutting down Habitat")
 	case <-ctx.Done():
 		log.Info().Msg("Interrupt signal received; gracefully closing Habitat")
+		stop()
 	}
 
 	// Shutdown the API server
 	err = apiServer.Shutdown(context.Background())
 	if err != nil {
-		log.Err(fmt.Errorf("error on api-server shutdown: %v", err))
+		log.Err(err).Msg("error on api-server shutdown")
 	}
+	log.Info().Msg("Gracefully shutdown Habitat API server")
 
 	// Shutdown the proxy server
 	err = proxyServer.Shutdown(context.Background())
 	if err != nil {
-		log.Err(fmt.Errorf("error on proxy-server shutdown: %v", err))
+		log.Err(err).Msg("error on proxy-server shutdown")
 	}
+	log.Info().Msg("Gracefully shutdown Habitat proxy server")
 
 	// Wait for the go-routines to finish
 	err = eg.Wait()
 	if err != nil {
-		log.Err(fmt.Errorf("received error on eg.Wait(): %v", err))
+		log.Err(err).Msg("received error on eg.Wait()")
 	}
+	log.Info().Msg("Finished!")
 }
 
 // config provided to http.Server.ListenAndServeTLS()
@@ -188,7 +196,7 @@ func serveFn(srv *http.Server, name string, opts ...option) func() error {
 			err = srv.ListenAndServe()
 		}
 		if err != http.ErrServerClosed {
-			log.Err(fmt.Errorf("a Habitat server[%s] closed with abnormal error: %v", name, err))
+			log.Err(err).Msgf("Habitat server[%s] closed abnormally", name)
 			return err
 		}
 		return nil
