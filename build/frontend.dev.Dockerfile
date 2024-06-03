@@ -20,4 +20,4 @@ COPY ./frontend/ .
 EXPOSE 8000
 
 # Command to run your app using pnpm
-CMD [ "pnpm", "dev"]
+CMD [ "pnpm", "dev" ]
