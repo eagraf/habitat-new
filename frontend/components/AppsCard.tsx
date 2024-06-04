@@ -1,7 +1,9 @@
 "use client"
 import useNode, { Node } from "@/hooks/useNode"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Card, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "./ui/button";
+import Link from "next/link";
 
 function selectApps(node: Node) {
   return Object.values(node.state.app_installations)
@@ -42,6 +44,11 @@ export default function AppsCard({ className }: AppsCardProps) {
           </TableBody>
         )}
       </Table>
+      <CardFooter>
+        <Link href="/add-app" className="ml-auto" scroll={false}>
+          <Button>Add</Button>
+        </Link>
+      </CardFooter>
     </Card>
   )
 }
