@@ -14,7 +14,16 @@ if [ "$ARCH" == "x86_64" ]; then
     ARCH="amd64"
 fi
 
-ARCHIVE_URL="https://github.com/eagraf/habitat-new/releases/latest/download/habitat-${ARCH}-${OS}.tar.gz"
+VERSION="latest"
+if [ -n "$1" ]; then
+    VERSION=$1
+fi
+
+if [[ "$VERSION" == "latest" ]]; then
+    ARCHIVE_URL="https://github.com/eagraf/habitat-new/releases/latest/download/habitat-${ARCH}-${OS}.tar.gz"
+else
+    ARCHIVE_URL="https://github.com/eagraf/habitat-new/releases/download/${VERSION}/habitat-${ARCH}-${OS}.tar.gz"
+fi
 
 TMP_DIR=$(mktemp -d)
 echo "Downloading to $TMP_DIR"
