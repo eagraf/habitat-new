@@ -53,6 +53,12 @@ func loadEnv() error {
 		return err
 	}
 
+	err = viper.BindEnv("frontend_dev", "FRONTEND_DEV")
+	if err != nil {
+		return err
+	}
+	viper.SetDefault("frontend_dev", false)
+
 	return nil
 }
 
@@ -203,6 +209,10 @@ func (n *NodeConfig) TailscaleAuthkey() string {
 func (n *NodeConfig) TailScaleStatePath() string {
 	// Note: this is intentionally not configurable for simplicity's sake.
 	return filepath.Join(n.HabitatPath(), "tailscale_state")
+}
+
+func (n *NodeConfig) FrontendDev() bool {
+	return viper.GetBool("frontend_dev")
 }
 
 func homedir() (string, error) {

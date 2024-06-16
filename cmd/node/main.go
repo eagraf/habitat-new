@@ -161,7 +161,7 @@ func main() {
 		),
 	)
 
-	err = proxy.Rules.Add("Frontend", frontend.NewFrontendProxyRule())
+	err = proxy.Rules.Add("Frontend", frontend.NewFrontendProxyRule(nodeConfig))
 	if err != nil {
 		log.Fatal().Err(fmt.Errorf("error adding frontend proxy rule: %v", err))
 	}
