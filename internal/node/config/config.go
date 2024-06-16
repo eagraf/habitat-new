@@ -32,7 +32,7 @@ func loadEnv() error {
 	}
 	viper.SetDefault("habitat_path", filepath.Join(homedir, ".habitat"))
 
-	err = viper.BindEnv("habitat_app_path")
+	err = viper.BindEnv("habitat_app_path", "HABITAT_APP_PATH")
 	if err != nil {
 		return err
 	}
@@ -151,7 +151,11 @@ func (n *NodeConfig) HabitatPath() string {
 
 func (n *NodeConfig) HabitatAppPath() string {
 	// Note that in dev mode, this should point to a path on the host machine rather than in the Docker container.
-	return viper.GetString("habitat_app_path")
+	path := viper.GetString("habitat_app_path")
+	if path == "" {
+		return filepath.Join(n.HabitatPath(), "apps")
+	}
+	return path
 }
 
 func (n *NodeConfig) HDBPath() string {
