@@ -31,9 +31,11 @@ curl -L $ARCHIVE_URL -o $TMP_DIR/habitat-${ARCH}-${OS}.tar.gz
 mkdir -p $TMP_DIR/habitat-${ARCH}-${OS}
 tar -xzf $TMP_DIR/habitat-${ARCH}-${OS}.tar.gz -C $TMP_DIR/habitat-${ARCH}-${OS}
 
-cp $TMP_DIR/habitat-${ARCH}-${OS}/habitat /usr/local/bin/habitat
 
-mkdir -p $HOME/.habitat
+BIN_PATH = "$HOME/.habitat/bin"
+mkdir -p $BIN_PATH
+
+cp $TMP_DIR/habitat-${ARCH}-${OS}/habitat $BIN_PATH/habitat
 
 CERT_DIR="$HOME/.habitat/certificates"
 mkdir -p "$CERT_DIR"
