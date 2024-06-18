@@ -6,6 +6,16 @@
 # We are doing this for convenience, but don't take this as a good example of how
 # to do things. You should always verify the contents of a script before executing it.
 
+# Usage:
+#
+# Use latest version:
+#
+#   curl -sL https://github.com/eagraf/habitat-new/releases/latest/download/install.sh 2>&1 | bash
+#
+# Use specific version:
+#
+#   curl -sL https://github.com/eagraf/habitat-new/releases/download/v0.0.2/install.sh 2>&1 | bash
+
 set -euxo pipefail
 
 OS=$(uname -s | tr '[:upper:]' '[:lower:]')
