@@ -63,6 +63,7 @@ type RuleHandler interface {
 	Type() string
 	Match(url *url.URL) bool
 	Handler() http.Handler
+	Rank() int
 }
 
 type FileServerRule struct {
@@ -85,6 +86,10 @@ func (r *FileServerRule) Handler() http.Handler {
 		Prefix: r.Matcher,
 		Path:   r.Path,
 	}
+}
+
+func (r *FileServerRule) Rank() int {
+	return strings.Count(r.Matcher, "/")
 }
 
 type FileServerHandler struct {
@@ -145,4 +150,8 @@ func (r *RedirectRule) Handler() http.Handler {
 			rw.WriteHeader(http.StatusInternalServerError)
 		},
 	}
+}
+
+func (r *RedirectRule) Rank() int {
+	return strings.Count(r.Matcher, "/")
 }
