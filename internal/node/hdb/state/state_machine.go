@@ -128,6 +128,11 @@ func (sm *StateMachine) ProposeTransitions(transitions []hdb.Transition) (*hdb.J
 
 	for _, t := range transitions {
 
+		err = t.Enrich(sm.jsonState.Bytes())
+		if err != nil {
+			return nil, fmt.Errorf("transition enrichment failed: %s", err)
+		}
+
 		err = t.Validate(jsonStateBranch.Bytes())
 		if err != nil {
 			return nil, fmt.Errorf("transition validation failed: %s", err)

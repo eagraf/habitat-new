@@ -24,7 +24,7 @@ func (e *StartProcessExecutor) ShouldExecute(update hdb.StateUpdateInternal) (bo
 		return false, err
 	}
 
-	_, err = e.processManager.GetProcess(processStartTransition.Process.ID)
+	_, err = e.processManager.GetProcess(processStartTransition.EnrichedData.Process.ID)
 	if err != nil {
 		return true, nil
 	}
@@ -39,12 +39,19 @@ func (e *StartProcessExecutor) Execute(update hdb.StateUpdateInternal) error {
 		return err
 	}
 
-	err = e.processManager.StartProcess(processStartTransition.Process, processStartTransition.App)
+	nodeState := update.NewState().(*node.NodeState)
+
+	app, err := nodeState.GetAppByID(processStartTransition.AppID)
 	if err != nil {
 		return err
 	}
 
-	err = e.nodeController.SetProcessRunning(processStartTransition.Process.ID)
+	err = e.processManager.StartProcess(processStartTransition.EnrichedData.Process.Process, app.AppInstallation)
+	if err != nil {
+		return err
+	}
+
+	err = e.nodeController.SetProcessRunning(processStartTransition.EnrichedData.Process.ID)
 	if err != nil {
 		return err
 	}

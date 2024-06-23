@@ -2,6 +2,7 @@ package node
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -53,6 +54,10 @@ func (t *InitalizationTransition) Patch(oldState []byte) ([]byte, error) {
 	}]`, marshaled)), nil
 }
 
+func (t *InitalizationTransition) Enrich(oldState []byte) error {
+	return nil
+}
+
 func (t *InitalizationTransition) Validate(oldState []byte) error {
 	if t.InitState == nil {
 		return fmt.Errorf("init state cannot be nil")
@@ -83,6 +88,10 @@ func (t *MigrationTransition) Patch(oldState []byte) ([]byte, error) {
 	return json.Marshal(patch)
 }
 
+func (t *MigrationTransition) Enrich(oldState []byte) error {
+	return nil
+}
+
 func (t *MigrationTransition) Validate(oldState []byte) error {
 	var oldNode NodeState
 	err := json.Unmarshal(oldState, &oldNode)
@@ -109,9 +118,14 @@ func (t *MigrationTransition) Validate(oldState []byte) error {
 }
 
 type AddUserTransition struct {
-	UserID      string `json:"user_id"`
 	Username    string `json:"username"`
 	Certificate string `json:"certificate"`
+
+	EnrichedData *AddUserTranstitionEnrichedData `json:"enriched_data"`
+}
+
+type AddUserTranstitionEnrichedData struct {
+	User *User `json:"user"`
 }
 
 func (t *AddUserTransition) Type() string {
@@ -119,15 +133,31 @@ func (t *AddUserTransition) Type() string {
 }
 
 func (t *AddUserTransition) Patch(oldState []byte) ([]byte, error) {
+
+	user, err := json.Marshal(t.EnrichedData.User)
+	if err != nil {
+		return nil, err
+	}
+
 	return []byte(fmt.Sprintf(`[{
 		"op": "add",
 		"path": "/users/%s",
-		"value": {
-			"id": "%s",
-			"username": "%s",
-			"certificate": "%s"
-		}
-	}]`, t.UserID, t.UserID, t.Username, t.Certificate)), nil
+		"value": %s
+	}]`, t.EnrichedData.User.ID, user)), nil
+}
+
+func (t *AddUserTransition) Enrich(oldState []byte) error {
+
+	id := uuid.New().String()
+
+	t.EnrichedData = &AddUserTranstitionEnrichedData{
+		User: &User{
+			ID:          id,
+			Username:    t.Username,
+			Certificate: t.Certificate,
+		},
+	}
+	return nil
 }
 
 func (t *AddUserTransition) Validate(oldState []byte) error {
@@ -138,9 +168,9 @@ func (t *AddUserTransition) Validate(oldState []byte) error {
 		return err
 	}
 
-	_, ok := oldNode.Users[t.UserID]
+	_, ok := oldNode.Users[t.EnrichedData.User.ID]
 	if ok {
-		return fmt.Errorf("user with id %s already exists", t.UserID)
+		return fmt.Errorf("user with id %s already exists", t.EnrichedData.User.ID)
 	}
 
 	// Check for conflicting usernames
@@ -155,7 +185,13 @@ func (t *AddUserTransition) Validate(oldState []byte) error {
 type StartInstallationTransition struct {
 	UserID string `json:"user_id"`
 	*AppInstallation
-	NewProxyRules []*ReverseProxyRule `json:"new_proxy_rules"`
+	NewProxyRules []*ReverseProxyRule                      `json:"new_proxy_rules"`
+	EnrichedData  *StartInstallationTransitionEnrichedData `json:"enriched_data"`
+}
+
+type StartInstallationTransitionEnrichedData struct {
+	AppState      *AppInstallationState `json:"app_state"`
+	NewProxyRules []*ReverseProxyRule   `json:"new_proxy_rules"`
 }
 
 func (t *StartInstallationTransition) Type() string {
@@ -169,14 +205,7 @@ func (t *StartInstallationTransition) Patch(oldState []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	appInstallation := t.AppInstallation
-	appInstallation.ID = uuid.New().String()
-
-	appState := &AppInstallationState{
-		AppInstallation: t.AppInstallation,
-		State:           AppLifecycleStateInstalling,
-	}
-	marshalledApp, err := json.Marshal(appState)
+	marshalledApp, err := json.Marshal(t.EnrichedData.AppState)
 	if err != nil {
 		return nil, err
 	}
@@ -187,9 +216,7 @@ func (t *StartInstallationTransition) Patch(oldState []byte) ([]byte, error) {
 	}
 
 	marshaledRules := make([]string, 0)
-	for _, rule := range t.NewProxyRules {
-		rule.ID = uuid.New().String()
-		rule.AppID = appInstallation.ID
+	for _, rule := range t.EnrichedData.NewProxyRules {
 		marshaled, err := json.Marshal(rule)
 		if err != nil {
 			return nil, err
@@ -213,7 +240,41 @@ func (t *StartInstallationTransition) Patch(oldState []byte) ([]byte, error) {
 			"path": "/app_installations/%s",
 			"value": %s
 		}%s
-	]`, t.AppInstallation.ID, string(marshalledApp), rules)), nil
+	]`, t.EnrichedData.AppState.ID, string(marshalledApp), rules)), nil
+}
+
+func (t *StartInstallationTransition) Enrich(oldState []byte) error {
+	id := uuid.New().String()
+	appInstallState := &AppInstallationState{
+		AppInstallation: &AppInstallation{
+			ID:      id,
+			UserID:  t.UserID,
+			Name:    t.Name,
+			Version: t.Version,
+			Package: t.Package,
+		},
+		State: AppLifecycleStateInstalling,
+	}
+
+	enrichedRules := make([]*ReverseProxyRule, 0)
+
+	for _, rule := range t.NewProxyRules {
+		enrichedRules = append(enrichedRules, &ReverseProxyRule{
+			ID:      uuid.New().String(),
+			AppID:   appInstallState.ID,
+			Type:    rule.Type,
+			Matcher: rule.Matcher,
+			Target:  rule.Target,
+		})
+		rule.ID = uuid.New().String()
+		rule.AppID = appInstallState.ID
+	}
+
+	t.EnrichedData = &StartInstallationTransitionEnrichedData{
+		AppState:      appInstallState,
+		NewProxyRules: enrichedRules,
+	}
+	return nil
 }
 
 func (t *StartInstallationTransition) Validate(oldState []byte) error {
@@ -228,7 +289,7 @@ func (t *StartInstallationTransition) Validate(oldState []byte) error {
 		return fmt.Errorf("user with id %s not found", t.UserID)
 	}
 
-	app, ok := oldNode.AppInstallations[t.AppInstallation.ID]
+	app, ok := oldNode.AppInstallations[t.EnrichedData.AppState.ID]
 	if ok {
 		if app.Version == t.Version {
 			return fmt.Errorf("app %s version %s for user %s found in state %s", t.Name, t.Version, t.UserID, app.State)
@@ -273,6 +334,10 @@ func (t *FinishInstallationTransition) Patch(oldState []byte) ([]byte, error) {
 	}]`, t.AppID, AppLifecycleStateInstalled)), nil
 }
 
+func (t *FinishInstallationTransition) Enrich(oldState []byte) error {
+	return nil
+}
+
 func (t *FinishInstallationTransition) Validate(oldState []byte) error {
 	var oldNode NodeState
 	err := json.Unmarshal(oldState, &oldNode)
@@ -304,8 +369,16 @@ func (t *FinishInstallationTransition) Validate(oldState []byte) error {
 // TODO handle uninstallation
 
 type ProcessStartTransition struct {
-	*Process
-	App *AppInstallation `json:"app"`
+	// Requested data
+	AppID   string
+	AppName string
+
+	EnrichedData *ProcessStartTransitionEnrichedData
+}
+
+type ProcessStartTransitionEnrichedData struct {
+	Process *ProcessState
+	App     *AppInstallationState
 }
 
 func (t *ProcessStartTransition) Type() string {
@@ -319,16 +392,7 @@ func (t *ProcessStartTransition) Patch(oldState []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	proc := ProcessState{
-		Process:     t.Process,
-		State:       ProcessStateStarting,
-		ExtDriverID: "", // this should not be set yet
-	}
-
-	proc.ID = uuid.New().String()
-	proc.Process.Created = time.Now().Format(time.RFC3339)
-
-	marshaled, err := json.Marshal(proc)
+	marshaled, err := json.Marshal(t.EnrichedData.Process)
 	if err != nil {
 		return nil, err
 	}
@@ -337,36 +401,88 @@ func (t *ProcessStartTransition) Patch(oldState []byte) ([]byte, error) {
 			"op": "add",
 			"path": "/processes/%s",
 			"value": %s
-		}]`, t.ID, marshaled)), nil
+		}]`, t.EnrichedData.Process.ID, marshaled)), nil
 }
 
-func (t *ProcessStartTransition) Validate(oldState []byte) error {
+func (t *ProcessStartTransition) Enrich(oldState []byte) error {
 	var oldNode NodeState
 	err := json.Unmarshal(oldState, &oldNode)
 	if err != nil {
 		return err
 	}
 
-	if t.Process == nil {
-		return fmt.Errorf("Process cannot be nil")
+	if t.AppID == "" && t.AppName == "" {
+		return errors.New("no app identifier supplied")
 	}
 
-	// Make sure the app installation exists
-	app, ok := oldNode.AppInstallations[t.App.ID]
-	if !ok {
-		return fmt.Errorf("app with id %s does not exist", t.App.ID)
+	if t.AppID != "" && t.AppName != "" {
+		return errors.New("both AppID and AppName supplied, please choose one")
 	}
-	if app.State != AppLifecycleStateInstalled {
-		return fmt.Errorf("app with id %s for user %s is not in state %s", t.AppID, t.UserID, AppLifecycleStateInstalled)
+
+	var app *AppInstallationState
+	if t.AppName != "" {
+		a, err := oldNode.GetAppByName(t.AppName)
+		if err != nil {
+			return err
+		}
+		app = a
+	} else {
+		a, err := oldNode.GetAppByID(t.AppID)
+		if err != nil {
+			return err
+		}
+		app = a
+	}
+
+	proc := &ProcessState{
+		Process: &Process{
+			UserID: app.UserID,
+			Driver: app.Driver,
+			AppID:  app.ID,
+		},
+		State:       ProcessStateStarting,
+		ExtDriverID: "", // this should not be set yet
+	}
+
+	proc.ID = uuid.New().String()
+	proc.Process.Created = time.Now().Format(time.RFC3339)
+
+	t.EnrichedData = &ProcessStartTransitionEnrichedData{
+		Process: proc,
+		App:     app,
+	}
+	return nil
+}
+
+func (t *ProcessStartTransition) Validate(oldState []byte) error {
+
+	var oldNode NodeState
+	err := json.Unmarshal(oldState, &oldNode)
+	if err != nil {
+		return err
+	}
+
+	if t.EnrichedData.Process == nil {
+		return fmt.Errorf("process was not properly enriched")
+	}
+
+	if t.EnrichedData.App == nil {
+		return fmt.Errorf("app was not properly enriched")
+	}
+
+	// Make sure the app installation is in the installed state
+	userID := t.EnrichedData.Process.UserID
+	if t.EnrichedData.App.State != AppLifecycleStateInstalled {
+		return fmt.Errorf("app with id %s for user %s is not in state %s", t.AppID, userID, AppLifecycleStateInstalled)
 	}
 
 	// Check user exists
-	_, ok = oldNode.Users[t.UserID]
+	_, ok := oldNode.Users[t.EnrichedData.Process.UserID]
 	if !ok {
-		return fmt.Errorf("user with id %s does not exist", t.UserID)
+		return fmt.Errorf("user with id %s does not exist", userID)
 	}
-	if _, ok := oldNode.Processes[t.ID]; ok {
-		return fmt.Errorf("Process with id %s already exists", t.ID)
+	if _, ok := oldNode.Processes[t.EnrichedData.Process.ID]; ok {
+		return fmt.Errorf("Process with id %s already exists", t.EnrichedData.Process.ID)
 	}
 
 	for _, proc := range oldNode.Processes {
@@ -413,6 +529,10 @@ func (t *ProcessRunningTransition) Patch(oldState []byte) ([]byte, error) {
 	}]`, t.ProcessID, marshaled)), nil
 }
 
+func (t *ProcessRunningTransition) Enrich(oldState []byte) error {
+	return nil
+}
+
 func (t *ProcessRunningTransition) Validate(oldState []byte) error {
 	var oldNode NodeState
 	err := json.Unmarshal(oldState, &oldNode)
@@ -456,6 +576,10 @@ func (t *ProcessStopTransition) Patch(oldState []byte) ([]byte, error) {
 		"op": "remove",
 		"path": "/processes/%s"
 	}]`, t.ProcessID)), nil
+}
+
+func (t *ProcessStopTransition) Enrich(oldState []byte) error {
+	return nil
 }
 
 func (t *ProcessStopTransition) Validate(oldState []byte) error {
