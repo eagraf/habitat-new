@@ -75,14 +75,18 @@ func (sm *StateMachine) StartListening() {
 					}
 
 					// execute state update
-					jsonState, err := hdb.NewJSONState(sm.schema, stateUpdate.NewState)
+					stateBytes, err := stateUpdate.NewState().Bytes()
+					if err != nil {
+						log.Error().Err(err).Msgf("error getting new state bytes from state update chan")
+					}
+					jsonState, err := hdb.NewJSONState(sm.schema, stateBytes)
 					if err != nil {
 						log.Error().Err(err).Msgf("error getting new state from state update chan")
 					}
 					sm.jsonState = jsonState
 
 					if sm.restartIndex == stateUpdate.Index {
-						log.Info().Msgf("Restoring node state: %s", string(stateUpdate.NewState))
+						log.Info().Msgf("Restoring node state")
 						stateUpdate.Restore = true
 					}
 

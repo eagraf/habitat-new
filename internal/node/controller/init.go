@@ -45,7 +45,7 @@ func generatePDSAppConfig(nodeConfig *config.NodeConfig) types.PostAppRequest {
 					"port_bindings": map[nat.Port][]nat.PortBinding{
 						"3000/tcp": {
 							{
-								HostIP:   "127.0.0.1",
+								HostIP:   "0.0.0.0",
 								HostPort: "5000",
 							},
 						},

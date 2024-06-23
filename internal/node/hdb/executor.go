@@ -10,13 +10,18 @@ import (
 // StateUpdate includes all necessary information to update the state of an external system to match
 // the state machine.
 type StateUpdate struct {
-	Index          uint64
-	SchemaType     string
-	DatabaseID     string
-	NewState       []byte
-	Transition     []byte
-	TransitionType string
-	Restore        bool
+	Index      uint64
+	SchemaType string
+	DatabaseID string
+	Restore    bool
+
+	StateUpdateInternal
+}
+
+type StateUpdateInternal interface {
+	NewState() State
+	Transition() []byte
+	TransitionType() string
 }
 
 // IdempoentStateUpdateExecutor is an interface for a state update executor that will check
@@ -26,16 +31,16 @@ type IdempotentStateUpdateExecutor interface {
 	TransitionType() string
 
 	// ShouldExecute returns true if the state update should be executed.
-	ShouldExecute(*StateUpdate) (bool, error)
+	ShouldExecute(StateUpdateInternal) (bool, error)
 
 	// Execute the given state update.
-	Execute(*StateUpdate) error
+	Execute(StateUpdateInternal) error
 
-	PostHook(*StateUpdate) error
+	PostHook(StateUpdateInternal) error
 }
 
 type StateRestorer interface {
-	Restore(*StateUpdate) error
+	Restore(StateUpdateInternal) error
 }
 
 type StateUpdateSubscriber interface {
@@ -92,7 +97,7 @@ func (s *IdempotentStateUpdateSubscriber) ConsumeEvent(event *StateUpdate) error
 		return nil
 	}
 
-	executor, ok := s.executors[event.TransitionType]
+	executor, ok := s.executors[event.TransitionType()]
 	if !ok {
 		// This is a no-op. We don't error since the pubsub system isn't sophisticated enough to
 		// filter by topic.
@@ -101,22 +106,22 @@ func (s *IdempotentStateUpdateSubscriber) ConsumeEvent(event *StateUpdate) error
 
 	shouldExecute, err := executor.ShouldExecute(event)
 	if err != nil {
-		return fmt.Errorf("Error checking if transition %s should execute: %w", event.TransitionType, err)
+		return fmt.Errorf("Error checking if transition %s should execute: %w", event.TransitionType(), err)
 	}
 
 	if shouldExecute {
 		err = executor.Execute(event)
 		if err != nil {
-			return fmt.Errorf("Error acting on state update for transition %s: %w", event.TransitionType, err)
+			return fmt.Errorf("Error acting on state update for transition %s: %w", event.TransitionType(), err)
 		}
 	} else {
 		// The desired state is already achieved.
-		log.Info().Msgf("Desired state achieved idempotently for transition %s", event.TransitionType)
+		log.Info().Msgf("Desired state achieved idempotently for transition %s", event.TransitionType())
 	}
 
 	err = executor.PostHook(event)
 	if err != nil {
-		return fmt.Errorf("Error executing post-hook for transition %s: %s", event.TransitionType, err)
+		return fmt.Errorf("Error executing post-hook for transition %s: %s", event.TransitionType(), err)
 	}
 
 	return nil

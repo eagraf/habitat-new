@@ -13,15 +13,13 @@ func StateUpdateTestHelper(transition hdb.Transition, newState *node.NodeState) 
 		return nil, err
 	}
 
-	stateBytes, err := json.Marshal(newState)
-	if err != nil {
-		return nil, err
-	}
+	updateInternal := node.NewNodeStateUpdateInternal(newState, &hdb.TransitionWrapper{
+		Transition: transBytes,
+		Type:       transition.Type(),
+	})
 
 	return &hdb.StateUpdate{
-		SchemaType:     node.SchemaName,
-		Transition:     transBytes,
-		TransitionType: transition.Type(),
-		NewState:       stateBytes,
+		SchemaType:          node.SchemaName,
+		StateUpdateInternal: updateInternal,
 	}, nil
 }
