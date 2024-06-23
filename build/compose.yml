@@ -33,4 +33,5 @@ services:
     env_file: ../dev.env
     depends_on:
       - habitat_frontend
-
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
