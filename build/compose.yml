@@ -7,7 +7,6 @@ services:
       dockerfile: build/frontend.dev.Dockerfile
     volumes:
       - ${TOPDIR}/frontend:/app
-      - /app/node_modules
     environment:
       - NODE_ENV=development
   habitat_node:
