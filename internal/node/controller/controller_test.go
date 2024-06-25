@@ -185,7 +185,7 @@ func TestFinishAppInstallationController(t *testing.T) {
 		},
 	)).Return(nil, nil).Times(1)
 
-	err := controller.FinishAppInstallation("user_1", "app1", "https://registry.com", "app_1")
+	err := controller.FinishAppInstallation("user_1", "app1", "https://registry.com", "app_1", false)
 	assert.Nil(t, err)
 }
 

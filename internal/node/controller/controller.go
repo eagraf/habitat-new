@@ -23,7 +23,7 @@ type NodeController interface {
 	GetUserByUsername(username string) (*node.User, error)
 
 	InstallApp(userID string, newApp *node.AppInstallation, newProxyRules []*node.ReverseProxyRule) error
-	FinishAppInstallation(userID string, appID, registryURLBase, registryPackageID string) error
+	FinishAppInstallation(userID string, appID, registryURLBase, registryPackageID string, startAfterInstall bool) error
 	GetAppByID(appID string) (*node.AppInstallation, error)
 
 	StartProcess(appID string) error
@@ -107,7 +107,7 @@ func (c *BaseNodeController) InstallApp(userID string, newApp *node.AppInstallat
 }
 
 // FinishAppInstallation marks the app lifecycle state as installed
-func (c *BaseNodeController) FinishAppInstallation(userID string, appID, registryURLBase, registryAppID string) error {
+func (c *BaseNodeController) FinishAppInstallation(userID string, appID, registryURLBase, registryAppID string, startAfterInstall bool) error {
 	dbClient, err := c.databaseManager.GetDatabaseClientByName(constants.NodeDBDefaultName)
 	if err != nil {
 		return err
@@ -119,6 +119,8 @@ func (c *BaseNodeController) FinishAppInstallation(userID string, appID, registr
 			AppID:           appID,
 			RegistryURLBase: registryURLBase,
 			RegistryAppID:   registryAppID,
+
+			StartAfterInstallation: startAfterInstall,
 		},
 	})
 	if err != nil {
