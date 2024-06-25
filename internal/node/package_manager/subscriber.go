@@ -58,9 +58,44 @@ func (e *InstallAppExecutor) PostHook(update hdb.StateUpdateInternal) error {
 
 	// After finishing the installation, update the application's lifecycle state
 	appInstallation := t.EnrichedData.AppState
-	err = e.nodeController.FinishAppInstallation(t.UserID, appInstallation.ID, appInstallation.RegistryURLBase, appInstallation.RegistryPackageID)
+	err = e.nodeController.FinishAppInstallation(t.UserID, appInstallation.ID, appInstallation.RegistryURLBase, appInstallation.RegistryPackageID, t.StartAfterInstallation)
 	if err != nil {
 		return err
+	}
+
+	return nil
+}
+
+// FinishInstallExecutor is a state update executor that finishes the installation of an application.
+// Currently it is just run for it's PostHook, which will try to start the app if StartAfterInstallation is set.
+type FinishInstallExecutor struct {
+	nodeController controller.NodeController
+}
+
+func (e *FinishInstallExecutor) TransitionType() string {
+	return node.TransitionFinishInstallation
+}
+
+func (e *FinishInstallExecutor) ShouldExecute(update hdb.StateUpdateInternal) (bool, error) {
+	return true, nil
+}
+
+func (e *FinishInstallExecutor) Execute(update hdb.StateUpdateInternal) error {
+	return nil
+}
+
+func (e *FinishInstallExecutor) PostHook(update hdb.StateUpdateInternal) error {
+	var t node.FinishInstallationTransition
+	err := json.Unmarshal(update.Transition(), &t)
+	if err != nil {
+		return err
+	}
+
+	if t.StartAfterInstallation {
+		err = e.nodeController.StartProcess(t.AppID)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -79,6 +114,9 @@ func NewAppLifecycleSubscriber(packageManager PackageManager, nodeController con
 		[]hdb.IdempotentStateUpdateExecutor{
 			&InstallAppExecutor{
 				packageManager: packageManager,
+				nodeController: nodeController,
+			},
+			&FinishInstallExecutor{
 				nodeController: nodeController,
 			},
 		},

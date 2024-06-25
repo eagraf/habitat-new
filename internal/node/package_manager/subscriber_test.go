@@ -84,7 +84,7 @@ func TestSubscriber(t *testing.T) {
 	err = installAppExecutor.Execute(stateUpdate)
 	assert.Nil(t, err)
 
-	nc.EXPECT().FinishAppInstallation(gomock.Eq("user1"), gomock.Any(), gomock.Eq("registry.com"), gomock.Eq("package1")).Return(nil).Times(2)
+	nc.EXPECT().FinishAppInstallation(gomock.Eq("user1"), gomock.Any(), gomock.Eq("registry.com"), gomock.Eq("package1"), false).Return(nil).Times(2)
 
 	err = installAppExecutor.PostHook(stateUpdate)
 	assert.Nil(t, err)

@@ -108,9 +108,10 @@ func initTranstitions(nodeConfig *config.NodeConfig) ([]hdb.Transition, error) {
 
 	for _, app := range defaultApplications {
 		transitions = append(transitions, &node.StartInstallationTransition{
-			UserID:          constants.RootUserID,
-			AppInstallation: app.AppInstallation,
-			NewProxyRules:   app.ReverseProxyRules,
+			UserID:                 constants.RootUserID,
+			AppInstallation:        app.AppInstallation,
+			NewProxyRules:          app.ReverseProxyRules,
+			StartAfterInstallation: true,
 		})
 	}
 	return transitions, nil

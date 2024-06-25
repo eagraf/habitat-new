@@ -183,7 +183,9 @@ func (t *AddUserTransition) Validate(oldState []byte) error {
 }
 
 type StartInstallationTransition struct {
-	UserID string `json:"user_id"`
+	UserID                 string `json:"user_id"`
+	StartAfterInstallation bool   `json:"start_after_installation"`
+
 	*AppInstallation
 	NewProxyRules []*ReverseProxyRule                      `json:"new_proxy_rules"`
 	EnrichedData  *StartInstallationTransitionEnrichedData `json:"enriched_data"`
@@ -314,6 +316,8 @@ type FinishInstallationTransition struct {
 	AppID           string `json:"app_id"`
 	RegistryURLBase string `json:"registry_url_base"`
 	RegistryAppID   string `json:"registry_app_id"`
+
+	StartAfterInstallation bool `json:"start_after_installation"`
 }
 
 func (t *FinishInstallationTransition) Type() string {
