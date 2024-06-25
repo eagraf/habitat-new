@@ -7,6 +7,7 @@ import (
 
 	"github.com/eagraf/habitat-new/internal/node/hdb"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func testTransitions(oldState *NodeState, transitions []hdb.Transition) (*NodeState, error) {
@@ -35,7 +36,12 @@ func testTransitions(oldState *NodeState, transitions []hdb.Transition) (*NodeSt
 			return nil, fmt.Errorf("transition type is empty")
 		}
 
-		err := t.Validate(oldJSONState.Bytes())
+		err := t.Enrich(oldJSONState.Bytes())
+		if err != nil {
+			return nil, fmt.Errorf("transition enrichment failed: %s", err)
+		}
+
+		err = t.Validate(oldJSONState.Bytes())
 		if err != nil {
 			return nil, fmt.Errorf("transition validation failed: %s", err)
 		}
@@ -125,7 +131,6 @@ func TestAddingUsers(t *testing.T) {
 			},
 		},
 		&AddUserTransition{
-			UserID:      "123",
 			Username:    "eagraf",
 			Certificate: "placeholder",
 		},
@@ -141,24 +146,12 @@ func TestAddingUsers(t *testing.T) {
 
 	testSecondUserConflictOnUsername := []hdb.Transition{
 		&AddUserTransition{
-			UserID:      "456",
 			Username:    "eagraf",
 			Certificate: "placeholder",
 		},
 	}
 
 	_, err = testTransitionsOnCopy(newState, testSecondUserConflictOnUsername)
-	assert.NotNil(t, err)
-
-	testSecondUserConflictOnUserID := []hdb.Transition{
-		&AddUserTransition{
-			UserID:      "123",
-			Username:    "eagraf2",
-			Certificate: "placeholder",
-		},
-	}
-
-	_, err = testTransitionsOnCopy(newState, testSecondUserConflictOnUserID)
 	assert.NotNil(t, err)
 }
 
@@ -170,18 +163,18 @@ func TestAppLifecycle(t *testing.T) {
 				Certificate:   "123",
 				Name:          "New Node",
 				SchemaVersion: LatestVersion,
-				Users:         make(map[string]*User, 0),
+				Users: map[string]*User{
+					"123": {
+						ID:          "123",
+						Username:    "eagraf",
+						Certificate: "placeholder",
+					},
+				},
 			},
-		},
-		&AddUserTransition{
-			UserID:      "123",
-			Username:    "eagraf",
-			Certificate: "placeholder",
 		},
 		&StartInstallationTransition{
 			UserID: "123",
 			AppInstallation: &AppInstallation{
-				UserID:  "123",
 				Name:    "app_name1",
 				Version: "1",
 				Package: Package{
@@ -197,8 +190,8 @@ func TestAppLifecycle(t *testing.T) {
 	}
 
 	newState, err := testTransitions(nil, transitions)
-	assert.Nil(t, err)
-	assert.NotNil(t, newState)
+	require.Nil(t, err)
+	require.NotNil(t, newState)
 	assert.Equal(t, "abc", newState.NodeID)
 	assert.Equal(t, "123", newState.Certificate)
 	assert.Equal(t, "New Node", newState.Name)
@@ -312,18 +305,18 @@ func TestAppInstallReverseProxyRules(t *testing.T) {
 	transitions := []hdb.Transition{
 		&InitalizationTransition{
 			InitState: &NodeState{
-				NodeID:            "abc",
-				Certificate:       "123",
-				Name:              "New Node",
-				SchemaVersion:     LatestVersion,
-				Users:             make(map[string]*User, 0),
+				NodeID:        "abc",
+				Certificate:   "123",
+				Name:          "New Node",
+				SchemaVersion: LatestVersion,
+				Users: map[string]*User{
+					"123": &User{
+						Username:    "eagraf",
+						Certificate: "placeholder",
+					},
+				},
 				ReverseProxyRules: &proxyRules,
 			},
-		},
-		&AddUserTransition{
-			UserID:      "123",
-			Username:    "eagraf",
-			Certificate: "placeholder",
 		},
 		&StartInstallationTransition{
 			UserID: "123",
@@ -351,8 +344,8 @@ func TestAppInstallReverseProxyRules(t *testing.T) {
 	}
 
 	newState, err := testTransitions(nil, transitions)
-	assert.Nil(t, err)
-	assert.NotNil(t, newState)
+	require.Nil(t, err)
+	require.NotNil(t, newState)
 }
 
 func TestProcesses(t *testing.T) {
@@ -376,6 +369,7 @@ func TestProcesses(t *testing.T) {
 						AppInstallation: &AppInstallation{
 							ID:      "App1",
 							Name:    "app_name1",
+							UserID:  "123",
 							Version: "1",
 							Package: Package{
 								Driver:             "docker",
@@ -391,28 +385,13 @@ func TestProcesses(t *testing.T) {
 			},
 		},
 		&ProcessStartTransition{
-			Process: &Process{
-				AppID:  "App1",
-				UserID: "123",
-				Driver: "docker",
-			},
-			App: &AppInstallation{
-				ID:      "App1",
-				Name:    "app_name1",
-				Version: "1",
-				Package: Package{
-					Driver:             "docker",
-					RegistryURLBase:    "https://registry.com",
-					RegistryPackageID:  "app_name1",
-					RegistryPackageTag: "v1",
-				},
-			},
+			AppID: "App1",
 		},
 	}
 
 	newState, err := testTransitions(nil, transitions)
-	assert.Nil(t, err)
-	assert.NotNil(t, newState)
+	require.Nil(t, err)
+	require.NotNil(t, newState)
 	assert.Equal(t, "abc", newState.NodeID)
 	assert.Equal(t, "123", newState.Certificate)
 	assert.Equal(t, "New Node", newState.Name)
@@ -452,30 +431,6 @@ func TestProcesses(t *testing.T) {
 	_, err = testTransitionsOnCopy(newState, testProcessRunningNoMatchingID)
 	assert.NotNil(t, err)
 
-	testProcessIDConflict := []hdb.Transition{
-		&ProcessStartTransition{
-			Process: &Process{
-				ID:     "proc1",
-				AppID:  "App1",
-				UserID: "123",
-			},
-			App: &AppInstallation{
-				ID:      "App1",
-				Name:    "app_name1",
-				Version: "1",
-				Package: Package{
-					Driver:             "docker",
-					RegistryURLBase:    "https://registry.com",
-					RegistryPackageID:  "app_name1",
-					RegistryPackageTag: "v1",
-				},
-			},
-		},
-	}
-
-	_, err = testTransitionsOnCopy(newState, testProcessIDConflict)
-	assert.NotNil(t, err)
-
 	testProcessAlreadyRunning := []hdb.Transition{
 		&ProcessRunningTransition{
 			ProcessID: "proc1",
@@ -487,22 +442,7 @@ func TestProcesses(t *testing.T) {
 
 	testAppIDConflict := []hdb.Transition{
 		&ProcessStartTransition{
-			Process: &Process{
-				ID:     "proc2",
-				AppID:  "App1",
-				UserID: "123",
-			},
-			App: &AppInstallation{
-				ID:      "App1",
-				Name:    "app_name1",
-				Version: "1",
-				Package: Package{
-					Driver:             "docker",
-					RegistryURLBase:    "https://registry.com",
-					RegistryPackageID:  "app_name1",
-					RegistryPackageTag: "v1",
-				},
-			},
+			AppID: "App1",
 		},
 	}
 
@@ -521,20 +461,26 @@ func TestProcesses(t *testing.T) {
 
 	testUserDoesntExist := []hdb.Transition{
 		&ProcessStartTransition{
-			Process: &Process{
-				ID:     "proc2",
-				AppID:  "App1",
-				UserID: "456",
-			},
-			App: &AppInstallation{
-				ID:      "App1",
-				Name:    "app_name1",
-				Version: "1",
-				Package: Package{
-					Driver:             "docker",
-					RegistryURLBase:    "https://registry.com",
-					RegistryPackageID:  "app_name1",
-					RegistryPackageTag: "v1",
+			EnrichedData: &ProcessStartTransitionEnrichedData{
+				Process: &ProcessState{
+					Process: &Process{
+						ID:     "proc2",
+						AppID:  "App1",
+						UserID: "456",
+					},
+				},
+				App: &AppInstallationState{
+					AppInstallation: &AppInstallation{
+						ID:      "App1",
+						Name:    "app_name1",
+						Version: "1",
+						Package: Package{
+							Driver:             "docker",
+							RegistryURLBase:    "https://registry.com",
+							RegistryPackageID:  "app_name1",
+							RegistryPackageTag: "v1",
+						},
+					},
 				},
 			},
 		},
@@ -545,20 +491,26 @@ func TestProcesses(t *testing.T) {
 
 	testAppDoesntExist := []hdb.Transition{
 		&ProcessStartTransition{
-			Process: &Process{
-				ID:     "proc3",
-				AppID:  "App2",
-				UserID: "123",
-			},
-			App: &AppInstallation{
-				ID:      "App2",
-				Name:    "app_name1",
-				Version: "1",
-				Package: Package{
-					Driver:             "docker",
-					RegistryURLBase:    "https://registry.com",
-					RegistryPackageID:  "app_name1",
-					RegistryPackageTag: "v1",
+			EnrichedData: &ProcessStartTransitionEnrichedData{
+				Process: &ProcessState{
+					Process: &Process{
+						ID:     "proc3",
+						AppID:  "App2",
+						UserID: "123",
+					},
+				},
+				App: &AppInstallationState{
+					AppInstallation: &AppInstallation{
+						ID:      "App2",
+						Name:    "app_name1",
+						Version: "1",
+						Package: Package{
+							Driver:             "docker",
+							RegistryURLBase:    "https://registry.com",
+							RegistryPackageID:  "app_name1",
+							RegistryPackageTag: "v1",
+						},
+					},
 				},
 			},
 		},
