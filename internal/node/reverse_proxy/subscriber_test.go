@@ -14,18 +14,7 @@ func TestSubscriber(t *testing.T) {
 	}
 
 	startProcessStateUpdate, err := test_helpers.StateUpdateTestHelper(&node.ProcessStartTransition{
-		Process: &node.Process{
-			ID:     "proc1",
-			Driver: "test",
-			AppID:  "app1",
-		},
-		App: &node.AppInstallation{
-			ID:   "app1",
-			Name: "appname1",
-			Package: node.Package{
-				Driver: "test",
-			},
-		},
+		AppID: "app1",
 	}, &node.NodeState{
 		AppInstallations: map[string]*node.AppInstallationState{
 			"app1": {
@@ -74,18 +63,7 @@ func TestBrokenRule(t *testing.T) {
 	}
 
 	startProcessStateUpdate, err := test_helpers.StateUpdateTestHelper(&node.ProcessStartTransition{
-		Process: &node.Process{
-			ID:     "proc1",
-			Driver: "test",
-			AppID:  "app1",
-		},
-		App: &node.AppInstallation{
-			ID:   "app1",
-			Name: "appname1",
-			Package: node.Package{
-				Driver: "test",
-			},
-		},
+		AppID: "app1",
 	}, &node.NodeState{
 		AppInstallations: map[string]*node.AppInstallationState{
 			"app1": {

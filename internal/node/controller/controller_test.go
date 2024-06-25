@@ -160,7 +160,8 @@ var nodeState = &node.NodeState{
 	AppInstallations: map[string]*node.AppInstallationState{
 		"app_1": {
 			AppInstallation: &node.AppInstallation{
-				ID: "app_1",
+				ID:     "app_1",
+				UserID: "0",
 			},
 			State: node.AppLifecycleStateInstalled,
 		},
@@ -228,14 +229,7 @@ func TestStartProcessController(t *testing.T) {
 	mockedClient.EXPECT().ProposeTransitions(gomock.Eq(
 		[]hdb.Transition{
 			&node.ProcessStartTransition{
-				Process: &node.Process{
-					ID:     "process_1",
-					AppID:  "app_1",
-					UserID: "user_1",
-				},
-				App: &node.AppInstallation{
-					ID: "app_1",
-				},
+				AppID: "app_1",
 			},
 		},
 	)).Return(nil, nil).Times(1)
@@ -255,11 +249,7 @@ func TestStartProcessController(t *testing.T) {
 		},
 	)).Return(nil, nil).Times(1)
 
-	err = controller.StartProcess(&node.Process{
-		ID:     "process_1",
-		AppID:  "app_1",
-		UserID: "user_1",
-	})
+	err = controller.StartProcess("app_1")
 	assert.Nil(t, err)
 
 	// Test setting the process to running, and then stopping it.
@@ -279,7 +269,6 @@ func TestAddUser(t *testing.T) {
 	mockedClient.EXPECT().ProposeTransitions(gomock.Eq(
 		[]hdb.Transition{
 			&node.AddUserTransition{
-				UserID:      "user_1",
 				Username:    "username_1",
 				Certificate: "cert_1",
 			},
