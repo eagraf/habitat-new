@@ -63,12 +63,20 @@ func (s NodeState) Bytes() ([]byte, error) {
 }
 
 func (s NodeState) GetAppByID(appID string) (*AppInstallationState, error) {
+	app, ok := s.AppInstallations[appID]
+	if !ok {
+		return nil, fmt.Errorf("app with ID %s not found", appID)
+	}
+	return app, nil
+}
+
+func (s NodeState) GetAppByName(appName string) (*AppInstallationState, error) {
 	for _, app := range s.AppInstallations {
-		if app.ID == appID {
+		if app.Name == appName {
 			return app, nil
 		}
 	}
-	return nil, fmt.Errorf("app with ID %s not found", appID)
+	return nil, fmt.Errorf("app with name %s not found", appName)
 }
 
 func (s NodeState) GetAppsForUser(userID string) ([]*AppInstallationState, error) {

@@ -45,7 +45,7 @@ func (s *StateUpdateLogger) ConsumeEvent(event *hdb.StateUpdate) error {
 		s.logger.Info().Msgf("Restoring state for %s", event.DatabaseID)
 		return nil
 	} else {
-		s.logger.Info().Msgf("Applying transition %s to %s", string(event.Transition), event.DatabaseID)
+		s.logger.Info().Msgf("Applying transition %s to %s", string(event.TransitionType()), event.DatabaseID)
 		return nil
 	}
 }

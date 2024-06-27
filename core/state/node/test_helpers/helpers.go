@@ -8,20 +8,23 @@ import (
 )
 
 func StateUpdateTestHelper(transition hdb.Transition, newState *node.NodeState) (*hdb.StateUpdate, error) {
+	stateBytes, err := newState.Bytes()
+	if err != nil {
+		return nil, err
+	}
+	err = transition.Enrich(stateBytes)
 	transBytes, err := json.Marshal(transition)
 	if err != nil {
 		return nil, err
 	}
 
-	stateBytes, err := json.Marshal(newState)
-	if err != nil {
-		return nil, err
-	}
+	updateInternal := node.NewNodeStateUpdateInternal(newState, &hdb.TransitionWrapper{
+		Transition: transBytes,
+		Type:       transition.Type(),
+	})
 
 	return &hdb.StateUpdate{
-		SchemaType:     node.SchemaName,
-		Transition:     transBytes,
-		TransitionType: transition.Type(),
-		NewState:       stateBytes,
+		SchemaType:          node.SchemaName,
+		StateUpdateInternal: updateInternal,
 	}, nil
 }

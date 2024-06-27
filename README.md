@@ -61,6 +61,7 @@ make test-coverage
 ```
 This repository uses [gomock](https://github.com/uber-go/mock) to create mocks in tests. Generally, mocks will be generated with a command looking like this that writes the mock code into a `mocks` package sitting next to where the real code lives:
 ```
+// If you haven't installed before, run $go install go.uber.org/mock/mockgen@latest
 mockgen -source=internal/node/hdb/dbms.go -package mocks > internal/node/hdb/mocks/mock_dbms.go
 ```
 The mocks can be regenerated as needed when the interface they are mocking is changed. 
