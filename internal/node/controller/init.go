@@ -41,12 +41,12 @@ func generatePDSAppConfig(nodeConfig *config.NodeConfig) types.PostAppRequest {
 							Target: "/pds",
 						},
 					},
-					"exposed_ports": []string{"5000"},
+					"exposed_ports": []string{"5001"},
 					"port_bindings": map[nat.Port][]nat.PortBinding{
 						"3000/tcp": {
 							{
 								HostIP:   "0.0.0.0",
-								HostPort: "5000",
+								HostPort: "5001",
 							},
 						},
 					},
@@ -60,7 +60,7 @@ func generatePDSAppConfig(nodeConfig *config.NodeConfig) types.PostAppRequest {
 			{
 				Type:    "redirect",
 				Matcher: "/xrpc",
-				Target:  "http://host.docker.internal:5000/xrpc",
+				Target:  "http://host.docker.internal:5001/xrpc",
 			},
 		},
 	}
