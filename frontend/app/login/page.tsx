@@ -6,21 +6,19 @@ import Cookies from 'js-cookie';
 import './login.css';
 
 const Login = () => {
-    const [email, setEmail] = useState('');
+    const [handle, setHandle] = useState('');
     const [password, setPassword] = useState('');
 
     const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
         // Handle login logic here
-        console.log('Email:', email);
+        console.log('Handle:', handle);
         console.log('Password:', password);
 
         try {
-            const response = await axios.post('http://habitat:3001/xrpc/com.atproto.server.createSession', {
-                email: email,
-                handle: "ethan.test",
+            const response = await axios.post(`${window.location.origin}/xrpc/com.atproto.server.createSession`, {
                 password: password,
-                identifier: "did:plc:3wff4wcyfnjsxd2d2yz3azrj"
+                identifier: handle,
               }, {
                 headers: {
                   'Content-Type': 'application/json',
@@ -45,12 +43,12 @@ const Login = () => {
             <form className="login-form" onSubmit={handleSubmit}>
                 <h2>Login</h2>
                 <div className="form-group">
-                    <label htmlFor="email">Email:</label>
+                    <label htmlFor="handle">Handle:</label>
                     <input
-                        type="email"
-                        id="email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
+                        type="text"
+                        id="handle"
+                        value={handle}
+                        onChange={(e) => setHandle(e.target.value)}
                         required
                     />
                 </div>
