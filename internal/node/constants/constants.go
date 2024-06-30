@@ -3,6 +3,11 @@ package constants
 type HabitatContextKey string
 
 const (
+	// Environment names
+	EnvironmentDev  = "dev"
+	EnvironmentProd = "prod"
+
+	// Default values
 	RootUsername      = "root"
 	RootUserID        = "0"
 	NodeDBDefaultName = "node"
@@ -17,5 +22,6 @@ const (
 	DefaultPortHabitatAPI   = "3000"
 	DefaultPortReverseProxy = "3001"
 
-	DefaultTSNetHostname = "habitat"
+	TSNetHostnameDefault = "habitat"
+	TSNetHostnameDev     = "habitat-dev"
 )

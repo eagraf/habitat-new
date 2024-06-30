@@ -6,7 +6,6 @@ import (
 
 	"github.com/eagraf/habitat-new/core/state/node"
 	"github.com/eagraf/habitat-new/internal/node/config"
-	"github.com/eagraf/habitat-new/internal/node/constants"
 	"github.com/eagraf/habitat-new/internal/node/hdb"
 	"github.com/rs/zerolog"
 
@@ -75,7 +74,7 @@ func (s *ProxyServer) Listener(addr string) (net.Listener, error) {
 		listener = ln
 	} else {
 		tsnet := &tsnet.Server{
-			Hostname: constants.DefaultTSNetHostname,
+			Hostname: s.nodeConfig.Hostname(),
 			Dir:      s.nodeConfig.TailScaleStatePath(),
 			Logf: func(msg string, args ...any) {
 				s.logger.Debug().Msgf(msg, args...)
