@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	types "github.com/eagraf/habitat-new/core/api"
 	"github.com/eagraf/habitat-new/core/state/node"
 	"github.com/eagraf/habitat-new/internal/node/config"
 	"github.com/eagraf/habitat-new/internal/node/constants"
@@ -19,7 +20,7 @@ type NodeController interface {
 	InitializeNodeDB() error
 	MigrateNodeDB(targetVersion string) error
 
-	AddUser(userID, username, certificate string) error
+	AddUser(userID, email, handle, password, certificate string) (types.PDSCreateAccountResponse, error)
 	GetUserByUsername(username string) (*node.User, error)
 
 	InstallApp(userID string, newApp *node.AppInstallation, newProxyRules []*node.ReverseProxyRule) error
@@ -210,19 +211,30 @@ func (c *BaseNodeController) StopProcess(processID string) error {
 	return nil
 }
 
-func (c *BaseNodeController) AddUser(userID, username, certificate string) error {
+func (c *BaseNodeController) AddUser(userID, email, handle, password, certificate string) (types.PDSCreateAccountResponse, error) {
+
+	inviteCode, err := getPDSInviteCode(c.nodeConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := createAccount(c.nodeConfig, email, handle, password, inviteCode)
+	if err != nil {
+		return nil, err
+	}
+
 	dbClient, err := c.databaseManager.GetDatabaseClientByName(constants.NodeDBDefaultName)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	_, err = dbClient.ProposeTransitions([]hdb.Transition{
 		&node.AddUserTransition{
-			Username:    username,
+			Username:    handle,
 			Certificate: certificate,
 		},
 	})
-	return err
+	return resp, err
 }
 
 func (c *BaseNodeController) GetUserByUsername(username string) (*node.User, error) {

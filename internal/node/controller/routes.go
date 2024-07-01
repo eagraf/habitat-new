@@ -212,12 +212,21 @@ func (h *AddUserRoute) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.nodeController.AddUser(req.UserID, req.Username, req.Certificate)
+	pdsResp, err := h.nodeController.AddUser(req.UserID, req.Email, req.Handle, req.Password, req.Certificate)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	// TODO validate request
-	w.WriteHeader(http.StatusCreated)
+	resp := types.PostAddUserResponse{
+		PDSCreateAccountResponse: pdsResp,
+	}
+	respBody, err := json.Marshal(resp)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(respBody)
 }
