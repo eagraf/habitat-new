@@ -131,6 +131,7 @@ func main() {
 	routes := []api.Route{
 		api.NewVersionHandler(),
 		controller.NewGetNodeRoute(db.Manager),
+		controller.NewLoginRoute(&controller.PDSClient{NodeConfig: nodeConfig}),
 		controller.NewAddUserRoute(nodeCtrl),
 		controller.NewInstallAppRoute(nodeCtrl),
 		controller.NewStartProcessHandler(nodeCtrl),

@@ -11,45 +11,23 @@ import (
 	types "github.com/eagraf/habitat-new/core/api"
 
 	"github.com/eagraf/habitat-new/internal/node/config"
-	"github.com/rs/zerolog/log"
 )
 
 type PDSClientI interface {
+	CreateSession(identifier, password string) (types.PDSCreateSessionResponse, error)
 	GetInviteCode(nodeConfig *config.NodeConfig) (string, error)
 	CreateAccount(nodeConfig *config.NodeConfig, email, handle, password, inviteCode string) (types.PDSCreateAccountResponse, error)
 }
 
 type PDSClient struct {
+	NodeConfig *config.NodeConfig
 }
 
 func (p *PDSClient) GetInviteCode(nodeConfig *config.NodeConfig) (string, error) {
-	// Make http request to PDS get invite code endpoint
-	pdsURL := fmt.Sprintf("http://%s:%s/xrpc/com.atproto.server.createInviteCode", "host.docker.internal", "5001")
-
-	req, err := http.NewRequest(http.MethodPost, pdsURL, bytes.NewBuffer([]byte("{\"useCount\": 1}")))
-	if err != nil {
-		return "", err
-	}
-
-	// Add PDS admin authentication info to headers using HTTP Basic Auth.
-	log.Info().Msgf("header: %s", basicAuthHeader(nodeConfig.PDSAdminUsername(), nodeConfig.PDSAdminPassword()))
-	req.Header.Add("Authorization", basicAuthHeader(nodeConfig.PDSAdminUsername(), nodeConfig.PDSAdminPassword()))
-	req.Header.Add("Content-Type", "application/json")
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return "", err
-	}
-
 	// Parse the response body to get the invite code
-	body, err := io.ReadAll(resp.Body)
+	body, err := p.makePDSHttpReq("com.atproto.server.createInviteCode", http.MethodPost, []byte("{\"useCount\": 1}"), true)
 	if err != nil {
 		return "", err
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("PDS returned status code for createInviteCode %d: %s", resp.StatusCode, string(body))
 	}
 
 	var inviteResponse types.PDSInviteCodeResponse
@@ -62,9 +40,6 @@ func (p *PDSClient) GetInviteCode(nodeConfig *config.NodeConfig) (string, error)
 }
 
 func (p *PDSClient) CreateAccount(nodeConfig *config.NodeConfig, email, handle, password, inviteCode string) (types.PDSCreateAccountResponse, error) {
-	// Make http request to PDS create account endpoint
-	pdsURL := fmt.Sprintf("http://%s:%s/xrpc/com.atproto.server.createAccount", "host.docker.internal", "5001")
-
 	reqBody := types.PDSCreateAccountRequest{
 		Email:      email,
 		Handle:     handle,
@@ -77,12 +52,59 @@ func (p *PDSClient) CreateAccount(nodeConfig *config.NodeConfig, email, handle, 
 		return nil, err
 	}
 
-	req, err := http.NewRequest(http.MethodPost, pdsURL, bytes.NewReader([]byte(body)))
+	respBody, err := p.makePDSHttpReq("com.atproto.server.createAccount", http.MethodPost, []byte(body), false)
+	if err != nil {
+		return nil, err
+	}
+
+	var createAccountResponse types.PDSCreateAccountResponse
+	err = json.Unmarshal(respBody, &createAccountResponse)
+	if err != nil {
+		return nil, err
+	}
+
+	return createAccountResponse, nil
+}
+
+func (p *PDSClient) CreateSession(identifier, password string) (types.PDSCreateSessionResponse, error) {
+	reqBody := types.PDSCreateSessionRequest{
+		Identifier: identifier,
+		Password:   password,
+	}
+
+	body, err := json.Marshal(reqBody)
+	if err != nil {
+		return nil, err
+	}
+
+	respBody, err := p.makePDSHttpReq("com.atproto.server.createSession", http.MethodPost, body, false)
+	if err != nil {
+		return nil, err
+	}
+
+	var createSessionResponse types.PDSCreateSessionResponse
+	err = json.Unmarshal(respBody, &createSessionResponse)
+	if err != nil {
+		return nil, err
+	}
+
+	return createSessionResponse, nil
+}
+
+// Helper function to make HTTP requests to PDS
+func (p *PDSClient) makePDSHttpReq(endpoint, method string, body []byte, isAdminReq bool) ([]byte, error) {
+	pdsURL := fmt.Sprintf("http://%s:%s/xrpc/%s", "host.docker.internal", "5001", endpoint)
+
+	req, err := http.NewRequest(method, pdsURL, bytes.NewReader(body))
 	if err != nil {
 		return nil, err
 	}
 
 	req.Header.Add("Content-Type", "application/json")
+	if isAdminReq {
+		authHeader := basicAuthHeader(p.NodeConfig.PDSAdminUsername(), p.NodeConfig.PDSAdminPassword())
+		req.Header.Add("Authorization", authHeader)
+	}
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
@@ -95,17 +117,11 @@ func (p *PDSClient) CreateAccount(nodeConfig *config.NodeConfig, email, handle, 
 		return nil, err
 	}
 
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("PDS returned status code for createAccount %d: %s", resp.StatusCode, string(respBody))
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+		return nil, fmt.Errorf("PDS returned status code %d: %s", resp.StatusCode, string(respBody))
 	}
 
-	var createAccountResponse types.PDSCreateAccountResponse
-	err = json.Unmarshal(respBody, &createAccountResponse)
-	if err != nil {
-		return nil, err
-	}
-
-	return createAccountResponse, nil
+	return respBody, nil
 }
 
 func basicAuthHeader(username, password string) string {

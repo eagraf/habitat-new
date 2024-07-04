@@ -231,3 +231,47 @@ func (h *AddUserRoute) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Write(respBody)
 }
+
+// LoginRoute logs a user in, by proxying to the PDS com.atproto.server.createSession endpoint.
+type LoginRoute struct {
+	pdsClient *PDSClient
+}
+
+func NewLoginRoute(pdsClient *PDSClient) *LoginRoute {
+	return &LoginRoute{
+		pdsClient: pdsClient,
+	}
+}
+
+func (h *LoginRoute) Pattern() string {
+	return "/node/login"
+}
+
+func (h *LoginRoute) Method() string {
+	return http.MethodPost
+}
+
+func (h *LoginRoute) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	var req types.PDSCreateSessionRequest
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	pdsResp, err := h.pdsClient.CreateSession(req.Identifier, req.Password)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	respBody, err := json.Marshal(pdsResp)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(respBody)
+}
