@@ -14,7 +14,15 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-func getPDSInviteCode(nodeConfig *config.NodeConfig) (string, error) {
+type PDSClientI interface {
+	GetInviteCode(nodeConfig *config.NodeConfig) (string, error)
+	CreateAccount(nodeConfig *config.NodeConfig, email, handle, password, inviteCode string) (types.PDSCreateAccountResponse, error)
+}
+
+type PDSClient struct {
+}
+
+func (p *PDSClient) GetInviteCode(nodeConfig *config.NodeConfig) (string, error) {
 	// Make http request to PDS get invite code endpoint
 	pdsURL := fmt.Sprintf("http://%s:%s/xrpc/com.atproto.server.createInviteCode", "host.docker.internal", "5001")
 
@@ -53,12 +61,7 @@ func getPDSInviteCode(nodeConfig *config.NodeConfig) (string, error) {
 	return inviteResponse.Code, nil
 }
 
-func basicAuthHeader(username, password string) string {
-	auth := username + ":" + password
-	return fmt.Sprintf("Basic %s", base64.StdEncoding.EncodeToString([]byte(auth)))
-}
-
-func createAccount(nodeConfig *config.NodeConfig, email, handle, password, inviteCode string) (types.PDSCreateAccountResponse, error) {
+func (p *PDSClient) CreateAccount(nodeConfig *config.NodeConfig, email, handle, password, inviteCode string) (types.PDSCreateAccountResponse, error) {
 	// Make http request to PDS create account endpoint
 	pdsURL := fmt.Sprintf("http://%s:%s/xrpc/com.atproto.server.createAccount", "host.docker.internal", "5001")
 
@@ -103,4 +106,9 @@ func createAccount(nodeConfig *config.NodeConfig, email, handle, password, invit
 	}
 
 	return createAccountResponse, nil
+}
+
+func basicAuthHeader(username, password string) string {
+	auth := username + ":" + password
+	return fmt.Sprintf("Basic %s", base64.StdEncoding.EncodeToString([]byte(auth)))
 }

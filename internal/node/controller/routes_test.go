@@ -244,12 +244,14 @@ func TestAddUserHandler(t *testing.T) {
 
 	b, err := json.Marshal(&types.PostAddUserRequest{
 		UserID:      "myUserID",
-		Username:    "myUsername",
+		Email:       "user@user.com",
+		Handle:      "myUsername",
+		Password:    "password",
 		Certificate: "myCert",
 	})
 	require.NoError(t, err)
 
-	m.EXPECT().AddUser("myUserID", "myUsername", "myCert").Return(nil)
+	m.EXPECT().AddUser("myUserID", "user@user.com", "myUsername", "password", "myCert").Return(map[string]interface{}{}, nil)
 	resp := httptest.NewRecorder()
 	handler.ServeHTTP(
 		resp,
@@ -258,7 +260,7 @@ func TestAddUserHandler(t *testing.T) {
 	require.Equal(t, http.StatusCreated, resp.Result().StatusCode)
 
 	// Test internal server error
-	m.EXPECT().AddUser("myUserID", "myUsername", "myCert").Return(errors.New("error adding user"))
+	m.EXPECT().AddUser("myUserID", "user@user.com", "myUsername", "password", "myCert").Return(map[string]interface{}{}, errors.New("error adding user"))
 	resp = httptest.NewRecorder()
 	handler.ServeHTTP(
 		resp,
@@ -267,7 +269,7 @@ func TestAddUserHandler(t *testing.T) {
 	require.Equal(t, http.StatusInternalServerError, resp.Result().StatusCode)
 
 	// Test invalid request
-	m.EXPECT().AddUser("myUserID", "myUsername", "myCert").Times(0)
+	m.EXPECT().AddUser("myUserID", "user@user.com", "myUsername", "password", "myCert").Times(0)
 	resp = httptest.NewRecorder()
 	handler.ServeHTTP(
 		resp,

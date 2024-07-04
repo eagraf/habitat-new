@@ -8,6 +8,7 @@ import (
 	"github.com/eagraf/habitat-new/core/state/node"
 	"github.com/eagraf/habitat-new/internal/node/config"
 	"github.com/eagraf/habitat-new/internal/node/constants"
+	"github.com/eagraf/habitat-new/internal/node/controller/mocks"
 	"github.com/eagraf/habitat-new/internal/node/hdb"
 	hdb_mocks "github.com/eagraf/habitat-new/internal/node/hdb/mocks"
 	"github.com/stretchr/testify/assert"
@@ -15,8 +16,9 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
-func setupNodeDBTest(ctrl *gomock.Controller, t *testing.T) (NodeController, *hdb_mocks.MockHDBManager, *hdb_mocks.MockClient) {
+func setupNodeDBTest(ctrl *gomock.Controller, t *testing.T) (NodeController, *mocks.MockPDSClientI, *hdb_mocks.MockHDBManager, *hdb_mocks.MockClient) {
 
+	mockedPDSClient := mocks.NewMockPDSClientI(ctrl)
 	mockedManager := hdb_mocks.NewMockHDBManager(ctrl)
 	mockedClient := hdb_mocks.NewMockClient(ctrl)
 
@@ -38,22 +40,24 @@ func setupNodeDBTest(ctrl *gomock.Controller, t *testing.T) (NodeController, *hd
 
 			return mockedClient, nil
 		}).Times(1)
+
 	controller, err := NewNodeController(mockedManager, &config.NodeConfig{
 		RootUserCert: &x509.Certificate{
 			Raw: []byte("root_cert"),
 		},
 	})
+	controller.pdsClient = mockedPDSClient
 	require.Nil(t, err)
 	err = controller.InitializeNodeDB()
 	require.Nil(t, err)
 
-	return controller, mockedManager, mockedClient
+	return controller, mockedPDSClient, mockedManager, mockedClient
 }
 
 func TestInitializeNodeDB(t *testing.T) {
 	ctrl := gomock.NewController(t)
 
-	controller, mockedManager, _ := setupNodeDBTest(ctrl, t)
+	controller, _, mockedManager, _ := setupNodeDBTest(ctrl, t)
 
 	mockedManager.EXPECT().CreateDatabase(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, assert.AnError).Times(1)
 	err := controller.InitializeNodeDB()
@@ -67,7 +71,7 @@ func TestInitializeNodeDB(t *testing.T) {
 func TestMigrationController(t *testing.T) {
 	ctrl := gomock.NewController(t)
 
-	controller, mockedManager, mockClient := setupNodeDBTest(ctrl, t)
+	controller, _, mockedManager, mockClient := setupNodeDBTest(ctrl, t)
 
 	nodeState := &node.State{
 		SchemaVersion: "v0.0.2",
@@ -115,7 +119,7 @@ func TestMigrationController(t *testing.T) {
 func TestInstallAppController(t *testing.T) {
 	ctrl := gomock.NewController(t)
 
-	controller, mockedManager, mockedClient := setupNodeDBTest(ctrl, t)
+	controller, _, mockedManager, mockedClient := setupNodeDBTest(ctrl, t)
 
 	mockedManager.EXPECT().GetDatabaseClientByName(constants.NodeDBDefaultName).Return(mockedClient, nil).Times(1)
 	mockedClient.EXPECT().ProposeTransitions(gomock.Eq(
@@ -171,7 +175,7 @@ var nodeState = &node.State{
 func TestFinishAppInstallationController(t *testing.T) {
 	ctrl := gomock.NewController(t)
 
-	controller, mockedManager, mockedClient := setupNodeDBTest(ctrl, t)
+	controller, _, mockedManager, mockedClient := setupNodeDBTest(ctrl, t)
 
 	mockedManager.EXPECT().GetDatabaseClientByName(constants.NodeDBDefaultName).Return(mockedClient, nil).Times(1)
 	mockedClient.EXPECT().ProposeTransitions(gomock.Eq(
@@ -192,7 +196,7 @@ func TestFinishAppInstallationController(t *testing.T) {
 func TestGetAppByID(t *testing.T) {
 	ctrl := gomock.NewController(t)
 
-	controller, mockedManager, mockedClient := setupNodeDBTest(ctrl, t)
+	controller, _, mockedManager, mockedClient := setupNodeDBTest(ctrl, t)
 
 	marshaledNodeState, err := json.Marshal(nodeState)
 	if err != nil {
@@ -216,7 +220,7 @@ func TestGetAppByID(t *testing.T) {
 func TestStartProcessController(t *testing.T) {
 	ctrl := gomock.NewController(t)
 
-	controller, mockedManager, mockedClient := setupNodeDBTest(ctrl, t)
+	controller, _, mockedManager, mockedClient := setupNodeDBTest(ctrl, t)
 
 	marshaledNodeState, err := json.Marshal(nodeState)
 	if err != nil {
@@ -263,7 +267,11 @@ func TestStartProcessController(t *testing.T) {
 func TestAddUser(t *testing.T) {
 	ctrl := gomock.NewController(t)
 
-	controller, mockedManager, mockedClient := setupNodeDBTest(ctrl, t)
+	controller, mockedPDSClient, mockedManager, mockedClient := setupNodeDBTest(ctrl, t)
+
+	mockedPDSClient.EXPECT().GetInviteCode(gomock.Any()).Return("invite_code", nil).Times(1)
+
+	mockedPDSClient.EXPECT().CreateAccount(gomock.Any(), "user@user.com", "username_1", "password", "invite_code")
 
 	mockedManager.EXPECT().GetDatabaseClientByName(constants.NodeDBDefaultName).Return(mockedClient, nil).Times(1)
 	mockedClient.EXPECT().ProposeTransitions(gomock.Eq(
@@ -275,14 +283,14 @@ func TestAddUser(t *testing.T) {
 		},
 	)).Return(nil, nil).Times(1)
 
-	err := controller.AddUser("user_1", "username_1", "cert_1")
+	_, err := controller.AddUser("user_1", "user@user.com", "username_1", "password", "cert_1")
 	assert.Nil(t, err)
 }
 
 func TestGetUserByUsername(t *testing.T) {
 	ctrl := gomock.NewController(t)
 
-	controller, mockedManager, mockedClient := setupNodeDBTest(ctrl, t)
+	controller, _, mockedManager, mockedClient := setupNodeDBTest(ctrl, t)
 
 	marshaledNodeState, err := json.Marshal(nodeState)
 	if err != nil {

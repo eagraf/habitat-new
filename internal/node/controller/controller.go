@@ -35,12 +35,14 @@ type NodeController interface {
 type BaseNodeController struct {
 	databaseManager hdb.HDBManager
 	nodeConfig      *config.NodeConfig
+	pdsClient       PDSClientI
 }
 
 func NewNodeController(habitatDBManager hdb.HDBManager, config *config.NodeConfig) (*BaseNodeController, error) {
 	controller := &BaseNodeController{
 		databaseManager: habitatDBManager,
 		nodeConfig:      config,
+		pdsClient:       &PDSClient{},
 	}
 	return controller, nil
 }
@@ -213,12 +215,12 @@ func (c *BaseNodeController) StopProcess(processID string) error {
 
 func (c *BaseNodeController) AddUser(userID, email, handle, password, certificate string) (types.PDSCreateAccountResponse, error) {
 
-	inviteCode, err := getPDSInviteCode(c.nodeConfig)
+	inviteCode, err := c.pdsClient.GetInviteCode(c.nodeConfig)
 	if err != nil {
 		return nil, err
 	}
 
-	resp, err := createAccount(c.nodeConfig, email, handle, password, inviteCode)
+	resp, err := c.pdsClient.CreateAccount(c.nodeConfig, email, handle, password, inviteCode)
 	if err != nil {
 		return nil, err
 	}
