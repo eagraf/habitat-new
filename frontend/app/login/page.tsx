@@ -1,41 +1,21 @@
 'use client'
 
 import React, { useState, FormEvent } from 'react';
-import axios from 'axios';
-import Cookies from 'js-cookie';
+import { useRouter } from 'next/navigation';
 import './login.css';
+import { useAuth } from '@/components/authContext';
 
 const Login = () => {
     const [handle, setHandle] = useState('');
     const [password, setPassword] = useState('');
+    const { login } = useAuth();
+
+    const router = useRouter();
 
     const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
-        // Handle login logic here
-        console.log('Handle:', handle);
-        console.log('Password:', password);
-
-        try {
-            const response = await axios.post(`${window.location.origin}/habitat/api/node/login`, {
-                password: password,
-                identifier: handle,
-              }, {
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-            });
-            console.log(response.data);
-
-            const { accessJwt, refreshJwt } = response.data;
-
-
-            // Set the access token in a cookie
-            Cookies.set('access_token', accessJwt, { expires: 7 });
-            Cookies.set('refresh_token', refreshJwt, { expires: 7 });
-
-          } catch (err) {
-            console.error(err);
-          }
+        console.log(handle, password)
+        login(handle, password);
     };
 
     return (
