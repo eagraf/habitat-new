@@ -20,7 +20,7 @@ const Register: React.FC = () => {
         }
 
         try {
-            const response = await axios.post('http://habitat:3001/xrpc/com.atproto.server.createAccount', {
+            const response = await axios.post(`${window.location.origin}/habitat/api/node/users`, {
                 email,
                 handle,
                 password

@@ -16,7 +16,7 @@ const Login = () => {
         console.log('Password:', password);
 
         try {
-            const response = await axios.post(`${window.location.origin}/xrpc/com.atproto.server.createSession`, {
+            const response = await axios.post(`${window.location.origin}/habitat/api/node/login`, {
                 password: password,
                 identifier: handle,
               }, {
