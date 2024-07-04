@@ -224,6 +224,10 @@ func (c *BaseNodeController) AddUser(userID, email, handle, password, certificat
 	if err != nil {
 		return nil, err
 	}
+	userDID := ""
+	if did, ok := resp["did"]; ok {
+		userDID = did.(string)
+	}
 
 	dbClient, err := c.databaseManager.GetDatabaseClientByName(constants.NodeDBDefaultName)
 	if err != nil {
@@ -234,6 +238,7 @@ func (c *BaseNodeController) AddUser(userID, email, handle, password, certificat
 		&node.AddUserTransition{
 			Username:    handle,
 			Certificate: certificate,
+			AtprotoDID:  userDID,
 		},
 	})
 	return resp, err
