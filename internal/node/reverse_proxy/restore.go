@@ -10,7 +10,7 @@ type ReverseProxyRestorer struct {
 	ruleSet RuleSet
 }
 
-func (r *ReverseProxyRestorer) Restore(restoreEvent hdb.StateUpdateInternal) error {
+func (r *ReverseProxyRestorer) Restore(restoreEvent hdb.StateUpdate) error {
 	nodeState := restoreEvent.NewState().(*node.NodeState)
 	for _, process := range nodeState.Processes {
 		rules, err := nodeState.GetReverseProxyRulesForProcess(process.ID)

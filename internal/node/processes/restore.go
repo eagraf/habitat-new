@@ -12,7 +12,7 @@ type ProcessRestorer struct {
 	nodeController controller.NodeController
 }
 
-func (r *ProcessRestorer) Restore(restoreEvent hdb.StateUpdateInternal) error {
+func (r *ProcessRestorer) Restore(restoreEvent hdb.StateUpdate) error {
 
 	nodeState := restoreEvent.NewState().(*node.NodeState)
 	for _, process := range nodeState.Processes {

@@ -70,15 +70,6 @@ func (s NodeState) GetAppByID(appID string) (*AppInstallationState, error) {
 	return app, nil
 }
 
-func (s NodeState) GetAppByName(appName string) (*AppInstallationState, error) {
-	for _, app := range s.AppInstallations {
-		if app.Name == appName {
-			return app, nil
-		}
-	}
-	return nil, fmt.Errorf("app with name %s not found", appName)
-}
-
 func (s NodeState) GetAppsForUser(userID string) ([]*AppInstallationState, error) {
 	apps := make([]*AppInstallationState, 0)
 	for _, app := range s.AppInstallations {

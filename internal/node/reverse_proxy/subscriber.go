@@ -16,12 +16,12 @@ func (e *ProcessProxyRulesExecutor) TransitionType() string {
 	return node.TransitionStartProcess
 }
 
-func (e *ProcessProxyRulesExecutor) ShouldExecute(update hdb.StateUpdateInternal) (bool, error) {
+func (e *ProcessProxyRulesExecutor) ShouldExecute(update hdb.StateUpdate) (bool, error) {
 	// This process is very lightweight, so we can just execute it every time
 	return true, nil
 }
 
-func (e *ProcessProxyRulesExecutor) Execute(update hdb.StateUpdateInternal) error {
+func (e *ProcessProxyRulesExecutor) Execute(update hdb.StateUpdate) error {
 	var processStartTransition node.ProcessStartTransition
 	err := json.Unmarshal(update.Transition(), &processStartTransition)
 	if err != nil {
@@ -44,6 +44,6 @@ func (e *ProcessProxyRulesExecutor) Execute(update hdb.StateUpdateInternal) erro
 
 // TODO remove rule when process is stopped
 
-func (e *ProcessProxyRulesExecutor) PostHook(update hdb.StateUpdateInternal) error {
+func (e *ProcessProxyRulesExecutor) PostHook(update hdb.StateUpdate) error {
 	return nil
 }

@@ -3,14 +3,18 @@ package node
 import "github.com/eagraf/habitat-new/internal/node/hdb"
 
 type NodeStateUpdate struct {
+	// Embed the metadata struct so this fully implements hdb.StateUpdate.
+	*hdb.StateUpdateMetadata
+
 	state             *NodeState
 	transitionWrapper *hdb.TransitionWrapper
 }
 
-func NewNodeStateUpdateInternal(state *NodeState, transitionWrapper *hdb.TransitionWrapper) *NodeStateUpdate {
+func NewNodeStateUpdate(state *NodeState, transitionWrapper *hdb.TransitionWrapper, metadata *hdb.StateUpdateMetadata) *NodeStateUpdate {
 	return &NodeStateUpdate{
-		state:             state,
-		transitionWrapper: transitionWrapper,
+		state:               state,
+		transitionWrapper:   transitionWrapper,
+		StateUpdateMetadata: metadata,
 	}
 }
 

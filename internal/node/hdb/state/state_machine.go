@@ -70,7 +70,7 @@ func (sm *StateMachine) StartListening() {
 					// Only apply state updates if the update index is greater than the restart index.
 					// If the update index is equal to the restart index, then the state update is a
 					// restore message which tells the subscribers to restore everything from the most up to date state.
-					if sm.restartIndex > stateUpdate.Index {
+					if sm.restartIndex > stateUpdate.Index() {
 						continue
 					}
 
@@ -85,12 +85,12 @@ func (sm *StateMachine) StartListening() {
 					}
 					sm.jsonState = jsonState
 
-					if sm.restartIndex == stateUpdate.Index {
+					if sm.restartIndex == stateUpdate.Index() {
 						log.Info().Msgf("Restoring node state")
-						stateUpdate.Restore = true
+						stateUpdate.SetRestore()
 					}
 
-					err = sm.publisher.PublishEvent(&stateUpdate)
+					err = sm.publisher.PublishEvent(stateUpdate)
 					if err != nil {
 						log.Error().Err(err).Msgf("error publishing state update")
 					}

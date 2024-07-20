@@ -17,7 +17,7 @@ func (e *InstallAppExecutor) TransitionType() string {
 	return node.TransitionStartInstallation
 }
 
-func (e *InstallAppExecutor) ShouldExecute(update hdb.StateUpdateInternal) (bool, error) {
+func (e *InstallAppExecutor) ShouldExecute(update hdb.StateUpdate) (bool, error) {
 	var t node.StartInstallationTransition
 	err := json.Unmarshal(update.Transition(), &t)
 	if err != nil {
@@ -35,7 +35,7 @@ func (e *InstallAppExecutor) ShouldExecute(update hdb.StateUpdateInternal) (bool
 	return true, nil
 }
 
-func (e *InstallAppExecutor) Execute(update hdb.StateUpdateInternal) error {
+func (e *InstallAppExecutor) Execute(update hdb.StateUpdate) error {
 	var t node.StartInstallationTransition
 	err := json.Unmarshal(update.Transition(), &t)
 	if err != nil {
@@ -49,7 +49,7 @@ func (e *InstallAppExecutor) Execute(update hdb.StateUpdateInternal) error {
 	return nil
 }
 
-func (e *InstallAppExecutor) PostHook(update hdb.StateUpdateInternal) error {
+func (e *InstallAppExecutor) PostHook(update hdb.StateUpdate) error {
 	var t node.StartInstallationTransition
 	err := json.Unmarshal(update.Transition(), &t)
 	if err != nil {
@@ -76,15 +76,16 @@ func (e *FinishInstallExecutor) TransitionType() string {
 	return node.TransitionFinishInstallation
 }
 
-func (e *FinishInstallExecutor) ShouldExecute(update hdb.StateUpdateInternal) (bool, error) {
+func (e *FinishInstallExecutor) ShouldExecute(update hdb.StateUpdate) (bool, error) {
 	return true, nil
 }
 
-func (e *FinishInstallExecutor) Execute(update hdb.StateUpdateInternal) error {
+func (e *FinishInstallExecutor) Execute(update hdb.StateUpdate) error {
+	// noop
 	return nil
 }
 
-func (e *FinishInstallExecutor) PostHook(update hdb.StateUpdateInternal) error {
+func (e *FinishInstallExecutor) PostHook(update hdb.StateUpdate) error {
 	var t node.FinishInstallationTransition
 	err := json.Unmarshal(update.Transition(), &t)
 	if err != nil {

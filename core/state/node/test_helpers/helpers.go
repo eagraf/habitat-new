@@ -7,7 +7,7 @@ import (
 	"github.com/eagraf/habitat-new/internal/node/hdb"
 )
 
-func StateUpdateTestHelper(transition hdb.Transition, newState *node.NodeState) (*hdb.StateUpdate, error) {
+func StateUpdateTestHelper(transition hdb.Transition, newState *node.NodeState) (hdb.StateUpdate, error) {
 	stateBytes, err := newState.Bytes()
 	if err != nil {
 		return nil, err
@@ -18,13 +18,9 @@ func StateUpdateTestHelper(transition hdb.Transition, newState *node.NodeState) 
 		return nil, err
 	}
 
-	updateInternal := node.NewNodeStateUpdateInternal(newState, &hdb.TransitionWrapper{
+	return node.NewNodeStateUpdate(newState, &hdb.TransitionWrapper{
 		Transition: transBytes,
 		Type:       transition.Type(),
-	})
+	}, hdb.NewStateUpdateMetadata(1000, node.SchemaName, "test_db")), nil
 
-	return &hdb.StateUpdate{
-		SchemaType:          node.SchemaName,
-		StateUpdateInternal: updateInternal,
-	}, nil
 }

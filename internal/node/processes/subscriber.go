@@ -17,7 +17,7 @@ func (e *StartProcessExecutor) TransitionType() string {
 	return node.TransitionStartProcess
 }
 
-func (e *StartProcessExecutor) ShouldExecute(update hdb.StateUpdateInternal) (bool, error) {
+func (e *StartProcessExecutor) ShouldExecute(update hdb.StateUpdate) (bool, error) {
 	var processStartTransition node.ProcessStartTransition
 	err := json.Unmarshal(update.Transition(), &processStartTransition)
 	if err != nil {
@@ -32,7 +32,7 @@ func (e *StartProcessExecutor) ShouldExecute(update hdb.StateUpdateInternal) (bo
 	return false, nil
 }
 
-func (e *StartProcessExecutor) Execute(update hdb.StateUpdateInternal) error {
+func (e *StartProcessExecutor) Execute(update hdb.StateUpdate) error {
 	var processStartTransition node.ProcessStartTransition
 	err := json.Unmarshal(update.Transition(), &processStartTransition)
 	if err != nil {
@@ -59,6 +59,6 @@ func (e *StartProcessExecutor) Execute(update hdb.StateUpdateInternal) error {
 	return nil
 }
 
-func (e *StartProcessExecutor) PostHook(update hdb.StateUpdateInternal) error {
+func (e *StartProcessExecutor) PostHook(update hdb.StateUpdate) error {
 	return nil
 }

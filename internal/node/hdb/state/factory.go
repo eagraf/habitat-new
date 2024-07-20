@@ -48,7 +48,12 @@ func StateMachineFactory(databaseID string, schemaType string, emptyState []byte
 	return stateMachineController, nil
 }
 
-func StateUpdateInternalFactory(schemaType string, stateBytes []byte, transitionWrapper *hdb.TransitionWrapper) (hdb.StateUpdateInternal, error) {
+func StateUpdateInternalFactory(
+	schemaType string,
+	stateBytes []byte,
+	transitionWrapper *hdb.TransitionWrapper,
+	metadata *hdb.StateUpdateMetadata,
+) (hdb.StateUpdate, error) {
 	switch schemaType {
 	case node.SchemaName:
 		var state node.NodeState
@@ -56,7 +61,7 @@ func StateUpdateInternalFactory(schemaType string, stateBytes []byte, transition
 		if err != nil {
 			return nil, err
 		}
-		return node.NewNodeStateUpdateInternal(&state, transitionWrapper), nil
+		return node.NewNodeStateUpdate(&state, transitionWrapper, metadata), nil
 	default:
 		return nil, fmt.Errorf("schema type %s not found", schemaType)
 	}

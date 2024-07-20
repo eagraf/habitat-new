@@ -9,7 +9,7 @@ type PackageManagerRestorer struct {
 	packageManager PackageManager
 }
 
-func (r *PackageManagerRestorer) Restore(restoreEvent hdb.StateUpdateInternal) error {
+func (r *PackageManagerRestorer) Restore(restoreEvent hdb.StateUpdate) error {
 	nodeState := restoreEvent.NewState().(*node.NodeState)
 	for _, app := range nodeState.AppInstallations {
 		// Only try to install the app if it was in the state "installing"

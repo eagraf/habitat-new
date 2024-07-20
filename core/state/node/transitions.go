@@ -2,7 +2,6 @@ package node
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -374,8 +373,7 @@ func (t *FinishInstallationTransition) Validate(oldState []byte) error {
 
 type ProcessStartTransition struct {
 	// Requested data
-	AppID   string
-	AppName string
+	AppID string
 
 	EnrichedData *ProcessStartTransitionEnrichedData
 }
@@ -415,27 +413,9 @@ func (t *ProcessStartTransition) Enrich(oldState []byte) error {
 		return err
 	}
 
-	if t.AppID == "" && t.AppName == "" {
-		return errors.New("no app identifier supplied")
-	}
-
-	if t.AppID != "" && t.AppName != "" {
-		return errors.New("both AppID and AppName supplied, please choose one")
-	}
-
-	var app *AppInstallationState
-	if t.AppName != "" {
-		a, err := oldNode.GetAppByName(t.AppName)
-		if err != nil {
-			return err
-		}
-		app = a
-	} else {
-		a, err := oldNode.GetAppByID(t.AppID)
-		if err != nil {
-			return err
-		}
-		app = a
+	app, err := oldNode.GetAppByID(t.AppID)
+	if err != nil {
+		return err
 	}
 
 	proc := &ProcessState{
