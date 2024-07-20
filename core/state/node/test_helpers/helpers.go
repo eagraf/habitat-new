@@ -13,6 +13,11 @@ func StateUpdateTestHelper(transition hdb.Transition, newState *node.NodeState) 
 		return nil, err
 	}
 	err = transition.Enrich(stateBytes)
+	if err != nil {
+		return nil, err
+
+	}
+
 	transBytes, err := json.Marshal(transition)
 	if err != nil {
 		return nil, err
