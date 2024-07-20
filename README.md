@@ -7,6 +7,8 @@ To run all the code and tooling in this repository, you will need to have the fo
 * golangci-lint: https://golangci-lint.run/usage/install/
 * go-test-coverage: Run `go install github.com/vladopajic/go-test-coverage/v2@latest`
 * Postman: https://www.postman.com/downloads/
+* pnpm: https://pnpm.io/installation
+* NodeJS: https://nodejs.org/en/download/package-manager
 
 ## Local Development
 The local dev setup runs the main Habitat node in a docker container. The code is built inside the container using [Air](https://github.com/cosmtrek/air), which allows for live reloading. To build the dev container, run:
