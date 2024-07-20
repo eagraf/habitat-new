@@ -22,6 +22,8 @@ const (
 	DefaultPortHabitatAPI   = "3000"
 	DefaultPortReverseProxy = "3001"
 
+	PortReverseProxyTSFunnel = "443"
+
 	TSNetHostnameDefault = "habitat"
 	TSNetHostnameDev     = "habitat-dev"
 )

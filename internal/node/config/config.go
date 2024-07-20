@@ -60,6 +60,16 @@ func loadEnv() error {
 		return err
 	}
 
+	err = viper.BindEnv("tailscale_funnel_enabled", "TS_FUNNEL_ENABLED")
+	if err != nil {
+		return err
+	}
+
+	err = viper.BindEnv("domain", "DOMAIN")
+	if err != nil {
+		return err
+	}
+
 	err = viper.BindEnv("frontend_dev", "FRONTEND_DEV")
 	if err != nil {
 		return err
@@ -224,6 +234,22 @@ func (n *NodeConfig) Hostname() string {
 	return "localhost"
 }
 
+// Domain name that hosts this Habitat node, if tailscale funnel is enabled.
+func (n *NodeConfig) Domain() string {
+	if n.TailScaleFunnelEnabled() {
+		return viper.GetString("domain")
+	} else {
+		return ""
+	}
+}
+
+func (n *NodeConfig) ReverseProxyPort() string {
+	if n.TailScaleFunnelEnabled() {
+		return constants.PortReverseProxyTSFunnel
+	}
+	return constants.DefaultPortReverseProxy
+}
+
 // Currently unused, but may be necessary to implement adding members to the community.
 func (n *NodeConfig) TailnetName() string {
 	return viper.GetString("tailnet")
@@ -236,6 +262,14 @@ func (n *NodeConfig) TailscaleAuthkey() string {
 func (n *NodeConfig) TailScaleStatePath() string {
 	// Note: this is intentionally not configurable for simplicity's sake.
 	return filepath.Join(n.HabitatPath(), "tailscale_state")
+}
+
+func (n *NodeConfig) TailScaleFunnelEnabled() bool {
+	if n.TailscaleAuthkey() != "" {
+		return viper.GetBool("tailscale_funnel_enabled")
+	} else {
+		return false
+	}
 }
 
 // TODO @eagraf we probably will eventually need a better secret management system.

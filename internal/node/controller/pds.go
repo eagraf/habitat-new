@@ -93,7 +93,7 @@ func (p *PDSClient) CreateSession(identifier, password string) (types.PDSCreateS
 
 // Helper function to make HTTP requests to PDS
 func (p *PDSClient) makePDSHttpReq(endpoint, method string, body []byte, isAdminReq bool) ([]byte, error) {
-	pdsURL := fmt.Sprintf("http://%s:%s/xrpc/%s", "host.docker.internal", "5001", endpoint)
+	pdsURL := fmt.Sprintf("http://%s:%s/xrpc/%s", "host.docker.internal", "5000", endpoint)
 
 	req, err := http.NewRequest(method, pdsURL, bytes.NewReader(body))
 	if err != nil {

@@ -81,11 +81,19 @@ func (s *ProxyServer) Listener(addr string) (net.Listener, error) {
 			},
 		}
 
-		ln, err := tsnet.Listen("tcp", addr)
-		if err != nil {
-			return nil, err
+		if s.nodeConfig.TailScaleFunnelEnabled() {
+			ln, err := tsnet.ListenFunnel("tcp", addr)
+			if err != nil {
+				return nil, err
+			}
+			listener = ln
+		} else {
+			ln, err := tsnet.Listen("tcp", addr)
+			if err != nil {
+				return nil, err
+			}
+			listener = ln
 		}
-		listener = ln
 	}
 
 	return listener, nil
