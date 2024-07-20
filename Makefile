@@ -33,6 +33,7 @@ clean::
 	rm -rf $(TOPDIR)/bin
 	rm -rf $(TOPDIR)/internal/frontend/build
 	rm -rf $(TOPDIR)/frontend/out
+	rm -rf $(TOPDIR)/frontend/.next
 
 test-coverage:
 	go test ./... -coverprofile=coverage.out -coverpkg=./... -timeout 1s
@@ -115,5 +116,5 @@ $(TOPDIR)/bin/amd64-darwin/habitat-amd64-darwin.tar.gz: $(TOPDIR)/bin/amd64-darw
 # Embed the frontend in the binary
 internal/frontend/build:
 	cd $(TOPDIR)/frontend && npm run build
-	mkdir -p $(TOPDIR)/internal/node/frontend/build
+	mkdir -p $(TOPDIR)/internal/frontend/build
 	cp -r $(TOPDIR)/frontend/out/* $(TOPDIR)/internal/frontend/build
