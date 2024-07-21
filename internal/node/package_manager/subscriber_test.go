@@ -28,7 +28,7 @@ func TestAppInstallSubscriber(t *testing.T) {
 				},
 			},
 		},
-		&node.NodeState{
+		&node.State{
 			Users: map[string]*node.User{
 				"user1": {
 					ID: "user1",
@@ -113,7 +113,7 @@ func TestFinishInstallSubscriber(t *testing.T) {
 			RegistryAppID:          "package1",
 			StartAfterInstallation: true,
 		},
-		&node.NodeState{
+		&node.State{
 			Users: map[string]*node.User{
 				"user1": {
 					ID: "user1",
@@ -172,7 +172,7 @@ func TestFinishInstallSubscriberNoAutoStart(t *testing.T) {
 			RegistryAppID:          "package1",
 			StartAfterInstallation: false,
 		},
-		&node.NodeState{
+		&node.State{
 			Users: map[string]*node.User{
 				"user1": {
 					ID: "user1",

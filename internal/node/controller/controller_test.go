@@ -69,7 +69,7 @@ func TestMigrationController(t *testing.T) {
 
 	controller, mockedManager, mockClient := setupNodeDBTest(ctrl, t)
 
-	nodeState := &node.NodeState{
+	nodeState := &node.State{
 		SchemaVersion: "v0.0.2",
 	}
 	marshaled, err := nodeState.Bytes()
@@ -150,7 +150,7 @@ func TestInstallAppController(t *testing.T) {
 	assert.Nil(t, err)
 }
 
-var nodeState = &node.NodeState{
+var nodeState = &node.State{
 	Users: map[string]*node.User{
 		"user_1": {
 			ID:       "user_1",

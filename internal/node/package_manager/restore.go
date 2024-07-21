@@ -10,7 +10,7 @@ type PackageManagerRestorer struct {
 }
 
 func (r *PackageManagerRestorer) Restore(restoreEvent hdb.StateUpdate) error {
-	nodeState := restoreEvent.NewState().(*node.NodeState)
+	nodeState := restoreEvent.NewState().(*node.State)
 	for _, app := range nodeState.AppInstallations {
 		// Only try to install the app if it was in the state "installing"
 		if app.State == node.AppLifecycleStateInstalling {

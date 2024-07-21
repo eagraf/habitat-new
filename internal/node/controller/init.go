@@ -68,7 +68,7 @@ func generatePDSAppConfig(nodeConfig *config.NodeConfig) types.PostAppRequest {
 
 // TODO this is basically a placeholder until we actually have a way of generating
 // the certificate for the node.
-func generateInitState(nodeConfig *config.NodeConfig) (*node.NodeState, error) {
+func generateInitState(nodeConfig *config.NodeConfig) (*node.State, error) {
 	nodeUUID := uuid.New().String()
 
 	rootCert := nodeConfig.RootUserCertB64()

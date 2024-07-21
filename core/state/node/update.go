@@ -6,11 +6,11 @@ type NodeStateUpdate struct {
 	// Embed the metadata struct so this fully implements hdb.StateUpdate.
 	*hdb.StateUpdateMetadata
 
-	state             *NodeState
+	state             *State
 	transitionWrapper *hdb.TransitionWrapper
 }
 
-func NewNodeStateUpdate(state *NodeState, transitionWrapper *hdb.TransitionWrapper, metadata *hdb.StateUpdateMetadata) *NodeStateUpdate {
+func NewNodeStateUpdate(state *State, transitionWrapper *hdb.TransitionWrapper, metadata *hdb.StateUpdateMetadata) *NodeStateUpdate {
 	return &NodeStateUpdate{
 		state:               state,
 		transitionWrapper:   transitionWrapper,
@@ -30,6 +30,6 @@ func (n *NodeStateUpdate) TransitionType() string {
 	return n.transitionWrapper.Type
 }
 
-func (n *NodeStateUpdate) NodeState() *NodeState {
+func (n *NodeStateUpdate) NodeState() *State {
 	return n.state
 }

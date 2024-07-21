@@ -56,7 +56,7 @@ func StateUpdateInternalFactory(
 ) (hdb.StateUpdate, error) {
 	switch schemaType {
 	case node.SchemaName:
-		var state node.NodeState
+		var state node.State
 		err := json.Unmarshal(stateBytes, &state)
 		if err != nil {
 			return nil, err

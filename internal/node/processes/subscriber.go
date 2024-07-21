@@ -39,7 +39,7 @@ func (e *StartProcessExecutor) Execute(update hdb.StateUpdate) error {
 		return err
 	}
 
-	nodeState := update.NewState().(*node.NodeState)
+	nodeState := update.NewState().(*node.State)
 
 	app, err := nodeState.GetAppByID(processStartTransition.AppID)
 	if err != nil {

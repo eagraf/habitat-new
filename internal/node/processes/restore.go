@@ -14,7 +14,7 @@ type ProcessRestorer struct {
 
 func (r *ProcessRestorer) Restore(restoreEvent hdb.StateUpdate) error {
 
-	nodeState := restoreEvent.NewState().(*node.NodeState)
+	nodeState := restoreEvent.NewState().(*node.State)
 	for _, process := range nodeState.Processes {
 		app, err := nodeState.GetAppByID(process.AppID)
 		if err != nil {

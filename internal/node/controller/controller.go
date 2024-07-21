@@ -70,7 +70,7 @@ func (c *BaseNodeController) MigrateNodeDB(targetVersion string) error {
 		return err
 	}
 
-	var nodeState node.NodeState
+	var nodeState node.State
 	err = json.Unmarshal(dbClient.Bytes(), &nodeState)
 	if err != nil {
 		return nil
@@ -136,7 +136,7 @@ func (c *BaseNodeController) GetAppByID(appID string) (*node.AppInstallation, er
 		return nil, err
 	}
 
-	var nodeState node.NodeState
+	var nodeState node.State
 	err = json.Unmarshal(dbClient.Bytes(), &nodeState)
 	if err != nil {
 		return nil, err
@@ -156,7 +156,7 @@ func (c *BaseNodeController) StartProcess(appID string) error {
 		return err
 	}
 
-	var nodeState node.NodeState
+	var nodeState node.State
 	err = json.Unmarshal(dbClient.Bytes(), &nodeState)
 	if err != nil {
 		return nil
@@ -231,7 +231,7 @@ func (c *BaseNodeController) GetUserByUsername(username string) (*node.User, err
 		return nil, err
 	}
 
-	var nodeState node.NodeState
+	var nodeState node.State
 	err = json.Unmarshal(dbClient.Bytes(), &nodeState)
 	if err != nil {
 		return nil, err

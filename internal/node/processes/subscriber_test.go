@@ -28,7 +28,7 @@ func TestSubscriber(t *testing.T) {
 
 	startProcessStateUpdate, err := test_helpers.StateUpdateTestHelper(&node.ProcessStartTransition{
 		AppID: "app1",
-	}, &node.NodeState{
+	}, &node.State{
 		AppInstallations: map[string]*node.AppInstallationState{
 			"app1": {
 				AppInstallation: &node.AppInstallation{

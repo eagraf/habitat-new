@@ -7,7 +7,7 @@ import (
 	"github.com/eagraf/habitat-new/internal/node/hdb"
 )
 
-func StateUpdateTestHelper(transition hdb.Transition, newState *node.NodeState) (hdb.StateUpdate, error) {
+func StateUpdateTestHelper(transition hdb.Transition, newState *node.State) (hdb.StateUpdate, error) {
 	stateBytes, err := newState.Bytes()
 	if err != nil {
 		return nil, err

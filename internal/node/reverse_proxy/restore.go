@@ -11,7 +11,7 @@ type ReverseProxyRestorer struct {
 }
 
 func (r *ReverseProxyRestorer) Restore(restoreEvent hdb.StateUpdate) error {
-	nodeState := restoreEvent.NewState().(*node.NodeState)
+	nodeState := restoreEvent.NewState().(*node.State)
 	for _, process := range nodeState.Processes {
 		rules, err := nodeState.GetReverseProxyRulesForProcess(process.ID)
 		if err != nil {

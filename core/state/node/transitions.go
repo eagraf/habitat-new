@@ -22,7 +22,7 @@ var (
 )
 
 type InitalizationTransition struct {
-	InitState *NodeState `json:"init_state"`
+	InitState *State `json:"init_state"`
 }
 
 func (t *InitalizationTransition) Type() string {
@@ -73,7 +73,7 @@ func (t *MigrationTransition) Type() string {
 }
 
 func (t *MigrationTransition) Patch(oldState []byte) ([]byte, error) {
-	var oldNode NodeState
+	var oldNode State
 	err := json.Unmarshal(oldState, &oldNode)
 	if err != nil {
 		return nil, err
@@ -92,7 +92,7 @@ func (t *MigrationTransition) Enrich(oldState []byte) error {
 }
 
 func (t *MigrationTransition) Validate(oldState []byte) error {
-	var oldNode NodeState
+	var oldNode State
 	err := json.Unmarshal(oldState, &oldNode)
 	if err != nil {
 		return err
@@ -161,7 +161,7 @@ func (t *AddUserTransition) Enrich(oldState []byte) error {
 
 func (t *AddUserTransition) Validate(oldState []byte) error {
 
-	var oldNode NodeState
+	var oldNode State
 	err := json.Unmarshal(oldState, &oldNode)
 	if err != nil {
 		return err
@@ -200,7 +200,7 @@ func (t *StartInstallationTransition) Type() string {
 }
 
 func (t *StartInstallationTransition) Patch(oldState []byte) ([]byte, error) {
-	var oldNode NodeState
+	var oldNode State
 	err := json.Unmarshal(oldState, &oldNode)
 	if err != nil {
 		return nil, err
@@ -279,7 +279,7 @@ func (t *StartInstallationTransition) Enrich(oldState []byte) error {
 }
 
 func (t *StartInstallationTransition) Validate(oldState []byte) error {
-	var oldNode NodeState
+	var oldNode State
 	err := json.Unmarshal(oldState, &oldNode)
 	if err != nil {
 		return err
@@ -324,7 +324,7 @@ func (t *FinishInstallationTransition) Type() string {
 }
 
 func (t *FinishInstallationTransition) Patch(oldState []byte) ([]byte, error) {
-	var oldNode NodeState
+	var oldNode State
 	err := json.Unmarshal(oldState, &oldNode)
 	if err != nil {
 		return nil, err
@@ -342,7 +342,7 @@ func (t *FinishInstallationTransition) Enrich(oldState []byte) error {
 }
 
 func (t *FinishInstallationTransition) Validate(oldState []byte) error {
-	var oldNode NodeState
+	var oldNode State
 	err := json.Unmarshal(oldState, &oldNode)
 	if err != nil {
 		return err
@@ -388,7 +388,7 @@ func (t *ProcessStartTransition) Type() string {
 }
 
 func (t *ProcessStartTransition) Patch(oldState []byte) ([]byte, error) {
-	var oldNode NodeState
+	var oldNode State
 	err := json.Unmarshal(oldState, &oldNode)
 	if err != nil {
 		return nil, err
@@ -407,7 +407,7 @@ func (t *ProcessStartTransition) Patch(oldState []byte) ([]byte, error) {
 }
 
 func (t *ProcessStartTransition) Enrich(oldState []byte) error {
-	var oldNode NodeState
+	var oldNode State
 	err := json.Unmarshal(oldState, &oldNode)
 	if err != nil {
 		return err
@@ -440,7 +440,7 @@ func (t *ProcessStartTransition) Enrich(oldState []byte) error {
 
 func (t *ProcessStartTransition) Validate(oldState []byte) error {
 
-	var oldNode NodeState
+	var oldNode State
 	err := json.Unmarshal(oldState, &oldNode)
 	if err != nil {
 		return err
@@ -488,7 +488,7 @@ func (t *ProcessRunningTransition) Type() string {
 }
 
 func (t *ProcessRunningTransition) Patch(oldState []byte) ([]byte, error) {
-	var oldNode NodeState
+	var oldNode State
 	err := json.Unmarshal(oldState, &oldNode)
 	if err != nil {
 		return nil, err
@@ -518,7 +518,7 @@ func (t *ProcessRunningTransition) Enrich(oldState []byte) error {
 }
 
 func (t *ProcessRunningTransition) Validate(oldState []byte) error {
-	var oldNode NodeState
+	var oldNode State
 	err := json.Unmarshal(oldState, &oldNode)
 	if err != nil {
 		return err
@@ -545,7 +545,7 @@ func (t *ProcessStopTransition) Type() string {
 }
 
 func (t *ProcessStopTransition) Patch(oldState []byte) ([]byte, error) {
-	var oldNode NodeState
+	var oldNode State
 	err := json.Unmarshal(oldState, &oldNode)
 	if err != nil {
 		return nil, err
@@ -567,7 +567,7 @@ func (t *ProcessStopTransition) Enrich(oldState []byte) error {
 }
 
 func (t *ProcessStopTransition) Validate(oldState []byte) error {
-	var oldNode NodeState
+	var oldNode State
 	err := json.Unmarshal(oldState, &oldNode)
 	if err != nil {
 		return err
