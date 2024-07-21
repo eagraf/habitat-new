@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/eagraf/habitat-new/internal/node/hdb"
 	"github.com/google/uuid"
 )
 
@@ -29,7 +30,7 @@ func (t *InitalizationTransition) Type() string {
 	return TransitionInitialize
 }
 
-func (t *InitalizationTransition) Patch(oldState []byte) ([]byte, error) {
+func (t *InitalizationTransition) Patch(oldState hdb.SerializedState) (hdb.SerializedState, error) {
 	if t.InitState.Users == nil {
 		t.InitState.Users = make(map[string]*User, 0)
 	}
@@ -53,11 +54,11 @@ func (t *InitalizationTransition) Patch(oldState []byte) ([]byte, error) {
 	}]`, marshaled)), nil
 }
 
-func (t *InitalizationTransition) Enrich(oldState []byte) error {
+func (t *InitalizationTransition) Enrich(oldState hdb.SerializedState) error {
 	return nil
 }
 
-func (t *InitalizationTransition) Validate(oldState []byte) error {
+func (t *InitalizationTransition) Validate(oldState hdb.SerializedState) error {
 	if t.InitState == nil {
 		return fmt.Errorf("init state cannot be nil")
 	}
@@ -72,7 +73,7 @@ func (t *MigrationTransition) Type() string {
 	return TransitionMigrationUp
 }
 
-func (t *MigrationTransition) Patch(oldState []byte) ([]byte, error) {
+func (t *MigrationTransition) Patch(oldState hdb.SerializedState) (hdb.SerializedState, error) {
 	var oldNode State
 	err := json.Unmarshal(oldState, &oldNode)
 	if err != nil {
@@ -87,11 +88,11 @@ func (t *MigrationTransition) Patch(oldState []byte) ([]byte, error) {
 	return json.Marshal(patch)
 }
 
-func (t *MigrationTransition) Enrich(oldState []byte) error {
+func (t *MigrationTransition) Enrich(oldState hdb.SerializedState) error {
 	return nil
 }
 
-func (t *MigrationTransition) Validate(oldState []byte) error {
+func (t *MigrationTransition) Validate(oldState hdb.SerializedState) error {
 	var oldNode State
 	err := json.Unmarshal(oldState, &oldNode)
 	if err != nil {
@@ -131,7 +132,7 @@ func (t *AddUserTransition) Type() string {
 	return TransitionAddUser
 }
 
-func (t *AddUserTransition) Patch(oldState []byte) ([]byte, error) {
+func (t *AddUserTransition) Patch(oldState hdb.SerializedState) (hdb.SerializedState, error) {
 
 	user, err := json.Marshal(t.EnrichedData.User)
 	if err != nil {
@@ -145,7 +146,7 @@ func (t *AddUserTransition) Patch(oldState []byte) ([]byte, error) {
 	}]`, t.EnrichedData.User.ID, user)), nil
 }
 
-func (t *AddUserTransition) Enrich(oldState []byte) error {
+func (t *AddUserTransition) Enrich(oldState hdb.SerializedState) error {
 
 	id := uuid.New().String()
 
@@ -159,7 +160,7 @@ func (t *AddUserTransition) Enrich(oldState []byte) error {
 	return nil
 }
 
-func (t *AddUserTransition) Validate(oldState []byte) error {
+func (t *AddUserTransition) Validate(oldState hdb.SerializedState) error {
 
 	var oldNode State
 	err := json.Unmarshal(oldState, &oldNode)
@@ -199,7 +200,7 @@ func (t *StartInstallationTransition) Type() string {
 	return TransitionStartInstallation
 }
 
-func (t *StartInstallationTransition) Patch(oldState []byte) ([]byte, error) {
+func (t *StartInstallationTransition) Patch(oldState hdb.SerializedState) (hdb.SerializedState, error) {
 	var oldNode State
 	err := json.Unmarshal(oldState, &oldNode)
 	if err != nil {
@@ -244,7 +245,7 @@ func (t *StartInstallationTransition) Patch(oldState []byte) ([]byte, error) {
 	]`, t.EnrichedData.AppState.ID, string(marshalledApp), rules)), nil
 }
 
-func (t *StartInstallationTransition) Enrich(oldState []byte) error {
+func (t *StartInstallationTransition) Enrich(oldState hdb.SerializedState) error {
 	id := uuid.New().String()
 	appInstallState := &AppInstallationState{
 		AppInstallation: &AppInstallation{
@@ -278,7 +279,7 @@ func (t *StartInstallationTransition) Enrich(oldState []byte) error {
 	return nil
 }
 
-func (t *StartInstallationTransition) Validate(oldState []byte) error {
+func (t *StartInstallationTransition) Validate(oldState hdb.SerializedState) error {
 	var oldNode State
 	err := json.Unmarshal(oldState, &oldNode)
 	if err != nil {
@@ -323,7 +324,7 @@ func (t *FinishInstallationTransition) Type() string {
 	return TransitionFinishInstallation
 }
 
-func (t *FinishInstallationTransition) Patch(oldState []byte) ([]byte, error) {
+func (t *FinishInstallationTransition) Patch(oldState hdb.SerializedState) (hdb.SerializedState, error) {
 	var oldNode State
 	err := json.Unmarshal(oldState, &oldNode)
 	if err != nil {
@@ -337,11 +338,11 @@ func (t *FinishInstallationTransition) Patch(oldState []byte) ([]byte, error) {
 	}]`, t.AppID, AppLifecycleStateInstalled)), nil
 }
 
-func (t *FinishInstallationTransition) Enrich(oldState []byte) error {
+func (t *FinishInstallationTransition) Enrich(oldState hdb.SerializedState) error {
 	return nil
 }
 
-func (t *FinishInstallationTransition) Validate(oldState []byte) error {
+func (t *FinishInstallationTransition) Validate(oldState hdb.SerializedState) error {
 	var oldNode State
 	err := json.Unmarshal(oldState, &oldNode)
 	if err != nil {
@@ -387,7 +388,7 @@ func (t *ProcessStartTransition) Type() string {
 	return TransitionStartProcess
 }
 
-func (t *ProcessStartTransition) Patch(oldState []byte) ([]byte, error) {
+func (t *ProcessStartTransition) Patch(oldState hdb.SerializedState) (hdb.SerializedState, error) {
 	var oldNode State
 	err := json.Unmarshal(oldState, &oldNode)
 	if err != nil {
@@ -406,7 +407,7 @@ func (t *ProcessStartTransition) Patch(oldState []byte) ([]byte, error) {
 		}]`, t.EnrichedData.Process.ID, marshaled)), nil
 }
 
-func (t *ProcessStartTransition) Enrich(oldState []byte) error {
+func (t *ProcessStartTransition) Enrich(oldState hdb.SerializedState) error {
 	var oldNode State
 	err := json.Unmarshal(oldState, &oldNode)
 	if err != nil {
@@ -438,7 +439,7 @@ func (t *ProcessStartTransition) Enrich(oldState []byte) error {
 	return nil
 }
 
-func (t *ProcessStartTransition) Validate(oldState []byte) error {
+func (t *ProcessStartTransition) Validate(oldState hdb.SerializedState) error {
 
 	var oldNode State
 	err := json.Unmarshal(oldState, &oldNode)
@@ -487,7 +488,7 @@ func (t *ProcessRunningTransition) Type() string {
 	return TransitionProcessRunning
 }
 
-func (t *ProcessRunningTransition) Patch(oldState []byte) ([]byte, error) {
+func (t *ProcessRunningTransition) Patch(oldState hdb.SerializedState) (hdb.SerializedState, error) {
 	var oldNode State
 	err := json.Unmarshal(oldState, &oldNode)
 	if err != nil {
@@ -513,11 +514,11 @@ func (t *ProcessRunningTransition) Patch(oldState []byte) ([]byte, error) {
 	}]`, t.ProcessID, marshaled)), nil
 }
 
-func (t *ProcessRunningTransition) Enrich(oldState []byte) error {
+func (t *ProcessRunningTransition) Enrich(oldState hdb.SerializedState) error {
 	return nil
 }
 
-func (t *ProcessRunningTransition) Validate(oldState []byte) error {
+func (t *ProcessRunningTransition) Validate(oldState hdb.SerializedState) error {
 	var oldNode State
 	err := json.Unmarshal(oldState, &oldNode)
 	if err != nil {
@@ -544,7 +545,7 @@ func (t *ProcessStopTransition) Type() string {
 	return TransitionStopProcess
 }
 
-func (t *ProcessStopTransition) Patch(oldState []byte) ([]byte, error) {
+func (t *ProcessStopTransition) Patch(oldState hdb.SerializedState) (hdb.SerializedState, error) {
 	var oldNode State
 	err := json.Unmarshal(oldState, &oldNode)
 	if err != nil {
@@ -562,11 +563,11 @@ func (t *ProcessStopTransition) Patch(oldState []byte) ([]byte, error) {
 	}]`, t.ProcessID)), nil
 }
 
-func (t *ProcessStopTransition) Enrich(oldState []byte) error {
+func (t *ProcessStopTransition) Enrich(oldState hdb.SerializedState) error {
 	return nil
 }
 
-func (t *ProcessStopTransition) Validate(oldState []byte) error {
+func (t *ProcessStopTransition) Validate(oldState hdb.SerializedState) error {
 	var oldNode State
 	err := json.Unmarshal(oldState, &oldNode)
 	if err != nil {
