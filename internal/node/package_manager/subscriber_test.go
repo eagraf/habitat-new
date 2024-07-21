@@ -155,12 +155,10 @@ func TestFinishInstallSubscriber(t *testing.T) {
 	assert.Equal(t, true, should)
 
 	// Test that executing is a no-op
+	nc.EXPECT().StartProcess(gomock.Eq("app1")).Return(nil).Times(1)
 	err = finishAppInstallExecutor.Execute(stateUpdate)
 	assert.Nil(t, err)
 
-	// Test that we start the process.
-
-	nc.EXPECT().StartProcess(gomock.Eq("app1")).Return(nil).Times(1)
 	err = finishAppInstallExecutor.PostHook(stateUpdate)
 	assert.Nil(t, err)
 }
@@ -215,13 +213,12 @@ func TestFinishInstallSubscriberNoAutoStart(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, true, should)
 
-	// Test that executing is a no-op
+	nc.EXPECT().StartProcess(gomock.Eq("app1")).Return(nil).Times(0)
 	err = finishAppInstallExecutor.Execute(stateUpdate)
 	assert.Nil(t, err)
 
 	// Test that we start the process.
 
-	nc.EXPECT().StartProcess(gomock.Eq("app1")).Return(nil).Times(0)
 	err = finishAppInstallExecutor.PostHook(stateUpdate)
 	assert.Nil(t, err)
 }

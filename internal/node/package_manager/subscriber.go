@@ -67,7 +67,6 @@ func (e *InstallAppExecutor) PostHook(update hdb.StateUpdate) error {
 }
 
 // FinishInstallExecutor is a state update executor that finishes the installation of an application.
-// Currently it is just run for it's PostHook, which will try to start the app if StartAfterInstallation is set.
 type FinishInstallExecutor struct {
 	nodeController controller.NodeController
 }
@@ -81,11 +80,6 @@ func (e *FinishInstallExecutor) ShouldExecute(update hdb.StateUpdate) (bool, err
 }
 
 func (e *FinishInstallExecutor) Execute(update hdb.StateUpdate) error {
-	// noop
-	return nil
-}
-
-func (e *FinishInstallExecutor) PostHook(update hdb.StateUpdate) error {
 	var t node.FinishInstallationTransition
 	err := json.Unmarshal(update.Transition(), &t)
 	if err != nil {
@@ -99,6 +93,11 @@ func (e *FinishInstallExecutor) PostHook(update hdb.StateUpdate) error {
 		}
 	}
 
+	return nil
+}
+
+func (e *FinishInstallExecutor) PostHook(update hdb.StateUpdate) error {
+	// noop
 	return nil
 }
 
