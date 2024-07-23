@@ -8,6 +8,10 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/bluesky-social/indigo/carstore"
+	"github.com/bluesky-social/indigo/pds"
+	"github.com/bluesky-social/indigo/plc"
+	"github.com/bluesky-social/indigo/util/cliutil"
 	"github.com/eagraf/habitat-new/internal/frontend"
 	"github.com/eagraf/habitat-new/internal/node/api"
 	"github.com/eagraf/habitat-new/internal/node/config"
@@ -26,6 +30,8 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/sync/errgroup"
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
 )
 
 func main() {
@@ -172,6 +178,21 @@ func main() {
 		),
 	)
 
+	pdsUrl, err := url.Parse(fmt.Sprintf("http://localhost:%s", constants.DefaultPortPds))
+	pdsServer, err := newPds(pdsUrl.Host)
+	proxy.Rules.Add("PDS", &reverse_proxy.RedirectRule{
+		ForwardLocation: pdsUrl,
+		Matcher:         "/pds",
+	})
+	if err != nil {
+		log.Fatal().Err(fmt.Errorf("error creating PDS server: %v", err))
+	}
+	eg.Go(
+		func() error {
+			return pdsServer.RunAPI(":4989")
+		},
+	)
+
 	frontendProxyRule, err := frontend.NewFrontendProxyRule(nodeConfig)
 	if err != nil {
 		log.Fatal().Err(fmt.Errorf("error getting frontend proxy rule: %v", err))
@@ -212,4 +233,49 @@ func main() {
 		log.Err(err).Msg("received error on eg.Wait()")
 	}
 	log.Info().Msg("Finished!")
+}
+
+func newPds(host string) (*pds.Server, error) {
+	db, err := gorm.Open(sqlite.Open("test.db"), &gorm.Config{
+		SkipDefaultTransaction: true,
+		TranslateError:         true,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	csdb, err := gorm.Open(sqlite.Open("test.db"), &gorm.Config{
+		SkipDefaultTransaction: true,
+		TranslateError:         true,
+	})
+	if err != nil {
+		return nil, err
+	}
+	cstore, err := carstore.NewCarStore(csdb, "/pds/carstore")
+	if err != nil {
+		return nil, err
+	}
+
+	key, err := cliutil.LoadKeyFromFile("/pds/pds.key")
+	if err != nil {
+		return nil, err
+	}
+
+	didr := plc.NewFakeDid(db)
+
+	srv, err := pds.NewServer(
+		db,
+		cstore,
+		key,
+		".test",
+		host,
+		didr,
+		[]byte("bd6df801372d7058e1ce472305d7fc2e"),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return srv, nil
+
 }
