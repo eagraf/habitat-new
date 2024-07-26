@@ -55,6 +55,21 @@ func (mr *MockPDSClientIMockRecorder) CreateAccount(nodeConfig, email, handle, p
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateAccount", reflect.TypeOf((*MockPDSClientI)(nil).CreateAccount), nodeConfig, email, handle, password, inviteCode)
 }
 
+// CreateSession mocks base method.
+func (m *MockPDSClientI) CreateSession(identifier, password string) (types.PDSCreateSessionResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CreateSession", identifier, password)
+	ret0, _ := ret[0].(types.PDSCreateSessionResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CreateSession indicates an expected call of CreateSession.
+func (mr *MockPDSClientIMockRecorder) CreateSession(identifier, password any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateSession", reflect.TypeOf((*MockPDSClientI)(nil).CreateSession), identifier, password)
+}
+
 // GetInviteCode mocks base method.
 func (m *MockPDSClientI) GetInviteCode(nodeConfig *config.NodeConfig) (string, error) {
 	m.ctrl.T.Helper()

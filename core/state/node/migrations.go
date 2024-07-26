@@ -337,10 +337,10 @@ var NodeDataMigrations = MigrationsList{
 	&basicDataMigration{
 		upVersion:   "v0.0.5",
 		downVersion: "v0.0.4",
-		up: func(state *NodeState) (*NodeState, error) {
+		up: func(state *State) (*State, error) {
 			return state, nil
 		},
-		down: func(state *NodeState) (*NodeState, error) {
+		down: func(state *State) (*State, error) {
 			newState, err := state.Copy()
 			if err != nil {
 				return nil, err
