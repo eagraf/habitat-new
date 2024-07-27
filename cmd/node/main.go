@@ -13,7 +13,8 @@ import (
 	"github.com/eagraf/habitat-new/internal/node/config"
 	"github.com/eagraf/habitat-new/internal/node/constants"
 	"github.com/eagraf/habitat-new/internal/node/controller"
-	"github.com/eagraf/habitat-new/internal/node/docker"
+	"github.com/eagraf/habitat-new/internal/node/drivers/docker"
+	"github.com/eagraf/habitat-new/internal/node/drivers/web"
 	"github.com/eagraf/habitat-new/internal/node/hdb"
 	"github.com/eagraf/habitat-new/internal/node/hdb/hdbms"
 	"github.com/eagraf/habitat-new/internal/node/logging"
@@ -48,14 +49,23 @@ func main() {
 		log.Fatal().Err(err)
 	}
 
+	// Initialize application drivers
 	dockerDriver, err := docker.NewDockerDriver()
+	if err != nil {
+		log.Fatal().Err(err)
+	}
+
+	webDriver, err := web.NewWebDriver(nodeConfig)
 	if err != nil {
 		log.Fatal().Err(err)
 	}
 
 	stateLogger := hdbms.NewStateUpdateLogger(logger)
 	appLifecycleSubscriber, err := package_manager.NewAppLifecycleSubscriber(
-		dockerDriver.PackageManager,
+		map[string]package_manager.PackageManager{
+			constants.AppDriverDocker: dockerDriver.PackageManager,
+			constants.AppDriverWeb:    webDriver.PackageManager,
+		},
 		nodeCtrl,
 	)
 	if err != nil {
