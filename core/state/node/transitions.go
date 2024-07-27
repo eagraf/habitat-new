@@ -304,11 +304,11 @@ func (t *StartInstallationTransition) Validate(oldState hdb.SerializedState) err
 	}
 
 	// Look for matching registry URL and package ID
-	for _, app := range oldNode.AppInstallations {
-		if app.RegistryURLBase == t.RegistryURLBase && app.RegistryPackageID == t.RegistryPackageID {
-			return fmt.Errorf("app %s for user %s found in state with different version %s", app.Name, t.UserID, app.Version)
-		}
-	}
+	//	for _, app := range oldNode.AppInstallations {
+	//if app.RegistryURLBase == t.RegistryURLBase && app.RegistryPackageID == t.RegistryPackageID {
+	//return fmt.Errorf("app %s for user %s found in state with different version %s", app.Name, t.UserID, app.Version)
+	//}
+	//}
 
 	return nil
 }
