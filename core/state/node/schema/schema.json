@@ -38,7 +38,7 @@
                     "version": { "type": "string" },
                     "driver": {
                         "type": "string",
-                        "enum": [ "docker" ]
+                        "enum": [ "docker", "web" ]
                     },
                     "driver_config": {
                         "type": "object"
@@ -65,7 +65,7 @@
                     "user_id": { "type": "string" },
                     "driver": {
                         "type": "string",
-                        "enum": [ "docker" ]
+                        "enum": [ "docker", "web" ]
                     },
                     "created": { "type": "string" },
                     "state": { "type": "string" },
