@@ -14,6 +14,7 @@ import (
 	"github.com/eagraf/habitat-new/internal/node/config"
 	"github.com/eagraf/habitat-new/internal/node/constants"
 	"github.com/eagraf/habitat-new/internal/node/package_manager"
+	"github.com/rs/zerolog/log"
 )
 
 type WebBundleInstallationConfig struct {
@@ -33,9 +34,14 @@ func (d *AppDriver) Driver() string {
 	return constants.AppDriverWeb
 }
 
-func (d *AppDriver) IsInstalled(packageSpec *node.Package, version string) (bool, error) {
+func (d *AppDriver) IsInstalled(pkg *node.Package, version string) (bool, error) {
 	// Check for the existence of the bundle directory with the right version.
-	bundlePath := d.getBundlePath(packageSpec, version)
+	bundleConfig, err := getWebBundleConfigFromPackage(pkg)
+	if err != nil {
+		return false, err
+	}
+	log.Info().Msgf("Installing web package %s@%s", bundleConfig.DownloadURL, version)
+	bundlePath := d.getBundlePath(bundleConfig, version)
 
 	if _, err := os.Stat(bundlePath); os.IsNotExist(err) {
 		return false, nil
@@ -65,7 +71,9 @@ func (d *AppDriver) InstallPackage(packageSpec *node.Package, version string) er
 		return err
 	}
 
-	bundlePath := d.getBundlePath(packageSpec, version)
+	log.Info().Msgf("Installing web package %s@%s", bundleConfig.DownloadURL, version)
+
+	bundlePath := d.getBundlePath(bundleConfig, version)
 	err = downloadAndExtractWebBundle(bundleConfig.DownloadURL, bundlePath)
 	if err != nil {
 		return err
@@ -75,7 +83,11 @@ func (d *AppDriver) InstallPackage(packageSpec *node.Package, version string) er
 }
 
 func (d *AppDriver) UninstallPackage(pkg *node.Package, version string) error {
-	bundlePath := d.getBundlePath(pkg, version)
+	bundleConfig, err := getWebBundleConfigFromPackage(pkg)
+	if err != nil {
+		return err
+	}
+	bundlePath := d.getBundlePath(bundleConfig, version)
 
 	if _, err := os.Stat(bundlePath); os.IsNotExist(err) {
 		return nil
@@ -84,8 +96,8 @@ func (d *AppDriver) UninstallPackage(pkg *node.Package, version string) error {
 	return os.RemoveAll(bundlePath)
 }
 
-func (d *AppDriver) getBundlePath(pkg *node.Package, version string) string {
-	return filepath.Join(d.config.WebBundlePath(), pkg.RegistryPackageID, version)
+func (d *AppDriver) getBundlePath(bundleConfig *WebBundleInstallationConfig, version string) string {
+	return filepath.Join(d.config.WebBundlePath(), bundleConfig.BundleDirectoryName, version)
 }
 
 func NewWebDriver(config *config.NodeConfig) (*WebDriver, error) {
@@ -111,14 +123,7 @@ func getWebBundleConfigFromPackage(pkg *node.Package) (*WebBundleInstallationCon
 	return &bundleConfig, nil
 }
 
-// Download a .tar.gz file from the specified URL.
-func downloadAndExtractWebBundle(downloadURL string, bundleDestPath string) error {
-	resp, err := http.Get(downloadURL)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
+func downloadAndExtractWebBundle(downloadURL string, bundlePath string) error {
 	// Create a temporary directory to store the bundle
 	tempDir, err := os.MkdirTemp("", "habitat-web-bundle-*")
 	if err != nil {
@@ -126,9 +131,41 @@ func downloadAndExtractWebBundle(downloadURL string, bundleDestPath string) erro
 	}
 	defer os.RemoveAll(tempDir)
 
+	// Path to temporary file we download.
+	tmpFile := filepath.Join(tempDir, "bundle.tar.gz")
+
+	// Create the destination directory
+	err = os.MkdirAll(bundlePath, 0755)
+	if err != nil {
+		return err
+	}
+
+	// Download the bundle to a temp dir.
+	err = downloadWebBundle(downloadURL, tmpFile)
+	if err != nil {
+		return err
+	}
+
+	// Extract the bundle into the specified directory
+	err = extractTarGz(tmpFile, bundlePath)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Download a .tar.gz file from the specified URL.
+func downloadWebBundle(downloadURL string, tmpFile string) error {
+	log.Debug().Msgf("Downloading bundle from %s to %s", downloadURL, tmpFile)
+	resp, err := http.Get(downloadURL)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
 	// Create a file to save the downloaded bundle
-	archivePath := filepath.Join(tempDir, "bundle.tar.gz")
-	bundleFile, err := os.Create(archivePath)
+	bundleFile, err := os.Create(tmpFile)
 	if err != nil {
 		return err
 	}
@@ -140,16 +177,15 @@ func downloadAndExtractWebBundle(downloadURL string, bundleDestPath string) erro
 		return err
 	}
 
-	// Extract the bundle into the specified directory
-	err = extractTarGz(bundleFile, bundleDestPath)
-	if err != nil {
-		return err
-	}
-
 	return nil
 }
 
-func extractTarGz(r io.Reader, destPath string) error {
+func extractTarGz(tarPath, destPath string) error {
+	r, err := os.Open(tarPath)
+	if err != nil {
+		return err
+	}
+	defer r.Close()
 
 	gzr, err := gzip.NewReader(r)
 	if err != nil {
