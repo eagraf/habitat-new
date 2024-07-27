@@ -63,6 +63,10 @@ type AppDriver struct {
 	client *client.Client
 }
 
+func (d *AppDriver) Driver() string {
+	return constants.AppDriverDocker
+}
+
 func (d *AppDriver) IsInstalled(packageSpec *node.Package, version string) (bool, error) {
 	// TODO review all contexts we create.
 	images, err := d.client.ImageList(context.Background(), types.ImageListOptions{
@@ -78,7 +82,7 @@ func (d *AppDriver) IsInstalled(packageSpec *node.Package, version string) (bool
 
 // Implement the package manager interface
 func (d *AppDriver) InstallPackage(packageSpec *node.Package, version string) error {
-	if packageSpec.Driver != "docker" {
+	if packageSpec.Driver != constants.AppDriverDocker {
 		return fmt.Errorf("invalid package driver: %s, expected docker", packageSpec.Driver)
 	}
 
