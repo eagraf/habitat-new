@@ -89,7 +89,7 @@ func main() {
 	proxy := reverse_proxy.NewProxyServer(logger, nodeConfig)
 
 	proxyRuleStateUpdateSubscriber, err := reverse_proxy.NewProcessProxyRuleStateUpdateSubscriber(
-		proxy.Rules,
+		proxy.RuleSet,
 	)
 	if err != nil {
 		log.Fatal().Err(err)
@@ -157,7 +157,7 @@ func main() {
 	if err != nil {
 		log.Fatal().Err(fmt.Errorf("error parsing Habitat API URL: %v", err))
 	}
-	err = proxy.Rules.Add("Habitat API", &reverse_proxy.RedirectRule{
+	err = proxy.RuleSet.Add("Habitat API", &reverse_proxy.RedirectRule{
 		ForwardLocation: url,
 		Matcher:         "/habitat/api",
 	})
@@ -177,7 +177,7 @@ func main() {
 		log.Fatal().Err(fmt.Errorf("error getting frontend proxy rule: %v", err))
 	}
 
-	err = proxy.Rules.Add("Frontend", frontendProxyRule)
+	err = proxy.RuleSet.Add("Frontend", frontendProxyRule)
 	if err != nil {
 		log.Fatal().Err(fmt.Errorf("error adding frontend proxy rule: %v", err))
 	}
