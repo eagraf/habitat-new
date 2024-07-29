@@ -72,7 +72,7 @@ func main() {
 		log.Fatal().Err(err)
 	}
 
-	pm := processes.NewProcessManager([]processes.ProcessDriver{dockerDriver.ProcessDriver})
+	pm := processes.NewProcessManager([]processes.ProcessDriver{dockerDriver.ProcessDriver, webDriver.ProcessDriver})
 	pmSub, err := processes.NewProcessManagerStateUpdateSubscriber(pm, nodeCtrl)
 	if err != nil {
 		log.Fatal().Err(err)
