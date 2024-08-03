@@ -12,8 +12,8 @@ import (
 )
 
 const SchemaName = "node"
-const CurrentVersion = "v0.0.4"
-const LatestVersion = "v0.0.4"
+const CurrentVersion = "v0.0.5"
+const LatestVersion = "v0.0.5"
 
 //go:embed schema/schema.json
 var nodeSchemaRaw string

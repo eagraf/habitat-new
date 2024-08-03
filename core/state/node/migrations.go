@@ -123,7 +123,7 @@ func compareSchemas(expected, actual string) error {
 	}
 
 	if len(patch) > 0 {
-		return fmt.Errorf("schemas are not equal: %s", patch)
+		return fmt.Errorf("schemas are not equal, here is the diff patch: %s", patch)
 	}
 
 	return nil
@@ -331,6 +331,24 @@ var NodeDataMigrations = MigrationsList{
 				appInstallation.DriverConfig = nil
 			}
 			newState.ReverseProxyRules = nil
+			return newState, nil
+		},
+	},
+	&basicDataMigration{
+		upVersion:   "v0.0.5",
+		downVersion: "v0.0.4",
+		up: func(state *State) (*State, error) {
+			newState, err := state.Copy()
+			if err != nil {
+				return nil, err
+			}
+			return newState, nil
+		},
+		down: func(state *State) (*State, error) {
+			newState, err := state.Copy()
+			if err != nil {
+				return nil, err
+			}
 			return newState, nil
 		},
 	},

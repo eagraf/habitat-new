@@ -13,7 +13,7 @@ import (
 	"tailscale.com/tsnet"
 )
 
-func NewProcessProxyRuleStateUpdateSubscriber(ruleSet RuleSet) (*hdb.IdempotentStateUpdateSubscriber, error) {
+func NewProcessProxyRuleStateUpdateSubscriber(ruleSet *RuleSet) (*hdb.IdempotentStateUpdateSubscriber, error) {
 	return hdb.NewIdempotentStateUpdateSubscriber(
 		"ProcessProxyRulesSubscriber",
 		node.SchemaName,
@@ -31,23 +31,37 @@ func NewProcessProxyRuleStateUpdateSubscriber(ruleSet RuleSet) (*hdb.IdempotentS
 type ProxyServer struct {
 	logger     *zerolog.Logger
 	nodeConfig *config.NodeConfig
-	Rules      RuleSet
+	RuleSet    *RuleSet
 }
 
 func NewProxyServer(logger *zerolog.Logger, config *config.NodeConfig) *ProxyServer {
 	return &ProxyServer{
-		logger:     logger,
-		Rules:      make(RuleSet),
+		logger: logger,
+		RuleSet: &RuleSet{
+			rules:        make(map[string]RuleHandler),
+			baseFilePath: config.WebBundlePath(),
+		},
 		nodeConfig: config,
 	}
 }
 
 func (s *ProxyServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	for _, rule := range s.Rules {
+	var bestMatch RuleHandler = nil
+	// Find the matching rule with the highest "rank", aka the most slashes '/' in the URL path.
+	highestRank := -1
+	for _, rule := range s.RuleSet.rules {
 		if rule.Match(r.URL) {
-			rule.Handler().ServeHTTP(w, r)
-			return
+			if rule.Rank() > highestRank {
+				bestMatch = rule
+				highestRank = rule.Rank()
+			}
 		}
+	}
+
+	// Serve the handler with the best matching rule.
+	if bestMatch != nil {
+		bestMatch.Handler().ServeHTTP(w, r)
+		return
 	}
 	// No rules matched
 	w.WriteHeader(http.StatusNotFound)

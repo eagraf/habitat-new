@@ -63,11 +63,16 @@ type AppDriver struct {
 	client *client.Client
 }
 
+func (d *AppDriver) Driver() string {
+	return constants.AppDriverDocker
+}
+
 func (d *AppDriver) IsInstalled(packageSpec *node.Package, version string) (bool, error) {
 	// TODO review all contexts we create.
+	repoURL := repoURLFromPackage(packageSpec, version)
 	images, err := d.client.ImageList(context.Background(), types.ImageListOptions{
 		Filters: filters.NewArgs(
-			filters.Arg("reference", fmt.Sprintf("%s/%s:%s", packageSpec.RegistryURLBase, packageSpec.RegistryPackageID, packageSpec.RegistryPackageTag)),
+			filters.Arg("reference", repoURL),
 		),
 	})
 	if err != nil {
@@ -78,21 +83,23 @@ func (d *AppDriver) IsInstalled(packageSpec *node.Package, version string) (bool
 
 // Implement the package manager interface
 func (d *AppDriver) InstallPackage(packageSpec *node.Package, version string) error {
-	if packageSpec.Driver != "docker" {
+	if packageSpec.Driver != constants.AppDriverDocker {
 		return fmt.Errorf("invalid package driver: %s, expected docker", packageSpec.Driver)
 	}
 
-	registryURL := fmt.Sprintf("%s/%s:%s", packageSpec.RegistryURLBase, packageSpec.RegistryPackageID, packageSpec.RegistryPackageTag)
-	_, err := d.client.ImagePull(context.Background(), registryURL, types.ImagePullOptions{})
+	repoURL := repoURLFromPackage(packageSpec, version)
+	_, err := d.client.ImagePull(context.Background(), repoURL, types.ImagePullOptions{})
 	if err != nil {
 		return err
 	}
 
-	log.Info().Msgf("Pulled image %s", registryURL)
+	log.Info().Msgf("Pulled image %s", repoURL)
 	return nil
 }
 
 func (d *AppDriver) UninstallPackage(packageURL *node.Package, version string) error {
+	repoURL := repoURLFromPackage(packageURL, version)
+	d.client.ImageRemove(context.Background(), repoURL, types.ImageRemoveOptions{})
 	return errors.New("not implemented")
 }
 
