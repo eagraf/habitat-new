@@ -271,7 +271,9 @@ func TestAddUser(t *testing.T) {
 
 	mockedPDSClient.EXPECT().GetInviteCode(gomock.Any()).Return("invite_code", nil).Times(1)
 
-	mockedPDSClient.EXPECT().CreateAccount(gomock.Any(), "user@user.com", "username_1", "password", "invite_code")
+	mockedPDSClient.EXPECT().CreateAccount(gomock.Any(), "user@user.com", "username_1", "password", "invite_code").Return(map[string]interface{}{
+		"did": "did_1",
+	}, nil).Times(1)
 
 	mockedManager.EXPECT().GetDatabaseClientByName(constants.NodeDBDefaultName).Return(mockedClient, nil).Times(1)
 	mockedClient.EXPECT().ProposeTransitions(gomock.Eq(
@@ -279,6 +281,7 @@ func TestAddUser(t *testing.T) {
 			&node.AddUserTransition{
 				Username:    "username_1",
 				Certificate: "cert_1",
+				AtprotoDID:  "did_1",
 			},
 		},
 	)).Return(nil, nil).Times(1)

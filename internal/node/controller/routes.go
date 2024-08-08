@@ -234,10 +234,10 @@ func (h *AddUserRoute) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 // LoginRoute logs a user in, by proxying to the PDS com.atproto.server.createSession endpoint.
 type LoginRoute struct {
-	pdsClient *PDSClient
+	pdsClient PDSClientI
 }
 
-func NewLoginRoute(pdsClient *PDSClient) *LoginRoute {
+func NewLoginRoute(pdsClient PDSClientI) *LoginRoute {
 	return &LoginRoute{
 		pdsClient: pdsClient,
 	}

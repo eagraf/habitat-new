@@ -3,7 +3,6 @@ import { AuthProvider } from '../components/authContext';
 import '../styles/globals.css';
 
 const RootLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    console.log("LAYOUT");
     return (
         <html lang="en">
             <head>

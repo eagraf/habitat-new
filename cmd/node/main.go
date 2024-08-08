@@ -111,7 +111,7 @@ func main() {
 	if err != nil {
 		log.Fatal().Err(err)
 	}
-	addr := fmt.Sprintf(":%s", "443")
+	addr := fmt.Sprintf(":%s", nodeConfig.ReverseProxyPort())
 	proxyServer := &http.Server{
 		Addr:    addr,
 		Handler: proxy,

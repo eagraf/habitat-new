@@ -277,3 +277,27 @@ func TestAddUserHandler(t *testing.T) {
 	)
 	require.Equal(t, http.StatusBadRequest, resp.Result().StatusCode)
 }
+
+func TestLogin(t *testing.T) {
+	ctrl := gomock.NewController(t)
+
+	mockPDS := mocks.NewMockPDSClientI(ctrl)
+
+	handler := NewLoginRoute(mockPDS)
+
+	mockPDS.EXPECT().CreateSession("identifier", "password").Return(types.PDSCreateSessionResponse{}, nil).Times(1)
+
+	b, err := json.Marshal(types.PDSCreateSessionRequest{
+		Identifier: "identifier",
+		Password:   "password",
+	})
+	require.NoError(t, err)
+
+	resp := httptest.NewRecorder()
+	handler.ServeHTTP(
+		resp,
+		httptest.NewRequest(http.MethodPost, handler.Pattern(), bytes.NewReader(b)),
+	)
+	require.Equal(t, http.StatusOK, resp.Result().StatusCode)
+
+}

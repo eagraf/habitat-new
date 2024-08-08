@@ -225,8 +225,17 @@ func (c *BaseNodeController) AddUser(userID, email, handle, password, certificat
 		return nil, err
 	}
 	userDID := ""
-	if did, ok := resp["did"]; ok {
+	did, ok := resp["did"]
+	if ok {
+		if did == nil {
+			return nil, fmt.Errorf("PDS response did not contain a DID (nil)")
+		}
+
 		userDID = did.(string)
+	}
+
+	if !ok || userDID == "" {
+		return nil, fmt.Errorf("PDS response did not contain a DID")
 	}
 
 	dbClient, err := c.databaseManager.GetDatabaseClientByName(constants.NodeDBDefaultName)
