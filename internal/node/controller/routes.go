@@ -229,7 +229,7 @@ func (h *AddUserRoute) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusCreated)
 	w.Header().Set("Content-Type", "application/json")
-	w.Write(respBody)
+	_, _ = w.Write(respBody)
 }
 
 // LoginRoute logs a user in, by proxying to the PDS com.atproto.server.createSession endpoint.
@@ -273,5 +273,5 @@ func (h *LoginRoute) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")
-	w.Write(respBody)
+	_, _ = w.Write(respBody)
 }
