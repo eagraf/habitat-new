@@ -3,6 +3,7 @@ package controller
 import (
 	"crypto/x509"
 	"encoding/json"
+	"errors"
 	"testing"
 
 	"github.com/eagraf/habitat-new/core/state/node"
@@ -269,6 +270,8 @@ func TestAddUser(t *testing.T) {
 
 	controller, mockedPDSClient, mockedManager, mockedClient := setupNodeDBTest(ctrl, t)
 
+	// Test successful add user
+
 	mockedPDSClient.EXPECT().GetInviteCode(gomock.Any()).Return("invite_code", nil).Times(1)
 
 	mockedPDSClient.EXPECT().CreateAccount(gomock.Any(), "user@user.com", "username_1", "password", "invite_code").Return(map[string]interface{}{
@@ -288,6 +291,38 @@ func TestAddUser(t *testing.T) {
 
 	_, err := controller.AddUser("user_1", "user@user.com", "username_1", "password", "cert_1")
 	assert.Nil(t, err)
+
+	// Test error from empty did.
+	mockedPDSClient.EXPECT().GetInviteCode(gomock.Any()).Return("invite_code", nil).Times(1)
+
+	mockedPDSClient.EXPECT().CreateAccount(gomock.Any(), "user@user.com", "username_1", "password", "invite_code").Return(map[string]interface{}{
+		"did": "",
+	}, nil).Times(1)
+
+	_, err = controller.AddUser("user_1", "user@user.com", "username_1", "password", "cert_1")
+	assert.NotNil(t, err)
+
+	// Test error from missing did
+	mockedPDSClient.EXPECT().GetInviteCode(gomock.Any()).Return("invite_code", nil).Times(1)
+
+	mockedPDSClient.EXPECT().CreateAccount(gomock.Any(), "user@user.com", "username_1", "password", "invite_code").Return(map[string]interface{}{}, nil).Times(1)
+
+	_, err = controller.AddUser("user_1", "user@user.com", "username_1", "password", "cert_1")
+	assert.NotNil(t, err)
+
+	// Test invite code error.
+	mockedPDSClient.EXPECT().GetInviteCode(gomock.Any()).Return("", errors.New("failed to create invite code")).Times(1)
+	_, err = controller.AddUser("user_1", "user@user.com", "username_1", "password", "cert_1")
+	assert.NotNil(t, err)
+
+	// Test create account error
+	mockedPDSClient.EXPECT().GetInviteCode(gomock.Any()).Return("invite_code", nil).Times(1)
+
+	mockedPDSClient.EXPECT().CreateAccount(gomock.Any(), "user@user.com", "username_1", "password", "invite_code").Return(nil, errors.New("failed to create account")).Times(1)
+
+	_, err = controller.AddUser("user_1", "user@user.com", "username_1", "password", "cert_1")
+	assert.NotNil(t, err)
+
 }
 
 func TestGetUserByUsername(t *testing.T) {
