@@ -3,7 +3,6 @@ package docker
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 
 	"github.com/docker/docker/api/types"
@@ -99,8 +98,11 @@ func (d *AppDriver) InstallPackage(packageSpec *node.Package, version string) er
 
 func (d *AppDriver) UninstallPackage(packageURL *node.Package, version string) error {
 	repoURL := repoURLFromPackage(packageURL, version)
-	d.client.ImageRemove(context.Background(), repoURL, types.ImageRemoveOptions{})
-	return errors.New("not implemented")
+	_, err := d.client.ImageRemove(context.Background(), repoURL, types.ImageRemoveOptions{})
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 type ProcessDriver struct {
@@ -161,18 +163,18 @@ func (d *ProcessDriver) StopProcess(extProcessID string) error {
 	return nil
 }
 
-type DriverResult struct {
+type Driver struct {
 	PackageManager package_manager.PackageManager
 	ProcessDriver  processes.ProcessDriver `group:"process_drivers"`
 }
 
-func NewDriver() (DriverResult, error) {
+func NewDriver() (Driver, error) {
 	dockerClient, err := client.NewClientWithOpts(client.FromEnv)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to create docker client")
 	}
 
-	res := DriverResult{
+	res := Driver{
 		PackageManager: &AppDriver{
 			client: dockerClient,
 		},
