@@ -86,25 +86,17 @@ func (d *AppDriver) UninstallPackage(pkg *node.Package, version string) error {
 	return os.RemoveAll(bundlePath)
 }
 
-func (d *AppDriver) getBundlePath(bundleConfig *WebBundleInstallationConfig, version string) string {
+func (d *AppDriver) getBundlePath(bundleConfig *BundleInstallationConfig, version string) string {
 	return filepath.Join(d.config.WebBundlePath(), bundleConfig.BundleDirectoryName, version)
 }
 
-func NewWebDriver(config *config.NodeConfig) (*WebDriver, error) {
-	return &WebDriver{
-		PackageManager: &AppDriver{
-			config: config,
-		},
-	}, nil
-}
-
-func getWebBundleConfigFromPackage(pkg *node.Package) (*WebBundleInstallationConfig, error) {
+func getWebBundleConfigFromPackage(pkg *node.Package) (*BundleInstallationConfig, error) {
 	configBytes, err := json.Marshal(pkg.DriverConfig)
 	if err != nil {
 		return nil, err
 	}
 
-	var bundleConfig WebBundleInstallationConfig
+	var bundleConfig BundleInstallationConfig
 	err = json.Unmarshal(configBytes, &bundleConfig)
 	if err != nil {
 		return nil, err

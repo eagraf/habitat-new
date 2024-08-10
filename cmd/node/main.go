@@ -50,12 +50,12 @@ func main() {
 	}
 
 	// Initialize application drivers
-	dockerDriver, err := docker.NewDockerDriver()
+	dockerDriver, err := docker.NewDriver()
 	if err != nil {
 		log.Fatal().Err(err)
 	}
 
-	webDriver, err := web.NewWebDriver(nodeConfig)
+	webDriver, err := web.NewDriver(nodeConfig)
 	if err != nil {
 		log.Fatal().Err(err)
 	}

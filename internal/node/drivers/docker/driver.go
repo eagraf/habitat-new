@@ -46,9 +46,9 @@ import (
 	}
 **/
 
-// DockerAppInstallationConfig is a struct to hold the configuration for a docker container
+// AppInstallationConfig is a struct to hold the configuration for a docker container
 // Most of these types are taken directly from the Docker Go SDK
-type DockerAppInstallationConfig struct {
+type AppInstallationConfig struct {
 	// ExposedPorts is a slice of ports exposed by the docker container
 	ExposedPorts []string `json:"exposed_ports"`
 	// Env is a slice of environment variables to be set in the container, specified as KEY=VALUE
@@ -114,7 +114,7 @@ func (d *ProcessDriver) Type() string {
 // StartProcess helps implement processes.ProcessDriver
 func (d *ProcessDriver) StartProcess(process *node.Process, app *node.AppInstallation) (string, error) {
 
-	var dockerConfig DockerAppInstallationConfig
+	var dockerConfig AppInstallationConfig
 	dockerConfigBytes, err := json.Marshal(app.DriverConfig)
 	if err != nil {
 		return "", err
@@ -166,7 +166,7 @@ type DriverResult struct {
 	ProcessDriver  processes.ProcessDriver `group:"process_drivers"`
 }
 
-func NewDockerDriver() (DriverResult, error) {
+func NewDriver() (DriverResult, error) {
 	dockerClient, err := client.NewClientWithOpts(client.FromEnv)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to create docker client")
