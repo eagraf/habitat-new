@@ -26,7 +26,6 @@ func (rs RuleSet) Add(name string, rule RuleHandler) error {
 		return fmt.Errorf("rule name %s is already taken", name)
 	}
 	rs.rules[name] = rule
-	fmt.Println("adding ", name, rule.Type())
 	return nil
 }
 
@@ -72,7 +71,6 @@ type RuleHandler interface {
 	Match(url *url.URL) bool
 	Handler() http.Handler
 	Rank() int
-	Path() string
 }
 
 type FileServerRule struct {
@@ -104,10 +102,6 @@ func (r *FileServerRule) Handler() http.Handler {
 
 func (r *FileServerRule) Rank() int {
 	return strings.Count(r.Matcher, "/")
-}
-
-func (r *FileServerRule) Path() string {
-	return r.Filepath
 }
 
 type FileServerHandler struct {
@@ -185,8 +179,4 @@ func (r *RedirectRule) Handler() http.Handler {
 
 func (r *RedirectRule) Rank() int {
 	return strings.Count(r.Matcher, "/")
-}
-
-func (r *RedirectRule) Path() string {
-	return r.ForwardLocation.Path
 }

@@ -150,8 +150,6 @@ func main() {
 	routes := []api.Route{
 		api.NewVersionHandler(),
 		controller.NewGetNodeRoute(db.Manager),
-		controller.NewLoginRoute(&controller.PDSClient{NodeConfig: nodeConfig}),
-		controller.NewAddUserRoute(nodeCtrl),
 		controller.NewInstallAppRoute(nodeCtrl),
 		controller.NewStartProcessHandler(nodeCtrl),
 		controller.NewMigrationRoute(nodeCtrl),
@@ -189,10 +187,13 @@ func main() {
 	if err != nil {
 		log.Fatal().Err(err).Msg("error creating PDS")
 	}
-	proxy.RuleSet.Add("PDS", &reverse_proxy.RedirectRule{
+	err = proxy.RuleSet.Add("PDS", &reverse_proxy.RedirectRule{
 		ForwardLocation: pdsUrl,
 		Matcher:         "/pds",
 	})
+	if err != nil {
+		log.Fatal().Err(err).Msg("error adding PDS proxy rule")
+	}
 
 	eg.Go(func() error {
 		return pdsServer.RunAPI(pdsUrl.Hostname() + ":" + pdsUrl.Port())
@@ -278,6 +279,7 @@ func newPds(path string, host string) (*pds.Server, error) {
 	}
 
 	didr := plc.NewFakeDid(db)
+
 	srv, err := pds.NewServer(
 		db,
 		cstore,

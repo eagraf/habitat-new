@@ -3,7 +3,6 @@ package controller
 import (
 	"crypto/x509"
 	"encoding/json"
-	"errors"
 	"testing"
 
 	"github.com/eagraf/habitat-new/core/state/node"
@@ -47,7 +46,6 @@ func setupNodeDBTest(ctrl *gomock.Controller, t *testing.T) (NodeController, *mo
 			Raw: []byte("root_cert"),
 		},
 	})
-	controller.pdsClient = mockedPDSClient
 	require.Nil(t, err)
 	err = controller.InitializeNodeDB()
 	require.Nil(t, err)
@@ -263,66 +261,6 @@ func TestStartProcessController(t *testing.T) {
 
 	err = controller.StopProcess("process_1")
 	assert.Nil(t, err)
-}
-
-func TestAddUser(t *testing.T) {
-	ctrl := gomock.NewController(t)
-
-	controller, mockedPDSClient, mockedManager, mockedClient := setupNodeDBTest(ctrl, t)
-
-	// Test successful add user
-
-	mockedPDSClient.EXPECT().GetInviteCode(gomock.Any()).Return("invite_code", nil).Times(1)
-
-	mockedPDSClient.EXPECT().CreateAccount(gomock.Any(), "user@user.com", "username_1", "password", "invite_code").Return(map[string]interface{}{
-		"did": "did_1",
-	}, nil).Times(1)
-
-	mockedManager.EXPECT().GetDatabaseClientByName(constants.NodeDBDefaultName).Return(mockedClient, nil).Times(1)
-	mockedClient.EXPECT().ProposeTransitions(gomock.Eq(
-		[]hdb.Transition{
-			&node.AddUserTransition{
-				Username:    "username_1",
-				Certificate: "cert_1",
-				AtprotoDID:  "did_1",
-			},
-		},
-	)).Return(nil, nil).Times(1)
-
-	_, err := controller.AddUser("user_1", "user@user.com", "username_1", "password", "cert_1")
-	assert.Nil(t, err)
-
-	// Test error from empty did.
-	mockedPDSClient.EXPECT().GetInviteCode(gomock.Any()).Return("invite_code", nil).Times(1)
-
-	mockedPDSClient.EXPECT().CreateAccount(gomock.Any(), "user@user.com", "username_1", "password", "invite_code").Return(map[string]interface{}{
-		"did": "",
-	}, nil).Times(1)
-
-	_, err = controller.AddUser("user_1", "user@user.com", "username_1", "password", "cert_1")
-	assert.NotNil(t, err)
-
-	// Test error from missing did
-	mockedPDSClient.EXPECT().GetInviteCode(gomock.Any()).Return("invite_code", nil).Times(1)
-
-	mockedPDSClient.EXPECT().CreateAccount(gomock.Any(), "user@user.com", "username_1", "password", "invite_code").Return(map[string]interface{}{}, nil).Times(1)
-
-	_, err = controller.AddUser("user_1", "user@user.com", "username_1", "password", "cert_1")
-	assert.NotNil(t, err)
-
-	// Test invite code error.
-	mockedPDSClient.EXPECT().GetInviteCode(gomock.Any()).Return("", errors.New("failed to create invite code")).Times(1)
-	_, err = controller.AddUser("user_1", "user@user.com", "username_1", "password", "cert_1")
-	assert.NotNil(t, err)
-
-	// Test create account error
-	mockedPDSClient.EXPECT().GetInviteCode(gomock.Any()).Return("invite_code", nil).Times(1)
-
-	mockedPDSClient.EXPECT().CreateAccount(gomock.Any(), "user@user.com", "username_1", "password", "invite_code").Return(nil, errors.New("failed to create account")).Times(1)
-
-	_, err = controller.AddUser("user_1", "user@user.com", "username_1", "password", "cert_1")
-	assert.NotNil(t, err)
-
 }
 
 func TestGetUserByUsername(t *testing.T) {

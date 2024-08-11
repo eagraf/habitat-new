@@ -3,6 +3,7 @@ import React, { useState, FormEvent } from 'react';
 import axios from 'axios';
 import Cookies from 'js-cookie';
 import './addUser.css';
+import { useRouter } from 'next/navigation';
 
 const Register: React.FC = () => {
     const [email, setEmail] = useState<string>('');
@@ -10,6 +11,7 @@ const Register: React.FC = () => {
     const [password, setPassword] = useState<string>('');
     const [confirmPassword, setConfirmPassword] = useState<string>('');
     const [error, setError] = useState<string>('');
+    const router = useRouter();
 
     const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
@@ -19,17 +21,14 @@ const Register: React.FC = () => {
             return;
         }
 
-        const jwt = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyLCJleHAiOjE3MjM1ODI4MzUsInNjb3BlIjoidGVzdCIsInVzZXIiOiJpdCdzIG1lIn0.wZrZe29lC4kWI8_HaPW8HWthuNw8Xo74ufVV3B_8DB4'
-
         try {
-            const response = await axios.post(`${window.location.origin}/habitat/api/node/users`, {
+            const response = await axios.post(`${window.location.origin}/pds/xrpc/com.atproto.server.createAccount`, {
                 email,
                 handle,
                 password
             }, {
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': 'Bearer ' + jwt,
                 },
             });
 
@@ -39,6 +38,7 @@ const Register: React.FC = () => {
             Cookies.set('access_token', access_token, { expires: 7 });
 
             console.log('Registration successful, token set in cookie');
+            router.push('/login')
         } catch (error) {
             setError('Registration failed');
             console.error('Registration error', error);

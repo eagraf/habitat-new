@@ -1,7 +1,6 @@
 'use client'
 
 import React, { useState, FormEvent } from 'react';
-import { useRouter } from 'next/navigation';
 import './login.css';
 import { useAuth } from '@/components/authContext';
 
@@ -9,8 +8,6 @@ const Login = () => {
     const [handle, setHandle] = useState('');
     const [password, setPassword] = useState('');
     const { login } = useAuth();
-
-    const router = useRouter();
 
     const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
