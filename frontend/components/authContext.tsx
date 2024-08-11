@@ -1,6 +1,6 @@
 'use client'
 
-import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+import React, { createContext, useContext, useState, ReactNode } from 'react';
 import Cookies from 'js-cookie';
 import axios from 'axios';
 import { useRouter } from 'next/navigation';
@@ -24,9 +24,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             const response = await axios.post(`${window.location.origin}/habitat/api/node/login`, {
                 password: password,
                 identifier: identifier,
-              }, {
+            }, {
                 headers: {
-                  'Content-Type': 'application/json',
+                    'Content-Type': 'application/json',
                 },
             });
             console.log(response.data);

@@ -2,10 +2,13 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
+	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 
 	"github.com/bluesky-social/indigo/carstore"
@@ -37,7 +40,7 @@ import (
 func main() {
 	nodeConfig, err := config.NewNodeConfig()
 	if err != nil {
-		log.Fatal().Err(err)
+		log.Fatal().Err(err).Msg("error setting up node config")
 	}
 
 	logger := logging.NewLogger()
@@ -46,24 +49,24 @@ func main() {
 	hdbPublisher := pubsub.NewSimplePublisher[hdb.StateUpdate]()
 	db, dbClose, err := hdbms.NewHabitatDB(logger, hdbPublisher, nodeConfig)
 	if err != nil {
-		log.Fatal().Err(err)
+		log.Fatal().Err(err).Msg("error creating habitat DB")
 	}
 	defer dbClose()
 
 	nodeCtrl, err := controller.NewNodeController(db.Manager, nodeConfig)
 	if err != nil {
-		log.Fatal().Err(err)
+		log.Fatal().Err(err).Msg("error creating node controller")
 	}
 
 	// Initialize application drivers
 	dockerDriver, err := docker.NewDriver()
 	if err != nil {
-		log.Fatal().Err(err)
+		log.Fatal().Err(err).Msg("error creating Docker driver")
 	}
 
 	webDriver, err := web.NewDriver(nodeConfig)
 	if err != nil {
-		log.Fatal().Err(err)
+		log.Fatal().Err(err).Msg("error creating Web driver")
 	}
 
 	stateLogger := hdbms.NewStateUpdateLogger(logger)
@@ -75,13 +78,13 @@ func main() {
 		nodeCtrl,
 	)
 	if err != nil {
-		log.Fatal().Err(err)
+		log.Fatal().Err(err).Msg("error creating lifecycle subscriber")
 	}
 
 	pm := processes.NewProcessManager([]processes.ProcessDriver{dockerDriver.ProcessDriver, webDriver.ProcessDriver})
 	pmSub, err := processes.NewProcessManagerStateUpdateSubscriber(pm, nodeCtrl)
 	if err != nil {
-		log.Fatal().Err(err)
+		log.Fatal().Err(err).Msg("error creating process manager subscriber")
 	}
 
 	// ctx.Done() returns when SIGINT is called or cancel() is called.
@@ -98,7 +101,7 @@ func main() {
 		proxy.RuleSet,
 	)
 	if err != nil {
-		log.Fatal().Err(err)
+		log.Fatal().Err(err).Msg("error creating proxy update subscriber")
 	}
 
 	stateUpdates := pubsub.NewSimpleChannel(
@@ -113,19 +116,19 @@ func main() {
 	go func() {
 		err := stateUpdates.Listen()
 		if err != nil {
-			log.Fatal().Err(err).Msgf("unrecoverable error listening to channel")
+			log.Fatal().Err(err).Msg("unrecoverable error listening to channel")
 		}
 	}()
 
 	err = nodeCtrl.InitializeNodeDB()
 	if err != nil {
-		log.Fatal().Err(err)
+		log.Fatal().Err(err).Msg("error initializing node DB")
 	}
 
 	// Set up the reverse proxy server
 	tlsConfig, err := nodeConfig.TLSConfig()
 	if err != nil {
-		log.Fatal().Err(err)
+		log.Fatal().Err(err).Msg("error getting TLS config")
 	}
 	addr := fmt.Sprintf(":%s", nodeConfig.ReverseProxyPort())
 	proxyServer := &http.Server{
@@ -134,7 +137,7 @@ func main() {
 	}
 	ln, err := proxy.Listener(addr)
 	if err != nil {
-		log.Fatal().Err(err)
+		log.Fatal().Err(err).Msg("error getting proxy listner")
 	}
 	eg.Go(server.ServeFn(
 		proxyServer,
@@ -161,14 +164,14 @@ func main() {
 	}
 	url, err := url.Parse(fmt.Sprintf("http://localhost:%s", constants.DefaultPortHabitatAPI))
 	if err != nil {
-		log.Fatal().Err(fmt.Errorf("error parsing Habitat API URL: %v", err))
+		log.Fatal().Err(err).Msg("error parsing Habitat API URL")
 	}
 	err = proxy.RuleSet.Add("Habitat API", &reverse_proxy.RedirectRule{
 		ForwardLocation: url,
 		Matcher:         "/habitat/api",
 	})
 	if err != nil {
-		log.Fatal().Err(fmt.Errorf("error adding Habitat API proxy rule: %v", err))
+		log.Fatal().Err(err).Msg("error adding Habitat API proxy rule")
 	}
 	eg.Go(
 		server.ServeFn(
@@ -179,28 +182,30 @@ func main() {
 	)
 
 	pdsUrl, err := url.Parse(fmt.Sprintf("http://localhost:%s", constants.DefaultPortPds))
-	pdsServer, err := newPds(pdsUrl.Host)
-	proxy.Rules.Add("PDS", &reverse_proxy.RedirectRule{
+	if err != nil {
+		log.Fatal().Err(err).Msg("error parsing pds URL")
+	}
+	pdsServer, err := newPds(nodeConfig.PDSPath(), pdsUrl.Host)
+	if err != nil {
+		log.Fatal().Err(err).Msg("error creating PDS")
+	}
+	proxy.RuleSet.Add("PDS", &reverse_proxy.RedirectRule{
 		ForwardLocation: pdsUrl,
 		Matcher:         "/pds",
 	})
-	if err != nil {
-		log.Fatal().Err(fmt.Errorf("error creating PDS server: %v", err))
-	}
-	eg.Go(
-		func() error {
-			return pdsServer.RunAPI(":4989")
-		},
-	)
+
+	eg.Go(func() error {
+		return pdsServer.RunAPI(pdsUrl.Hostname() + ":" + pdsUrl.Port())
+	})
 
 	frontendProxyRule, err := frontend.NewFrontendProxyRule(nodeConfig)
 	if err != nil {
-		log.Fatal().Err(fmt.Errorf("error getting frontend proxy rule: %v", err))
+		log.Fatal().Err(err).Msg("error getting frontend proxy rule")
 	}
 
 	err = proxy.RuleSet.Add("Frontend", frontendProxyRule)
 	if err != nil {
-		log.Fatal().Err(fmt.Errorf("error adding frontend proxy rule: %v", err))
+		log.Fatal().Err(err).Msg("error adding frontend proxy rule")
 	}
 
 	// Wait for either os.Interrupt which triggers ctx.Done()
@@ -235,7 +240,11 @@ func main() {
 	log.Info().Msg("Finished!")
 }
 
-func newPds(host string) (*pds.Server, error) {
+func newPds(path string, host string) (*pds.Server, error) {
+	err := os.Mkdir(path, 0755)
+	if err != nil && !errors.Is(err, os.ErrExist) {
+		return nil, err
+	}
 	db, err := gorm.Open(sqlite.Open("test.db"), &gorm.Config{
 		SkipDefaultTransaction: true,
 		TranslateError:         true,
@@ -251,18 +260,24 @@ func newPds(host string) (*pds.Server, error) {
 	if err != nil {
 		return nil, err
 	}
-	cstore, err := carstore.NewCarStore(csdb, "/pds/carstore")
+	cstore, err := carstore.NewCarStore(csdb, filepath.Join(path, "carstore"))
 	if err != nil {
 		return nil, err
 	}
 
-	key, err := cliutil.LoadKeyFromFile("/pds/pds.key")
+	keyPath := filepath.Join(path, "pds.key")
+	if _, err := os.Stat(keyPath); errors.Is(err, os.ErrNotExist) {
+		err = cliutil.GenerateKeyToFile(keyPath)
+		if err != nil {
+			return nil, err
+		}
+	}
+	key, err := cliutil.LoadKeyFromFile(keyPath)
 	if err != nil {
 		return nil, err
 	}
 
 	didr := plc.NewFakeDid(db)
-
 	srv, err := pds.NewServer(
 		db,
 		cstore,
@@ -270,12 +285,11 @@ func newPds(host string) (*pds.Server, error) {
 		".test",
 		host,
 		didr,
-		[]byte("bd6df801372d7058e1ce472305d7fc2e"),
+		[]byte("test signing key"),
 	)
 	if err != nil {
 		return nil, err
 	}
 
 	return srv, nil
-
 }

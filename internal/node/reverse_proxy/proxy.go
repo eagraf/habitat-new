@@ -26,6 +26,7 @@ func (rs RuleSet) Add(name string, rule RuleHandler) error {
 		return fmt.Errorf("rule name %s is already taken", name)
 	}
 	rs.rules[name] = rule
+	fmt.Println("adding ", name, rule.Type())
 	return nil
 }
 
@@ -46,7 +47,7 @@ func (rs RuleSet) AddRule(rule *node.ReverseProxyRule) error {
 	} else if rule.Type == ProxyRuleFileServer {
 		err := rs.Add(rule.ID, &FileServerRule{
 			Matcher:  rule.Matcher,
-			Path:     rule.Target,
+			Filepath: rule.Target,
 			BasePath: rs.baseFilePath,
 		})
 		if err != nil {
@@ -71,11 +72,12 @@ type RuleHandler interface {
 	Match(url *url.URL) bool
 	Handler() http.Handler
 	Rank() int
+	Path() string
 }
 
 type FileServerRule struct {
-	Matcher string
-	Path    string
+	Matcher  string
+	Filepath string
 
 	FS       fs.FS  // Optional, instead of using Path, pass in an fs.FS. Useful for embedding the Habitat frontend.
 	BasePath string // Optional, if set, all file server rules will be relative to this path
@@ -94,7 +96,7 @@ func (r *FileServerRule) Match(url *url.URL) bool {
 func (r *FileServerRule) Handler() http.Handler {
 	return &FileServerHandler{
 		Prefix:   r.Matcher,
-		Path:     r.Path,
+		Path:     r.Filepath,
 		FS:       r.FS,
 		BasePath: r.BasePath,
 	}
@@ -102,6 +104,10 @@ func (r *FileServerRule) Handler() http.Handler {
 
 func (r *FileServerRule) Rank() int {
 	return strings.Count(r.Matcher, "/")
+}
+
+func (r *FileServerRule) Path() string {
+	return r.Filepath
 }
 
 type FileServerHandler struct {
@@ -171,12 +177,16 @@ func (r *RedirectRule) Handler() http.Handler {
 		},
 		ErrorHandler: func(rw http.ResponseWriter, r *http.Request, err error) {
 			log.Error().Err(err).Msg("reverse proxy request forwarding error")
-			_, _ = rw.Write([]byte(err.Error()))
 			rw.WriteHeader(http.StatusInternalServerError)
+			_, _ = rw.Write([]byte(err.Error()))
 		},
 	}
 }
 
 func (r *RedirectRule) Rank() int {
 	return strings.Count(r.Matcher, "/")
+}
+
+func (r *RedirectRule) Path() string {
+	return r.ForwardLocation.Path
 }

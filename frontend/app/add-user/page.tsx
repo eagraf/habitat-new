@@ -19,6 +19,8 @@ const Register: React.FC = () => {
             return;
         }
 
+        const jwt = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyLCJleHAiOjE3MjM1ODI4MzUsInNjb3BlIjoidGVzdCIsInVzZXIiOiJpdCdzIG1lIn0.wZrZe29lC4kWI8_HaPW8HWthuNw8Xo74ufVV3B_8DB4'
+
         try {
             const response = await axios.post(`${window.location.origin}/habitat/api/node/users`, {
                 email,
@@ -27,6 +29,7 @@ const Register: React.FC = () => {
             }, {
                 headers: {
                     'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + jwt,
                 },
             });
 

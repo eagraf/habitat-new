@@ -204,6 +204,10 @@ func (n *NodeConfig) RootUserCertB64() string {
 	return base64.StdEncoding.EncodeToString(n.RootUserCert.Raw)
 }
 
+func (n *NodeConfig) PDSPath() string {
+	return filepath.Join(n.HabitatPath(), "pds")
+}
+
 func (n *NodeConfig) TLSConfig() (*tls.Config, error) {
 	if !n.UseTLS() {
 		return nil, nil

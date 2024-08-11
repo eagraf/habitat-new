@@ -11,6 +11,7 @@ import (
 	types "github.com/eagraf/habitat-new/core/api"
 
 	"github.com/eagraf/habitat-new/internal/node/config"
+	"github.com/eagraf/habitat-new/internal/node/constants"
 )
 
 type PDSClientI interface {
@@ -52,6 +53,7 @@ func (p *PDSClient) CreateAccount(nodeConfig *config.NodeConfig, email, handle, 
 		return nil, err
 	}
 
+	fmt.Println("got body", string(body))
 	respBody, err := p.makePDSHttpReq("com.atproto.server.createAccount", http.MethodPost, []byte(body), false)
 	if err != nil {
 		return nil, err
@@ -59,6 +61,7 @@ func (p *PDSClient) CreateAccount(nodeConfig *config.NodeConfig, email, handle, 
 
 	var createAccountResponse types.PDSCreateAccountResponse
 	err = json.Unmarshal(respBody, &createAccountResponse)
+	fmt.Println("resp", createAccountResponse)
 	if err != nil {
 		return nil, err
 	}
@@ -93,7 +96,8 @@ func (p *PDSClient) CreateSession(identifier, password string) (types.PDSCreateS
 
 // Helper function to make HTTP requests to PDS
 func (p *PDSClient) makePDSHttpReq(endpoint, method string, body []byte, isAdminReq bool) ([]byte, error) {
-	pdsURL := fmt.Sprintf("http://%s:%s/xrpc/%s", "host.docker.internal", "5001", endpoint)
+	pdsURL := fmt.Sprintf("http://%s:%s/xrpc/%s", "localhost", constants.DefaultPortPds, endpoint)
+	fmt.Println("making pds http req to ", pdsURL)
 
 	req, err := http.NewRequest(method, pdsURL, bytes.NewReader(body))
 	if err != nil {
@@ -109,6 +113,7 @@ func (p *PDSClient) makePDSHttpReq(endpoint, method string, body []byte, isAdmin
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
+		fmt.Println("client.do err", err.Error())
 		return nil, err
 	}
 
@@ -117,7 +122,11 @@ func (p *PDSClient) makePDSHttpReq(endpoint, method string, body []byte, isAdmin
 		return nil, err
 	}
 
+	fmt.Println("resp", string(respBody))
+	fmt.Println("lalala err", err)
+
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+		fmt.Println("unable to create", string(respBody))
 		return nil, fmt.Errorf("PDS returned status code %d: %s", resp.StatusCode, string(respBody))
 	}
 

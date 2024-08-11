@@ -1,6 +1,7 @@
 package reverse_proxy
 
 import (
+	"fmt"
 	"net"
 	"net/http"
 
@@ -48,7 +49,8 @@ func (s *ProxyServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var bestMatch RuleHandler = nil
 	// Find the matching rule with the highest "rank", aka the most slashes '/' in the URL path.
 	highestRank := -1
-	for _, rule := range s.RuleSet.rules {
+	for p, rule := range s.RuleSet.rules {
+		fmt.Println("rule", p, "path", rule.Path(), "source", r.RequestURI)
 		if rule.Match(r.URL) {
 			if rule.Rank() > highestRank {
 				bestMatch = rule
@@ -59,6 +61,7 @@ func (s *ProxyServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// Serve the handler with the best matching rule.
 	if bestMatch != nil {
+		fmt.Println("best match", bestMatch)
 		bestMatch.Handler().ServeHTTP(w, r)
 		return
 	}
