@@ -3,6 +3,7 @@ module github.com/eagraf/habitat-new
 go 1.22.3
 
 require (
+	github.com/bluesky-social/indigo v0.0.0-20240720180436-a24c6825e724
 	github.com/docker/docker v25.0.5+incompatible
 	github.com/docker/go-connections v0.5.0
 	github.com/evanphx/json-patch/v5 v5.9.0
@@ -45,7 +46,6 @@ require (
 	github.com/aws/smithy-go v1.19.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bits-and-blooms/bitset v1.13.0 // indirect
-	github.com/bluesky-social/indigo v0.0.0-20240720180436-a24c6825e724 // indirect
 	github.com/boltdb/bolt v1.3.1 // indirect
 	github.com/carlmjohnson/versioninfo v0.22.5 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
