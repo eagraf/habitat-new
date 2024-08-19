@@ -31,6 +31,7 @@ To get added to the Tailscale tailnet the first time you run Habitat in dev mode
 ```
 TS_AUTHKEY=<authkey> make run-dev
 ```
+If you're exposing the service to the public internet with `TS_FUNNEL_ENABLED=1`, you may have to wait several seconds for it to show up in your tailscale console. From there you can get the hostname.
 The container saves node state in an anonymous volume. If you'd like to run the Habitat node with completely new state, run:
 ```
 make run-dev-fresh

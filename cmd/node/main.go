@@ -12,7 +12,7 @@ import (
 	"syscall"
 
 	"github.com/bluesky-social/indigo/carstore"
-	"github.com/bluesky-social/indigo/pds"
+	custom_pds "github.com/bluesky-social/indigo/pds"
 	"github.com/bluesky-social/indigo/plc"
 	"github.com/bluesky-social/indigo/util/cliutil"
 	"github.com/eagraf/habitat-new/internal/frontend"
@@ -183,7 +183,7 @@ func main() {
 	if err != nil {
 		log.Fatal().Err(err).Msg("error parsing pds URL")
 	}
-	pdsServer, err := newPds(nodeConfig.PDSPath(), pdsUrl.Host)
+	pdsServer, err := newPds(nodeConfig.PDSPath(), nodeConfig.Domain())
 	if err != nil {
 		log.Fatal().Err(err).Msg("error creating PDS")
 	}
@@ -192,7 +192,21 @@ func main() {
 		Matcher:         "/pds",
 	})
 	if err != nil {
-		log.Fatal().Err(err).Msg("error adding PDS proxy rule")
+		log.Fatal().Err(err).Msg("error adding PDS proxy")
+	}
+	pdsXRPCUrl, err := url.Parse(fmt.Sprintf("http://localhost:%s/xrpc", constants.DefaultPortPds))
+	if err != nil {
+		log.Fatal().Err(err).Msg("error parsing PDS - xrpc URL")
+	}
+	if err != nil {
+		log.Fatal().Err(err).Msg("error adding PDS - xrpc proxy rule")
+	}
+	err = proxy.RuleSet.Add("PDS - xrpc", &reverse_proxy.RedirectRule{
+		ForwardLocation: pdsXRPCUrl,
+		Matcher:         "/xrpc",
+	})
+	if err != nil {
+		log.Fatal().Err(err).Msg("error adding PDS - xrpc proxy rule")
 	}
 
 	eg.Go(func() error {
@@ -241,12 +255,12 @@ func main() {
 	log.Info().Msg("Finished!")
 }
 
-func newPds(path string, host string) (*pds.Server, error) {
+func newPds(path, domain string) (*custom_pds.Server, error) {
 	err := os.Mkdir(path, 0755)
 	if err != nil && !errors.Is(err, os.ErrExist) {
 		return nil, err
 	}
-	db, err := gorm.Open(sqlite.Open("test.db"), &gorm.Config{
+	db, err := gorm.Open(sqlite.Open(filepath.Join(path, "pds.db")), &gorm.Config{
 		SkipDefaultTransaction: true,
 		TranslateError:         true,
 	})
@@ -254,7 +268,7 @@ func newPds(path string, host string) (*pds.Server, error) {
 		return nil, err
 	}
 
-	csdb, err := gorm.Open(sqlite.Open("test.db"), &gorm.Config{
+	csdb, err := gorm.Open(sqlite.Open(filepath.Join(path, "carstore.db")), &gorm.Config{
 		SkipDefaultTransaction: true,
 		TranslateError:         true,
 	})
@@ -278,15 +292,14 @@ func newPds(path string, host string) (*pds.Server, error) {
 		return nil, err
 	}
 
-	didr := plc.NewFakeDid(db)
-
-	srv, err := pds.NewServer(
+	tsDomain := "habitat-dev.taile529e.ts.net"
+	srv, err := custom_pds.NewServer(
 		db,
 		cstore,
 		key,
-		".test",
-		host,
-		didr,
+		fmt.Sprintf(".%s", tsDomain),
+		tsDomain,
+		plc.NewFakeDid(db),
 		[]byte("test signing key"),
 	)
 	if err != nil {

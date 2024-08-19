@@ -167,6 +167,11 @@ func (r *RedirectRule) Handler() http.Handler {
 			}).Dial,
 		},
 		ModifyResponse: func(res *http.Response) error {
+			// TODO this seems not safe
+			// Allowlist or find a better way to allow requests from bsky.social / allow-listed sites
+			// This could be part of the node config
+			res.Header.Add("Access-Control-Allow-Origin", "*")
+			res.Header.Add("Access-Control-Allow-Headers", "*")
 			return nil
 		},
 		ErrorHandler: func(rw http.ResponseWriter, r *http.Request, err error) {
