@@ -2,12 +2,19 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
+	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 
+	"github.com/bluesky-social/indigo/carstore"
+	custom_pds "github.com/bluesky-social/indigo/pds"
+	"github.com/bluesky-social/indigo/plc"
+	"github.com/bluesky-social/indigo/util/cliutil"
 	"github.com/eagraf/habitat-new/internal/frontend"
 	"github.com/eagraf/habitat-new/internal/node/api"
 	"github.com/eagraf/habitat-new/internal/node/config"
@@ -26,12 +33,14 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/sync/errgroup"
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
 )
 
 func main() {
 	nodeConfig, err := config.NewNodeConfig()
 	if err != nil {
-		log.Fatal().Err(err)
+		log.Fatal().Err(err).Msg("error setting up node config")
 	}
 
 	logger := logging.NewLogger()
@@ -40,24 +49,24 @@ func main() {
 	hdbPublisher := pubsub.NewSimplePublisher[hdb.StateUpdate]()
 	db, dbClose, err := hdbms.NewHabitatDB(logger, hdbPublisher, nodeConfig)
 	if err != nil {
-		log.Fatal().Err(err)
+		log.Fatal().Err(err).Msg("error creating habitat DB")
 	}
 	defer dbClose()
 
 	nodeCtrl, err := controller.NewNodeController(db.Manager, nodeConfig)
 	if err != nil {
-		log.Fatal().Err(err)
+		log.Fatal().Err(err).Msg("error creating node controller")
 	}
 
 	// Initialize application drivers
 	dockerDriver, err := docker.NewDriver()
 	if err != nil {
-		log.Fatal().Err(err)
+		log.Fatal().Err(err).Msg("error creating Docker driver")
 	}
 
 	webDriver, err := web.NewDriver(nodeConfig)
 	if err != nil {
-		log.Fatal().Err(err)
+		log.Fatal().Err(err).Msg("error creating Web driver")
 	}
 
 	stateLogger := hdbms.NewStateUpdateLogger(logger)
@@ -69,13 +78,13 @@ func main() {
 		nodeCtrl,
 	)
 	if err != nil {
-		log.Fatal().Err(err)
+		log.Fatal().Err(err).Msg("error creating lifecycle subscriber")
 	}
 
 	pm := processes.NewProcessManager([]processes.ProcessDriver{dockerDriver.ProcessDriver, webDriver.ProcessDriver})
 	pmSub, err := processes.NewProcessManagerStateUpdateSubscriber(pm, nodeCtrl)
 	if err != nil {
-		log.Fatal().Err(err)
+		log.Fatal().Err(err).Msg("error creating process manager subscriber")
 	}
 
 	// ctx.Done() returns when SIGINT is called or cancel() is called.
@@ -92,7 +101,7 @@ func main() {
 		proxy.RuleSet,
 	)
 	if err != nil {
-		log.Fatal().Err(err)
+		log.Fatal().Err(err).Msg("error creating proxy update subscriber")
 	}
 
 	stateUpdates := pubsub.NewSimpleChannel(
@@ -107,19 +116,19 @@ func main() {
 	go func() {
 		err := stateUpdates.Listen()
 		if err != nil {
-			log.Fatal().Err(err).Msgf("unrecoverable error listening to channel")
+			log.Fatal().Err(err).Msg("unrecoverable error listening to channel")
 		}
 	}()
 
 	err = nodeCtrl.InitializeNodeDB()
 	if err != nil {
-		log.Fatal().Err(err)
+		log.Fatal().Err(err).Msg("error initializing node DB")
 	}
 
 	// Set up the reverse proxy server
 	tlsConfig, err := nodeConfig.TLSConfig()
 	if err != nil {
-		log.Fatal().Err(err)
+		log.Fatal().Err(err).Msg("error getting TLS config")
 	}
 	addr := fmt.Sprintf(":%s", nodeConfig.ReverseProxyPort())
 	proxyServer := &http.Server{
@@ -128,7 +137,7 @@ func main() {
 	}
 	ln, err := proxy.Listener(addr)
 	if err != nil {
-		log.Fatal().Err(err)
+		log.Fatal().Err(err).Msg("error getting proxy listner")
 	}
 	eg.Go(server.ServeFn(
 		proxyServer,
@@ -141,8 +150,6 @@ func main() {
 	routes := []api.Route{
 		api.NewVersionHandler(),
 		controller.NewGetNodeRoute(db.Manager),
-		controller.NewLoginRoute(&controller.PDSClient{NodeConfig: nodeConfig}),
-		controller.NewAddUserRoute(nodeCtrl),
 		controller.NewInstallAppRoute(nodeCtrl),
 		controller.NewStartProcessHandler(nodeCtrl),
 		controller.NewMigrationRoute(nodeCtrl),
@@ -155,14 +162,14 @@ func main() {
 	}
 	url, err := url.Parse(fmt.Sprintf("http://localhost:%s", constants.DefaultPortHabitatAPI))
 	if err != nil {
-		log.Fatal().Err(fmt.Errorf("error parsing Habitat API URL: %v", err))
+		log.Fatal().Err(err).Msg("error parsing Habitat API URL")
 	}
 	err = proxy.RuleSet.Add("Habitat API", &reverse_proxy.RedirectRule{
 		ForwardLocation: url,
 		Matcher:         "/habitat/api",
 	})
 	if err != nil {
-		log.Fatal().Err(fmt.Errorf("error adding Habitat API proxy rule: %v", err))
+		log.Fatal().Err(err).Msg("error adding Habitat API proxy rule")
 	}
 	eg.Go(
 		server.ServeFn(
@@ -172,14 +179,48 @@ func main() {
 		),
 	)
 
+	pdsUrl, err := url.Parse(fmt.Sprintf("http://localhost:%s", constants.DefaultPortPds))
+	if err != nil {
+		log.Fatal().Err(err).Msg("error parsing pds URL")
+	}
+	pdsServer, err := newPds(nodeConfig.PDSPath(), nodeConfig.Domain())
+	if err != nil {
+		log.Fatal().Err(err).Msg("error creating PDS")
+	}
+	err = proxy.RuleSet.Add("PDS", &reverse_proxy.RedirectRule{
+		ForwardLocation: pdsUrl,
+		Matcher:         "/pds",
+	})
+	if err != nil {
+		log.Fatal().Err(err).Msg("error adding PDS proxy")
+	}
+	pdsXRPCUrl, err := url.Parse(fmt.Sprintf("http://localhost:%s/xrpc", constants.DefaultPortPds))
+	if err != nil {
+		log.Fatal().Err(err).Msg("error parsing PDS - xrpc URL")
+	}
+	if err != nil {
+		log.Fatal().Err(err).Msg("error adding PDS - xrpc proxy rule")
+	}
+	err = proxy.RuleSet.Add("PDS - xrpc", &reverse_proxy.RedirectRule{
+		ForwardLocation: pdsXRPCUrl,
+		Matcher:         "/xrpc",
+	})
+	if err != nil {
+		log.Fatal().Err(err).Msg("error adding PDS - xrpc proxy rule")
+	}
+
+	eg.Go(func() error {
+		return pdsServer.RunAPI(pdsUrl.Hostname() + ":" + pdsUrl.Port())
+	})
+
 	frontendProxyRule, err := frontend.NewFrontendProxyRule(nodeConfig)
 	if err != nil {
-		log.Fatal().Err(fmt.Errorf("error getting frontend proxy rule: %v", err))
+		log.Fatal().Err(err).Msg("error getting frontend proxy rule")
 	}
 
 	err = proxy.RuleSet.Add("Frontend", frontendProxyRule)
 	if err != nil {
-		log.Fatal().Err(fmt.Errorf("error adding frontend proxy rule: %v", err))
+		log.Fatal().Err(err).Msg("error adding frontend proxy rule")
 	}
 
 	// Wait for either os.Interrupt which triggers ctx.Done()
@@ -212,4 +253,58 @@ func main() {
 		log.Err(err).Msg("received error on eg.Wait()")
 	}
 	log.Info().Msg("Finished!")
+}
+
+func newPds(path, domain string) (*custom_pds.Server, error) {
+	err := os.Mkdir(path, 0755)
+	if err != nil && !errors.Is(err, os.ErrExist) {
+		return nil, err
+	}
+	db, err := gorm.Open(sqlite.Open(filepath.Join(path, "pds.db")), &gorm.Config{
+		SkipDefaultTransaction: true,
+		TranslateError:         true,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	csdb, err := gorm.Open(sqlite.Open(filepath.Join(path, "carstore.db")), &gorm.Config{
+		SkipDefaultTransaction: true,
+		TranslateError:         true,
+	})
+	if err != nil {
+		return nil, err
+	}
+	cstore, err := carstore.NewCarStore(csdb, filepath.Join(path, "carstore"))
+	if err != nil {
+		return nil, err
+	}
+
+	keyPath := filepath.Join(path, "pds.key")
+	if _, err := os.Stat(keyPath); errors.Is(err, os.ErrNotExist) {
+		err = cliutil.GenerateKeyToFile(keyPath)
+		if err != nil {
+			return nil, err
+		}
+	}
+	key, err := cliutil.LoadKeyFromFile(keyPath)
+	if err != nil {
+		return nil, err
+	}
+
+	tsDomain := "habitat-dev.taile529e.ts.net"
+	srv, err := custom_pds.NewServer(
+		db,
+		cstore,
+		key,
+		fmt.Sprintf(".%s", tsDomain),
+		tsDomain,
+		plc.NewFakeDid(db),
+		[]byte("test signing key"),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return srv, nil
 }

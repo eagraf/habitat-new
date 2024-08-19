@@ -1,6 +1,6 @@
 'use client'
 
-import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+import React, { createContext, useContext, useState, ReactNode } from 'react';
 import Cookies from 'js-cookie';
 import axios from 'axios';
 import { useRouter } from 'next/navigation';
@@ -21,27 +21,23 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     const login = async (identifier: string, password: string) => {
         try {
-            const response = await axios.post(`${window.location.origin}/habitat/api/node/login`, {
+            const response = await axios.post(`${window.location.origin}/pds/xrpc/com.atproto.server.createSession`, {
                 password: password,
                 identifier: identifier,
-              }, {
+            }, {
                 headers: {
-                  'Content-Type': 'application/json',
+                    'Content-Type': 'application/json',
                 },
             });
+
             console.log(response.data);
 
             const { accessJwt, refreshJwt } = response.data;
-
-
             // Set the access token in a cookie
             Cookies.set('access_token', accessJwt, { expires: 7 });
             Cookies.set('refresh_token', refreshJwt, { expires: 7 });
             setIsAuthenticated(true);
-            console.log("pushhh")
-
             router.push('/home');
-
         } catch (err) {
             console.error(err);
             throw new Error('Login failed');

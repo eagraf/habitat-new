@@ -78,7 +78,7 @@ func (sm *RaftFSMAdapter) Apply(entry *raft.Log) interface{} {
 	for _, w := range wrappers {
 		err = sm.jsonState.ApplyPatch(w.Patch)
 		if err != nil {
-			log.Error().Msgf("error applying patch: %s", err)
+			log.Error().Msgf("error applying patch for %s: %s", string(w.Patch), err)
 		}
 
 		metadata := hdb.NewStateUpdateMetadata(entry.Index, sm.schema.Name(), sm.databaseID)

@@ -60,8 +60,8 @@ func TestProxy(t *testing.T) {
 	require.NotNil(t, err)
 
 	err = proxy.RuleSet.Add("fileserver", &FileServerRule{
-		Matcher: "/fileserver",
-		Path:    fileDir,
+		Matcher:  "/fileserver",
+		Filepath: fileDir,
 	})
 	require.Nil(t, err)
 	require.Equal(t, 2, len(proxy.RuleSet.rules))

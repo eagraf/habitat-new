@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 
-	types "github.com/eagraf/habitat-new/core/api"
 	"github.com/eagraf/habitat-new/core/state/node"
 	"github.com/eagraf/habitat-new/internal/node/config"
 	"github.com/eagraf/habitat-new/internal/node/constants"
@@ -20,7 +19,6 @@ type NodeController interface {
 	InitializeNodeDB() error
 	MigrateNodeDB(targetVersion string) error
 
-	AddUser(userID, email, handle, password, certificate string) (types.PDSCreateAccountResponse, error)
 	GetUserByUsername(username string) (*node.User, error)
 
 	InstallApp(userID string, newApp *node.AppInstallation, newProxyRules []*node.ReverseProxyRule) error
@@ -35,14 +33,12 @@ type NodeController interface {
 type BaseNodeController struct {
 	databaseManager hdb.HDBManager
 	nodeConfig      *config.NodeConfig
-	pdsClient       PDSClientI
 }
 
 func NewNodeController(habitatDBManager hdb.HDBManager, config *config.NodeConfig) (*BaseNodeController, error) {
 	controller := &BaseNodeController{
 		databaseManager: habitatDBManager,
 		nodeConfig:      config,
-		pdsClient:       &PDSClient{},
 	}
 	return controller, nil
 }
@@ -211,46 +207,6 @@ func (c *BaseNodeController) StopProcess(processID string) error {
 	}
 
 	return nil
-}
-
-func (c *BaseNodeController) AddUser(userID, email, handle, password, certificate string) (types.PDSCreateAccountResponse, error) {
-
-	inviteCode, err := c.pdsClient.GetInviteCode(c.nodeConfig)
-	if err != nil {
-		return nil, err
-	}
-
-	resp, err := c.pdsClient.CreateAccount(c.nodeConfig, email, handle, password, inviteCode)
-	if err != nil {
-		return nil, err
-	}
-	userDID := ""
-	did, ok := resp["did"]
-	if ok {
-		if did == nil {
-			return nil, fmt.Errorf("PDS response did not contain a DID (nil)")
-		}
-
-		userDID = did.(string)
-	}
-
-	if !ok || userDID == "" {
-		return nil, fmt.Errorf("PDS response did not contain a DID")
-	}
-
-	dbClient, err := c.databaseManager.GetDatabaseClientByName(constants.NodeDBDefaultName)
-	if err != nil {
-		return nil, err
-	}
-
-	_, err = dbClient.ProposeTransitions([]hdb.Transition{
-		&node.AddUserTransition{
-			Username:    handle,
-			Certificate: certificate,
-			AtprotoDID:  userDID,
-		},
-	})
-	return resp, err
 }
 
 func (c *BaseNodeController) GetUserByUsername(username string) (*node.User, error) {
