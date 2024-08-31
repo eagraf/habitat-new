@@ -12,6 +12,7 @@ import (
 	"github.com/eagraf/habitat-new/internal/node/constants"
 	"github.com/eagraf/habitat-new/internal/node/hdb"
 	"github.com/google/uuid"
+	"github.com/rs/zerolog/log"
 )
 
 func generatePDSAppConfig(nodeConfig *config.NodeConfig) types.PostAppRequest {
@@ -108,9 +109,14 @@ func initTranstitions(nodeConfig *config.NodeConfig) ([]hdb.Transition, error) {
 	}
 
 	pdsAppConfig := generatePDSAppConfig(nodeConfig)
-	defaultApplications := []types.PostAppRequest{
-		pdsAppConfig,
+	defaultApplications := []*types.PostAppRequest{
+		&pdsAppConfig,
 	}
+
+	configDefaultApps := nodeConfig.DefaultApps()
+	log.Info().Msgf("configDefaultApps: %v", configDefaultApps)
+
+	defaultApplications = append(defaultApplications, configDefaultApps...)
 
 	for _, app := range defaultApplications {
 		transitions = append(transitions, &node.StartInstallationTransition{
