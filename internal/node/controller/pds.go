@@ -91,6 +91,23 @@ func (p *PDSClient) CreateSession(identifier, password string) (types.PDSCreateS
 	return createSessionResponse, nil
 }
 
+func (p *PDSClient) GetRecord(did, collection, rkey string) (*types.PDSGetRecordResponse, error) {
+	endpoint := fmt.Sprintf("com.atproto.repo.getRecord?repo=%s&collection=%s&rkey=%s", did, collection, rkey)
+
+	respBody, err := p.makePDSHttpReq(endpoint, http.MethodGet, nil, false)
+	if err != nil {
+		return nil, err
+	}
+
+	var getRecordResponse types.PDSGetRecordResponse
+	err = json.Unmarshal(respBody, &getRecordResponse)
+	if err != nil {
+		return nil, err
+	}
+
+	return &getRecordResponse, nil
+}
+
 // Helper function to make HTTP requests to PDS
 func (p *PDSClient) makePDSHttpReq(endpoint, method string, body []byte, isAdminReq bool) ([]byte, error) {
 	pdsURL := fmt.Sprintf("http://%s:%s/xrpc/%s", "host.docker.internal", "5001", endpoint)
