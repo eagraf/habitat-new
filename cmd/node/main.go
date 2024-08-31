@@ -14,6 +14,7 @@ import (
 	"github.com/eagraf/habitat-new/internal/node/controller"
 	"github.com/eagraf/habitat-new/internal/node/drivers/docker"
 	"github.com/eagraf/habitat-new/internal/node/drivers/web"
+	"github.com/eagraf/habitat-new/internal/node/fishtail"
 	"github.com/eagraf/habitat-new/internal/node/hdb"
 	"github.com/eagraf/habitat-new/internal/node/hdb/hdbms"
 	"github.com/eagraf/habitat-new/internal/node/logging"
@@ -163,6 +164,17 @@ func main() {
 			apiServer,
 			"api-server",
 			server.WithTLSConfig(tlsConfig, nodeConfig.NodeCertPath(), nodeConfig.NodeKeyPath()),
+		),
+	)
+
+	ft := fishtail.NewFishtailService(
+		"ws://host.docker.internal:5001",
+		nodeConfig,
+	)
+	eg.Go(
+		ft.FirehoseConsumer(
+			ctx,
+			"ws://host.docker.internal:5001",
 		),
 	)
 
