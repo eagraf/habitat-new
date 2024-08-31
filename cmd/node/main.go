@@ -15,6 +15,7 @@ import (
 	"github.com/eagraf/habitat-new/internal/node/controller"
 	"github.com/eagraf/habitat-new/internal/node/drivers/docker"
 	"github.com/eagraf/habitat-new/internal/node/drivers/web"
+	"github.com/eagraf/habitat-new/internal/node/fishtail"
 	"github.com/eagraf/habitat-new/internal/node/hdb"
 	"github.com/eagraf/habitat-new/internal/node/hdb/hdbms"
 	"github.com/eagraf/habitat-new/internal/node/logging"
@@ -181,6 +182,17 @@ func main() {
 	if err != nil {
 		log.Fatal().Err(fmt.Errorf("error adding frontend proxy rule: %v", err))
 	}
+
+	ft := fishtail.NewFishtailService(
+		"ws://host.docker.internal:5001",
+		nodeConfig,
+	)
+	eg.Go(
+		ft.FirehoseConsumer(
+			ctx,
+			"ws://host.docker.internal:5001",
+		),
+	)
 
 	// Wait for either os.Interrupt which triggers ctx.Done()
 	// Or one of the servers to error, which triggers egCtx.Done()
