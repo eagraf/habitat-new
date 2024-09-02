@@ -8,24 +8,10 @@ import (
 )
 
 func traverseCBOR(recordCBOR []byte, processFunc func(node interface{}) error) error {
-	log.Info().Msgf("Record CBOR bytes %s", fmt.Sprintf("%X", recordCBOR))
-
-	// Pretty print the CBOR so it is human readable
-	var prettyObj interface{}
-	if err := cbor.Unmarshal(recordCBOR, &prettyObj); err != nil {
-		return fmt.Errorf("failed to unmarshal CBOR for pretty printing: %s", err)
-	}
-
-	log.Info().Msgf("Pretty printed CBOR:\n%s", prettyObj)
-
-	// Traverse the CBOR object and list all linked DIDs and rkeys
-	var obj interface{}
-	if err := cbor.Unmarshal(recordCBOR, &obj); err != nil {
-		return fmt.Errorf("failed to unmarshal CBOR: %s", err)
-	}
 
 	var traverse func(v interface{})
 	traverse = func(v interface{}) {
+		log.Debug().Msgf("Visiting: %v", v)
 		err := processFunc(v)
 		if err != nil {
 			log.Error().Msgf("Error processing node: %s", err)
@@ -42,6 +28,12 @@ func traverseCBOR(recordCBOR []byte, processFunc func(node interface{}) error) e
 				traverse(v)
 			}
 		}
+	}
+
+	// Traverse the CBOR object and list all linked DIDs and rkeys
+	var obj interface{}
+	if err := cbor.Unmarshal(recordCBOR, &obj); err != nil {
+		return fmt.Errorf("failed to unmarshal CBOR: %s", err)
 	}
 
 	traverse(obj)
