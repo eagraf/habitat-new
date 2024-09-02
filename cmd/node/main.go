@@ -177,6 +177,9 @@ func main() {
 			"ws://host.docker.internal:5001",
 		),
 	)
+	eg.Go(
+		ft.LinkedRecordIngester(),
+	)
 
 	// Wait for either os.Interrupt which triggers ctx.Done()
 	// Or one of the servers to error, which triggers egCtx.Done()
