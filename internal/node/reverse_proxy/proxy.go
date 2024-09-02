@@ -88,7 +88,14 @@ func (r *FileServerRule) Type() string {
 func (r *FileServerRule) Match(url *url.URL) bool {
 	// TODO make this work with actual glob strings
 	// For now, just match based off of base path
-	return strings.HasPrefix(url.Path, r.Matcher)
+	if strings.HasPrefix(url.Path, r.Matcher) {
+		prefixRemoved := strings.TrimPrefix(url.Path, r.Matcher)
+		if prefixRemoved == "" {
+			return true
+		}
+		return strings.HasPrefix(prefixRemoved, "/")
+	}
+	return false
 }
 
 func (r *FileServerRule) Handler() http.Handler {
@@ -148,7 +155,14 @@ func (r *RedirectRule) Type() string {
 func (r *RedirectRule) Match(url *url.URL) bool {
 	// TODO make this work with actual glob strings
 	// For now, just match based off of base path
-	return strings.HasPrefix(url.Path, r.Matcher)
+	if strings.HasPrefix(url.Path, r.Matcher) {
+		prefixRemoved := strings.TrimPrefix(url.Path, r.Matcher)
+		if prefixRemoved == "" {
+			return true
+		}
+		return strings.HasPrefix(prefixRemoved, "/")
+	}
+	return false
 }
 
 func (r *RedirectRule) Handler() http.Handler {
