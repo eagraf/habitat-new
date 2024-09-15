@@ -22,6 +22,8 @@ import (
 func getHandlerFromRule(rule *node.ReverseProxyRule, nodeConfig *config.NodeConfig) (http.Handler, error) {
 	switch rule.Type {
 	case node.ProxyRuleRedirect:
+		fallthrough
+	case node.ProxyRuleFishtailIngest:
 		return getRedirectHandler(rule)
 	case node.ProxyRuleFileServer:
 		return getFileServerHandler(rule, WithBasePath(nodeConfig.WebBundlePath()))

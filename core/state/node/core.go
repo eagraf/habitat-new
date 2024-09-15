@@ -57,4 +57,5 @@ const (
 	ProxyRuleFileServer       = "file"
 	ProxyRuleRedirect         = "redirect"
 	ProxyRuleEmbeddedFrontend = "embedded_frontend"
+	ProxyRuleFishtailIngest   = "fishtail_ingest"
 )

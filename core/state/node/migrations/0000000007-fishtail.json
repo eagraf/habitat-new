@@ -1,0 +1,52 @@
+{
+    "old_version": "v0.0.6",
+    "new_version": "v0.0.7",
+    "up": [
+        {
+            "op": "add",
+            "path": "/properties/reverse_proxy_rules/additionalProperties/properties/type/enum/-",
+            "value": "embedded_frontend"
+        },
+        {
+            "op": "add",
+            "path": "/properties/reverse_proxy_rules/additionalProperties/properties/type/enum/-",
+            "value": "fishtail_ingest"
+        },
+        {
+            "op": "add",
+            "path": "/properties/reverse_proxy_rules/additionalProperties/properties/fishtail_ingest_config",
+            "value": {
+                "type": "object",
+                "properties": {
+                   "subscribed_collections": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "lexicon": { "type": "string" }
+                            },
+                            "additionalProperties": false,
+                            "required": [ "lexicon" ]
+                        }
+                    }
+                },
+                "required": [ "subscribed_collections" ],
+                "additionalProperties": false
+            }
+        }
+    ],
+    "down": [
+        {
+            "op": "remove",
+            "path": "/properties/reverse_proxy_rules/additionalProperties/properties/type/enum/3"
+        },
+        {
+            "op": "remove",
+            "path": "/properties/reverse_proxy_rules/additionalProperties/properties/type/enum/2"
+        },
+        {
+            "op": "remove",
+            "path": "/properties/reverse_proxy_rules/additionalProperties/properties/fishtail_ingest_config"
+        }
+    ]
+}
