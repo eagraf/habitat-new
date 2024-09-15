@@ -27,7 +27,7 @@ func setupNodeDBTest(ctrl *gomock.Controller, t *testing.T) (NodeController, *mo
 	mockedManager.EXPECT().CreateDatabase(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(
 		// signature of anonymous function must have the same number of input and output arguments as the mocked method.
 		func(nodeName, schemaName string, initTransitions []hdb.Transition) (hdb.Client, error) {
-			require.Equal(t, 2, len(initTransitions))
+			require.Equal(t, 4, len(initTransitions))
 
 			initStateTransition := initTransitions[0]
 			require.Equal(t, node.TransitionInitialize, initStateTransition.Type())

@@ -52,3 +52,9 @@ type ReverseProxyRule struct {
 	Target  string `json:"target" yaml:"target"`
 	AppID   string `json:"app_id" yaml:"app_id"`
 }
+
+const (
+	ProxyRuleFileServer       = "file"
+	ProxyRuleRedirect         = "redirect"
+	ProxyRuleEmbeddedFrontend = "embedded_frontend"
+)
