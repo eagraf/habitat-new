@@ -394,6 +394,35 @@ var NodeDataMigrations = MigrationsList{
 			return newState, nil
 		},
 	},
+	&basicDataMigration{
+		upVersion:   "v0.0.7",
+		downVersion: "v0.0.6",
+		up: func(state *State) (*State, error) {
+			newState, err := state.Copy()
+			if err != nil {
+				return nil, err
+			}
+			return newState, nil
+		},
+		down: func(state *State) (*State, error) {
+			newState, err := state.Copy()
+			if err != nil {
+				return nil, err
+			}
+
+			if newState.ReverseProxyRules != nil {
+				updatedRules := make(map[string]*ReverseProxyRule)
+				for id, rule := range *newState.ReverseProxyRules {
+					if rule.Type != ProxyRuleEmbeddedFrontend && rule.Type != ProxyRuleFishtailIngest {
+						updatedRules[id] = rule
+					}
+				}
+				newState.ReverseProxyRules = &updatedRules
+			}
+
+			return newState, nil
+		},
+	},
 }
 
 func applyPatchToState(diffPatch jsondiff.Patch, state *State) (*State, error) {

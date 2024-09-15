@@ -59,4 +59,5 @@ const (
 	ProxyRuleFileServer       ReverseProxyRuleType = "file"
 	ProxyRuleRedirect         ReverseProxyRuleType = "redirect"
 	ProxyRuleEmbeddedFrontend ReverseProxyRuleType = "embedded_frontend"
+	ProxyRuleFishtailIngest   ReverseProxyRuleType = "fishtail_ingest"
 )
