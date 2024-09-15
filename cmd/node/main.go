@@ -4,11 +4,9 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"net/url"
 	"os/signal"
 	"syscall"
 
-	"github.com/eagraf/habitat-new/internal/frontend"
 	"github.com/eagraf/habitat-new/internal/node/api"
 	"github.com/eagraf/habitat-new/internal/node/config"
 	"github.com/eagraf/habitat-new/internal/node/constants"
@@ -154,17 +152,7 @@ func main() {
 		Addr:    fmt.Sprintf(":%s", constants.DefaultPortHabitatAPI),
 		Handler: router,
 	}
-	url, err := url.Parse(fmt.Sprintf("http://localhost:%s", constants.DefaultPortHabitatAPI))
-	if err != nil {
-		log.Fatal().Err(fmt.Errorf("error parsing Habitat API URL: %v", err))
-	}
-	err = proxy.RuleSet.Add("Habitat API", &reverse_proxy.RedirectRule{
-		ForwardLocation: url,
-		Matcher:         "/habitat/api",
-	})
-	if err != nil {
-		log.Fatal().Err(fmt.Errorf("error adding Habitat API proxy rule: %v", err))
-	}
+
 	eg.Go(
 		server.ServeFn(
 			apiServer,
@@ -172,16 +160,6 @@ func main() {
 			server.WithTLSConfig(tlsConfig, nodeConfig.NodeCertPath(), nodeConfig.NodeKeyPath()),
 		),
 	)
-
-	frontendProxyRule, err := frontend.NewFrontendProxyRule(nodeConfig)
-	if err != nil {
-		log.Fatal().Err(fmt.Errorf("error getting frontend proxy rule: %v", err))
-	}
-
-	err = proxy.RuleSet.Add("Frontend", frontendProxyRule)
-	if err != nil {
-		log.Fatal().Err(fmt.Errorf("error adding frontend proxy rule: %v", err))
-	}
 
 	ft := fishtail.NewFishtailService(
 		"ws://host.docker.internal:5001",
