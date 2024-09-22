@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, FormEvent } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import './login.css';
 import { useAuth } from '@/components/authContext';
 
@@ -10,11 +10,21 @@ const Login = () => {
     const [password, setPassword] = useState('');
     const { login } = useAuth();
 
-    const router = useRouter();
+    useRouter();
+
+    const searchParams = useSearchParams();
 
     const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+        let redirectRoute: string = '/home';
+        const overrideRoute =  searchParams.get('redirectRoute');
+        if (overrideRoute) {
+            redirectRoute = overrideRoute;
+        }
+
+        const source = searchParams.get('source');
+
         event.preventDefault();
-        login(handle, password);
+        login(handle, password, redirectRoute, source);
     };
 
     return (

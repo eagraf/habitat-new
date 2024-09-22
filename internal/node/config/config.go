@@ -10,10 +10,12 @@ import (
 	"os/user"
 	"path/filepath"
 
+	types "github.com/eagraf/habitat-new/core/api"
 	"github.com/eagraf/habitat-new/internal/node/constants"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	viper "github.com/spf13/viper"
+	"gopkg.in/yaml.v3"
 )
 
 func loadEnv() error {
@@ -289,6 +291,34 @@ func (n *NodeConfig) PDSAdminPassword() string {
 func (n *NodeConfig) FrontendDev() bool {
 	return viper.GetBool("frontend_dev")
 }
+
+func (n *NodeConfig) DefaultApps() []*types.PostAppRequest {
+	defaultApps := viper.GetStringMap("default_apps")
+	var appRequests []*types.PostAppRequest
+
+	for _, appConfig := range defaultApps {
+		// Marshal the app config into bytes, and then unmarshal into a PostAppRequest
+		appConfigBytes, err := yaml.Marshal(appConfig)
+		if err != nil {
+			log.Error().Err(err).Interface("app", appConfig).Msg("Failed to marshal default app config")
+			continue
+		}
+		log.Info().Str("app", string(appConfigBytes)).Msg("Default app config")
+
+		var request types.PostAppRequest
+		err = yaml.Unmarshal(appConfigBytes, &request)
+		if err != nil {
+			log.Error().Err(err).Str("app", string(appConfigBytes)).Msg("Failed to unmarshal default app config")
+			continue
+		}
+
+		appRequests = append(appRequests, &request)
+	}
+
+	return appRequests
+}
+
+// Helper functions
 
 func homedir() (string, error) {
 	usr, err := user.Current()

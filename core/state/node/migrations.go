@@ -1,6 +1,7 @@
 package node
 
 import (
+	"bytes"
 	"embed"
 	"encoding/json"
 	"fmt"
@@ -123,7 +124,23 @@ func compareSchemas(expected, actual string) error {
 	}
 
 	if len(patch) > 0 {
-		return fmt.Errorf("schemas are not equal, here is the diff patch: %s", patch)
+		// Pretty print the JSON in the error so it's easy to read.
+		indented := &bytes.Buffer{}
+		encoder := json.NewEncoder(indented)
+		encoder.SetIndent("", "  ")
+		if err := encoder.Encode(patch); err != nil {
+			return fmt.Errorf("failed to indent JSON patch: %v", err)
+		}
+		// Pretty print the actual and expected JSON for easier comparison
+		indentedActual := &bytes.Buffer{}
+		indentedExpected := &bytes.Buffer{}
+		json.Indent(indentedActual, []byte(actual), "", "  ")
+		json.Indent(indentedExpected, []byte(expected), "", "  ")
+
+		return fmt.Errorf("schemas are not equal.\n\nDiff patch:\n%s\n\nExpected:\n%s\n\nActual:\n%s",
+			indented.String(),
+			indentedExpected.String(),
+			indentedActual.String())
 	}
 
 	return nil
@@ -365,6 +382,35 @@ var NodeDataMigrations = MigrationsList{
 			newState, err := state.Copy()
 			if err != nil {
 				return nil, err
+			}
+
+			return newState, nil
+		},
+	},
+	&basicDataMigration{
+		upVersion:   "v0.0.7",
+		downVersion: "v0.0.6",
+		up: func(state *State) (*State, error) {
+			newState, err := state.Copy()
+			if err != nil {
+				return nil, err
+			}
+			return newState, nil
+		},
+		down: func(state *State) (*State, error) {
+			newState, err := state.Copy()
+			if err != nil {
+				return nil, err
+			}
+
+			if newState.ReverseProxyRules != nil {
+				updatedRules := make(map[string]*ReverseProxyRule)
+				for id, rule := range *newState.ReverseProxyRules {
+					if rule.Type != ProxyRuleEmbeddedFrontend && rule.Type != ProxyRuleFishtailIngest {
+						updatedRules[id] = rule
+					}
+				}
+				newState.ReverseProxyRules = &updatedRules
 			}
 
 			return newState, nil

@@ -4,17 +4,16 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"net/url"
 	"os/signal"
 	"syscall"
 
-	"github.com/eagraf/habitat-new/internal/frontend"
 	"github.com/eagraf/habitat-new/internal/node/api"
 	"github.com/eagraf/habitat-new/internal/node/config"
 	"github.com/eagraf/habitat-new/internal/node/constants"
 	"github.com/eagraf/habitat-new/internal/node/controller"
 	"github.com/eagraf/habitat-new/internal/node/drivers/docker"
 	"github.com/eagraf/habitat-new/internal/node/drivers/web"
+	"github.com/eagraf/habitat-new/internal/node/fishtail"
 	"github.com/eagraf/habitat-new/internal/node/hdb"
 	"github.com/eagraf/habitat-new/internal/node/hdb/hdbms"
 	"github.com/eagraf/habitat-new/internal/node/logging"
@@ -31,7 +30,7 @@ import (
 func main() {
 	nodeConfig, err := config.NewNodeConfig()
 	if err != nil {
-		log.Fatal().Err(err)
+		log.Fatal().Err(err).Msg("error creating node config")
 	}
 
 	logger := logging.NewLogger()
@@ -40,24 +39,24 @@ func main() {
 	hdbPublisher := pubsub.NewSimplePublisher[hdb.StateUpdate]()
 	db, dbClose, err := hdbms.NewHabitatDB(logger, hdbPublisher, nodeConfig)
 	if err != nil {
-		log.Fatal().Err(err)
+		log.Fatal().Err(err).Msg("error creating habitat db")
 	}
 	defer dbClose()
 
 	nodeCtrl, err := controller.NewNodeController(db.Manager, nodeConfig)
 	if err != nil {
-		log.Fatal().Err(err)
+		log.Fatal().Err(err).Msg("error creating node controller")
 	}
 
 	// Initialize application drivers
 	dockerDriver, err := docker.NewDriver()
 	if err != nil {
-		log.Fatal().Err(err)
+		log.Fatal().Err(err).Msg("error creating docker driver")
 	}
 
 	webDriver, err := web.NewDriver(nodeConfig)
 	if err != nil {
-		log.Fatal().Err(err)
+		log.Fatal().Err(err).Msg("error creating web driver")
 	}
 
 	stateLogger := hdbms.NewStateUpdateLogger(logger)
@@ -69,13 +68,13 @@ func main() {
 		nodeCtrl,
 	)
 	if err != nil {
-		log.Fatal().Err(err)
+		log.Fatal().Err(err).Msg("error creating app lifecycle subscriber")
 	}
 
 	pm := processes.NewProcessManager([]processes.ProcessDriver{dockerDriver.ProcessDriver, webDriver.ProcessDriver})
 	pmSub, err := processes.NewProcessManagerStateUpdateSubscriber(pm, nodeCtrl)
 	if err != nil {
-		log.Fatal().Err(err)
+		log.Fatal().Err(err).Msg("error creating process manager state update subscriber")
 	}
 
 	// ctx.Done() returns when SIGINT is called or cancel() is called.
@@ -92,7 +91,14 @@ func main() {
 		proxy.RuleSet,
 	)
 	if err != nil {
-		log.Fatal().Err(err)
+		log.Fatal().Err(err).Msg("error creating proxy rule state update subscriber")
+	}
+
+	atProtoEventPublisher := fishtail.NewATProtoEventPublisher(nodeConfig)
+
+	fishtailIngestionSubscriber, err := fishtail.NewFishtailIngestSubscriber(nodeConfig, nodeCtrl, atProtoEventPublisher)
+	if err != nil {
+		log.Fatal().Err(err).Msg("error creating fishtail ingestion subscriber")
 	}
 
 	stateUpdates := pubsub.NewSimpleChannel(
@@ -102,6 +108,7 @@ func main() {
 			appLifecycleSubscriber,
 			pmSub,
 			proxyRuleStateUpdateSubscriber,
+			fishtailIngestionSubscriber,
 		},
 	)
 	go func() {
@@ -113,13 +120,13 @@ func main() {
 
 	err = nodeCtrl.InitializeNodeDB()
 	if err != nil {
-		log.Fatal().Err(err)
+		log.Fatal().Err(err).Msg("error initializing node database")
 	}
 
 	// Set up the reverse proxy server
 	tlsConfig, err := nodeConfig.TLSConfig()
 	if err != nil {
-		log.Fatal().Err(err)
+		log.Fatal().Err(err).Msg("error creating tls config")
 	}
 	addr := fmt.Sprintf(":%s", nodeConfig.ReverseProxyPort())
 	proxyServer := &http.Server{
@@ -128,7 +135,7 @@ func main() {
 	}
 	ln, err := proxy.Listener(addr)
 	if err != nil {
-		log.Fatal().Err(err)
+		log.Fatal().Err(err).Msg("error creating listener for proxy server")
 	}
 	eg.Go(server.ServeFn(
 		proxyServer,
@@ -153,17 +160,7 @@ func main() {
 		Addr:    fmt.Sprintf(":%s", constants.DefaultPortHabitatAPI),
 		Handler: router,
 	}
-	url, err := url.Parse(fmt.Sprintf("http://localhost:%s", constants.DefaultPortHabitatAPI))
-	if err != nil {
-		log.Fatal().Err(fmt.Errorf("error parsing Habitat API URL: %v", err))
-	}
-	err = proxy.RuleSet.Add("Habitat API", &reverse_proxy.RedirectRule{
-		ForwardLocation: url,
-		Matcher:         "/habitat/api",
-	})
-	if err != nil {
-		log.Fatal().Err(fmt.Errorf("error adding Habitat API proxy rule: %v", err))
-	}
+
 	eg.Go(
 		server.ServeFn(
 			apiServer,
@@ -172,15 +169,20 @@ func main() {
 		),
 	)
 
-	frontendProxyRule, err := frontend.NewFrontendProxyRule(nodeConfig)
-	if err != nil {
-		log.Fatal().Err(fmt.Errorf("error getting frontend proxy rule: %v", err))
-	}
-
-	err = proxy.RuleSet.Add("Frontend", frontendProxyRule)
-	if err != nil {
-		log.Fatal().Err(fmt.Errorf("error adding frontend proxy rule: %v", err))
-	}
+	ft := fishtail.NewFishtailService(
+		"ws://host.docker.internal:5001",
+		nodeConfig,
+		atProtoEventPublisher,
+	)
+	eg.Go(
+		ft.FirehoseConsumer(
+			ctx,
+			"ws://host.docker.internal:5001",
+		),
+	)
+	eg.Go(
+		ft.LinkedRecordIngester(),
+	)
 
 	// Wait for either os.Interrupt which triggers ctx.Done()
 	// Or one of the servers to error, which triggers egCtx.Done()
