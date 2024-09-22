@@ -31,12 +31,15 @@ type Fishtail struct {
 	relayHost string
 
 	ingester *Ingester
+
+	atprotoEventPublisher *ATProtoEventPublisher
 }
 
-func NewFishtailService(relayHost string, nodeConfig *config.NodeConfig) *Fishtail {
+func NewFishtailService(relayHost string, nodeConfig *config.NodeConfig, atProtoEventPublisher *ATProtoEventPublisher) *Fishtail {
 	return &Fishtail{
-		relayHost: relayHost,
-		ingester:  NewIngester(&controller.PDSClient{NodeConfig: nodeConfig}),
+		relayHost:             relayHost,
+		ingester:              NewIngester(&controller.PDSClient{NodeConfig: nodeConfig}),
+		atprotoEventPublisher: atProtoEventPublisher,
 	}
 }
 
@@ -135,6 +138,7 @@ func (f *Fishtail) handleRepoCommit(ctx context.Context, evt *comatproto.SyncSub
 				*recordCBOR,
 				op.Cid.String(),
 				recordATURI,
+				f.atprotoEventPublisher,
 			)
 
 			f.ingester.EnqueueChain(ingestionChain)

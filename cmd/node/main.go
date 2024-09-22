@@ -95,6 +95,13 @@ func main() {
 		log.Fatal().Err(err).Msg("error creating proxy rule state update subscriber")
 	}
 
+	atProtoEventPublisher := fishtail.NewATProtoEventPublisher(nodeConfig)
+
+	fishtailIngestionSubscriber, err := fishtail.NewFishtailIngestSubscriber(nodeConfig, nodeCtrl, atProtoEventPublisher)
+	if err != nil {
+		log.Fatal().Err(err).Msg("error creating fishtail ingestion subscriber")
+	}
+
 	stateUpdates := pubsub.NewSimpleChannel(
 		[]pubsub.Publisher[hdb.StateUpdate]{hdbPublisher},
 		[]pubsub.Subscriber[hdb.StateUpdate]{
@@ -102,6 +109,7 @@ func main() {
 			appLifecycleSubscriber,
 			pmSub,
 			proxyRuleStateUpdateSubscriber,
+			fishtailIngestionSubscriber,
 		},
 	)
 	go func() {
@@ -170,6 +178,7 @@ func main() {
 	ft := fishtail.NewFishtailService(
 		"ws://host.docker.internal:5001",
 		nodeConfig,
+		atProtoEventPublisher,
 	)
 	eg.Go(
 		ft.FirehoseConsumer(
