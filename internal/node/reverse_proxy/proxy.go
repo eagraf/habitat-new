@@ -18,7 +18,22 @@ func (rs RuleSet) AddRule(rule *node.ReverseProxyRule) error {
 	}
 
 	// Make sure the rule type is valid.
-	if rule.Type != node.ProxyRuleRedirect && rule.Type != node.ProxyRuleFileServer && rule.Type != node.ProxyRuleEmbeddedFrontend {
+	validRuleTypes := []string{
+		node.ProxyRuleRedirect,
+		node.ProxyRuleFileServer,
+		node.ProxyRuleEmbeddedFrontend,
+		node.ProxyRuleFishtailIngest,
+	}
+
+	ruleValid := false
+	for _, validType := range validRuleTypes {
+		if rule.Type == validType {
+			ruleValid = true
+			break
+		}
+	}
+
+	if !ruleValid {
 		return fmt.Errorf("rule type %s is not supported", rule.Type)
 	}
 

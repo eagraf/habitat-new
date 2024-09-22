@@ -1,11 +1,7 @@
 package fishtail
 
 import (
-	"bytes"
-	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
 	"strings"
 
 	"github.com/bluesky-social/indigo/atproto/syntax"
@@ -16,18 +12,18 @@ import (
 )
 
 type Ingester struct {
-	chainQueue chan *IngestionChain
+	chainQueue chan *RecordChainIngester
 	pdsClient  *controller.PDSClient
 }
 
 func NewIngester(pdsClient *controller.PDSClient) *Ingester {
 	return &Ingester{
-		chainQueue: make(chan *IngestionChain, 1000),
+		chainQueue: make(chan *RecordChainIngester, 1000),
 		pdsClient:  pdsClient,
 	}
 }
 
-func (i *Ingester) EnqueueChain(chain *IngestionChain) {
+func (i *Ingester) EnqueueChain(chain *RecordChainIngester) {
 	chain.pdsClient = i.pdsClient
 	i.chainQueue <- chain
 }
@@ -45,7 +41,7 @@ func (i *Ingester) Run() error {
 			log.Error().Msgf("failed to ingest initial record: %s", err)
 			continue
 		}
-		log.Info().Msgf("ingested initial record")
+		log.Info().Msgf("ingested initial record of collection %s", syntax.ATURI(chain.initialURI).Collection().String())
 
 		cont := true
 		for cont {
@@ -63,7 +59,7 @@ func (i *Ingester) Run() error {
 	}
 }
 
-type IngestionChain struct {
+type RecordChainIngester struct {
 	initialCBORRecord []byte
 	initialCID        string
 	initialURI        string
@@ -74,25 +70,40 @@ type IngestionChain struct {
 	seen map[string]interface{}
 
 	ingestedRecords []*types.PDSGetRecordResponse
+
+	atProtoEventPublisher *ATProtoEventPublisher
 }
 
-func NewIngestionChain(initialCBORRecord []byte, initialCID string, initialURI string) *IngestionChain {
-	return &IngestionChain{
+type IngestedRecordChain struct {
+	Collection       string                        `json:"collection"`
+	InitialRecordURI string                        `json:"initial_record_uri"`
+	Records          []*types.PDSGetRecordResponse `json:"records"`
+}
+
+func NewIngestionChain(
+	initialCBORRecord []byte,
+	initialCID string,
+	initialURI string,
+	atProtoEventPublisher *ATProtoEventPublisher,
+) *RecordChainIngester {
+	return &RecordChainIngester{
 		initialCBORRecord: initialCBORRecord,
 		initialCID:        initialCID,
 		initialURI:        initialURI,
 
-		toIngest: make(chan syntax.ATURI, 1000),
-		seen:     make(map[string]interface{}),
+		toIngest:              make(chan syntax.ATURI, 1000),
+		seen:                  make(map[string]interface{}),
+		atProtoEventPublisher: atProtoEventPublisher,
 	}
 }
 
-func (ic *IngestionChain) EnqueueRecord(uri syntax.ATURI) {
+func (ic *RecordChainIngester) EnqueueRecord(uri syntax.ATURI) {
+	log.Info().Msgf("enqueueing record: %s", uri)
 	ic.toIngest <- uri
 }
 
 // IngestNext ingests the next record in the chain. If there are no more records to ingest, it returns false.
-func (ic *IngestionChain) IngestNext() (bool, error) {
+func (ic *RecordChainIngester) IngestNext() (bool, error) {
 	log.Info().Msgf("ingesting next record")
 
 	// If there are no more records to ingest, return false
@@ -114,7 +125,7 @@ func (ic *IngestionChain) IngestNext() (bool, error) {
 }
 
 // StartIngestion starts the ingestion chain with the given URI and initial CBOR record.
-func (ic *IngestionChain) StartIngestion() error {
+func (ic *RecordChainIngester) StartIngestion() error {
 	// The initial record we ingest is using CBOR because it comes from the event stream.
 
 	linkedURIs := make([]syntax.ATURI, 0)
@@ -144,33 +155,19 @@ func (ic *IngestionChain) StartIngestion() error {
 	return nil
 }
 
-func (ic *IngestionChain) FinishIngestion() error {
-	// Send the ingested records to the pubsub system.
-	log.Info().Msgf("finishing ingestion")
-
-	// Temporary, just loop through each record and post directly to the ingest endpoint for pouch
-	for _, record := range ic.ingestedRecords {
-		recordJSON, err := json.Marshal(record)
-		if err != nil {
-			return fmt.Errorf("failed to marshal record to JSON: %w", err)
-		}
-		resp, err := http.Post("https://habitat-dev.tail07d32.ts.net/pouch_api/api/v1/ingest", "application/json", bytes.NewBuffer(recordJSON))
-		if err != nil {
-			return fmt.Errorf("failed to send record to ingest endpoint: %w", err)
-		}
-		defer resp.Body.Close()
-
-		if resp.StatusCode != http.StatusOK {
-			body, _ := io.ReadAll(resp.Body)
-			return fmt.Errorf("ingest endpoint returned non-OK status: %d, body: %s", resp.StatusCode, string(body))
-		}
-
-		log.Info().Msgf("Successfully sent record to ingest endpoint")
+func (ic *RecordChainIngester) FinishIngestion() error {
+	if ic.ingestedRecords == nil || len(ic.ingestedRecords) == 0 {
+		return fmt.Errorf("no records to publish")
 	}
-	return nil
+
+	return ic.atProtoEventPublisher.Publish(&IngestedRecordChain{
+		Collection:       syntax.ATURI(ic.initialURI).Collection().String(),
+		InitialRecordURI: ic.initialURI,
+		Records:          ic.ingestedRecords,
+	})
 }
 
-func (ic *IngestionChain) ingestRecord(atURI syntax.ATURI) (*types.PDSGetRecordResponse, error) {
+func (ic *RecordChainIngester) ingestRecord(atURI syntax.ATURI) (*types.PDSGetRecordResponse, error) {
 	log.Info().Msgf("ingesting linked record: %s", atURI)
 
 	// Parse the ATURI
