@@ -298,6 +298,7 @@ func (n *NodeConfig) DefaultApps() []*types.PostAppRequest {
 	err := viper.UnmarshalKey("default_apps", &appRequestsMap, viper.DecoderConfigOption(
 		func(decoderConfig *mapstructure.DecoderConfig) {
 			decoderConfig.TagName = "yaml"
+			decoderConfig.Squash = true
 		},
 	))
 	if err != nil {
