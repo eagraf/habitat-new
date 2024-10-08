@@ -13,7 +13,7 @@ import (
 )
 
 func testTransitions(oldState *node.State, transitions []hdb.Transition) (*node.State, error) {
-	var oldJSONState *hdb.JSONState
+	var prevState *hdb.JSONState
 	schema := &node.NodeSchema{}
 	if oldState == nil {
 		emptyState, err := schema.EmptyState()
@@ -24,36 +24,37 @@ func testTransitions(oldState *node.State, transitions []hdb.Transition) (*node.
 		if err != nil {
 			return nil, err
 		}
-		oldJSONState = ojs
+		prevState = ojs
 	} else {
 		ojs, err := hdb.StateToJSONState(oldState)
 		if err != nil {
 			return nil, err
 		}
 
-		oldJSONState = ojs
+		prevState = ojs
 	}
+	// Continuously update prevState with each transition
 	for _, t := range transitions {
 		if t.Type() == "" {
 			return nil, fmt.Errorf("transition type is empty")
 		}
 
-		err := t.Enrich(oldJSONState.Bytes())
+		err := t.Enrich(prevState.Bytes())
 		if err != nil {
 			return nil, fmt.Errorf("transition enrichment failed: %s", err)
 		}
 
-		err = t.Validate(oldJSONState.Bytes())
+		err = t.Validate(prevState.Bytes())
 		if err != nil {
 			return nil, fmt.Errorf("transition validation failed: %s", err)
 		}
 
-		patch, err := t.Patch(oldJSONState.Bytes())
+		patch, err := t.Patch(prevState.Bytes())
 		if err != nil {
 			return nil, err
 		}
 
-		newStateBytes, err := oldJSONState.ValidatePatch(patch)
+		newStateBytes, err := prevState.ValidatePatch(patch)
 		if err != nil {
 			return nil, err
 		}
@@ -63,11 +64,11 @@ func testTransitions(oldState *node.State, transitions []hdb.Transition) (*node.
 			return nil, err
 		}
 
-		oldJSONState = newState
+		prevState = newState
 	}
 
 	var state node.State
-	stateBytes := oldJSONState.Bytes()
+	stateBytes := prevState.Bytes()
 
 	err := json.Unmarshal(stateBytes, &state)
 	if err != nil {

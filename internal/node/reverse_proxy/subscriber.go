@@ -8,7 +8,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-func NewProcessProxyRuleStateUpdateSubscriber(ruleSet *RuleSet) (*hdb.IdempotentStateUpdateSubscriber, error) {
+func NewProcessProxyRuleSubscriber(ruleSet *RuleSet) (*hdb.IdempotentStateUpdateSubscriber, error) {
 	return hdb.NewIdempotentStateUpdateSubscriber(
 		"ProcessProxyRulesSubscriber",
 		node.SchemaName,

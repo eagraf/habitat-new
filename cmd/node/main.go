@@ -86,7 +86,7 @@ func main() {
 
 	proxy := reverse_proxy.NewProxyServer(logger, nodeConfig)
 
-	proxyRuleStateUpdateSubscriber, err := reverse_proxy.NewProcessProxyRuleStateUpdateSubscriber(
+	proxyRuleStateUpdateSubscriber, err := reverse_proxy.NewProcessProxyRuleSubscriber(
 		proxy.RuleSet,
 	)
 	if err != nil {

@@ -100,7 +100,7 @@ func TestBrokenRule(t *testing.T) {
 }
 
 func TestAddRuleExecutor(t *testing.T) {
-	subscriber, err := NewProcessProxyRuleStateUpdateSubscriber(
+	subscriber, err := NewProcessProxyRuleSubscriber(
 		&RuleSet{
 			rules: make(map[string]*node.ReverseProxyRule),
 		},

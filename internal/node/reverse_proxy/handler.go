@@ -21,11 +21,18 @@ import (
 
 func getHandlerFromRule(rule *node.ReverseProxyRule, nodeConfig *config.NodeConfig) (http.Handler, error) {
 	switch rule.Type {
+
+	// The reverse proxy will forward the traffic to another service.
 	case node.ProxyRuleRedirect:
 		return getRedirectHandler(rule)
+
+	// The reverse proxy will serve files directly from the host system.
 	case node.ProxyRuleFileServer:
 		return getFileServerHandler(rule, WithBasePath(nodeConfig.WebBundlePath()))
 
+	// The reverse proxy will serve the node frontend.
+	// The frontend's bundle is embedded directly into this processes binary, so we can serve it without
+	// needing to access the host filesystem.
 	case node.ProxyRuleEmbeddedFrontend:
 		fSys, err := fs.Sub(frontend.EmbeddedFrontendBundle, "build")
 		if err != nil {
@@ -127,8 +134,12 @@ func (h *fileServerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // Options for file server rules
 
 type FileServerOptions struct {
-	EmbeddedFS fs.FS  // Instead of using Path, pass in an fs.FS. Useful for embedding the Habitat frontend.
-	BasePath   string // If set, all file server rules will be relative to this path
+	// Instead of serving files from the host filesytstem, serve files embeded into this binary.
+	// Currently, this is used to serve the Habitat frontend from the node binary.
+	EmbeddedFS fs.FS
+
+	// If set, all file server rules will be relative to this path
+	BasePath string
 }
 
 type Option func(*FileServerOptions)

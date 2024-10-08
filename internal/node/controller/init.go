@@ -85,9 +85,14 @@ func generateDefaultReverseProxyRules(nodeConfig *config.NodeConfig) ([]*node.Re
 		Matcher: "", // Root matcher
 	}
 	if nodeConfig.FrontendDev() {
+		// In development mode, we run the frontend in a separate docker container with hot-reloading.
+		// As a result, all frontend requests must be forwarde to the frontend container.
 		frontendRule.Type = node.ProxyRuleRedirect
 		frontendRule.Target = "http://habitat_frontend:8000/"
 	} else {
+		// In production mode, we embed the frontend into the node binary. That way, we can serve
+		// the frontend without needing to set it up on the host machine.
+		// TODO @eagraf - evaluate the performance implications of this.
 		frontendRule.Type = node.ProxyRuleEmbeddedFrontend
 	}
 

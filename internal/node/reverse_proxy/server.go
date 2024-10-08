@@ -60,7 +60,10 @@ func (s *ProxyServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		msg := fmt.Sprintf("error getting handler: %s", err)
 		log.Error().Msg(msg)
 
-		w.Write([]byte(msg))
+		_, err := w.Write([]byte(msg))
+		if err != nil {
+			log.Error().Err(err).Msg("error writing error message to response")
+		}
 		w.WriteHeader(http.StatusInternalServerError)
 
 		return
