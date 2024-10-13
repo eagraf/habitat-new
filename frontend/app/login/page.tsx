@@ -15,7 +15,7 @@ const LoginInternal = () => {
     const searchParams = useSearchParams();
 
     const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-        let redirectRoute: string = '/home';
+        let redirectRoute: string = '/';
         const overrideRoute =  searchParams.get('redirectRoute');
         if (overrideRoute) {
             redirectRoute = overrideRoute;

@@ -78,7 +78,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             }
 
             if (!redirectRoute) {
-                redirectRoute = '/home';
+                redirectRoute = '/';
             }
             router.push(redirectRoute);
 
