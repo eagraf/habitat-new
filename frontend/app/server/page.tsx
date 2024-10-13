@@ -5,15 +5,17 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import withAuth from '@/components/withAuth';
 import { useAuth } from '@/components/authContext';
 import { getNode } from '@/api/node';
+import { GetNodeResponse } from '@/types/api';
 import ReverseProxyRuleList from '@/components/reverseProxyRuleList';
 import AppList from '@/components/appList';
+import { AppInstallationState, ProcessState, ReverseProxyRule } from '@/types/node';
 
 const ServerPage: React.FC = () => {
     const router = useRouter();
     const searchParams = useSearchParams();
     const { logout } = useAuth();
     const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'apps');
-    const [nodeData, setNodeData] = useState(null);
+    const [nodeData, setNodeData] = useState<GetNodeResponse | null>(null);
 
     useEffect(() => {
         const tab = searchParams.get('tab');
@@ -43,16 +45,18 @@ const ServerPage: React.FC = () => {
     }, []);
 
     const renderTabContent = () => {
+        const processesArray = Object.values(nodeData!.state.processes).filter(process => process !== undefined) as ProcessState[];
+        const appsArray = Object.values(nodeData!.state.app_installations).filter(app => app !== undefined) as AppInstallationState[];
+        const proxyRulesArray = Object.values(nodeData!.state.reverse_proxy_rules || {}).filter(rule => rule !== undefined) as ReverseProxyRule[];
         switch (activeTab) {
             case 'apps':
-                const processesArray = Object.values(nodeData!.state.processes);
-                const appsArray = Object.values(nodeData!.state.app_installations);
-                const proxyRulesArray = Object.values(nodeData!.state.reverse_proxy_rules);
-                return <AppList apps={appsArray} processes={processesArray} reverseProxyRules={proxyRulesArray} />;
+                return <AppList
+                    apps={appsArray}
+                    processes={processesArray}
+                    reverseProxyRules={proxyRulesArray}
+                />;
             case 'reverseproxy':
-                console.log(nodeData);
-                console.log(nodeData!.state.reverse_proxy_rules);
-                return <ReverseProxyRuleList rules={nodeData!.state.reverse_proxy_rules} />;
+                return <ReverseProxyRuleList rules={proxyRulesArray} />;
             case 'users':
                 return <div>Users content goes here</div>;
             default:

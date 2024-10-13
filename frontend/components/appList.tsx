@@ -1,25 +1,10 @@
 import React from 'react';
+import { AppInstallation, AppInstallationState, ProcessState, ReverseProxyRule } from '../types/node';
 
-interface App {
-  id: string;
-  name: string;
-  status: string;
-  image: string;
-  port_mappings: { [key: string]: number };
-}
 
 interface AppListProps {
-  apps: App[];
-}
-
-interface Process {
-  app_id: string;
-  state: string;
-}
-
-interface AppListProps {
-  apps: App[];
-  processes: Process[];
+  apps: AppInstallationState[];
+  processes: ProcessState[];
   reverseProxyRules: ReverseProxyRule[];
 }
 
@@ -31,9 +16,9 @@ const AppList: React.FC<AppListProps> = ({ apps, processes, reverseProxyRules })
         <p>No apps found.</p>
       ) : (
         <ul className="space-y-4">
-          {apps.map((app) => {
-            const matchingProcess = processes.find(process => process.app_id === app.id);
-            const state = matchingProcess ? matchingProcess.state : app.status;
+          {apps.map((app: AppInstallationState) => {
+            const matchingProcess = processes.find((processState: ProcessState) => processState.app_id === app.id);
+            const state = matchingProcess ? matchingProcess.state : app.state;
             
             const matchingRules = reverseProxyRules.filter(rule => rule.app_id === app.id);
             

@@ -1,10 +1,5 @@
 import React from 'react';
-
-interface ReverseProxyRule {
-  type: string;
-  target: string;
-  matcher: string;
-}
+import { ReverseProxyRule } from '@/types/node';
 
 interface ReverseProxyRuleListProps {
   rules: ReverseProxyRule[];

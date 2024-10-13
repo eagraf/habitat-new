@@ -1,7 +1,8 @@
 import axios from 'axios';
 import Cookies from 'js-cookie';
+import * as node from '../types/api';
 
-export const getNode = async () => {
+export const getNode = async (): Promise<node.GetNodeResponse> => {
     try {
         const accessToken = Cookies.get('access_token');
         if (!accessToken) {
