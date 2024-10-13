@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"crypto/x509"
 	"encoding/json"
 	"fmt"
 	"testing"
@@ -79,7 +80,7 @@ func testTransitions(oldState *node.State, transitions []hdb.Transition) (*node.
 }
 
 func TestInitTransitions(t *testing.T) {
-	config, err := config.NewNodeConfig()
+	config, err := config.NewTestNodeConfig(nil)
 	require.Nil(t, err)
 
 	transitions, err := initTranstitions(config)
@@ -89,9 +90,12 @@ func TestInitTransitions(t *testing.T) {
 }
 
 func TestFrontendDevMode(t *testing.T) {
-	viper.Set("frontend_dev", true)
-	config, err := config.NewNodeConfig()
+	v := viper.New()
+	v.Set("frontend_dev", true)
+	config, err := config.NewTestNodeConfig(v)
 	require.Nil(t, err)
+
+	config.RootUserCert = &x509.Certificate{}
 
 	transitions, err := initTranstitions(config)
 	require.Nil(t, err)

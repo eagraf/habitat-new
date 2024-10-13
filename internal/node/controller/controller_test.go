@@ -1,7 +1,6 @@
 package controller
 
 import (
-	"crypto/x509"
 	"encoding/json"
 	"errors"
 	"testing"
@@ -42,11 +41,10 @@ func setupNodeDBTest(ctrl *gomock.Controller, t *testing.T) (NodeController, *mo
 			return mockedClient, nil
 		}).Times(1)
 
-	controller, err := NewNodeController(mockedManager, &config.NodeConfig{
-		RootUserCert: &x509.Certificate{
-			Raw: []byte("root_cert"),
-		},
-	})
+	config, err := config.NewTestNodeConfig(nil)
+	require.Nil(t, err)
+
+	controller, err := NewNodeController(mockedManager, config)
 	controller.pdsClient = mockedPDSClient
 	require.Nil(t, err)
 	err = controller.InitializeNodeDB()

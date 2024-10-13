@@ -45,7 +45,9 @@ func TestProxy(t *testing.T) {
 	file.Close()
 
 	// Create proxy server
-	proxy := NewProxyServer(logging.NewLogger(), &config.NodeConfig{})
+	config, err := config.NewTestNodeConfig(nil)
+	require.Nil(t, err)
+	proxy := NewProxyServer(logging.NewLogger(), config)
 	err = proxy.RuleSet.AddRule(&node.ReverseProxyRule{
 		ID:      "backend1",
 		Type:    node.ProxyRuleRedirect,

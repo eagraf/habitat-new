@@ -6,12 +6,14 @@ import (
 
 	"github.com/eagraf/habitat-new/core/state/node"
 	"github.com/eagraf/habitat-new/internal/node/config"
+	"github.com/spf13/viper"
 	"github.com/stretchr/testify/require"
 )
 
 func TestGetHandlerFromRule(t *testing.T) {
+	v := viper.New()
 
-	fakeConfig, err := config.NewNodeConfig()
+	fakeConfig, err := config.NewNodeConfigFromViper(v)
 	if err != nil {
 		t.Error(err)
 	}
