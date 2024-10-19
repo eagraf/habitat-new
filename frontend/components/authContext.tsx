@@ -44,9 +44,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         source: string | null = null
     ) => {
         try {
+            const fullHandle = `${identifier}.${window.location.hostname}`;
             const response = await axios.post(`${window.location.origin}/habitat/api/node/login`, {
                 password: password,
-                identifier: identifier,
+                identifier: fullHandle,
               }, {
                 headers: {
                   'Content-Type': 'application/json',
