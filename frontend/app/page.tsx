@@ -4,7 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import  withAuth from '@/components/withAuth';
 import { useAuth } from '@/components/authContext';
-import { getNode } from '@/api/node';
+import { getWebApps } from '@/api/node';
 import { useRouter } from 'next/navigation';
 import './home.css';
 
@@ -18,10 +18,8 @@ const Home: React.FC = () => {
     const fetchApps = async () => {
       setIsLoading(true);
       try {
-        const nodeState = await getNode();
-        const appInstallations = Object.values(nodeState.state.app_installations || {});
-        console.log(appInstallations);
-        const filteredWebApps = appInstallations
+        const webAppInstallations = await getWebApps();
+        const filteredWebApps = webAppInstallations
           .filter((app: any) => app.driver === 'web')
           .map((app: any) => ({
             id: app.id,
@@ -50,7 +48,15 @@ const Home: React.FC = () => {
     link: '/server'
   };
 
-  const apps = [myServerApp, ...webApps];
+  const appShopApp = {
+    id: 'app-shop',
+    name: 'App Gallery',
+    description: 'Find apps to install on your server',
+    icon: '🍎',
+    link: '/app-store'
+  }
+
+  const apps = [myServerApp, appShopApp, ...webApps];
 
   return (
     <main

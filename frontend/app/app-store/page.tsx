@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { installApp } from '../../api/node';
+import { getAvailableAppsWithInstallStatus, installApp } from '../../api/node';
 import withAuth from '@/components/withAuth';
 
 const AppStorePage = () => {
@@ -12,13 +12,10 @@ const AppStorePage = () => {
   useEffect(() => {
     const fetchApps = async () => {
       try {
-        const response = await fetch('/habitat/api/app_store/available_apps');
-        if (!response.ok) {
-          throw new Error('Failed to fetch apps');
-        }
-        const data = await response.json();
-        setApps(data);
+        const availableApps = await getAvailableAppsWithInstallStatus();
+        setApps(availableApps);
       } catch (err) {
+        console.error('Error fetching apps:', err);
         setError('Error fetching apps. Please try again later.');
       } finally {
         setLoading(false);
@@ -55,9 +52,18 @@ const AppStorePage = () => {
             <h2 className="text-xl font-semibold mb-2">{app.app_installation.name}</h2>
             <p className="text-gray-600 mb-2">Version: {app.app_installation.version}</p>
             <p className="text-gray-600 mb-4">Driver: {app.app_installation.driver}</p>
-            <button className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition-colors" onClick={() => handleInstallApp(app)}>
-              Install
-            </button>
+
+            {/* TODO: Add an installing state to this button, and update automatically when done, ideally with a progress bar. */}
+            {app.installed ? (
+              <button className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 transition-colors" disabled>
+                Installed
+              </button>
+            ) : (
+              <button className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition-colors" onClick={() => handleInstallApp(app)}>
+                Install
+              </button>
+            )}
+
           </div>
         ))}
       </div>
