@@ -148,7 +148,7 @@ func main() {
 		controller.NewMigrationRoute(nodeCtrl),
 
 		// App store routes
-		appstore.NewAvailableAppsRoute(),
+		appstore.NewAvailableAppsRoute(nodeConfig),
 	}
 
 	router := api.NewRouter(routes, logger, nodeCtrl, nodeConfig)

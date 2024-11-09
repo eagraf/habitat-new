@@ -18,13 +18,14 @@
     - type: redirect
       matcher: /pouch_api
       target: http://host.docker.internal:6000
-    - type: fishtail_ingest
-      matcher: /pouch_api/ingest
-      target: http://host.docker.internal:6000/api/v1/ingest
-      fishtail_ingest_config:
-        subscribed_collections:
-          - lexicon: app.bsky.feed.like
-          - lexicon: com.habitat.pouch.link
+# TODO: uncomment once fishtail ingestion is merged
+#    - type: fishtail_ingest
+#      matcher: /pouch_api/ingest
+#      target: http://host.docker.internal:6000/api/v1/ingest
+#      fishtail_ingest_config:
+#        subscribed_collections:
+#          - lexicon: app.bsky.feed.like
+#          - lexicon: com.habitat.pouch.link
 - app_installation:
     name: pouch_backend
     version: 1
@@ -35,7 +36,7 @@
         - PORT=6000
       mounts:
         - type: bind
-          source: /home/ethan/habitat/habitat-new/.habitat/apps/pouch/database.sqlite
+          source: {{.HabitatPath}}/apps/pouch/database.sqlite
           target: /app/database.sqlite
       exposed_ports:
         - "6000"
