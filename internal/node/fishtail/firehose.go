@@ -134,7 +134,7 @@ func (f *Fishtail) handleRepoCommit(ctx context.Context, evt *comatproto.SyncSub
 			}
 
 			recordATURI := fmt.Sprintf("at://%s/%s", evt.Repo, op.Path)
-			ingestionChain := NewIngestionChain(
+			ingestionChain := NewRecordChainIngestor(
 				*recordCBOR,
 				op.Cid.String(),
 				recordATURI,

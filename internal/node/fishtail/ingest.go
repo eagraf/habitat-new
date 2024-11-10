@@ -12,6 +12,7 @@ import (
 )
 
 type Ingester struct {
+	// Queue of chains of records to ingest
 	chainQueue chan *RecordChainIngester
 	pdsClient  *controller.PDSClient
 }
@@ -80,7 +81,7 @@ type IngestedRecordChain struct {
 	Records          []*types.PDSGetRecordResponse `json:"records"`
 }
 
-func NewIngestionChain(
+func NewRecordChainIngestor(
 	initialCBORRecord []byte,
 	initialCID string,
 	initialURI string,

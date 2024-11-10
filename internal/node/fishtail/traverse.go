@@ -7,6 +7,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+// Traverse a CBOR object and call the processFunc for each visited node.
 func traverseCBOR(recordCBOR []byte, processFunc func(node interface{}) error) error {
 
 	var traverse func(v interface{})
@@ -30,7 +31,6 @@ func traverseCBOR(recordCBOR []byte, processFunc func(node interface{}) error) e
 		}
 	}
 
-	// Traverse the CBOR object and list all linked DIDs and rkeys
 	var obj interface{}
 	if err := cbor.Unmarshal(recordCBOR, &obj); err != nil {
 		return fmt.Errorf("failed to unmarshal CBOR: %s", err)
@@ -41,6 +41,7 @@ func traverseCBOR(recordCBOR []byte, processFunc func(node interface{}) error) e
 	return nil
 }
 
+// Traverse a JSON object and call the processFunc for each visited node.
 func traverseJSON(recordJSON map[string]interface{}, processFunc func(node interface{}) error) error {
 
 	var traverse func(v interface{}) error
