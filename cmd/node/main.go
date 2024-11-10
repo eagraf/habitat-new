@@ -137,6 +137,8 @@ func main() {
 	))
 
 	// Set up the main API server
+	// TODO: create a less tedious way to register all the routes in the future. It might be as simple
+	// as having a dedicated file to list these, instead of putting them all in main.
 	routes := []api.Route{
 		// Node routes
 		api.NewVersionHandler(),
