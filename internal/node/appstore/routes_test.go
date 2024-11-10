@@ -67,6 +67,10 @@ func TestRenderDevAppsList(t *testing.T) {
 	mount := mounts[0].(map[string]interface{})
 	require.Equal(t, "bind", mount["type"])
 	require.Equal(t, "/home/fakeuser/.habitat/apps/pouch/database.sqlite", mount["source"])
+
+	// Test parsing bad app list
+	_, err = renderDevAppsList(config, []byte("not yaml"))
+	require.Error(t, err)
 }
 
 func TestAvailableAppsRouteDev(t *testing.T) {

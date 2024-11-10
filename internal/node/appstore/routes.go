@@ -93,7 +93,11 @@ func (h *AvailableAppsRoute) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		w.Write(marsahalled)
+		_, err = w.Write(marsahalled)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 	} else {
 		// TODO: implement this in "prod" mode
 		http.Error(w, "Not implemented", http.StatusNotImplemented)
