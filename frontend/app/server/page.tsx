@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import withAuth from '@/components/withAuth';
 import { useAuth } from '@/components/authContext';
@@ -10,7 +10,7 @@ import ReverseProxyRuleList from '@/components/reverseProxyRuleList';
 import AppList from '@/components/appList';
 import { AppInstallationState, ProcessState, ReverseProxyRule } from '@/types/node';
 
-const ServerPage: React.FC = () => {
+const ServerPageInternal: React.FC = () => {
     const router = useRouter();
     const searchParams = useSearchParams();
     const { logout } = useAuth();
@@ -88,6 +88,14 @@ const ServerPage: React.FC = () => {
                 {nodeData ? renderTabContent() : <p>Loading node data...</p>}
             </div>
         </main>
+    );
+};
+
+const ServerPage: React.FC = () => {
+    return (
+        <Suspense fallback={<div>Loading node data...</div>}>
+            <ServerPageInternal />
+        </Suspense>
     );
 };
 
