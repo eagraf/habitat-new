@@ -14,6 +14,7 @@ import (
 	"github.com/eagraf/habitat-new/internal/node/controller"
 	"github.com/eagraf/habitat-new/internal/node/drivers/docker"
 	"github.com/eagraf/habitat-new/internal/node/drivers/web"
+	"github.com/eagraf/habitat-new/internal/node/fishtail"
 	"github.com/eagraf/habitat-new/internal/node/hdb"
 	"github.com/eagraf/habitat-new/internal/node/hdb/hdbms"
 	"github.com/eagraf/habitat-new/internal/node/logging"
@@ -94,6 +95,13 @@ func main() {
 		log.Fatal().Err(err).Msg("error creating proxy rule state update subscriber")
 	}
 
+	atProtoEventPublisher := fishtail.NewATProtoEventPublisher(nodeConfig)
+
+	fishtailIngestionSubscriber, err := fishtail.NewFishtailIngestSubscriber(nodeConfig, nodeCtrl, atProtoEventPublisher)
+	if err != nil {
+		log.Fatal().Err(err).Msg("error creating fishtail ingestion subscriber")
+	}
+
 	stateUpdates := pubsub.NewSimpleChannel(
 		[]pubsub.Publisher[hdb.StateUpdate]{hdbPublisher},
 		[]pubsub.Subscriber[hdb.StateUpdate]{
@@ -101,6 +109,7 @@ func main() {
 			appLifecycleSubscriber,
 			pmSub,
 			proxyRuleStateUpdateSubscriber,
+			fishtailIngestionSubscriber,
 		},
 	)
 	go func() {
@@ -143,7 +152,7 @@ func main() {
 		// Node routes
 		api.NewVersionHandler(),
 		controller.NewGetNodeRoute(db.Manager),
-		controller.NewLoginRoute(&controller.PDSClient{NodeConfig: nodeConfig}),
+		controller.NewLoginRoute(controller.NewPDSClient(nodeConfig)),
 		controller.NewAddUserRoute(nodeCtrl),
 		controller.NewInstallAppRoute(nodeCtrl),
 		controller.NewStartProcessHandler(nodeCtrl),
@@ -164,6 +173,21 @@ func main() {
 			"api-server",
 			server.WithTLSConfig(tlsConfig, nodeConfig.NodeCertPath(), nodeConfig.NodeKeyPath()),
 		),
+	)
+
+	ft := fishtail.NewFishtailService(
+		"ws://host.docker.internal:5001",
+		nodeConfig,
+		atProtoEventPublisher,
+	)
+	eg.Go(
+		ft.FirehoseConsumer(
+			ctx,
+			"ws://host.docker.internal:5001",
+		),
+	)
+	eg.Go(
+		ft.LinkedRecordIngester(),
 	)
 
 	// Wait for either os.Interrupt which triggers ctx.Done()

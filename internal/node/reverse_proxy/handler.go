@@ -24,6 +24,8 @@ func getHandlerFromRule(rule *node.ReverseProxyRule, nodeConfig *config.NodeConf
 
 	// The reverse proxy will forward the traffic to another service.
 	case node.ProxyRuleRedirect:
+		fallthrough
+	case node.ProxyRuleFishtailIngest:
 		return getRedirectHandler(rule)
 
 	// The reverse proxy will serve files directly from the host system.

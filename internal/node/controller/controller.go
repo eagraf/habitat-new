@@ -42,7 +42,7 @@ func NewNodeController(habitatDBManager hdb.HDBManager, config *config.NodeConfi
 	controller := &BaseNodeController{
 		databaseManager: habitatDBManager,
 		nodeConfig:      config,
-		pdsClient:       &PDSClient{},
+		pdsClient:       NewPDSClient(config),
 	}
 	return controller, nil
 }
@@ -60,6 +60,7 @@ func (c *BaseNodeController) InitializeNodeDB() error {
 		if _, ok := err.(*hdb.DatabaseAlreadyExistsError); ok {
 			log.Info().Msg("Node database already exists, doing nothing.")
 		} else {
+			log.Error().Msgf("Error creating node database: %s", err)
 			return err
 		}
 	}

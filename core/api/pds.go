@@ -19,3 +19,15 @@ type PDSCreateSessionRequest struct {
 }
 
 type PDSCreateSessionResponse map[string]interface{}
+
+type PDSGetRecordRequest struct {
+	Repo       string `json:"repo"`
+	Collection string `json:"collection"`
+	Rkey       string `json:"rkey"`
+}
+
+type PDSGetRecordResponse struct {
+	URI   string                 `json:"uri"`
+	CID   string                 `json:"cid"`
+	Value map[string]interface{} `json:"value"`
+}
