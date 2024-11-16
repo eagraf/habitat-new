@@ -56,6 +56,7 @@ run-dev: $(PDS_BLOB_DIR)
 	DOCKER_WORKDIR=$(DOCKER_WORKDIR) \
 	DEV_HABITAT_PATH=$(DEV_HABITAT_PATH) \
 	DEV_HABITAT_APP_PATH=$(DEV_HABITAT_APP_PATH) \
+	HOST_MACHINE_REPO_PATH=$(TOPDIR) \
 	docker-compose -f ./build/compose.yml up
 
 clear-volumes:
