@@ -16,12 +16,14 @@ type ATProtoEventPublisher struct {
 	nodeConfig    *config.NodeConfig
 	subscriptions map[string][]string // maps atproto collection names to subscribed application endpoints
 	mu            sync.RWMutex
+	httpClient    *http.Client
 }
 
 func NewATProtoEventPublisher(nodeConfig *config.NodeConfig) *ATProtoEventPublisher {
 	return &ATProtoEventPublisher{
 		nodeConfig:    nodeConfig,
 		subscriptions: make(map[string][]string),
+		httpClient:    &http.Client{},
 	}
 }
 
@@ -42,7 +44,10 @@ func (sc *ATProtoEventPublisher) GetSubscriptions(lexicon string) []string {
 	return sc.subscriptions[lexicon]
 }
 
-func (sc *ATProtoEventPublisher) Publish(ingestionChain *IngestedRecordChain) error {
+// Publish sends an ingestion chain to all of the subscribers. This function returns a list of errors
+// for each subscriber that failed to receive the ingestion chain, and an overall error for unexpected
+// errors encountered while publishing the ingestion chain.
+func (sc *ATProtoEventPublisher) Publish(ingestionChain *IngestedRecordChain) ([]error, error) {
 	// When a certain record is modified, we want to publish it to the subscribers.
 	// In addition to that record, we traverse the chain of all the linked records
 	// and send them in the same message. That way, the various subscribers will
@@ -53,32 +58,38 @@ func (sc *ATProtoEventPublisher) Publish(ingestionChain *IngestedRecordChain) er
 
 	if len(subscribers) == 0 {
 		// No subscribers for this collection, nothing to do
-		return nil
+		return nil, nil
 	}
 
 	body, err := json.Marshal(ingestionChain)
 	if err != nil {
-		return fmt.Errorf("failed to marshal ingestion chain: %w", err)
+		return nil, fmt.Errorf("failed to marshal ingestion chain: %w", err)
 	}
+
+	// Track errors
+	errors := make([]error, 0)
 
 	// For now, we'll just log the action
 	for _, target := range subscribers {
+		// TODO: these http requests should be batched and queued.
 
 		log.Info().Msgf("Would publish ingestion chain for collection %s to subscriber %s", ingestionChain.Collection, target)
 		// Send a single POST request with all records
-		resp, err := http.Post(target, "application/json", bytes.NewBuffer(body))
+		resp, err := sc.httpClient.Post(target, "application/json", bytes.NewBuffer(body))
 		if err != nil {
-			return fmt.Errorf("failed to send combined records to ingest endpoint: %w", err)
+			errors = append(errors, fmt.Errorf("failed to send to %s: %w", target, err))
+			continue
 		}
 		defer resp.Body.Close()
 
 		if resp.StatusCode != http.StatusOK {
 			body, _ := io.ReadAll(resp.Body)
-			return fmt.Errorf("ingest endpoint returned non-OK status: %d, body: %s", resp.StatusCode, string(body))
+			errors = append(errors, fmt.Errorf("endpoint %s returned status %d: %s", target, resp.StatusCode, string(body)))
+			continue
 		}
 
 		log.Info().Msgf("Successfully sent %d records to ingest endpoint", len(ingestionChain.Records))
-
 	}
-	return nil
+
+	return errors, nil
 }

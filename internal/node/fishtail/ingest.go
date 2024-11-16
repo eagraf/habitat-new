@@ -161,11 +161,18 @@ func (ic *RecordChainIngester) FinishIngestion() error {
 		return fmt.Errorf("no records to publish")
 	}
 
-	return ic.atProtoEventPublisher.Publish(&IngestedRecordChain{
+	errs, err := ic.atProtoEventPublisher.Publish(&IngestedRecordChain{
 		Collection:       syntax.ATURI(ic.initialURI).Collection().String(),
 		InitialRecordURI: ic.initialURI,
 		Records:          ic.ingestedRecords,
 	})
+
+	log.Info().Msgf("published ingestion chain with %d errors", len(errs))
+	for _, err := range errs {
+		log.Error().Err(err).Msg("failed to publish ingestion chain")
+	}
+
+	return err
 }
 
 func (ic *RecordChainIngester) ingestRecord(atURI syntax.ATURI) (*types.PDSGetRecordResponse, error) {
