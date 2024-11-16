@@ -98,9 +98,14 @@ func NewRecordChainIngestor(
 	}
 }
 
-func (ic *RecordChainIngester) EnqueueRecord(uri syntax.ATURI) {
+func (ic *RecordChainIngester) EnqueueRecord(uri syntax.ATURI) bool {
 	log.Info().Msgf("enqueueing record: %s", uri)
-	ic.toIngest <- uri
+	if _, ok := ic.seen[uri.String()]; !ok {
+		ic.seen[uri.String()] = true
+		ic.toIngest <- uri
+		return true
+	}
+	return false
 }
 
 // IngestNext ingests the next record in the chain. If there are no more records to ingest, it returns false.
@@ -139,7 +144,10 @@ func (ic *RecordChainIngester) StartIngestion() error {
 	log.Info().Msgf("found %d linked URIs", len(linkedURIs))
 
 	for _, uri := range linkedURIs {
-		ic.EnqueueRecord(uri)
+		added := ic.EnqueueRecord(uri)
+		if !added {
+			log.Warn().Msgf("skipping duplicate linked record: %s", uri)
+		}
 	}
 
 	cborData, err := convertCBORToMapStringInterface(ic.initialCBORRecord)
@@ -198,10 +206,8 @@ func (ic *RecordChainIngester) ingestRecord(atURI syntax.ATURI) (*types.PDSGetRe
 
 	// Ingest linked records
 	for _, uri := range linkedURIs {
-		if _, ok := ic.seen[string(uri)]; !ok {
-			ic.seen[string(uri)] = true
-			ic.EnqueueRecord(uri)
-		} else {
+		added := ic.EnqueueRecord(uri)
+		if !added {
 			log.Warn().Msgf("skipping duplicate linked record: %s", uri)
 		}
 	}

@@ -31,6 +31,13 @@ func NewPDSClient(nodeConfig *config.NodeConfig) *PDSClient {
 	}
 }
 
+func NewPDClientWithHTTPClient(nodeConfig *config.NodeConfig, client *http.Client) *PDSClient {
+	return &PDSClient{
+		NodeConfig: nodeConfig,
+		client:     client,
+	}
+}
+
 func (p *PDSClient) GetInviteCode(nodeConfig *config.NodeConfig) (string, error) {
 	// Parse the response body to get the invite code
 	body, err := p.makePDSHttpReq("com.atproto.server.createInviteCode", http.MethodPost, []byte("{\"useCount\": 1}"), true)

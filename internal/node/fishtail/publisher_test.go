@@ -16,9 +16,10 @@ import (
 
 // Create a mock http client that records requests instead of sending them
 type mockTransport struct {
-	requests    []*http.Request
-	statusCode  int
-	clientError error
+	requests     []*http.Request
+	statusCode   int
+	clientError  error
+	responseBody string
 }
 
 func (m *mockTransport) RoundTrip(req *http.Request) (*http.Response, error) {
@@ -30,7 +31,7 @@ func (m *mockTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 
 	return &http.Response{
 		StatusCode: m.statusCode,
-		Body:       io.NopCloser(bytes.NewBufferString("")),
+		Body:       io.NopCloser(bytes.NewBufferString(m.responseBody)),
 	}, nil
 }
 
