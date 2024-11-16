@@ -23,7 +23,7 @@ func TestRenderDevAppsList(t *testing.T) {
         - PORT=6000
       mounts:
         - type: bind
-          source: {{.HabitatPath}}/apps/pouch/database.sqlite
+          source: {{.HostMachineRepoPath}}/apps/pouch/database.sqlite
           target: /app/database.sqlite
       exposed_ports:
         - "6000"
