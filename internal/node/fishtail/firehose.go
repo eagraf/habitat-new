@@ -40,7 +40,7 @@ type Fishtail struct {
 func NewFishtailService(relayHost string, nodeConfig *config.NodeConfig, atProtoEventPublisher *ATProtoEventPublisher) *Fishtail {
 	return &Fishtail{
 		relayHost:             relayHost,
-		ingester:              NewIngester(&controller.PDSClient{NodeConfig: nodeConfig}),
+		ingester:              NewIngester(controller.NewPDSClient(nodeConfig)),
 		atprotoEventPublisher: atProtoEventPublisher,
 	}
 }

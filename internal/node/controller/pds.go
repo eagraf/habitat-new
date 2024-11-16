@@ -21,6 +21,14 @@ type PDSClientI interface {
 
 type PDSClient struct {
 	NodeConfig *config.NodeConfig
+	client     *http.Client
+}
+
+func NewPDSClient(nodeConfig *config.NodeConfig) *PDSClient {
+	return &PDSClient{
+		NodeConfig: nodeConfig,
+		client:     &http.Client{},
+	}
 }
 
 func (p *PDSClient) GetInviteCode(nodeConfig *config.NodeConfig) (string, error) {
@@ -123,8 +131,7 @@ func (p *PDSClient) makePDSHttpReq(endpoint, method string, body []byte, isAdmin
 		req.Header.Add("Authorization", authHeader)
 	}
 
-	client := &http.Client{}
-	resp, err := client.Do(req)
+	resp, err := p.client.Do(req)
 	if err != nil {
 		return nil, err
 	}

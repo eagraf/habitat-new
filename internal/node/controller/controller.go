@@ -42,7 +42,7 @@ func NewNodeController(habitatDBManager hdb.HDBManager, config *config.NodeConfi
 	controller := &BaseNodeController{
 		databaseManager: habitatDBManager,
 		nodeConfig:      config,
-		pdsClient:       &PDSClient{},
+		pdsClient:       NewPDSClient(config),
 	}
 	return controller, nil
 }
