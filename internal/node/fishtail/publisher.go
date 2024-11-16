@@ -73,7 +73,6 @@ func (sc *ATProtoEventPublisher) Publish(ingestionChain *IngestedRecordChain) ([
 	for _, target := range subscribers {
 		// TODO: these http requests should be batched and queued.
 
-		log.Info().Msgf("Would publish ingestion chain for collection %s to subscriber %s", ingestionChain.Collection, target)
 		// Send a single POST request with all records
 		resp, err := sc.httpClient.Post(target, "application/json", bytes.NewBuffer(body))
 		if err != nil {

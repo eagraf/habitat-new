@@ -110,8 +110,6 @@ func (ic *RecordChainIngester) EnqueueRecord(uri syntax.ATURI) bool {
 
 // IngestNext ingests the next record in the chain. If there are no more records to ingest, it returns false.
 func (ic *RecordChainIngester) IngestNext() (bool, error) {
-	log.Info().Msgf("ingesting next record")
-
 	// If there are no more records to ingest, return false
 	if len(ic.toIngest) == 0 {
 		return false, nil

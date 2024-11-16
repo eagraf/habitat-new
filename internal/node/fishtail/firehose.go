@@ -3,8 +3,6 @@ package fishtail
 import (
 	"bytes"
 	"context"
-	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -108,15 +106,6 @@ func (f *Fishtail) runFirehoseConsumer(ctx context.Context, relayHost string) er
 
 // NOTE: for now, this function basically never errors, just logs and returns nil. Should think through error processing better.
 func (f *Fishtail) handleRepoCommit(ctx context.Context, evt *comatproto.SyncSubscribeRepos_Commit) error {
-	log.Info().Msgf("received repo commit event: %+v", evt)
-	log.Info().Msgf("event blocks (base64): %s", base64.StdEncoding.EncodeToString(evt.Blocks))
-	eventJSON, err := json.Marshal(evt)
-	if err != nil {
-		log.Error().Msgf("failed to marshal event to JSON: %s", err)
-	} else {
-		log.Info().Msgf("full event JSON: %s", string(eventJSON))
-	}
-
 	if evt.TooBig {
 		log.Warn().Msg("skipping tooBig events for now")
 		return nil
@@ -138,8 +127,6 @@ func (f *Fishtail) handleRepoCommit(ctx context.Context, evt *comatproto.SyncSub
 				log.Error().Msgf("reading record from event blocks (CAR): %s", err)
 				continue
 			}
-			lexLinked := lexutil.LexLink(rc)
-			log.Info().Msgf("lexLinked: %s", lexLinked)
 			if op.Cid == nil || lexutil.LexLink(rc) != *op.Cid {
 				log.Error().Msgf("mismatch between commit op CID and record block: recordCID: %s, op cid: %s", rc, op.Cid)
 				continue
