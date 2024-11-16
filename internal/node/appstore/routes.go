@@ -40,9 +40,10 @@ func renderDevAppsList(config *config.NodeConfig, raw []byte) ([]*types.PostAppR
 	}
 
 	data := struct {
-		HabitatPath string
+		// The path to the host machine's repo. This is used for mounting the right directories in various apps.
+		HostMachineRepoPath string
 	}{
-		HabitatPath: config.HabitatPath(),
+		HostMachineRepoPath: config.HostMachineRepoPath(),
 	}
 
 	var buf bytes.Buffer

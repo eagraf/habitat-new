@@ -84,11 +84,29 @@
                     "id": { "type": "string"},
                     "type": {
                         "type": "string",
-                        "enum": [ "file", "redirect" ]
+                        "enum": [ "file", "redirect", "embedded_frontend", "fishtail_ingest" ]
                     },
                     "matcher": { "type": "string" },
                     "target": { "type": "string" },
-                    "app_id": { "type": "string" }
+                    "app_id": { "type": "string" },
+                    "fishtail_ingest_config": {
+                        "type": "object",
+                        "properties": {
+                           "subscribed_collections": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "lexicon": { "type": "string" }
+                                    },
+                                    "additionalProperties": false,
+                                    "required": [ "lexicon" ]
+                                }
+                            }
+                        },
+                        "required": [ "subscribed_collections" ],
+                        "additionalProperties": false
+                    }
                 },
                 "additionalProperties": false,
                 "required": [ "id", "type", "matcher", "target", "app_id" ]

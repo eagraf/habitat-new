@@ -46,6 +46,11 @@ func loadEnv(v *viper.Viper) error {
 		return err
 	}
 
+	err = v.BindEnv("host_machine_repo_path", "HOST_MACHINE_REPO_PATH")
+	if err != nil {
+		return err
+	}
+
 	err = v.BindEnv("use_tls", "USE_TLS")
 	if err != nil {
 		return err
@@ -262,6 +267,15 @@ func (n *NodeConfig) RootUserCertPath() string {
 
 func (n *NodeConfig) RootUserCertB64() string {
 	return base64.StdEncoding.EncodeToString(n.RootUserCert.Raw)
+}
+
+// HostMachineRepoPath returns the path to the directory where the host machine's repo is mounted.
+// This is only used in dev mode.
+func (n *NodeConfig) HostMachineRepoPath() string {
+	if n.Environment() == constants.EnvironmentDev {
+		return n.viper.GetString("host_machine_repo_path")
+	}
+	return ""
 }
 
 func (n *NodeConfig) TLSConfig() (*tls.Config, error) {

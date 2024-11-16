@@ -21,6 +21,7 @@ services:
         - HABITAT_PATH=/.habitat
         - HABITAT_APP_PATH=${DEV_HABITAT_APP_PATH}
         - FRONTEND_DEV=1
+        - HOST_MACHINE_REPO_PATH=${HOST_MACHINE_REPO_PATH}
     ports:
       # Standard API port
       - 3000:3000

@@ -26,7 +26,7 @@ func TestRenderDevAppsList(t *testing.T) {
         - PORT=6000
       mounts:
         - type: bind
-          source: {{.HabitatPath}}/apps/pouch/database.sqlite
+          source: {{.HostMachineRepoPath}}/apps/pouch/database.sqlite
           target: /app/database.sqlite
       exposed_ports:
         - "6000"
@@ -41,7 +41,8 @@ func TestRenderDevAppsList(t *testing.T) {
 
 	// Create a test node config
 	v := viper.New()
-	v.Set("habitat_path", "/home/fakeuser/.habitat")
+	v.Set("host_machine_repo_path", "/home/fakeuser/.habitat")
+	v.Set("environment", constants.EnvironmentDev)
 	config, err := config.NewTestNodeConfig(v)
 	if err != nil {
 		t.Fatal(err)
