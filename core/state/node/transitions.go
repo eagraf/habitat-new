@@ -265,12 +265,11 @@ func (t *StartInstallationTransition) Enrich(oldState hdb.SerializedState) error
 
 	for _, rule := range t.NewProxyRules {
 		enrichedRules = append(enrichedRules, &ReverseProxyRule{
-			ID:                   uuid.New().String(),
-			AppID:                appInstallState.ID,
-			Type:                 rule.Type,
-			Matcher:              rule.Matcher,
-			Target:               rule.Target,
-			FishtailIngestConfig: rule.FishtailIngestConfig,
+			ID:      uuid.New().String(),
+			AppID:   appInstallState.ID,
+			Type:    rule.Type,
+			Matcher: rule.Matcher,
+			Target:  rule.Target,
 		})
 		rule.ID = uuid.New().String()
 		rule.AppID = appInstallState.ID

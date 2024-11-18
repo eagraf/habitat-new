@@ -96,6 +96,10 @@ func (d *AppDriver) InstallPackage(packageSpec *node.Package, version string) er
 	return nil
 }
 
+func (d *AppDriver) UpgradePackage(packageSpec *node.Package, version string) error {
+	return d.InstallPackage(packageSpec, version)
+}
+
 func (d *AppDriver) UninstallPackage(packageURL *node.Package, version string) error {
 	repoURL := repoURLFromPackage(packageURL)
 	_, err := d.client.ImageRemove(context.Background(), repoURL, types.ImageRemoveOptions{})
