@@ -3,11 +3,11 @@ package node
 import (
 	"encoding/json"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/eagraf/habitat-new/internal/node/hdb"
 	"github.com/google/uuid"
+	"github.com/wI2L/jsondiff"
 )
 
 var (
@@ -31,7 +31,7 @@ func (t *InitalizationTransition) Type() string {
 	return TransitionInitialize
 }
 
-func (t *InitalizationTransition) Patch(oldState hdb.SerializedState) (hdb.SerializedState, error) {
+func (t *InitalizationTransition) Patch(oldState hdb.SerializedState) (jsondiff.Patch, error) {
 	if t.InitState.Users == nil {
 		t.InitState.Users = make(map[string]*User, 0)
 	}
@@ -44,15 +44,13 @@ func (t *InitalizationTransition) Patch(oldState hdb.SerializedState) (hdb.Seria
 		t.InitState.Processes = make(map[string]*ProcessState)
 	}
 
-	marshaled, err := json.Marshal(t.InitState)
-	if err != nil {
-		return nil, err
-	}
-	return []byte(fmt.Sprintf(`[{
-		"op": "add",
-		"path": "",
-		"value": %s
-	}]`, marshaled)), nil
+	return jsondiff.Patch{
+		{
+			Path:  "",
+			Type:  jsondiff.OperationAdd,
+			Value: t.InitState,
+		},
+	}, nil
 }
 
 func (t *InitalizationTransition) Enrich(oldState hdb.SerializedState) error {
@@ -74,7 +72,7 @@ func (t *MigrationTransition) Type() string {
 	return TransitionMigrationUp
 }
 
-func (t *MigrationTransition) Patch(oldState hdb.SerializedState) (hdb.SerializedState, error) {
+func (t *MigrationTransition) Patch(oldState hdb.SerializedState) (jsondiff.Patch, error) {
 	var oldNode State
 	err := json.Unmarshal(oldState, &oldNode)
 	if err != nil {
@@ -86,7 +84,7 @@ func (t *MigrationTransition) Patch(oldState hdb.SerializedState) (hdb.Serialize
 		return nil, err
 	}
 
-	return json.Marshal(patch)
+	return patch, nil
 }
 
 func (t *MigrationTransition) Enrich(oldState hdb.SerializedState) error {
@@ -134,18 +132,14 @@ func (t *AddUserTransition) Type() string {
 	return TransitionAddUser
 }
 
-func (t *AddUserTransition) Patch(oldState hdb.SerializedState) (hdb.SerializedState, error) {
-
-	user, err := json.Marshal(t.EnrichedData.User)
-	if err != nil {
-		return nil, err
-	}
-
-	return []byte(fmt.Sprintf(`[{
-		"op": "add",
-		"path": "/users/%s",
-		"value": %s
-	}]`, t.EnrichedData.User.ID, user)), nil
+func (t *AddUserTransition) Patch(oldState hdb.SerializedState) (jsondiff.Patch, error) {
+	return jsondiff.Patch{
+		{
+			Path:  fmt.Sprintf("/users/%s", t.EnrichedData.User.ID),
+			Type:  jsondiff.OperationAdd,
+			Value: t.EnrichedData.User,
+		},
+	}, nil
 }
 
 func (t *AddUserTransition) Enrich(oldState hdb.SerializedState) error {
@@ -203,14 +197,9 @@ func (t *StartInstallationTransition) Type() string {
 	return TransitionStartInstallation
 }
 
-func (t *StartInstallationTransition) Patch(oldState hdb.SerializedState) (hdb.SerializedState, error) {
+func (t *StartInstallationTransition) Patch(oldState hdb.SerializedState) (jsondiff.Patch, error) {
 	var oldNode State
 	err := json.Unmarshal(oldState, &oldNode)
-	if err != nil {
-		return nil, err
-	}
-
-	marshalledApp, err := json.Marshal(t.EnrichedData.AppState)
 	if err != nil {
 		return nil, err
 	}
@@ -220,32 +209,24 @@ func (t *StartInstallationTransition) Patch(oldState hdb.SerializedState) (hdb.S
 		return nil, fmt.Errorf("user with id %s not found", t.UserID)
 	}
 
-	marshaledRules := make([]string, 0)
+	ruleOps := make([]jsondiff.Operation, 0)
 	for _, rule := range t.EnrichedData.NewProxyRules {
-		marshaled, err := json.Marshal(rule)
-		if err != nil {
-			return nil, err
-		}
-		op := fmt.Sprintf(`{
-			"op": "add",
-			"path": "/reverse_proxy_rules/%s",
-			"value": %s
-		}`, rule.ID, marshaled)
-		marshaledRules = append(marshaledRules, op)
+		ruleOps = append(ruleOps, jsondiff.Operation{
+			Type:  jsondiff.OperationAdd,
+			Path:  fmt.Sprintf("/reverse_proxy_rules/%s", rule.ID),
+			Value: rule,
+		})
 	}
 
-	rules := ""
-	if len(marshaledRules) != 0 {
-		rules = "," + strings.Join(marshaledRules, ",")
-	}
+	res := make([]jsondiff.Operation, 0)
+	res = append(res, jsondiff.Operation{
+		Type:  jsondiff.OperationAdd,
+		Path:  fmt.Sprintf("/app_installations/%s", t.EnrichedData.AppState.ID),
+		Value: t.EnrichedData.AppState,
+	})
+	res = append(res, ruleOps...)
 
-	return []byte(fmt.Sprintf(`[
-		{
-			"op": "add",
-			"path": "/app_installations/%s",
-			"value": %s
-		}%s
-	]`, t.EnrichedData.AppState.ID, string(marshalledApp), rules)), nil
+	return res, nil
 }
 
 func (t *StartInstallationTransition) Enrich(oldState hdb.SerializedState) error {
@@ -332,18 +313,14 @@ func (t *FinishInstallationTransition) Type() string {
 	return TransitionFinishInstallation
 }
 
-func (t *FinishInstallationTransition) Patch(oldState hdb.SerializedState) (hdb.SerializedState, error) {
-	var oldNode State
-	err := json.Unmarshal(oldState, &oldNode)
-	if err != nil {
-		return nil, err
-	}
-
-	return []byte(fmt.Sprintf(`[{
-		"op": "replace",
-		"path": "/app_installations/%s/state",
-		"value": "%s"
-	}]`, t.AppID, AppLifecycleStateInstalled)), nil
+func (t *FinishInstallationTransition) Patch(oldState hdb.SerializedState) (jsondiff.Patch, error) {
+	return jsondiff.Patch{
+		{
+			Type:  jsondiff.OperationReplace,
+			Path:  fmt.Sprintf("/app_installations/%s/state", t.AppID),
+			Value: AppLifecycleStateInstalled,
+		},
+	}, nil
 }
 
 func (t *FinishInstallationTransition) Enrich(oldState hdb.SerializedState) error {
@@ -396,23 +373,14 @@ func (t *ProcessStartTransition) Type() string {
 	return TransitionStartProcess
 }
 
-func (t *ProcessStartTransition) Patch(oldState hdb.SerializedState) (hdb.SerializedState, error) {
-	var oldNode State
-	err := json.Unmarshal(oldState, &oldNode)
-	if err != nil {
-		return nil, err
-	}
-
-	marshaled, err := json.Marshal(t.EnrichedData.Process)
-	if err != nil {
-		return nil, err
-	}
-
-	return []byte(fmt.Sprintf(`[{
-			"op": "add",
-			"path": "/processes/%s",
-			"value": %s
-		}]`, t.EnrichedData.Process.ID, marshaled)), nil
+func (t *ProcessStartTransition) Patch(oldState hdb.SerializedState) (jsondiff.Patch, error) {
+	return jsondiff.Patch{
+		{
+			Type:  jsondiff.OperationAdd,
+			Path:  fmt.Sprintf("/processes/%s", t.EnrichedData.Process.ID),
+			Value: t.EnrichedData.Process,
+		},
+	}, nil
 }
 
 func (t *ProcessStartTransition) Enrich(oldState hdb.SerializedState) error {
@@ -496,30 +464,14 @@ func (t *ProcessRunningTransition) Type() string {
 	return TransitionProcessRunning
 }
 
-func (t *ProcessRunningTransition) Patch(oldState hdb.SerializedState) (hdb.SerializedState, error) {
-	var oldNode State
-	err := json.Unmarshal(oldState, &oldNode)
-	if err != nil {
-		return nil, err
-	}
-
-	// Find the matching process
-	proc, ok := oldNode.Processes[t.ProcessID]
-	if !ok {
-		return nil, fmt.Errorf("process with id %s not found", t.ProcessID)
-	}
-	proc.State = ProcessStateRunning
-
-	marshaled, err := json.Marshal(proc)
-	if err != nil {
-		return nil, err
-	}
-
-	return []byte(fmt.Sprintf(`[{
-		"op": "replace",
-		"path": "/processes/%s",
-		"value": %s
-	}]`, t.ProcessID, marshaled)), nil
+func (t *ProcessRunningTransition) Patch(oldState hdb.SerializedState) (jsondiff.Patch, error) {
+	return jsondiff.Patch{
+		{
+			Type:  jsondiff.OperationReplace,
+			Path:  fmt.Sprintf("/processes/%s/state", t.ProcessID),
+			Value: ProcessStateRunning,
+		},
+	}, nil
 }
 
 func (t *ProcessRunningTransition) Enrich(oldState hdb.SerializedState) error {
@@ -553,22 +505,13 @@ func (t *ProcessStopTransition) Type() string {
 	return TransitionStopProcess
 }
 
-func (t *ProcessStopTransition) Patch(oldState hdb.SerializedState) (hdb.SerializedState, error) {
-	var oldNode State
-	err := json.Unmarshal(oldState, &oldNode)
-	if err != nil {
-		return nil, err
-	}
-
-	_, ok := oldNode.Processes[t.ProcessID]
-	if !ok {
-		return nil, fmt.Errorf("process with id %s not found", t.ProcessID)
-	}
-
-	return []byte(fmt.Sprintf(`[{
-		"op": "remove",
-		"path": "/processes/%s"
-	}]`, t.ProcessID)), nil
+func (t *ProcessStopTransition) Patch(oldState hdb.SerializedState) (jsondiff.Patch, error) {
+	return jsondiff.Patch{
+		{
+			Type: jsondiff.OperationRemove,
+			Path: fmt.Sprintf("/processes/%s", t.ProcessID),
+		},
+	}, nil
 }
 
 func (t *ProcessStopTransition) Enrich(oldState hdb.SerializedState) error {
@@ -598,18 +541,14 @@ func (t *AddReverseProxyRuleTransition) Type() string {
 	return TransitionAddReverseProxyRule
 }
 
-func (t *AddReverseProxyRuleTransition) Patch(oldState hdb.SerializedState) (hdb.SerializedState, error) {
-
-	marshaledRule, err := json.Marshal(t.Rule)
-	if err != nil {
-		return nil, err
-	}
-
-	return []byte(fmt.Sprintf(`[{
-		"op": "add",
-		"path": "/reverse_proxy_rules/%s",
-		"value": %s
-	}]`, t.Rule.ID, string(marshaledRule))), nil
+func (t *AddReverseProxyRuleTransition) Patch(oldState hdb.SerializedState) (jsondiff.Patch, error) {
+	return jsondiff.Patch{
+		{
+			Type:  jsondiff.OperationAdd,
+			Path:  fmt.Sprintf("/reverse_proxy_rules/%s", t.Rule.ID),
+			Value: t.Rule,
+		},
+	}, nil
 }
 
 func (t *AddReverseProxyRuleTransition) Enrich(oldState hdb.SerializedState) error {
