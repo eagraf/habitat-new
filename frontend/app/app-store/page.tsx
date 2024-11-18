@@ -55,9 +55,15 @@ const AppStorePage = () => {
 
             {/* TODO: Add an installing state to this button, and update automatically when done, ideally with a progress bar. */}
             {app.installed ? (
-              <button className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 transition-colors" disabled>
-                Installed
-              </button>
+              app.needsUpdate ? (
+                <button className="bg-yellow-500 text-white px-4 py-2 rounded hover:bg-yellow-600 transition-colors" onClick={() => handleInstallApp(app)}>
+                  Update Available
+                </button>
+              ) : (
+                <button className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 transition-colors" disabled>
+                  Installed
+                </button>
+              )
             ) : (
               <button className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition-colors" onClick={() => handleInstallApp(app)}>
                 Install

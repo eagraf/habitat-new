@@ -99,10 +99,24 @@ export const getAvailableAppsWithInstallStatus = async (): Promise<any[]> => {
         const nodeState = await getNode();
         const installedApps = Object.values(nodeState.state.app_installations || {});
 
-        return availableApps.map(app => ({
-            ...app,
-            installed: installedApps.some((installedApp: any) => installedApp.name === app.app_installation.name)
-        }));
+        return availableApps.map(app => {
+            const installedApp = installedApps.find((installedApp: any) => {
+                return installedApp.name === app.app_installation.name
+            });
+
+            if (installedApp) {
+                return {
+                    ...app,
+                    installed: true,
+                    needsUpdate: installedApp.version < app.app_installation.version,
+                };
+            }
+
+            return {
+                ...app,
+                installed: false,
+            };
+        });
     } catch (error) {
         console.error('Error fetching available apps with install status:', error);
         throw error;
