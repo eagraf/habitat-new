@@ -1,10 +1,10 @@
 - app_installation:
     name: pouch_frontend
-    version: 4
+    version: 5
     driver: web
 
     driver_config:
-      download_url: https://github.com/eagraf/pouch/releases/download/release-3/dist.tar.gz
+      download_url: https://github.com/eagraf/pouch/releases/download/release-5/dist.tar.gz
       bundle_directory_name: pouch
 
     registry_url_base: a
@@ -14,7 +14,7 @@
   reverse_proxy_rules:
     - type: file
       matcher: /pouch
-      target: pouch/4/dist
+      target: pouch/5/dist
     - type: redirect
       matcher: /pouch_api
       target: http://host.docker.internal:6000
