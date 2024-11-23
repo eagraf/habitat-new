@@ -21,6 +21,8 @@ var (
 	TransitionProcessRunning      = "process_running"
 	TransitionStopProcess         = "process_stop"
 	TransitionAddReverseProxyRule = "add_reverse_proxy_rule"
+	TransitionStartAppUpgrade     = "start_app_upgrade"
+	TransitionFinishAppUpgrade    = "finish_app_upgrade"
 )
 
 type InitalizationTransition struct {
@@ -350,6 +352,122 @@ func (t *FinishInstallationTransition) Validate(oldState hdb.SerializedState) er
 
 	if app.State != "installing" {
 		return fmt.Errorf("app %s for user %s is in state %s", app.Name, t.UserID, app.State)
+	}
+
+	return nil
+}
+
+// Transition for updating app installations
+
+type StartAppUpgradeTransition struct {
+	AppID              string                `json:"app_id"`
+	NewAppInstallation *AppInstallationState `json:"new_app_installation"`
+	NewProxyRules      []*ReverseProxyRule   `json:"new_proxy_rules"`
+	StartAfterUpgrade  bool                  `json:"start_after_upgrade"`
+}
+
+func (t *StartAppUpgradeTransition) Type() string {
+	return TransitionStartAppUpgrade
+}
+
+func (t *StartAppUpgradeTransition) Patch(oldState hdb.SerializedState) (jsondiff.Patch, error) {
+	// Copy over the ID from the existing app
+	t.NewAppInstallation.ID = t.AppID
+	t.NewAppInstallation.State = AppLifecycleStateUpgrading
+
+	ruleOps := make([]jsondiff.Operation, 0)
+	for _, rule := range t.NewProxyRules {
+		ruleOps = append(ruleOps, jsondiff.Operation{
+			Type:  jsondiff.OperationAdd,
+			Path:  fmt.Sprintf("/reverse_proxy_rules/%s", rule.ID),
+			Value: rule,
+		})
+	}
+
+	res := make([]jsondiff.Operation, 0)
+	res = append(res, jsondiff.Operation{
+		Type:  jsondiff.OperationReplace,
+		Path:  fmt.Sprintf("/app_installations/%s", t.AppID),
+		Value: t.NewAppInstallation,
+	})
+	res = append(res, ruleOps...)
+
+	return res, nil
+}
+
+func (t *StartAppUpgradeTransition) Enrich(oldState hdb.SerializedState) error {
+	return nil
+}
+
+func (t *StartAppUpgradeTransition) Validate(oldState hdb.SerializedState) error {
+	var oldNode State
+	err := json.Unmarshal(oldState, &oldNode)
+	if err != nil {
+		return err
+	}
+
+	// Check that app exists and is in installed state
+	existingApp, ok := oldNode.AppInstallations[t.AppID]
+	if !ok {
+		return fmt.Errorf("app with id %s not found", t.AppID)
+	}
+
+	if existingApp.State != AppLifecycleStateInstalled {
+		return fmt.Errorf("app %s is in state %s, must be in installed state", existingApp.Name, existingApp.State)
+	}
+
+	// Check that no process is running for this app
+	for _, process := range oldNode.Processes {
+		if process.AppID == t.AppID {
+			return fmt.Errorf("process %s is still running for app %s", process.ID, t.AppID)
+		}
+	}
+
+	// Validate version is higher
+	if t.NewAppInstallation.Version <= existingApp.Version {
+		return fmt.Errorf("new version %s must be higher than existing version %s", t.NewAppInstallation.Version, existingApp.Version)
+	}
+
+	return nil
+}
+
+type FinishAppUpgradeTransition struct {
+	AppID             string `json:"app_id"`
+	StartAfterUpgrade bool   `json:"start_after_upgrade"`
+}
+
+func (t *FinishAppUpgradeTransition) Type() string {
+	return TransitionFinishAppUpgrade
+}
+
+func (t *FinishAppUpgradeTransition) Patch(oldState hdb.SerializedState) (jsondiff.Patch, error) {
+	return jsondiff.Patch{
+		{
+			Type:  jsondiff.OperationReplace,
+			Path:  fmt.Sprintf("/app_installations/%s/state", t.AppID),
+			Value: AppLifecycleStateInstalled,
+		},
+	}, nil
+}
+
+func (t *FinishAppUpgradeTransition) Enrich(oldState hdb.SerializedState) error {
+	return nil
+}
+
+func (t *FinishAppUpgradeTransition) Validate(oldState hdb.SerializedState) error {
+	var oldNode State
+	err := json.Unmarshal(oldState, &oldNode)
+	if err != nil {
+		return err
+	}
+
+	app, ok := oldNode.AppInstallations[t.AppID]
+	if !ok {
+		return fmt.Errorf("app with id %s not found", t.AppID)
+	}
+
+	if app.State != "upgrading" {
+		return fmt.Errorf("app %s is in state %s, must be in upgrading state", app.Name, app.State)
 	}
 
 	return nil

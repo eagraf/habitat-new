@@ -8,6 +8,7 @@ package node
 
 const AppLifecycleStateInstalling = "installing"
 const AppLifecycleStateInstalled = "installed"
+const AppLifecycleStateUpgrading = "upgrading"
 
 type Package struct {
 	Driver             string                 `json:"driver" yaml:"driver"`
