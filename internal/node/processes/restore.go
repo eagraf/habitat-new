@@ -26,20 +26,29 @@ func (r *ProcessRestorer) Restore(restoreEvent hdb.StateUpdate) error {
 
 			switch process.State {
 			case node.ProcessStateRunning:
-				err = r.processManager.StartProcess(process.Process, app.AppInstallation)
+				alreadyRunning, err := r.processManager.IsProcessRunning(process.ID)
 				if err != nil {
-					log.Error().Msgf("Error starting process %s: %s", process.ID, err)
+					log.Error().Msgf("Error checking if process %s is running: %s", process.ID, err)
 					break
 				}
+				if alreadyRunning {
+					log.Info().Msgf("Process %s is already running, skipping", process.ID)
+					return
+				}
+
+				// TODO this should trigger a new process for the same app, instead of reconstituting the old one.
+				// First stop the old process, then start a new one.
+
+				return
 			case node.ProcessStateStarting:
 				log.Info().Msgf("Process %s was in starting state, starting process", process.ID)
-				err = r.processManager.StartProcess(process.Process, app.AppInstallation)
+				extProcessID, err := r.processManager.StartProcess(process.Process, app.AppInstallation)
 				if err != nil {
 					log.Error().Msgf("Error starting process %s: %s", process.ID, err)
 					break
 				}
 
-				err = r.nodeController.SetProcessRunning(process.ID)
+				err = r.nodeController.SetProcessRunning(process.ID, extProcessID)
 				if err != nil {
 					log.Error().Msgf("Error setting process %s to running: %s", process.ID, err)
 				}

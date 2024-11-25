@@ -167,6 +167,18 @@ func (d *ProcessDriver) StopProcess(extProcessID string) error {
 	return nil
 }
 
+func (d *ProcessDriver) IsProcessRunning(extProcessID string) (bool, error) {
+	containerInfo, err := d.client.ContainerInspect(context.Background(), extProcessID)
+	if err != nil {
+		return false, nil
+	}
+	// Check if the container is running
+	if containerInfo.State != nil && containerInfo.State.Running {
+		return true, nil
+	}
+	return false, nil
+}
+
 type Driver struct {
 	PackageManager package_manager.PackageManager
 	ProcessDriver  processes.ProcessDriver `group:"process_drivers"`

@@ -78,7 +78,7 @@ func main() {
 		log.Fatal().Err(err).Msg("error creating app lifecycle subscriber")
 	}
 
-	pm := processes.NewProcessManager([]processes.ProcessDriver{dockerDriver.ProcessDriver, webDriver.ProcessDriver})
+	pm := processes.NewProcessManager([]processes.ProcessDriver{dockerDriver.ProcessDriver, webDriver.ProcessDriver}, nodeCtrl)
 	pmSub, err := processes.NewProcessManagerStateUpdateSubscriber(pm, nodeCtrl)
 	if err != nil {
 		log.Fatal().Err(err).Msg("error creating process manager state update subscriber")

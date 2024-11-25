@@ -24,7 +24,9 @@ func (e *StartProcessExecutor) ShouldExecute(update hdb.StateUpdate) (bool, erro
 		return false, err
 	}
 
-	_, err = e.processManager.GetProcess(processStartTransition.EnrichedData.Process.ID)
+	// If somehow this process is already running, we don't need to start it again
+	// This can happen if the node restarts while a process is starting
+	_, err = e.processManager.IsProcessRunning(processStartTransition.EnrichedData.Process.ID)
 	if err != nil {
 		return true, nil
 	}
@@ -46,12 +48,15 @@ func (e *StartProcessExecutor) Execute(update hdb.StateUpdate) error {
 		return err
 	}
 
-	err = e.processManager.StartProcess(processStartTransition.EnrichedData.Process.Process, app.AppInstallation)
+	extProcessID, err := e.processManager.StartProcess(processStartTransition.EnrichedData.Process.Process, app.AppInstallation)
 	if err != nil {
 		return err
 	}
 
-	err = e.nodeController.SetProcessRunning(processStartTransition.EnrichedData.Process.ID)
+	err = e.nodeController.SetProcessRunning(
+		processStartTransition.EnrichedData.Process.ID,
+		extProcessID,
+	)
 	if err != nil {
 		return err
 	}

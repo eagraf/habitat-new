@@ -187,7 +187,7 @@ func (c *BaseNodeController) StartProcess(appID string) error {
 	return nil
 }
 
-func (c *BaseNodeController) SetProcessRunning(processID string) error {
+func (c *BaseNodeController) SetProcessRunning(processID string, extProcessID string) error {
 	dbClient, err := c.databaseManager.GetDatabaseClientByName(constants.NodeDBDefaultName)
 	if err != nil {
 		return err
@@ -195,7 +195,8 @@ func (c *BaseNodeController) SetProcessRunning(processID string) error {
 
 	_, err = dbClient.ProposeTransitions([]hdb.Transition{
 		&node.ProcessRunningTransition{
-			ProcessID: processID,
+			ProcessID:    processID,
+			ExtProcessID: extProcessID,
 		},
 	})
 	if err != nil {

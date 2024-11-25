@@ -576,6 +576,8 @@ func (t *ProcessStartTransition) Validate(oldState hdb.SerializedState) error {
 
 type ProcessRunningTransition struct {
 	ProcessID string `json:"process_id"`
+	// External process ID used by the driver. For example, docker container ID.
+	ExtProcessID string `json:"ext_process_id"`
 }
 
 func (t *ProcessRunningTransition) Type() string {
@@ -588,6 +590,11 @@ func (t *ProcessRunningTransition) Patch(oldState hdb.SerializedState) (jsondiff
 			Type:  jsondiff.OperationReplace,
 			Path:  fmt.Sprintf("/processes/%s/state", t.ProcessID),
 			Value: ProcessStateRunning,
+		},
+		{
+			Type:  jsondiff.OperationReplace,
+			Path:  fmt.Sprintf("/processes/%s/ext_driver_id", t.ProcessID),
+			Value: t.ExtProcessID,
 		},
 	}, nil
 }
