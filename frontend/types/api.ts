@@ -24,6 +24,11 @@ export interface PostAppRequest {
   app_installation?: node.AppInstallation;
   reverse_proxy_rules: (node.ReverseProxyRule | undefined)[];
 }
+export interface PostUpgradeAppRequest {
+  app_installation?: node.AppInstallation;
+  reverse_proxy_rules: (node.ReverseProxyRule | undefined)[];
+  version: string;
+}
 export interface PostProcessRequest {
   app_id: string;
 }
