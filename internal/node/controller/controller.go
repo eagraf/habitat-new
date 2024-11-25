@@ -216,6 +216,20 @@ func (c *BaseNodeController) StopProcess(processID string) error {
 	return nil
 }
 
+func (c *BaseNodeController) FinishProcessStop(processID string) error {
+	dbClient, err := c.databaseManager.GetDatabaseClientByName(constants.NodeDBDefaultName)
+	if err != nil {
+		return err
+	}
+
+	_, err = dbClient.ProposeTransitions([]hdb.Transition{
+		&node.FinishProcessStopTransition{
+			ProcessID: processID,
+		},
+	})
+	return err
+}
+
 func (c *BaseNodeController) AddUser(userID, email, handle, password, certificate string) (types.PDSCreateAccountResponse, error) {
 
 	inviteCode, err := c.pdsClient.GetInviteCode(c.nodeConfig)

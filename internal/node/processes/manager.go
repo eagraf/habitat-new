@@ -51,6 +51,10 @@ func NewProcessManagerStateUpdateSubscriber(processManager ProcessManager, contr
 				processManager: processManager,
 				nodeController: controller,
 			},
+			&StopProcessExecutor{
+				processManager: processManager,
+				nodeController: controller,
+			},
 		},
 		&ProcessRestorer{
 			processManager: processManager,

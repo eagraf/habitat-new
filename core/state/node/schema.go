@@ -63,6 +63,17 @@ func (s State) Bytes() ([]byte, error) {
 	return json.Marshal(s)
 }
 
+// Helpers for getting info out of the state
+
+type ErrNotFound struct {
+	Type string
+	ID   string
+}
+
+func (e ErrNotFound) Error() string {
+	return fmt.Sprintf("%s with ID %s not found", e.Type, e.ID)
+}
+
 func (s State) GetAppByID(appID string) (*AppInstallationState, error) {
 	app, ok := s.AppInstallations[appID]
 	if !ok {
@@ -89,6 +100,27 @@ func (s State) GetProcessesForUser(userID string) ([]*ProcessState, error) {
 		}
 	}
 	return procs, nil
+}
+
+func (s State) GetProcessByID(processID string) (*ProcessState, error) {
+	proc, ok := s.Processes[processID]
+	if !ok {
+		return nil, fmt.Errorf("process with ID %s not found", processID)
+	}
+	return proc, nil
+}
+
+func (s State) GetProcessForApp(appID string) (*ProcessState, error) {
+	for _, proc := range s.Processes {
+		if proc.AppID == appID {
+			return proc, nil
+		}
+	}
+
+	return nil, ErrNotFound{
+		Type: "process",
+		ID:   appID,
+	}
 }
 
 func (s State) GetReverseProxyRulesForProcess(processID string) ([]*ReverseProxyRule, error) {

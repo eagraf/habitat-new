@@ -67,3 +67,65 @@ func (e *StartProcessExecutor) Execute(update hdb.StateUpdate) error {
 func (e *StartProcessExecutor) PostHook(update hdb.StateUpdate) error {
 	return nil
 }
+
+type StopProcessExecutor struct {
+	processManager ProcessManager
+	nodeController controller.NodeController
+}
+
+func NewStopProcessExecutor(processManager ProcessManager, nodeController controller.NodeController) *StopProcessExecutor {
+	return &StopProcessExecutor{
+		processManager: processManager,
+		nodeController: nodeController,
+	}
+}
+
+func (e *StopProcessExecutor) TransitionType() string {
+	return node.TransitionStopProcess
+}
+
+func (e *StopProcessExecutor) ShouldExecute(update hdb.StateUpdate) (bool, error) {
+	var processStopTransition node.ProcessStopTransition
+	err := json.Unmarshal(update.Transition(), &processStopTransition)
+	if err != nil {
+		return false, err
+	}
+
+	_, err = e.processManager.GetProcess(processStopTransition.ProcessID)
+	if err != nil {
+		return false, nil
+	}
+
+	return true, nil
+}
+
+func (e *StopProcessExecutor) Execute(update hdb.StateUpdate) error {
+	var processStopTransition node.ProcessStopTransition
+	err := json.Unmarshal(update.Transition(), &processStopTransition)
+	if err != nil {
+		return err
+	}
+
+	err = e.processManager.StopProcess(processStopTransition.ProcessID)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// PostHook is called even if ShouldExecute returns false.
+func (e *StopProcessExecutor) PostHook(update hdb.StateUpdate) error {
+	var processStopTransition node.ProcessStopTransition
+	err := json.Unmarshal(update.Transition(), &processStopTransition)
+	if err != nil {
+		return err
+	}
+
+	err = e.nodeController.FinishProcessStop(processStopTransition.ProcessID)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}

@@ -29,6 +29,8 @@ type AppInstallation struct {
 
 const ProcessStateStarting = "starting"
 const ProcessStateRunning = "running"
+const ProcessStateStopping = "stopping"
+const ProcessStateStopped = "stopped"
 
 type Process struct {
 	ID      string `json:"id"`

@@ -20,6 +20,7 @@ var (
 	TransitionStartProcess        = "process_start"
 	TransitionProcessRunning      = "process_running"
 	TransitionStopProcess         = "process_stop"
+	TransitionFinishProcessStop   = "finish_process_stop"
 	TransitionAddReverseProxyRule = "add_reverse_proxy_rule"
 	TransitionStartAppUpgrade     = "start_app_upgrade"
 	TransitionFinishAppUpgrade    = "finish_app_upgrade"
@@ -565,9 +566,9 @@ func (t *ProcessStartTransition) Validate(oldState hdb.SerializedState) error {
 	}
 
 	for _, proc := range oldNode.Processes {
-		// Make sure that no app with the same ID has a process
-		if proc.AppID == t.AppID {
-			return fmt.Errorf("app with id %s already has a process", t.AppID)
+		// Make sure that no app with the same ID has a process, that isn't stopped
+		if proc.AppID == t.AppID && proc.State != ProcessStateStopped {
+			return fmt.Errorf("app with id %s already has a process in state %s", t.AppID, proc.State)
 		}
 	}
 
@@ -633,8 +634,9 @@ func (t *ProcessStopTransition) Type() string {
 func (t *ProcessStopTransition) Patch(oldState hdb.SerializedState) (jsondiff.Patch, error) {
 	return jsondiff.Patch{
 		{
-			Type: jsondiff.OperationRemove,
-			Path: fmt.Sprintf("/processes/%s", t.ProcessID),
+			Type:  jsondiff.OperationReplace,
+			Path:  fmt.Sprintf("/processes/%s/state", t.ProcessID),
+			Value: ProcessStateStopping,
 		},
 	}, nil
 }
@@ -655,6 +657,47 @@ func (t *ProcessStopTransition) Validate(oldState hdb.SerializedState) error {
 	if !ok {
 		return fmt.Errorf("process with id %s not found", t.ProcessID)
 	}
+	return nil
+}
+
+type FinishProcessStopTransition struct {
+	ProcessID string `json:"process_id"`
+}
+
+func (t *FinishProcessStopTransition) Type() string {
+	return TransitionFinishProcessStop
+}
+
+func (t *FinishProcessStopTransition) Patch(oldState hdb.SerializedState) (jsondiff.Patch, error) {
+	return jsondiff.Patch{
+		{
+			Type:  jsondiff.OperationReplace,
+			Path:  fmt.Sprintf("/processes/%s/state", t.ProcessID),
+			Value: ProcessStateStopped,
+		},
+	}, nil
+}
+
+func (t *FinishProcessStopTransition) Enrich(oldState hdb.SerializedState) error {
+	return nil
+}
+
+func (t *FinishProcessStopTransition) Validate(oldState hdb.SerializedState) error {
+	var oldNode State
+	err := json.Unmarshal(oldState, &oldNode)
+	if err != nil {
+		return err
+	}
+
+	// Make sure there is a matching process
+	proc, ok := oldNode.Processes[t.ProcessID]
+	if !ok {
+		return fmt.Errorf("process with id %s not found", t.ProcessID)
+	}
+	if proc.State != ProcessStateStopping {
+		return fmt.Errorf("Process with id %s is in state %s, must be in state %s", t.ProcessID, proc.State, ProcessStateStopping)
+	}
+
 	return nil
 }
 
