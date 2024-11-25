@@ -9,6 +9,7 @@ import (
 	"github.com/eagraf/habitat-new/internal/node/config"
 	"github.com/eagraf/habitat-new/internal/node/constants"
 	"github.com/eagraf/habitat-new/internal/node/hdb"
+	"github.com/eagraf/habitat-new/internal/node/pubsub"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/mod/semver"
 )
@@ -25,24 +26,31 @@ type NodeController interface {
 
 	InstallApp(userID string, newApp *node.AppInstallation, newProxyRules []*node.ReverseProxyRule) error
 	FinishAppInstallation(userID string, appID, registryURLBase, registryPackageID string, startAfterInstall bool) error
+	UpgradeApp(appID string, newAppInstallation *node.AppInstallation, newProxyRules []*node.ReverseProxyRule, version string) error
+	FinishAppUpgrade(appID string, startAfterUpgrade bool) error
 	GetAppByID(appID string) (*node.AppInstallation, error)
 
 	StartProcess(appID string) error
-	SetProcessRunning(processID string) error
+	SetProcessRunning(processID string, extProcessID string) error
 	StopProcess(processID string) error
+	FinishProcessStop(processID string) error
+
+	GetNodeState() (*node.State, error)
 }
 
 type BaseNodeController struct {
-	databaseManager hdb.HDBManager
-	nodeConfig      *config.NodeConfig
-	pdsClient       PDSClientI
+	databaseManager     hdb.HDBManager
+	nodeConfig          *config.NodeConfig
+	pdsClient           PDSClientI
+	stateUpdatesChannel pubsub.Channel[hdb.StateUpdate]
 }
 
-func NewNodeController(habitatDBManager hdb.HDBManager, config *config.NodeConfig) (*BaseNodeController, error) {
+func NewNodeController(habitatDBManager hdb.HDBManager, config *config.NodeConfig, stateUpdatesChannel pubsub.Channel[hdb.StateUpdate]) (*BaseNodeController, error) {
 	controller := &BaseNodeController{
-		databaseManager: habitatDBManager,
-		nodeConfig:      config,
-		pdsClient:       NewPDSClient(config),
+		databaseManager:     habitatDBManager,
+		nodeConfig:          config,
+		pdsClient:           NewPDSClient(config),
+		stateUpdatesChannel: stateUpdatesChannel,
 	}
 	return controller, nil
 }

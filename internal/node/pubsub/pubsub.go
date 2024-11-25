@@ -22,6 +22,8 @@ type Subscriber[E Event] interface {
 
 type Channel[E Event] interface {
 	Listen() error
+	AddSubscriber(Subscriber[E])
+	RemoveSubscriber(Subscriber[E])
 }
 
 // SimplePublisher is an extremely simple implementation of a Publisher that just
@@ -52,13 +54,13 @@ func (p *SimplePublisher[E]) GetChan() <-chan E {
 }
 
 type SimpleChannel[E Event] struct {
-	subscribers []Subscriber[E]
+	subscribers map[string]Subscriber[E]
 	publishers  []Publisher[E]
 }
 
 func newSimpleChannel[E Event]() *SimpleChannel[E] {
 	return &SimpleChannel[E]{
-		subscribers: make([]Subscriber[E], 0),
+		subscribers: make(map[string]Subscriber[E]),
 		publishers:  make([]Publisher[E], 0),
 	}
 }
@@ -94,6 +96,15 @@ func (c *SimpleChannel[E]) Listen() error {
 	}
 }
 
+func (c *SimpleChannel[E]) AddSubscriber(s Subscriber[E]) {
+	c.subscribers[s.Name()] = s
+
+}
+
+func (c *SimpleChannel[E]) RemoveSubscriber(s Subscriber[E]) {
+	delete(c.subscribers, s.Name())
+}
+
 func NewSimplePublisher[E Event]() *SimplePublisher[E] {
 	return newSimplePublisher[E]()
 }
@@ -101,6 +112,8 @@ func NewSimplePublisher[E Event]() *SimplePublisher[E] {
 func NewSimpleChannel[E Event](publishers []Publisher[E], subscribers []Subscriber[E]) *SimpleChannel[E] {
 	channel := newSimpleChannel[E]()
 	channel.publishers = publishers
-	channel.subscribers = subscribers
+	for _, s := range subscribers {
+		channel.subscribers[s.Name()] = s
+	}
 	return channel
 }

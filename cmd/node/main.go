@@ -44,7 +44,13 @@ func main() {
 	}
 	defer dbClose()
 
-	nodeCtrl, err := controller.NewNodeController(db.Manager, nodeConfig)
+	// This is the main state update channel that all state updates flow through.
+	stateUpdatesChannel := pubsub.NewSimpleChannel(
+		[]pubsub.Publisher[hdb.StateUpdate]{hdbPublisher},
+		[]pubsub.Subscriber[hdb.StateUpdate]{},
+	)
+
+	nodeCtrl, err := controller.NewNodeController(db.Manager, nodeConfig, stateUpdatesChannel)
 	if err != nil {
 		log.Fatal().Err(err).Msg("error creating node controller")
 	}
@@ -102,18 +108,15 @@ func main() {
 		log.Fatal().Err(err).Msg("error creating fishtail ingestion subscriber")
 	}
 
-	stateUpdates := pubsub.NewSimpleChannel(
-		[]pubsub.Publisher[hdb.StateUpdate]{hdbPublisher},
-		[]pubsub.Subscriber[hdb.StateUpdate]{
-			stateLogger,
-			appLifecycleSubscriber,
-			pmSub,
-			proxyRuleStateUpdateSubscriber,
-			fishtailIngestionSubscriber,
-		},
-	)
+	// Add all the state update subscribers to the channel
+	stateUpdatesChannel.AddSubscriber(stateLogger)
+	stateUpdatesChannel.AddSubscriber(appLifecycleSubscriber)
+	stateUpdatesChannel.AddSubscriber(pmSub)
+	stateUpdatesChannel.AddSubscriber(proxyRuleStateUpdateSubscriber)
+	stateUpdatesChannel.AddSubscriber(fishtailIngestionSubscriber)
+
 	go func() {
-		err := stateUpdates.Listen()
+		err := stateUpdatesChannel.Listen()
 		if err != nil {
 			log.Fatal().Err(err).Msg("unrecoverable error listening to channel")
 		}
