@@ -141,14 +141,121 @@ func (c *BaseNodeController) FinishAppInstallation(userID string, appID, registr
 	return nil
 }
 
-func (c *BaseNodeController) GetAppByID(appID string) (*node.AppInstallation, error) {
-	dbClient, err := c.databaseManager.GetDatabaseClientByName(constants.NodeDBDefaultName)
+func (c *BaseNodeController) UpgradeApp(appID string, newAppInstallation *node.AppInstallation, newProxyRules []*node.ReverseProxyRule, version string) error {
+	nodeState, err := c.GetNodeState()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	var nodeState node.State
-	err = json.Unmarshal(dbClient.Bytes(), &nodeState)
+	// Get process associated with app if it's running
+	previouslyRunning := true
+	process, err := nodeState.GetProcessForApp(appID)
+	if err != nil {
+		if _, ok := err.(node.ErrNotFound); ok {
+			// App is not running, so we can just upgrade it
+			previouslyRunning = false
+		} else {
+			return err
+		}
+	}
+
+	if previouslyRunning {
+
+		err = c.StopProcess(process.ID)
+		if err != nil {
+			return err
+		}
+		err := c.WaitForState(func(updatedState hdb.State) (bool, error) {
+			state, ok := updatedState.(*node.State)
+			if !ok {
+				return false, fmt.Errorf("state not of type node.State")
+			}
+			if _, ok := state.Processes[process.ID]; !ok {
+				return false, fmt.Errorf("process %s not found", process.ID)
+			}
+
+			return state.Processes[process.ID].State == node.ProcessStateStopped, nil
+		})
+		if err != nil {
+			return err
+		}
+	}
+
+	// Now we can upgrade the app
+	dbClient, err := c.databaseManager.GetDatabaseClientByName(constants.NodeDBDefaultName)
+	if err != nil {
+		return err
+	}
+
+	_, err = dbClient.ProposeTransitions([]hdb.Transition{
+		&node.StartAppUpgradeTransition{
+			AppID:              appID,
+			NewAppInstallation: newAppInstallation,
+			NewProxyRules:      newProxyRules,
+			StartAfterUpgrade:  !previouslyRunning,
+		},
+	})
+	if err != nil {
+		return err
+	}
+
+	// Wait for the app to transition back to the upgrading state
+	err = c.WaitForState(func(updatedState hdb.State) (bool, error) {
+		state, ok := updatedState.(*node.State)
+		if !ok {
+			return false, fmt.Errorf("state update is not a node state")
+		}
+		if _, ok := state.AppInstallations[appID]; !ok {
+			return false, fmt.Errorf("app %s not found", appID)
+		}
+		return state.AppInstallations[appID].State == node.AppLifecycleStateUpgrading, nil
+	})
+	if err != nil {
+		return err
+	}
+
+	// Now, wait for the app to transition back to the installed state
+	// We waited for both in order to avoid race conditions
+	err = c.WaitForState(func(updatedState hdb.State) (bool, error) {
+		state, ok := updatedState.(*node.State)
+		if !ok {
+			return false, fmt.Errorf("state update is not a node state")
+		}
+		if _, ok := state.AppInstallations[appID]; !ok {
+			return false, fmt.Errorf("app %s not found", appID)
+		}
+		return state.AppInstallations[appID].State == node.AppLifecycleStateInstalled, nil
+	})
+	if err != nil {
+		return err
+	}
+
+	// If we got here, the app is installed and we can start the process if needed
+	if previouslyRunning {
+		return c.StartProcess(appID)
+	}
+
+	return nil
+}
+
+func (c *BaseNodeController) FinishAppUpgrade(appID string, startAfterUpgrade bool) error {
+	dbClient, err := c.databaseManager.GetDatabaseClientByName(constants.NodeDBDefaultName)
+	if err != nil {
+		return err
+	}
+
+	_, err = dbClient.ProposeTransitions([]hdb.Transition{
+		&node.FinishAppUpgradeTransition{
+			AppID:             appID,
+			StartAfterUpgrade: startAfterUpgrade,
+		},
+	})
+
+	return err
+}
+
+func (c *BaseNodeController) GetAppByID(appID string) (*node.AppInstallation, error) {
+	nodeState, err := c.GetNodeState()
 	if err != nil {
 		return nil, err
 	}

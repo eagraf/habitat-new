@@ -361,10 +361,18 @@ func (t *FinishInstallationTransition) Validate(oldState hdb.SerializedState) er
 // Transition for updating app installations
 
 type StartAppUpgradeTransition struct {
-	AppID              string                `json:"app_id"`
+	AppID              string              `json:"app_id"`
+	NewAppInstallation *AppInstallation    `json:"new_app_installation"`
+	NewProxyRules      []*ReverseProxyRule `json:"new_proxy_rules"`
+	StartAfterUpgrade  bool                `json:"start_after_upgrade"`
+
+	EnrichedData *StartAppUpgradeTransitionEnrichedData `json:"enriched_data"`
+}
+
+type StartAppUpgradeTransitionEnrichedData struct {
 	NewAppInstallation *AppInstallationState `json:"new_app_installation"`
 	NewProxyRules      []*ReverseProxyRule   `json:"new_proxy_rules"`
-	StartAfterUpgrade  bool                  `json:"start_after_upgrade"`
+	ExistingApp        *AppInstallationState `json:"existing_app_installation"`
 }
 
 func (t *StartAppUpgradeTransition) Type() string {
@@ -374,10 +382,9 @@ func (t *StartAppUpgradeTransition) Type() string {
 func (t *StartAppUpgradeTransition) Patch(oldState hdb.SerializedState) (jsondiff.Patch, error) {
 	// Copy over the ID from the existing app
 	t.NewAppInstallation.ID = t.AppID
-	t.NewAppInstallation.State = AppLifecycleStateUpgrading
 
 	ruleOps := make([]jsondiff.Operation, 0)
-	for _, rule := range t.NewProxyRules {
+	for _, rule := range t.EnrichedData.NewProxyRules {
 		ruleOps = append(ruleOps, jsondiff.Operation{
 			Type:  jsondiff.OperationAdd,
 			Path:  fmt.Sprintf("/reverse_proxy_rules/%s", rule.ID),
@@ -389,7 +396,7 @@ func (t *StartAppUpgradeTransition) Patch(oldState hdb.SerializedState) (jsondif
 	res = append(res, jsondiff.Operation{
 		Type:  jsondiff.OperationReplace,
 		Path:  fmt.Sprintf("/app_installations/%s", t.AppID),
-		Value: t.NewAppInstallation,
+		Value: t.EnrichedData.NewAppInstallation,
 	})
 	res = append(res, ruleOps...)
 
@@ -397,6 +404,45 @@ func (t *StartAppUpgradeTransition) Patch(oldState hdb.SerializedState) (jsondif
 }
 
 func (t *StartAppUpgradeTransition) Enrich(oldState hdb.SerializedState) error {
+	enrichedRules := make([]*ReverseProxyRule, 0)
+
+	for _, rule := range t.NewProxyRules {
+		enrichedRules = append(enrichedRules, &ReverseProxyRule{
+			ID:      uuid.New().String(),
+			AppID:   t.AppID,
+			Type:    rule.Type,
+			Matcher: rule.Matcher,
+			Target:  rule.Target,
+		})
+		rule.ID = uuid.New().String()
+		rule.AppID = t.AppID
+	}
+
+	var oldNode State
+	err := json.Unmarshal(oldState, &oldNode)
+	if err != nil {
+		return err
+	}
+
+	// Check that app exists and is in installed state
+	existingApp, err := oldNode.GetAppByID(t.AppID)
+	if err != nil {
+		return err
+	}
+
+	newAppInstallation := &AppInstallationState{
+		AppInstallation: t.NewAppInstallation,
+		State:           AppLifecycleStateUpgrading,
+	}
+
+	newAppInstallation.ID = t.AppID
+	newAppInstallation.UserID = existingApp.UserID
+
+	t.EnrichedData = &StartAppUpgradeTransitionEnrichedData{
+		NewAppInstallation: newAppInstallation,
+		NewProxyRules:      enrichedRules,
+		ExistingApp:        existingApp,
+	}
 	return nil
 }
 
@@ -407,20 +453,30 @@ func (t *StartAppUpgradeTransition) Validate(oldState hdb.SerializedState) error
 		return err
 	}
 
-	// Check that app exists and is in installed state
-	existingApp, ok := oldNode.AppInstallations[t.AppID]
-	if !ok {
-		return fmt.Errorf("app with id %s not found", t.AppID)
+	existingApp := t.EnrichedData.ExistingApp
+	if existingApp == nil {
+		return fmt.Errorf("existing app was not properly enriched")
 	}
 
 	if existingApp.State != AppLifecycleStateInstalled {
 		return fmt.Errorf("app %s is in state %s, must be in installed state", existingApp.Name, existingApp.State)
 	}
 
+	// Check fields that should have carried over from the previous app installation
+	if t.EnrichedData.NewAppInstallation == nil {
+		return fmt.Errorf("new app installation was not properly enriched")
+	}
+	if existingApp.ID != t.EnrichedData.NewAppInstallation.ID {
+		return fmt.Errorf("app %s ID does not match %s", existingApp.ID, t.EnrichedData.NewAppInstallation.ID)
+	}
+	if existingApp.UserID != t.EnrichedData.NewAppInstallation.UserID {
+		return fmt.Errorf("app %s user ID does not match %s", existingApp.ID, t.EnrichedData.NewAppInstallation.UserID)
+	}
+
 	// Check that no process is running for this app
 	for _, process := range oldNode.Processes {
-		if process.AppID == t.AppID {
-			return fmt.Errorf("process %s is still running for app %s", process.ID, t.AppID)
+		if process.AppID == t.AppID && process.State != ProcessStateStopped {
+			return fmt.Errorf("process %s is not in state stopped for app %s", process.ID, t.AppID)
 		}
 	}
 

@@ -158,6 +158,7 @@ func main() {
 		controller.NewLoginRoute(controller.NewPDSClient(nodeConfig)),
 		controller.NewAddUserRoute(nodeCtrl),
 		controller.NewInstallAppRoute(nodeCtrl),
+		controller.NewUpgradeAppRoute(nodeCtrl),
 		controller.NewStartProcessHandler(nodeCtrl),
 		controller.NewMigrationRoute(nodeCtrl),
 

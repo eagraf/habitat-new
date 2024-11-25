@@ -24,7 +24,7 @@ type AppInstallation struct {
 	UserID  string `json:"user_id" yaml:"user_id"`
 	Name    string `json:"name" yaml:"name"`
 	Version string `json:"version" yaml:"version"`
-	Package `yaml:",inline"`
+	Package `yaml:",inline" tstype:",extends,required"`
 }
 
 const ProcessStateStarting = "starting"

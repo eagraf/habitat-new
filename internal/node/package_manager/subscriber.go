@@ -123,6 +123,75 @@ func (e *FinishInstallExecutor) PostHook(update hdb.StateUpdate) error {
 	return nil
 }
 
+// Executor for upgrading an app
+type UpgradeAppExecutor struct {
+	nodeController  controller.NodeController
+	packageManagers map[string]PackageManager
+}
+
+func (e *UpgradeAppExecutor) TransitionType() string {
+	return node.TransitionStartAppUpgrade
+}
+
+func (e *UpgradeAppExecutor) ShouldExecute(update hdb.StateUpdate) (bool, error) {
+	var t node.StartAppUpgradeTransition
+	err := json.Unmarshal(update.Transition(), &t)
+	if err != nil {
+		return false, err
+	}
+
+	appDriver, ok := e.packageManagers[t.NewAppInstallation.Driver]
+	if !ok {
+		return false, fmt.Errorf("no package manager found for driver '%s'", t.NewAppInstallation.Driver)
+	}
+
+	// Use the driver to check if the package is already installed.
+	isInstalled, err := appDriver.IsInstalled(&t.NewAppInstallation.Package, t.NewAppInstallation.Version)
+	if err != nil {
+		return false, err
+	}
+	if isInstalled {
+		return false, nil
+	}
+
+	return true, nil
+}
+
+func (e *UpgradeAppExecutor) Execute(update hdb.StateUpdate) error {
+	var t node.StartAppUpgradeTransition
+	err := json.Unmarshal(update.Transition(), &t)
+	if err != nil {
+		return err
+	}
+
+	appDriver, ok := e.packageManagers[t.NewAppInstallation.Driver]
+	if !ok {
+		return fmt.Errorf("no package manager found for driver '%s'", t.NewAppInstallation.Driver)
+	}
+
+	err = appDriver.InstallPackage(&t.NewAppInstallation.Package, t.NewAppInstallation.Version)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (e *UpgradeAppExecutor) PostHook(update hdb.StateUpdate) error {
+	var t node.StartAppUpgradeTransition
+	err := json.Unmarshal(update.Transition(), &t)
+	if err != nil {
+		return err
+	}
+
+	err = e.nodeController.FinishAppUpgrade(t.AppID, t.StartAfterUpgrade)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func NewAppLifecycleSubscriber(packageManagers map[string]PackageManager, nodeController controller.NodeController) (*hdb.IdempotentStateUpdateSubscriber, error) {
 	// TODO this should have a fx cleanup hook to cleanly handle interrupted installs
 	// when the node shuts down.
@@ -140,6 +209,10 @@ func NewAppLifecycleSubscriber(packageManagers map[string]PackageManager, nodeCo
 			},
 			&FinishInstallExecutor{
 				nodeController: nodeController,
+			},
+			&UpgradeAppExecutor{
+				packageManagers: packageManagers,
+				nodeController:  nodeController,
 			},
 		},
 		pmRestorer,

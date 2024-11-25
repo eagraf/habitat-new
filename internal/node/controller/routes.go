@@ -95,6 +95,41 @@ func (h *InstallAppRoute) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 }
 
+type UpgradeAppRoute struct {
+	nodeController NodeController
+}
+
+func NewUpgradeAppRoute(nodeController NodeController) *UpgradeAppRoute {
+	return &UpgradeAppRoute{
+		nodeController: nodeController,
+	}
+}
+
+func (h *UpgradeAppRoute) Pattern() string {
+	return "/node/users/{user_id}/apps/{app_id}/upgrade"
+}
+
+func (h *UpgradeAppRoute) Method() string {
+	return http.MethodPost
+}
+
+func (h *UpgradeAppRoute) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	var req types.PostUpgradeAppRequest
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	appID := r.PathValue("app_id")
+
+	err = h.nodeController.UpgradeApp(appID, req.AppInstallation, req.ReverseProxyRules, req.Version)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
+
 type StartProcessHandler struct {
 	nodeController NodeController
 }
