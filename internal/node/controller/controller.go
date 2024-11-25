@@ -1,7 +1,6 @@
 package controller
 
 import (
-	"encoding/json"
 	"fmt"
 
 	types "github.com/eagraf/habitat-new/core/api"
@@ -82,10 +81,9 @@ func (c *BaseNodeController) MigrateNodeDB(targetVersion string) error {
 		return err
 	}
 
-	var nodeState node.State
-	err = json.Unmarshal(dbClient.Bytes(), &nodeState)
+	nodeState, err := c.GetNodeState()
 	if err != nil {
-		return nil
+		return err
 	}
 
 	// No-op if version is already the target
@@ -167,12 +165,6 @@ func (c *BaseNodeController) StartProcess(appID string) error {
 	dbClient, err := c.databaseManager.GetDatabaseClientByName(constants.NodeDBDefaultName)
 	if err != nil {
 		return err
-	}
-
-	var nodeState node.State
-	err = json.Unmarshal(dbClient.Bytes(), &nodeState)
-	if err != nil {
-		return nil
 	}
 
 	_, err = dbClient.ProposeTransitions([]hdb.Transition{
@@ -265,13 +257,7 @@ func (c *BaseNodeController) AddUser(userID, email, handle, password, certificat
 }
 
 func (c *BaseNodeController) GetUserByUsername(username string) (*node.User, error) {
-	dbClient, err := c.databaseManager.GetDatabaseClientByName(constants.NodeDBDefaultName)
-	if err != nil {
-		return nil, err
-	}
-
-	var nodeState node.State
-	err = json.Unmarshal(dbClient.Bytes(), &nodeState)
+	nodeState, err := c.GetNodeState()
 	if err != nil {
 		return nil, err
 	}
