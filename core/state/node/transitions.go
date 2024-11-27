@@ -249,14 +249,13 @@ func (t *StartInstallationTransition) Enrich(oldState hdb.SerializedState) error
 
 	for _, rule := range t.NewProxyRules {
 		enrichedRules = append(enrichedRules, &ReverseProxyRule{
-			ID:      uuid.New().String(),
-			AppID:   appInstallState.ID,
-			Type:    rule.Type,
-			Matcher: rule.Matcher,
-			Target:  rule.Target,
+			ID:                   uuid.New().String(),
+			AppID:                appInstallState.ID,
+			Type:                 rule.Type,
+			Matcher:              rule.Matcher,
+			Target:               rule.Target,
+			FishtailIngestConfig: rule.FishtailIngestConfig,
 		})
-		rule.ID = uuid.New().String()
-		rule.AppID = appInstallState.ID
 	}
 
 	t.EnrichedData = &StartInstallationTransitionEnrichedData{
@@ -408,14 +407,13 @@ func (t *StartAppUpgradeTransition) Enrich(oldState hdb.SerializedState) error {
 
 	for _, rule := range t.NewProxyRules {
 		enrichedRules = append(enrichedRules, &ReverseProxyRule{
-			ID:      uuid.New().String(),
-			AppID:   t.AppID,
-			Type:    rule.Type,
-			Matcher: rule.Matcher,
-			Target:  rule.Target,
+			ID:                   uuid.New().String(),
+			AppID:                t.AppID,
+			Type:                 rule.Type,
+			Matcher:              rule.Matcher,
+			Target:               rule.Target,
+			FishtailIngestConfig: rule.FishtailIngestConfig,
 		})
-		rule.ID = uuid.New().String()
-		rule.AppID = t.AppID
 	}
 
 	var oldNode State
