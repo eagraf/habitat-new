@@ -3,9 +3,6 @@ FROM cosmtrek/air:latest
 WORKDIR /go/src/github.com/eagraf/habitat-new
 ENV air_wd=/go/src/github.com/eagraf/habitat-new
 
-# Copy in .air.toml
-COPY ./config/air.node.toml /go/src/github.com/eagraf/habitat-new/.air.toml
-
 # Install debugger
 RUN go install github.com/go-delve/delve/cmd/dlv@latest
 

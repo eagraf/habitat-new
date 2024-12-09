@@ -3,11 +3,11 @@ package node
 import (
 	"encoding/json"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/eagraf/habitat-new/internal/node/hdb"
 	"github.com/google/uuid"
+	"github.com/wI2L/jsondiff"
 )
 
 var (
@@ -20,7 +20,10 @@ var (
 	TransitionStartProcess        = "process_start"
 	TransitionProcessRunning      = "process_running"
 	TransitionStopProcess         = "process_stop"
+	TransitionFinishProcessStop   = "finish_process_stop"
 	TransitionAddReverseProxyRule = "add_reverse_proxy_rule"
+	TransitionStartAppUpgrade     = "start_app_upgrade"
+	TransitionFinishAppUpgrade    = "finish_app_upgrade"
 )
 
 type InitalizationTransition struct {
@@ -31,7 +34,7 @@ func (t *InitalizationTransition) Type() string {
 	return TransitionInitialize
 }
 
-func (t *InitalizationTransition) Patch(oldState hdb.SerializedState) (hdb.SerializedState, error) {
+func (t *InitalizationTransition) Patch(oldState hdb.SerializedState) (jsondiff.Patch, error) {
 	if t.InitState.Users == nil {
 		t.InitState.Users = make(map[string]*User, 0)
 	}
@@ -44,15 +47,13 @@ func (t *InitalizationTransition) Patch(oldState hdb.SerializedState) (hdb.Seria
 		t.InitState.Processes = make(map[string]*ProcessState)
 	}
 
-	marshaled, err := json.Marshal(t.InitState)
-	if err != nil {
-		return nil, err
-	}
-	return []byte(fmt.Sprintf(`[{
-		"op": "add",
-		"path": "",
-		"value": %s
-	}]`, marshaled)), nil
+	return jsondiff.Patch{
+		{
+			Path:  "",
+			Type:  jsondiff.OperationAdd,
+			Value: t.InitState,
+		},
+	}, nil
 }
 
 func (t *InitalizationTransition) Enrich(oldState hdb.SerializedState) error {
@@ -74,7 +75,7 @@ func (t *MigrationTransition) Type() string {
 	return TransitionMigrationUp
 }
 
-func (t *MigrationTransition) Patch(oldState hdb.SerializedState) (hdb.SerializedState, error) {
+func (t *MigrationTransition) Patch(oldState hdb.SerializedState) (jsondiff.Patch, error) {
 	var oldNode State
 	err := json.Unmarshal(oldState, &oldNode)
 	if err != nil {
@@ -86,7 +87,7 @@ func (t *MigrationTransition) Patch(oldState hdb.SerializedState) (hdb.Serialize
 		return nil, err
 	}
 
-	return json.Marshal(patch)
+	return patch, nil
 }
 
 func (t *MigrationTransition) Enrich(oldState hdb.SerializedState) error {
@@ -134,18 +135,14 @@ func (t *AddUserTransition) Type() string {
 	return TransitionAddUser
 }
 
-func (t *AddUserTransition) Patch(oldState hdb.SerializedState) (hdb.SerializedState, error) {
-
-	user, err := json.Marshal(t.EnrichedData.User)
-	if err != nil {
-		return nil, err
-	}
-
-	return []byte(fmt.Sprintf(`[{
-		"op": "add",
-		"path": "/users/%s",
-		"value": %s
-	}]`, t.EnrichedData.User.ID, user)), nil
+func (t *AddUserTransition) Patch(oldState hdb.SerializedState) (jsondiff.Patch, error) {
+	return jsondiff.Patch{
+		{
+			Path:  fmt.Sprintf("/users/%s", t.EnrichedData.User.ID),
+			Type:  jsondiff.OperationAdd,
+			Value: t.EnrichedData.User,
+		},
+	}, nil
 }
 
 func (t *AddUserTransition) Enrich(oldState hdb.SerializedState) error {
@@ -203,14 +200,9 @@ func (t *StartInstallationTransition) Type() string {
 	return TransitionStartInstallation
 }
 
-func (t *StartInstallationTransition) Patch(oldState hdb.SerializedState) (hdb.SerializedState, error) {
+func (t *StartInstallationTransition) Patch(oldState hdb.SerializedState) (jsondiff.Patch, error) {
 	var oldNode State
 	err := json.Unmarshal(oldState, &oldNode)
-	if err != nil {
-		return nil, err
-	}
-
-	marshalledApp, err := json.Marshal(t.EnrichedData.AppState)
 	if err != nil {
 		return nil, err
 	}
@@ -220,32 +212,24 @@ func (t *StartInstallationTransition) Patch(oldState hdb.SerializedState) (hdb.S
 		return nil, fmt.Errorf("user with id %s not found", t.UserID)
 	}
 
-	marshaledRules := make([]string, 0)
+	ruleOps := make([]jsondiff.Operation, 0)
 	for _, rule := range t.EnrichedData.NewProxyRules {
-		marshaled, err := json.Marshal(rule)
-		if err != nil {
-			return nil, err
-		}
-		op := fmt.Sprintf(`{
-			"op": "add",
-			"path": "/reverse_proxy_rules/%s",
-			"value": %s
-		}`, rule.ID, marshaled)
-		marshaledRules = append(marshaledRules, op)
+		ruleOps = append(ruleOps, jsondiff.Operation{
+			Type:  jsondiff.OperationAdd,
+			Path:  fmt.Sprintf("/reverse_proxy_rules/%s", rule.ID),
+			Value: rule,
+		})
 	}
 
-	rules := ""
-	if len(marshaledRules) != 0 {
-		rules = "," + strings.Join(marshaledRules, ",")
-	}
+	res := make([]jsondiff.Operation, 0)
+	res = append(res, jsondiff.Operation{
+		Type:  jsondiff.OperationAdd,
+		Path:  fmt.Sprintf("/app_installations/%s", t.EnrichedData.AppState.ID),
+		Value: t.EnrichedData.AppState,
+	})
+	res = append(res, ruleOps...)
 
-	return []byte(fmt.Sprintf(`[
-		{
-			"op": "add",
-			"path": "/app_installations/%s",
-			"value": %s
-		}%s
-	]`, t.EnrichedData.AppState.ID, string(marshalledApp), rules)), nil
+	return res, nil
 }
 
 func (t *StartInstallationTransition) Enrich(oldState hdb.SerializedState) error {
@@ -272,8 +256,6 @@ func (t *StartInstallationTransition) Enrich(oldState hdb.SerializedState) error
 			Target:               rule.Target,
 			FishtailIngestConfig: rule.FishtailIngestConfig,
 		})
-		rule.ID = uuid.New().String()
-		rule.AppID = appInstallState.ID
 	}
 
 	t.EnrichedData = &StartInstallationTransitionEnrichedData{
@@ -333,18 +315,14 @@ func (t *FinishInstallationTransition) Type() string {
 	return TransitionFinishInstallation
 }
 
-func (t *FinishInstallationTransition) Patch(oldState hdb.SerializedState) (hdb.SerializedState, error) {
-	var oldNode State
-	err := json.Unmarshal(oldState, &oldNode)
-	if err != nil {
-		return nil, err
-	}
-
-	return []byte(fmt.Sprintf(`[{
-		"op": "replace",
-		"path": "/app_installations/%s/state",
-		"value": "%s"
-	}]`, t.AppID, AppLifecycleStateInstalled)), nil
+func (t *FinishInstallationTransition) Patch(oldState hdb.SerializedState) (jsondiff.Patch, error) {
+	return jsondiff.Patch{
+		{
+			Type:  jsondiff.OperationReplace,
+			Path:  fmt.Sprintf("/app_installations/%s/state", t.AppID),
+			Value: AppLifecycleStateInstalled,
+		},
+	}, nil
 }
 
 func (t *FinishInstallationTransition) Enrich(oldState hdb.SerializedState) error {
@@ -379,6 +357,177 @@ func (t *FinishInstallationTransition) Validate(oldState hdb.SerializedState) er
 	return nil
 }
 
+// Transition for updating app installations
+
+type StartAppUpgradeTransition struct {
+	AppID              string              `json:"app_id"`
+	NewAppInstallation *AppInstallation    `json:"new_app_installation"`
+	NewProxyRules      []*ReverseProxyRule `json:"new_proxy_rules"`
+	StartAfterUpgrade  bool                `json:"start_after_upgrade"`
+
+	EnrichedData *StartAppUpgradeTransitionEnrichedData `json:"enriched_data"`
+}
+
+type StartAppUpgradeTransitionEnrichedData struct {
+	NewAppInstallation *AppInstallationState `json:"new_app_installation"`
+	NewProxyRules      []*ReverseProxyRule   `json:"new_proxy_rules"`
+	ExistingApp        *AppInstallationState `json:"existing_app_installation"`
+}
+
+func (t *StartAppUpgradeTransition) Type() string {
+	return TransitionStartAppUpgrade
+}
+
+func (t *StartAppUpgradeTransition) Patch(oldState hdb.SerializedState) (jsondiff.Patch, error) {
+	// Copy over the ID from the existing app
+	t.NewAppInstallation.ID = t.AppID
+
+	ruleOps := make([]jsondiff.Operation, 0)
+	for _, rule := range t.EnrichedData.NewProxyRules {
+		ruleOps = append(ruleOps, jsondiff.Operation{
+			Type:  jsondiff.OperationAdd,
+			Path:  fmt.Sprintf("/reverse_proxy_rules/%s", rule.ID),
+			Value: rule,
+		})
+	}
+
+	res := make([]jsondiff.Operation, 0)
+	res = append(res, jsondiff.Operation{
+		Type:  jsondiff.OperationReplace,
+		Path:  fmt.Sprintf("/app_installations/%s", t.AppID),
+		Value: t.EnrichedData.NewAppInstallation,
+	})
+	res = append(res, ruleOps...)
+
+	return res, nil
+}
+
+func (t *StartAppUpgradeTransition) Enrich(oldState hdb.SerializedState) error {
+	enrichedRules := make([]*ReverseProxyRule, 0)
+
+	for _, rule := range t.NewProxyRules {
+		enrichedRules = append(enrichedRules, &ReverseProxyRule{
+			ID:                   uuid.New().String(),
+			AppID:                t.AppID,
+			Type:                 rule.Type,
+			Matcher:              rule.Matcher,
+			Target:               rule.Target,
+			FishtailIngestConfig: rule.FishtailIngestConfig,
+		})
+	}
+
+	var oldNode State
+	err := json.Unmarshal(oldState, &oldNode)
+	if err != nil {
+		return err
+	}
+
+	// Check that app exists and is in installed state
+	existingApp, err := oldNode.GetAppByID(t.AppID)
+	if err != nil {
+		return err
+	}
+
+	newAppInstallation := &AppInstallationState{
+		AppInstallation: t.NewAppInstallation,
+		State:           AppLifecycleStateUpgrading,
+	}
+
+	newAppInstallation.ID = t.AppID
+	newAppInstallation.UserID = existingApp.UserID
+
+	t.EnrichedData = &StartAppUpgradeTransitionEnrichedData{
+		NewAppInstallation: newAppInstallation,
+		NewProxyRules:      enrichedRules,
+		ExistingApp:        existingApp,
+	}
+	return nil
+}
+
+func (t *StartAppUpgradeTransition) Validate(oldState hdb.SerializedState) error {
+	var oldNode State
+	err := json.Unmarshal(oldState, &oldNode)
+	if err != nil {
+		return err
+	}
+
+	existingApp := t.EnrichedData.ExistingApp
+	if existingApp == nil {
+		return fmt.Errorf("existing app was not properly enriched")
+	}
+
+	if existingApp.State != AppLifecycleStateInstalled {
+		return fmt.Errorf("app %s is in state %s, must be in installed state", existingApp.Name, existingApp.State)
+	}
+
+	// Check fields that should have carried over from the previous app installation
+	if t.EnrichedData.NewAppInstallation == nil {
+		return fmt.Errorf("new app installation was not properly enriched")
+	}
+	if existingApp.ID != t.EnrichedData.NewAppInstallation.ID {
+		return fmt.Errorf("app %s ID does not match %s", existingApp.ID, t.EnrichedData.NewAppInstallation.ID)
+	}
+	if existingApp.UserID != t.EnrichedData.NewAppInstallation.UserID {
+		return fmt.Errorf("app %s user ID does not match %s", existingApp.ID, t.EnrichedData.NewAppInstallation.UserID)
+	}
+
+	// Check that no process is running for this app
+	for _, process := range oldNode.Processes {
+		if process.AppID == t.AppID && process.State != ProcessStateStopped {
+			return fmt.Errorf("process %s is not in state stopped for app %s", process.ID, t.AppID)
+		}
+	}
+
+	// Validate version is higher
+	if t.NewAppInstallation.Version <= existingApp.Version {
+		return fmt.Errorf("new version %s must be higher than existing version %s", t.NewAppInstallation.Version, existingApp.Version)
+	}
+
+	return nil
+}
+
+type FinishAppUpgradeTransition struct {
+	AppID             string `json:"app_id"`
+	StartAfterUpgrade bool   `json:"start_after_upgrade"`
+}
+
+func (t *FinishAppUpgradeTransition) Type() string {
+	return TransitionFinishAppUpgrade
+}
+
+func (t *FinishAppUpgradeTransition) Patch(oldState hdb.SerializedState) (jsondiff.Patch, error) {
+	return jsondiff.Patch{
+		{
+			Type:  jsondiff.OperationReplace,
+			Path:  fmt.Sprintf("/app_installations/%s/state", t.AppID),
+			Value: AppLifecycleStateInstalled,
+		},
+	}, nil
+}
+
+func (t *FinishAppUpgradeTransition) Enrich(oldState hdb.SerializedState) error {
+	return nil
+}
+
+func (t *FinishAppUpgradeTransition) Validate(oldState hdb.SerializedState) error {
+	var oldNode State
+	err := json.Unmarshal(oldState, &oldNode)
+	if err != nil {
+		return err
+	}
+
+	app, ok := oldNode.AppInstallations[t.AppID]
+	if !ok {
+		return fmt.Errorf("app with id %s not found", t.AppID)
+	}
+
+	if app.State != "upgrading" {
+		return fmt.Errorf("app %s is in state %s, must be in upgrading state", app.Name, app.State)
+	}
+
+	return nil
+}
+
 // TODO handle uninstallation
 
 type ProcessStartTransition struct {
@@ -397,23 +546,14 @@ func (t *ProcessStartTransition) Type() string {
 	return TransitionStartProcess
 }
 
-func (t *ProcessStartTransition) Patch(oldState hdb.SerializedState) (hdb.SerializedState, error) {
-	var oldNode State
-	err := json.Unmarshal(oldState, &oldNode)
-	if err != nil {
-		return nil, err
-	}
-
-	marshaled, err := json.Marshal(t.EnrichedData.Process)
-	if err != nil {
-		return nil, err
-	}
-
-	return []byte(fmt.Sprintf(`[{
-			"op": "add",
-			"path": "/processes/%s",
-			"value": %s
-		}]`, t.EnrichedData.Process.ID, marshaled)), nil
+func (t *ProcessStartTransition) Patch(oldState hdb.SerializedState) (jsondiff.Patch, error) {
+	return jsondiff.Patch{
+		{
+			Type:  jsondiff.OperationAdd,
+			Path:  fmt.Sprintf("/processes/%s", t.EnrichedData.Process.ID),
+			Value: t.EnrichedData.Process,
+		},
+	}, nil
 }
 
 func (t *ProcessStartTransition) Enrich(oldState hdb.SerializedState) error {
@@ -480,9 +620,9 @@ func (t *ProcessStartTransition) Validate(oldState hdb.SerializedState) error {
 	}
 
 	for _, proc := range oldNode.Processes {
-		// Make sure that no app with the same ID has a process
-		if proc.AppID == t.AppID {
-			return fmt.Errorf("app with id %s already has a process", t.AppID)
+		// Make sure that no app with the same ID has a process, that isn't stopped
+		if proc.AppID == t.AppID && proc.State != ProcessStateStopped {
+			return fmt.Errorf("app with id %s already has a process in state %s", t.AppID, proc.State)
 		}
 	}
 
@@ -491,36 +631,27 @@ func (t *ProcessStartTransition) Validate(oldState hdb.SerializedState) error {
 
 type ProcessRunningTransition struct {
 	ProcessID string `json:"process_id"`
+	// External process ID used by the driver. For example, docker container ID.
+	ExtProcessID string `json:"ext_process_id"`
 }
 
 func (t *ProcessRunningTransition) Type() string {
 	return TransitionProcessRunning
 }
 
-func (t *ProcessRunningTransition) Patch(oldState hdb.SerializedState) (hdb.SerializedState, error) {
-	var oldNode State
-	err := json.Unmarshal(oldState, &oldNode)
-	if err != nil {
-		return nil, err
-	}
-
-	// Find the matching process
-	proc, ok := oldNode.Processes[t.ProcessID]
-	if !ok {
-		return nil, fmt.Errorf("process with id %s not found", t.ProcessID)
-	}
-	proc.State = ProcessStateRunning
-
-	marshaled, err := json.Marshal(proc)
-	if err != nil {
-		return nil, err
-	}
-
-	return []byte(fmt.Sprintf(`[{
-		"op": "replace",
-		"path": "/processes/%s",
-		"value": %s
-	}]`, t.ProcessID, marshaled)), nil
+func (t *ProcessRunningTransition) Patch(oldState hdb.SerializedState) (jsondiff.Patch, error) {
+	return jsondiff.Patch{
+		{
+			Type:  jsondiff.OperationReplace,
+			Path:  fmt.Sprintf("/processes/%s/state", t.ProcessID),
+			Value: ProcessStateRunning,
+		},
+		{
+			Type:  jsondiff.OperationReplace,
+			Path:  fmt.Sprintf("/processes/%s/ext_driver_id", t.ProcessID),
+			Value: t.ExtProcessID,
+		},
+	}, nil
 }
 
 func (t *ProcessRunningTransition) Enrich(oldState hdb.SerializedState) error {
@@ -554,22 +685,14 @@ func (t *ProcessStopTransition) Type() string {
 	return TransitionStopProcess
 }
 
-func (t *ProcessStopTransition) Patch(oldState hdb.SerializedState) (hdb.SerializedState, error) {
-	var oldNode State
-	err := json.Unmarshal(oldState, &oldNode)
-	if err != nil {
-		return nil, err
-	}
-
-	_, ok := oldNode.Processes[t.ProcessID]
-	if !ok {
-		return nil, fmt.Errorf("process with id %s not found", t.ProcessID)
-	}
-
-	return []byte(fmt.Sprintf(`[{
-		"op": "remove",
-		"path": "/processes/%s"
-	}]`, t.ProcessID)), nil
+func (t *ProcessStopTransition) Patch(oldState hdb.SerializedState) (jsondiff.Patch, error) {
+	return jsondiff.Patch{
+		{
+			Type:  jsondiff.OperationReplace,
+			Path:  fmt.Sprintf("/processes/%s/state", t.ProcessID),
+			Value: ProcessStateStopping,
+		},
+	}, nil
 }
 
 func (t *ProcessStopTransition) Enrich(oldState hdb.SerializedState) error {
@@ -591,6 +714,47 @@ func (t *ProcessStopTransition) Validate(oldState hdb.SerializedState) error {
 	return nil
 }
 
+type FinishProcessStopTransition struct {
+	ProcessID string `json:"process_id"`
+}
+
+func (t *FinishProcessStopTransition) Type() string {
+	return TransitionFinishProcessStop
+}
+
+func (t *FinishProcessStopTransition) Patch(oldState hdb.SerializedState) (jsondiff.Patch, error) {
+	return jsondiff.Patch{
+		{
+			Type:  jsondiff.OperationReplace,
+			Path:  fmt.Sprintf("/processes/%s/state", t.ProcessID),
+			Value: ProcessStateStopped,
+		},
+	}, nil
+}
+
+func (t *FinishProcessStopTransition) Enrich(oldState hdb.SerializedState) error {
+	return nil
+}
+
+func (t *FinishProcessStopTransition) Validate(oldState hdb.SerializedState) error {
+	var oldNode State
+	err := json.Unmarshal(oldState, &oldNode)
+	if err != nil {
+		return err
+	}
+
+	// Make sure there is a matching process
+	proc, ok := oldNode.Processes[t.ProcessID]
+	if !ok {
+		return fmt.Errorf("process with id %s not found", t.ProcessID)
+	}
+	if proc.State != ProcessStateStopping {
+		return fmt.Errorf("Process with id %s is in state %s, must be in state %s", t.ProcessID, proc.State, ProcessStateStopping)
+	}
+
+	return nil
+}
+
 type AddReverseProxyRuleTransition struct {
 	Rule *ReverseProxyRule `json:"rule"`
 }
@@ -599,18 +763,14 @@ func (t *AddReverseProxyRuleTransition) Type() string {
 	return TransitionAddReverseProxyRule
 }
 
-func (t *AddReverseProxyRuleTransition) Patch(oldState hdb.SerializedState) (hdb.SerializedState, error) {
-
-	marshaledRule, err := json.Marshal(t.Rule)
-	if err != nil {
-		return nil, err
-	}
-
-	return []byte(fmt.Sprintf(`[{
-		"op": "add",
-		"path": "/reverse_proxy_rules/%s",
-		"value": %s
-	}]`, t.Rule.ID, string(marshaledRule))), nil
+func (t *AddReverseProxyRuleTransition) Patch(oldState hdb.SerializedState) (jsondiff.Patch, error) {
+	return jsondiff.Patch{
+		{
+			Type:  jsondiff.OperationAdd,
+			Path:  fmt.Sprintf("/reverse_proxy_rules/%s", t.Rule.ID),
+			Value: t.Rule,
+		},
+	}, nil
 }
 
 func (t *AddReverseProxyRuleTransition) Enrich(oldState hdb.SerializedState) error {

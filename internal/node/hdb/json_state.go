@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	jsonpatch "github.com/evanphx/json-patch/v5"
+	"github.com/wI2L/jsondiff"
 )
 
 type JSONState struct {
@@ -29,8 +30,13 @@ func NewJSONState(schema Schema, initState []byte) (*JSONState, error) {
 	}, nil
 }
 
-func (s *JSONState) ApplyPatch(patchJSON []byte) error {
-	updated, err := s.applyImpl(patchJSON)
+func (s *JSONState) ApplyPatch(patch jsondiff.Patch) error {
+	patchBytes, err := json.Marshal(patch)
+	if err != nil {
+		return err
+	}
+
+	updated, err := s.applyImpl(patchBytes)
 	if err != nil {
 		return err
 	}
@@ -44,8 +50,13 @@ func (s *JSONState) ApplyPatch(patchJSON []byte) error {
 	return nil
 }
 
-func (s *JSONState) ValidatePatch(patchJSON []byte) ([]byte, error) {
-	updated, err := s.applyImpl(patchJSON)
+func (s *JSONState) ValidatePatch(patch jsondiff.Patch) ([]byte, error) {
+	patchBytes, err := json.Marshal(patch)
+	if err != nil {
+		return nil, err
+	}
+
+	updated, err := s.applyImpl(patchBytes)
 	if err != nil {
 		return nil, err
 	}

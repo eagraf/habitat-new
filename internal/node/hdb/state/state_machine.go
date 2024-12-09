@@ -135,7 +135,7 @@ func (sm *StateMachine) ProposeTransitions(transitions []hdb.Transition) (*hdb.J
 
 		err = t.Validate(jsonStateBranch.Bytes())
 		if err != nil {
-			return nil, fmt.Errorf("transition validation failed: %s", err)
+			return nil, fmt.Errorf("%s transition validation failed: %s", t.Type(), err)
 		}
 
 		patch, err := t.Patch(jsonStateBranch.Bytes())

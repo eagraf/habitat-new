@@ -72,6 +72,10 @@ func (d *AppDriver) InstallPackage(packageSpec *node.Package, version string) er
 	return nil
 }
 
+func (d *AppDriver) UpgradePackage(pkg *node.Package, version string) error {
+	return d.InstallPackage(pkg, version)
+}
+
 func (d *AppDriver) UninstallPackage(pkg *node.Package, version string) error {
 	bundleConfig, err := getWebBundleConfigFromPackage(pkg)
 	if err != nil {

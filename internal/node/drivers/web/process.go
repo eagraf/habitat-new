@@ -28,3 +28,8 @@ func (d *ProcessDriver) StopProcess(extProcessID string) error {
 	// noop
 	return nil
 }
+
+func (d *ProcessDriver) IsProcessRunning(extProcessID string) (bool, error) {
+	// noop
+	return false, nil
+}

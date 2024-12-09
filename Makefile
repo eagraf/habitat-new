@@ -31,10 +31,6 @@ test::
 
 clean::
 	rm -rf $(TOPDIR)/bin
-	rm -rf $(TOPDIR)/internal/frontend/build
-	rm -rf $(TOPDIR)/frontend/out
-	rm -rf $(TOPDIR)/frontend/.next
-
 
 test-coverage:
 	go test ./... -coverprofile=coverage.out -coverpkg=./... -timeout 1s
@@ -120,10 +116,15 @@ $(TOPDIR)/bin/amd64-darwin/habitat-amd64-darwin.tar.gz: $(TOPDIR)/bin/amd64-darw
 
 # ===================== Frontend build rules =====================
 
-clean:: clean-frontend-types
+clean:: clean-frontend
 
-clean-frontend-types:
+clean-frontend:
 	rm -rf $(TOPDIR)/frontend/types/*.ts
+	rm -rf $(TOPDIR)/internal/frontend/build
+	rm -rf $(TOPDIR)/frontend/out
+	rm -rf $(TOPDIR)/frontend/.next
+
+
 # Generate the frontend types
 frontend/types/api.ts:
 	tygo --config $(TOPDIR)/config/tygo.yml generate

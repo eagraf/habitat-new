@@ -1,8 +1,9 @@
 import axios from 'axios';
 import Cookies from 'js-cookie';
-import * as node from '../types/api';
+import * as api from '../types/api';
+import * as node from '../types/node';
 
-export const getNode = async (): Promise<node.GetNodeResponse> => {
+export const getNode = async (): Promise<api.GetNodeResponse> => {
     try {
         const accessToken = Cookies.get('access_token');
         if (!accessToken) {
@@ -23,7 +24,7 @@ export const getNode = async (): Promise<node.GetNodeResponse> => {
     }
 };
 
-export const installApp = async (appInstallation: any) => {
+export const installApp = async (appInstallation: api.PostAppRequest) => {
     try {
         const accessToken = Cookies.get('access_token');
         if (!accessToken) {
@@ -48,7 +49,29 @@ export const installApp = async (appInstallation: any) => {
     }
 };
 
-export const getAvailableApps = async (): Promise<any[]> => {
+export const upgradeApp = async (upgradeRequest: api.PostUpgradeAppRequest) => {
+    try {
+        const accessToken = Cookies.get('access_token');
+        if (!accessToken) {
+            throw new Error('No access token found');
+        }
+
+        const response = await axios.post(
+            `${window.location.origin}/habitat/api/node/users/0/apps/${upgradeRequest.app_installation?.id}/upgrade`,
+            upgradeRequest,
+            {
+                headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+            }
+        );
+
+        return response.data;
+    } catch (error) {
+        console.error('Error upgrading app:', error);
+        throw error;
+    }
+};
+
+export const getAvailableApps = async (): Promise<api.PostAppRequest[]> => {
     try {
         const response = await axios.get(`${window.location.origin}/habitat/api/app_store/available_apps`);
         return response.data;
@@ -92,17 +115,45 @@ export const getWebApps = async (): Promise<any[]> => {
     }
 };
 
+export type AppWithInstallStatus = {
+    // Store this separately, because appRequest will not have the ID set
+    appID: string | undefined;
+    appRequest: api.PostAppRequest;
+    installedApp?: node.AppInstallationState;
+    installed: boolean;
+    needsUpdate: boolean;
+}
 
-export const getAvailableAppsWithInstallStatus = async (): Promise<any[]> => {
+
+export const getAvailableAppsWithInstallStatus = async (): Promise<AppWithInstallStatus[]> => {
     try {
         const availableApps = await getAvailableApps();
         const nodeState = await getNode();
         const installedApps = Object.values(nodeState.state.app_installations || {});
 
-        return availableApps.map(app => ({
-            ...app,
-            installed: installedApps.some((installedApp: any) => installedApp.name === app.app_installation.name)
-        }));
+        return availableApps.map(app => {
+            const installedApp = installedApps.find((installedApp: any) => {
+                return installedApp.name === app.app_installation?.name
+            });
+
+            if (installedApp) {
+                return {
+                    appID: installedApp.id,
+                    appRequest: app,
+                    installedApp: installedApp,
+                    installed: true,
+                    needsUpdate: installedApp.version < app.app_installation!.version,
+                };
+            }
+
+            return {
+                appID: undefined,
+                appRequest: app,
+                installedApp: undefined,
+                installed: false,
+                needsUpdate: false,
+            };
+        });
     } catch (error) {
         console.error('Error fetching available apps with install status:', error);
         throw error;

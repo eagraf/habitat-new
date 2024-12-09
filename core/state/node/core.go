@@ -8,6 +8,7 @@ package node
 
 const AppLifecycleStateInstalling = "installing"
 const AppLifecycleStateInstalled = "installed"
+const AppLifecycleStateUpgrading = "upgrading"
 
 type Package struct {
 	Driver             string                 `json:"driver" yaml:"driver"`
@@ -23,11 +24,13 @@ type AppInstallation struct {
 	UserID  string `json:"user_id" yaml:"user_id"`
 	Name    string `json:"name" yaml:"name"`
 	Version string `json:"version" yaml:"version"`
-	Package `yaml:",inline"`
+	Package `yaml:",inline" tstype:",extends,required"`
 }
 
 const ProcessStateStarting = "starting"
 const ProcessStateRunning = "running"
+const ProcessStateStopping = "stopping"
+const ProcessStateStopped = "stopped"
 
 type Process struct {
 	ID      string `json:"id"`

@@ -17,6 +17,7 @@ services:
         - ${TOPDIR}/pkg:${DOCKER_WORKDIR}/pkg
         - ${TOPDIR}/.habitat:/.habitat
         - /var/run/docker.sock:/var/run/docker.sock
+        - ${TOPDIR}/config/air.node.toml:${DOCKER_WORKDIR}/.air.toml
     environment:
         - HABITAT_PATH=/.habitat
         - HABITAT_APP_PATH=${DEV_HABITAT_APP_PATH}

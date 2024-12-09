@@ -49,7 +49,7 @@
                     "registry_tag": { "type": "string" },
                     "state": {
                         "type": "string",
-                        "enum": [ "installing", "installed", "uninstalled" ]
+                        "enum": [ "installing", "installed", "uninstalled", "upgrading" ]
                     }
                 },
                 "additionalProperties": false,

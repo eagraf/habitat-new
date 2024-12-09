@@ -13,28 +13,28 @@ type RunningProcess struct {
 }
 
 type ProcessManager interface {
-	ListProcesses() ([]*node.ProcessState, error)
-	StartProcess(*node.Process, *node.AppInstallation) error
+	StartProcess(*node.Process, *node.AppInstallation) (string, error)
 	StopProcess(extProcessID string) error
 	GetProcess(processID string) (*node.ProcessState, error)
+	IsProcessRunning(processID string) (bool, error)
 }
 
 type ProcessDriver interface {
 	Type() string
 	StartProcess(*node.Process, *node.AppInstallation) (string, error)
 	StopProcess(extProcessID string) error
+	IsProcessRunning(extProcessID string) (bool, error)
 }
 
 type BaseProcessManager struct {
 	processDrivers map[string]ProcessDriver
-
-	processes map[string]*RunningProcess
+	nodeController controller.NodeController
 }
 
-func NewProcessManager(drivers []ProcessDriver) ProcessManager {
+func NewProcessManager(drivers []ProcessDriver, nodeController controller.NodeController) ProcessManager {
 	pm := &BaseProcessManager{
 		processDrivers: make(map[string]ProcessDriver),
-		processes:      make(map[string]*RunningProcess),
+		nodeController: nodeController,
 	}
 	for _, driver := range drivers {
 		pm.processDrivers[driver.Type()] = driver
@@ -51,6 +51,10 @@ func NewProcessManagerStateUpdateSubscriber(processManager ProcessManager, contr
 				processManager: processManager,
 				nodeController: controller,
 			},
+			&StopProcessExecutor{
+				processManager: processManager,
+				nodeController: controller,
+			},
 		},
 		&ProcessRestorer{
 			processManager: processManager,
@@ -59,48 +63,37 @@ func NewProcessManagerStateUpdateSubscriber(processManager ProcessManager, contr
 	)
 }
 
-func (pm *BaseProcessManager) ListProcesses() ([]*node.ProcessState, error) {
-	processList := make([]*node.ProcessState, 0, len(pm.processes))
-	for _, process := range pm.processes {
-		processList = append(processList, process.ProcessState)
-	}
-
-	return processList, nil
-}
-
 func (pm *BaseProcessManager) GetProcess(processID string) (*node.ProcessState, error) {
-	proc, ok := pm.processes[processID]
-	if !ok {
-		return nil, fmt.Errorf("error getting process: process %s not found", processID)
+	nodeState, err := pm.nodeController.GetNodeState()
+	if err != nil {
+		return nil, err
 	}
-	return proc.ProcessState, nil
+
+	return nodeState.GetProcessByID(processID)
 }
 
-func (pm *BaseProcessManager) StartProcess(process *node.Process, app *node.AppInstallation) error {
+func (pm *BaseProcessManager) StartProcess(process *node.Process, app *node.AppInstallation) (string, error) {
 	driver, ok := pm.processDrivers[app.Driver]
 	if !ok {
-		return fmt.Errorf("error starting process: driver %s not found", app.Driver)
+		return "", fmt.Errorf("error starting process: driver %s not found", app.Driver)
 	}
 
 	extProcessID, err := driver.StartProcess(process, app)
 	if err != nil {
-		return err
+		return "", err
 	}
 
-	pm.processes[process.ID] = &RunningProcess{
-		ProcessState: &node.ProcessState{
-			Process:     process,
-			ExtDriverID: extProcessID,
-		},
-	}
-
-	// TODO tell controller that we're in state running
-	return nil
+	return extProcessID, nil
 }
 
 func (pm *BaseProcessManager) StopProcess(processID string) error {
-	process, ok := pm.processes[processID]
-	if !ok {
+	nodeState, err := pm.nodeController.GetNodeState()
+	if err != nil {
+		return err
+	}
+
+	process, err := nodeState.GetProcessByID(processID)
+	if err != nil {
 		return fmt.Errorf("error stopping process: process %s not found", processID)
 	}
 
@@ -109,12 +102,29 @@ func (pm *BaseProcessManager) StopProcess(processID string) error {
 		return fmt.Errorf("error stopping process: driver %s not found", process.Driver)
 	}
 
-	err := driver.StopProcess(process.ExtDriverID)
+	err = driver.StopProcess(process.ExtDriverID)
 	if err != nil {
 		return err
 	}
 
-	delete(pm.processes, processID)
-
 	return nil
+}
+
+func (pm *BaseProcessManager) IsProcessRunning(processID string) (bool, error) {
+	nodeState, err := pm.nodeController.GetNodeState()
+	if err != nil {
+		return false, err
+	}
+
+	process, err := nodeState.GetProcessByID(processID)
+	if err != nil {
+		return false, fmt.Errorf("error stopping process: process %s not found", processID)
+	}
+
+	driver, ok := pm.processDrivers[process.Driver]
+	if !ok {
+		return false, fmt.Errorf("error checking if process is running: driver %s not found", process.Driver)
+	}
+
+	return driver.IsProcessRunning(process.ExtDriverID)
 }

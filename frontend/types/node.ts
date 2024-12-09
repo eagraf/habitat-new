@@ -5,6 +5,7 @@
 
 export const AppLifecycleStateInstalling = "installing";
 export const AppLifecycleStateInstalled = "installed";
+export const AppLifecycleStateUpgrading = "upgrading";
 export interface Package {
   driver: string;
   driver_config: { [key: string]: any};
@@ -15,15 +16,16 @@ export interface Package {
 /**
  * TODO some fields should be ignored by the REST api
  */
-export interface AppInstallation {
+export interface AppInstallation extends Package {
   id: string;
   user_id: string;
   name: string;
   version: string;
-  Package: Package;
 }
 export const ProcessStateStarting = "starting";
 export const ProcessStateRunning = "running";
+export const ProcessStateStopping = "stopping";
+export const ProcessStateStopped = "stopped";
 export interface Process {
   id: string;
   app_id: string;
@@ -92,6 +94,10 @@ export interface AppInstallationState extends AppInstallation {
 export interface ProcessState extends Process {
   state: string;
   ext_driver_id: string;
+}
+export interface ErrNotFound {
+  Type: string;
+  ID: string;
 }
 export interface NodeSchema {
 }

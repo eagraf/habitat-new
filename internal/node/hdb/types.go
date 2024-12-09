@@ -3,6 +3,8 @@ package hdb
 import (
 	"encoding/json"
 	"reflect"
+
+	"github.com/wI2L/jsondiff"
 )
 
 // Aliases for serialized types.
@@ -17,9 +19,9 @@ type Schema interface {
 }
 
 type TransitionWrapper struct {
-	Type       string `json:"type"`
-	Patch      []byte `json:"patch"`      // The JSON patch generated from the transition struct
-	Transition []byte `json:"transition"` // JSON encoded transition struct
+	Type       string         `json:"type"`
+	Patch      jsondiff.Patch `json:"patch"`      // The JSON patch generated from the transition struct
+	Transition []byte         `json:"transition"` // JSON encoded transition struct
 }
 
 type Transition interface {
@@ -27,7 +29,7 @@ type Transition interface {
 	Type() string
 
 	// Patch takes the old state and returns a JSON patch to apply to the old state to get the new state.
-	Patch(oldState SerializedState) (SerializedState, error)
+	Patch(oldState SerializedState) (jsondiff.Patch, error)
 
 	// Enrich adds important data to the transition that is not specified when submitted by the client.
 	// For example, the id of a newly created object can be generated during the enrichment phase. The id is not
@@ -38,7 +40,7 @@ type Transition interface {
 	Validate(oldState SerializedState) error
 }
 
-func WrapTransition(t Transition, patch []byte, oldState SerializedState) (*TransitionWrapper, error) {
+func WrapTransition(t Transition, patch jsondiff.Patch, oldState SerializedState) (*TransitionWrapper, error) {
 
 	transition, err := json.Marshal(t)
 	if err != nil {

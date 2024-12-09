@@ -27,6 +27,12 @@ type PostAppRequest struct {
 	ReverseProxyRules []*node.ReverseProxyRule `json:"reverse_proxy_rules" yaml:"reverse_proxy_rules"`
 }
 
+type PostUpgradeAppRequest struct {
+	AppInstallation   *node.AppInstallation    `json:"app_installation" yaml:"app_installation"`
+	ReverseProxyRules []*node.ReverseProxyRule `json:"reverse_proxy_rules" yaml:"reverse_proxy_rules"`
+	Version           string                   `json:"version" yaml:"version"`
+}
+
 type PostProcessRequest struct {
 	AppInstallationID string `json:"app_id"`
 }

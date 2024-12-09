@@ -96,6 +96,10 @@ func (d *AppDriver) InstallPackage(packageSpec *node.Package, version string) er
 	return nil
 }
 
+func (d *AppDriver) UpgradePackage(packageSpec *node.Package, version string) error {
+	return d.InstallPackage(packageSpec, version)
+}
+
 func (d *AppDriver) UninstallPackage(packageURL *node.Package, version string) error {
 	repoURL := repoURLFromPackage(packageURL)
 	_, err := d.client.ImageRemove(context.Background(), repoURL, types.ImageRemoveOptions{})
@@ -161,6 +165,18 @@ func (d *ProcessDriver) StopProcess(extProcessID string) error {
 	}
 
 	return nil
+}
+
+func (d *ProcessDriver) IsProcessRunning(extProcessID string) (bool, error) {
+	containerInfo, err := d.client.ContainerInspect(context.Background(), extProcessID)
+	if err != nil {
+		return false, nil
+	}
+	// Check if the container is running
+	if containerInfo.State != nil && containerInfo.State.Running {
+		return true, nil
+	}
+	return false, nil
 }
 
 type Driver struct {

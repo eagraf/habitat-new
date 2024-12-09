@@ -1,7 +1,6 @@
 package controller
 
 import (
-	"encoding/json"
 	"fmt"
 
 	types "github.com/eagraf/habitat-new/core/api"
@@ -9,6 +8,7 @@ import (
 	"github.com/eagraf/habitat-new/internal/node/config"
 	"github.com/eagraf/habitat-new/internal/node/constants"
 	"github.com/eagraf/habitat-new/internal/node/hdb"
+	"github.com/eagraf/habitat-new/internal/node/pubsub"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/mod/semver"
 )
@@ -25,24 +25,31 @@ type NodeController interface {
 
 	InstallApp(userID string, newApp *node.AppInstallation, newProxyRules []*node.ReverseProxyRule) error
 	FinishAppInstallation(userID string, appID, registryURLBase, registryPackageID string, startAfterInstall bool) error
+	UpgradeApp(appID string, newAppInstallation *node.AppInstallation, newProxyRules []*node.ReverseProxyRule, version string) error
+	FinishAppUpgrade(appID string, startAfterUpgrade bool) error
 	GetAppByID(appID string) (*node.AppInstallation, error)
 
 	StartProcess(appID string) error
-	SetProcessRunning(processID string) error
+	SetProcessRunning(processID string, extProcessID string) error
 	StopProcess(processID string) error
+	FinishProcessStop(processID string) error
+
+	GetNodeState() (*node.State, error)
 }
 
 type BaseNodeController struct {
-	databaseManager hdb.HDBManager
-	nodeConfig      *config.NodeConfig
-	pdsClient       PDSClientI
+	databaseManager     hdb.HDBManager
+	nodeConfig          *config.NodeConfig
+	pdsClient           PDSClientI
+	stateUpdatesChannel pubsub.Channel[hdb.StateUpdate]
 }
 
-func NewNodeController(habitatDBManager hdb.HDBManager, config *config.NodeConfig) (*BaseNodeController, error) {
+func NewNodeController(habitatDBManager hdb.HDBManager, config *config.NodeConfig, stateUpdatesChannel pubsub.Channel[hdb.StateUpdate]) (*BaseNodeController, error) {
 	controller := &BaseNodeController{
-		databaseManager: habitatDBManager,
-		nodeConfig:      config,
-		pdsClient:       NewPDSClient(config),
+		databaseManager:     habitatDBManager,
+		nodeConfig:          config,
+		pdsClient:           NewPDSClient(config),
+		stateUpdatesChannel: stateUpdatesChannel,
 	}
 	return controller, nil
 }
@@ -74,10 +81,9 @@ func (c *BaseNodeController) MigrateNodeDB(targetVersion string) error {
 		return err
 	}
 
-	var nodeState node.State
-	err = json.Unmarshal(dbClient.Bytes(), &nodeState)
+	nodeState, err := c.GetNodeState()
 	if err != nil {
-		return nil
+		return err
 	}
 
 	// No-op if version is already the target
@@ -135,14 +141,121 @@ func (c *BaseNodeController) FinishAppInstallation(userID string, appID, registr
 	return nil
 }
 
-func (c *BaseNodeController) GetAppByID(appID string) (*node.AppInstallation, error) {
-	dbClient, err := c.databaseManager.GetDatabaseClientByName(constants.NodeDBDefaultName)
+func (c *BaseNodeController) UpgradeApp(appID string, newAppInstallation *node.AppInstallation, newProxyRules []*node.ReverseProxyRule, version string) error {
+	nodeState, err := c.GetNodeState()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	var nodeState node.State
-	err = json.Unmarshal(dbClient.Bytes(), &nodeState)
+	// Get process associated with app if it's running
+	previouslyRunning := true
+	process, err := nodeState.GetProcessForApp(appID)
+	if err != nil {
+		if _, ok := err.(node.ErrNotFound); ok {
+			// App is not running, so we can just upgrade it
+			previouslyRunning = false
+		} else {
+			return err
+		}
+	}
+
+	if previouslyRunning {
+
+		err = c.StopProcess(process.ID)
+		if err != nil {
+			return err
+		}
+		err := c.WaitForState(func(updatedState hdb.State) (bool, error) {
+			state, ok := updatedState.(*node.State)
+			if !ok {
+				return false, fmt.Errorf("state not of type node.State")
+			}
+			if _, ok := state.Processes[process.ID]; !ok {
+				return false, fmt.Errorf("process %s not found", process.ID)
+			}
+
+			return state.Processes[process.ID].State == node.ProcessStateStopped, nil
+		})
+		if err != nil {
+			return err
+		}
+	}
+
+	// Now we can upgrade the app
+	dbClient, err := c.databaseManager.GetDatabaseClientByName(constants.NodeDBDefaultName)
+	if err != nil {
+		return err
+	}
+
+	_, err = dbClient.ProposeTransitions([]hdb.Transition{
+		&node.StartAppUpgradeTransition{
+			AppID:              appID,
+			NewAppInstallation: newAppInstallation,
+			NewProxyRules:      newProxyRules,
+			StartAfterUpgrade:  !previouslyRunning,
+		},
+	})
+	if err != nil {
+		return err
+	}
+
+	// Wait for the app to transition back to the upgrading state
+	err = c.WaitForState(func(updatedState hdb.State) (bool, error) {
+		state, ok := updatedState.(*node.State)
+		if !ok {
+			return false, fmt.Errorf("state update is not a node state")
+		}
+		if _, ok := state.AppInstallations[appID]; !ok {
+			return false, fmt.Errorf("app %s not found", appID)
+		}
+		return state.AppInstallations[appID].State == node.AppLifecycleStateUpgrading, nil
+	})
+	if err != nil {
+		return err
+	}
+
+	// Now, wait for the app to transition back to the installed state
+	// We waited for both in order to avoid race conditions
+	err = c.WaitForState(func(updatedState hdb.State) (bool, error) {
+		state, ok := updatedState.(*node.State)
+		if !ok {
+			return false, fmt.Errorf("state update is not a node state")
+		}
+		if _, ok := state.AppInstallations[appID]; !ok {
+			return false, fmt.Errorf("app %s not found", appID)
+		}
+		return state.AppInstallations[appID].State == node.AppLifecycleStateInstalled, nil
+	})
+	if err != nil {
+		return err
+	}
+
+	// If we got here, the app is installed and we can start the process if needed
+	if previouslyRunning {
+		return c.StartProcess(appID)
+	}
+
+	return nil
+}
+
+func (c *BaseNodeController) FinishAppUpgrade(appID string, startAfterUpgrade bool) error {
+	dbClient, err := c.databaseManager.GetDatabaseClientByName(constants.NodeDBDefaultName)
+	if err != nil {
+		return err
+	}
+
+	_, err = dbClient.ProposeTransitions([]hdb.Transition{
+		&node.FinishAppUpgradeTransition{
+			AppID:             appID,
+			StartAfterUpgrade: startAfterUpgrade,
+		},
+	})
+
+	return err
+}
+
+func (c *BaseNodeController) GetAppByID(appID string) (*node.AppInstallation, error) {
+	nodeState, err := c.GetNodeState()
 	if err != nil {
 		return nil, err
 	}
@@ -161,12 +274,6 @@ func (c *BaseNodeController) StartProcess(appID string) error {
 		return err
 	}
 
-	var nodeState node.State
-	err = json.Unmarshal(dbClient.Bytes(), &nodeState)
-	if err != nil {
-		return nil
-	}
-
 	_, err = dbClient.ProposeTransitions([]hdb.Transition{
 		&node.ProcessStartTransition{
 			AppID: appID,
@@ -179,7 +286,7 @@ func (c *BaseNodeController) StartProcess(appID string) error {
 	return nil
 }
 
-func (c *BaseNodeController) SetProcessRunning(processID string) error {
+func (c *BaseNodeController) SetProcessRunning(processID string, extProcessID string) error {
 	dbClient, err := c.databaseManager.GetDatabaseClientByName(constants.NodeDBDefaultName)
 	if err != nil {
 		return err
@@ -187,7 +294,8 @@ func (c *BaseNodeController) SetProcessRunning(processID string) error {
 
 	_, err = dbClient.ProposeTransitions([]hdb.Transition{
 		&node.ProcessRunningTransition{
-			ProcessID: processID,
+			ProcessID:    processID,
+			ExtProcessID: extProcessID,
 		},
 	})
 	if err != nil {
@@ -213,6 +321,20 @@ func (c *BaseNodeController) StopProcess(processID string) error {
 	}
 
 	return nil
+}
+
+func (c *BaseNodeController) FinishProcessStop(processID string) error {
+	dbClient, err := c.databaseManager.GetDatabaseClientByName(constants.NodeDBDefaultName)
+	if err != nil {
+		return err
+	}
+
+	_, err = dbClient.ProposeTransitions([]hdb.Transition{
+		&node.FinishProcessStopTransition{
+			ProcessID: processID,
+		},
+	})
+	return err
 }
 
 func (c *BaseNodeController) AddUser(userID, email, handle, password, certificate string) (types.PDSCreateAccountResponse, error) {
@@ -256,13 +378,7 @@ func (c *BaseNodeController) AddUser(userID, email, handle, password, certificat
 }
 
 func (c *BaseNodeController) GetUserByUsername(username string) (*node.User, error) {
-	dbClient, err := c.databaseManager.GetDatabaseClientByName(constants.NodeDBDefaultName)
-	if err != nil {
-		return nil, err
-	}
-
-	var nodeState node.State
-	err = json.Unmarshal(dbClient.Bytes(), &nodeState)
+	nodeState, err := c.GetNodeState()
 	if err != nil {
 		return nil, err
 	}
