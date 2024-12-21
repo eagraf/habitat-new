@@ -9,21 +9,24 @@ import (
 	"net/http"
 
 	types "github.com/eagraf/habitat-new/core/api"
-
-	"github.com/eagraf/habitat-new/internal/node/config"
 )
 
 type PDSClientI interface {
 	CreateSession(identifier, password string) (types.PDSCreateSessionResponse, error)
-	GetInviteCode(nodeConfig *config.NodeConfig) (string, error)
-	CreateAccount(nodeConfig *config.NodeConfig, email, handle, password, inviteCode string) (types.PDSCreateAccountResponse, error)
+	GetInviteCode() (string, error)
+	CreateAccount(email, handle, password, inviteCode string) (types.PDSCreateAccountResponse, error)
 }
 
 type PDSClient struct {
-	NodeConfig *config.NodeConfig
+	pdsUsername string
+	pdsPassword string
 }
 
-func (p *PDSClient) GetInviteCode(nodeConfig *config.NodeConfig) (string, error) {
+func NewPDSClient(username string, password string) *PDSClient {
+	return &PDSClient{username, password}
+}
+
+func (p *PDSClient) GetInviteCode() (string, error) {
 	// Parse the response body to get the invite code
 	body, err := p.makePDSHttpReq("com.atproto.server.createInviteCode", http.MethodPost, []byte("{\"useCount\": 1}"), true)
 	if err != nil {
@@ -39,7 +42,7 @@ func (p *PDSClient) GetInviteCode(nodeConfig *config.NodeConfig) (string, error)
 	return inviteResponse.Code, nil
 }
 
-func (p *PDSClient) CreateAccount(nodeConfig *config.NodeConfig, email, handle, password, inviteCode string) (types.PDSCreateAccountResponse, error) {
+func (p *PDSClient) CreateAccount(email, handle, password, inviteCode string) (types.PDSCreateAccountResponse, error) {
 	reqBody := types.PDSCreateAccountRequest{
 		Email:      email,
 		Handle:     handle,
@@ -102,7 +105,7 @@ func (p *PDSClient) makePDSHttpReq(endpoint, method string, body []byte, isAdmin
 
 	req.Header.Add("Content-Type", "application/json")
 	if isAdminReq {
-		authHeader := basicAuthHeader(p.NodeConfig.PDSAdminUsername(), p.NodeConfig.PDSAdminPassword())
+		authHeader := basicAuthHeader(p.pdsUsername, p.pdsPassword)
 		req.Header.Add("Authorization", authHeader)
 	}
 

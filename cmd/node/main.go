@@ -143,7 +143,7 @@ func main() {
 		// Node routes
 		api.NewVersionHandler(),
 		controller.NewGetNodeRoute(db.Manager),
-		controller.NewLoginRoute(&controller.PDSClient{NodeConfig: nodeConfig}),
+		controller.NewLoginRoute(controller.NewPDSClient(nodeConfig.PDSAdminUsername(), nodeConfig.PDSAdminUsername())),
 		controller.NewAddUserRoute(nodeCtrl),
 		controller.NewInstallAppRoute(nodeCtrl),
 		controller.NewStartProcessHandler(nodeCtrl),
