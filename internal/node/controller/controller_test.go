@@ -301,10 +301,6 @@ func TestAddUser(t *testing.T) {
 	_, err = controller.AddUser("user_1", "user@user.com", "username_1", "password", "cert_1")
 	assert.NotNil(t, err)
 
-	// Test invite code error.
-	_, err = controller.AddUser("user_1", "user@user.com", "username_1", "password", "cert_1")
-	assert.NotNil(t, err)
-
 	// Test create account error
 	mockedPDSClient.EXPECT().CreateAccount("user@user.com", "username_1", "password").Return(nil, errors.New("failed to create account")).Times(1)
 
