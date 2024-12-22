@@ -17,6 +17,7 @@ services:
         - ${TOPDIR}/internal:${DOCKER_WORKDIR}/internal
         - ${TOPDIR}/pkg:${DOCKER_WORKDIR}/pkg
         - ${TOPDIR}/.habitat:/.habitat
+        - node-state:/.habitat/hdb
         - /var/run/docker.sock:/var/run/docker.sock
     environment:
         - HABITAT_PATH=/.habitat
@@ -40,3 +41,6 @@ services:
       - habitat_frontend
     extra_hosts:
       - "host.docker.internal:host-gateway"
+
+volumes:
+  node-state:

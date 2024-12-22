@@ -60,8 +60,7 @@ run-dev: $(PDS_BLOB_DIR)
 
 clear-volumes:
 	docker container rm -f habitat_node || true
-	docker volume prune -f
-	rm -rf $(DEV_HABITAT_PATH)/hdb
+	docker volume rm build_node-state || true
 
 run-dev-fresh: clear-volumes run-dev
 

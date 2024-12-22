@@ -121,20 +121,22 @@ func (dm *DatabaseManager) RestartDBs() error {
 			path: filepath.Join(dm.path, dbID),
 		}
 
-		cluster, err := dm.raft.RestoreNode(db, fsm)
-		if err != nil {
-			return fmt.Errorf("error restoring database %s: %s", dbID, err)
-		}
+		replicator := state.NewStableStorageOnlyReplicator(fsm, filepath.Join(db.Path(), "state.json"))
 
-		stateMachineController, err := state.StateMachineFactory(dbID, schemaType, nil, cluster, dm.publisher)
+		stateMachineController, err := state.StateMachineFactory(dbID, schemaType, nil, replicator, dm.publisher)
 		if err != nil {
 			return err
+		}
+		err = replicator.RestoreState()
+		if err != nil {
+			return fmt.Errorf("error restoring state for database %s: %s", dbID, err)
 		}
 
 		db.StateMachineController = stateMachineController
 
 		dm.databases[dbID] = db
 		db.StateMachineController.StartListening()
+
 	}
 	return nil
 }
@@ -181,12 +183,18 @@ func (dm *DatabaseManager) CreateDatabase(name string, schemaType string, initia
 		return nil, err
 	}
 
-	cluster, err := dm.raft.CreateCluster(db, fsm)
+	//cluster, err := dm.raft.CreateCluster(db, fsm)
+	//if err != nil {
+	//return nil, err
+	//}
+
+	replicator := state.NewStableStorageOnlyReplicator(fsm, filepath.Join(db.Path(), "state.json"))
+	err = replicator.InitializeState()
 	if err != nil {
 		return nil, err
 	}
 
-	stateMachineController, err := state.StateMachineFactory(db.id, schemaType, nil, cluster, dm.publisher)
+	stateMachineController, err := state.StateMachineFactory(db.id, schemaType, nil, replicator, dm.publisher)
 	if err != nil {
 		return nil, err
 	}
