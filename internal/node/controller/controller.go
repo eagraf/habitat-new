@@ -215,15 +215,6 @@ func (c *BaseNodeController) StopProcess(processID string) error {
 }
 
 func (c *BaseNodeController) AddUser(userID, email, handle, password, certificate string) (types.PDSCreateAccountResponse, error) {
-	log.Info().Msg("AddUser")
-
-	/*
-		inviteCode, err := c.pdsClient.GetInviteCode()
-		if err != nil {
-			return nil, err
-		}
-	*/
-
 	resp, err := c.pdsClient.CreateAccount(email, handle, password)
 	if err != nil {
 		return nil, err
