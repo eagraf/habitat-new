@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"net"
 	"net/http"
 	"net/url"
 	"os/signal"
@@ -94,8 +95,7 @@ func main() {
 	// egCtx is cancelled if any function called with eg.Go() returns an error.
 	eg, egCtx := errgroup.WithContext(ctx)
 
-	proxy := reverse_proxy.NewProxyServer(logger, nodeConfig)
-
+	proxy := reverse_proxy.NewProxyServer(logger, nodeConfig.WebBundlePath())
 	proxyRuleStateUpdateSubscriber, err := reverse_proxy.NewProcessProxyRuleSubscriber(
 		proxy.RuleSet,
 	)
@@ -157,9 +157,17 @@ func main() {
 		Addr:    addr,
 		Handler: proxy,
 	}
-	ln, err := proxy.Listener(addr)
+
+	var ln net.Listener
+	// If TS_AUTHKEY is set, create a tsnet listener. Otherwise, create a normal tcp listener.
+	if nodeConfig.TailscaleAuthkey() == "" {
+		ln, err = proxy.Listener(addr)
+	} else {
+		ln, err = proxy.TailscaleListener(addr, nodeConfig.Hostname(), nodeConfig.TailScaleStatePath(), nodeConfig.TailScaleFunnelEnabled())
+	}
+
 	if err != nil {
-		log.Fatal().Err(err).Msg("error getting listener")
+		log.Fatal().Err(err).Msg("error creating reverse proxy listener")
 	}
 	eg.Go(server.ServeFn(
 		proxyServer,
