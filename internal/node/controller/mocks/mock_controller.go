@@ -14,7 +14,7 @@ import (
 
 	types "github.com/eagraf/habitat-new/core/api"
 	node "github.com/eagraf/habitat-new/core/state/node"
-	hdb "github.com/eagraf/habitat-new/hdb"
+	hdb "github.com/eagraf/habitat-new/internal/node/hdb"
 	gomock "go.uber.org/mock/gomock"
 )
 

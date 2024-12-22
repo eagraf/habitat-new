@@ -5,11 +5,10 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/eagraf/habitat-new/hdb"
-	"github.com/eagraf/habitat-new/pubsub"
-
-	"github.com/eagraf/habitat-new/hdb/consensus"
-	"github.com/eagraf/habitat-new/hdb/state"
+	"github.com/eagraf/habitat-new/internal/node/hdb"
+	"github.com/eagraf/habitat-new/internal/node/hdb/consensus"
+	"github.com/eagraf/habitat-new/internal/node/hdb/state"
+	"github.com/eagraf/habitat-new/internal/node/pubsub"
 	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
 )

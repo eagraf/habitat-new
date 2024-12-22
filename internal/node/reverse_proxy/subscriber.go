@@ -4,8 +4,7 @@ import (
 	"encoding/json"
 
 	"github.com/eagraf/habitat-new/core/state/node"
-
-	"github.com/eagraf/habitat-new/hdb"
+	"github.com/eagraf/habitat-new/internal/node/hdb"
 
 	"github.com/rs/zerolog/log"
 )

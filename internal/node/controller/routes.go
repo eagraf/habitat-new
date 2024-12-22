@@ -6,8 +6,8 @@ import (
 	"net/http"
 
 	types "github.com/eagraf/habitat-new/core/api"
-	"github.com/eagraf/habitat-new/hdb"
 	"github.com/eagraf/habitat-new/internal/node/constants"
+	"github.com/eagraf/habitat-new/internal/node/hdb"
 	"golang.org/x/mod/semver"
 )
 

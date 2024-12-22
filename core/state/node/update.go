@@ -1,6 +1,6 @@
 package node
 
-import "github.com/eagraf/habitat-new/hdb"
+import "github.com/eagraf/habitat-new/internal/node/hdb"
 
 type NodeStateUpdate struct {
 	// Embed the metadata struct so this fully implements hdb.StateUpdate.

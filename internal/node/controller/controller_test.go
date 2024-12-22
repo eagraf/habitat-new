@@ -6,10 +6,10 @@ import (
 	"testing"
 
 	"github.com/eagraf/habitat-new/core/state/node"
-	"github.com/eagraf/habitat-new/hdb"
-	hdb_mocks "github.com/eagraf/habitat-new/hdb/mocks"
 	"github.com/eagraf/habitat-new/internal/node/constants"
 	"github.com/eagraf/habitat-new/internal/node/controller/mocks"
+	"github.com/eagraf/habitat-new/internal/node/hdb"
+	hdb_mocks "github.com/eagraf/habitat-new/internal/node/hdb/mocks"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"

@@ -5,8 +5,7 @@ import (
 	"encoding/json"
 	"io"
 
-	"github.com/eagraf/habitat-new/hdb"
-
+	"github.com/eagraf/habitat-new/internal/node/hdb"
 	"github.com/hashicorp/raft"
 	"github.com/rs/zerolog/log"
 )
