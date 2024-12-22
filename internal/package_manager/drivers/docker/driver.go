@@ -13,8 +13,8 @@ import (
 	"github.com/docker/go-connections/nat"
 	"github.com/eagraf/habitat-new/core/state/node"
 	"github.com/eagraf/habitat-new/internal/node/constants"
-	"github.com/eagraf/habitat-new/internal/node/package_manager"
 	"github.com/eagraf/habitat-new/internal/node/processes"
+	"github.com/eagraf/habitat-new/internal/package_manager"
 	"github.com/rs/zerolog/log"
 )
 
@@ -67,6 +67,10 @@ var _ package_manager.PackageManager = &AppDriver{}
 
 func (d *AppDriver) Driver() string {
 	return constants.AppDriverDocker
+}
+
+func repoURLFromPackage(packageSpec *node.Package) string {
+	return fmt.Sprintf("%s/%s:%s", packageSpec.RegistryURLBase, packageSpec.RegistryPackageID, packageSpec.RegistryPackageTag)
 }
 
 func (d *AppDriver) IsInstalled(packageSpec *node.Package, version string) (bool, error) {

@@ -17,15 +17,6 @@ type Package struct {
 	RegistryPackageTag string                 `json:"registry_tag" yaml:"registry_tag"`
 }
 
-// TODO some fields should be ignored by the REST api
-type AppInstallation struct {
-	ID      string `json:"id" yaml:"id"`
-	UserID  string `json:"user_id" yaml:"user_id"`
-	Name    string `json:"name" yaml:"name"`
-	Version string `json:"version" yaml:"version"`
-	Package `yaml:",inline"`
-}
-
 const ProcessStateStarting = "starting"
 const ProcessStateRunning = "running"
 

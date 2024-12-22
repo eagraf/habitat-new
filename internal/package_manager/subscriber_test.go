@@ -7,7 +7,7 @@ import (
 	"github.com/eagraf/habitat-new/core/state/node"
 	"github.com/eagraf/habitat-new/core/state/node/test_helpers"
 	controller_mocks "github.com/eagraf/habitat-new/internal/node/controller/mocks"
-	"github.com/eagraf/habitat-new/internal/node/package_manager/mocks"
+	"github.com/eagraf/habitat-new/internal/package_manager/mocks"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"

@@ -12,12 +12,17 @@ import (
 
 	"github.com/eagraf/habitat-new/core/state/node"
 	"github.com/eagraf/habitat-new/internal/node/constants"
-	"github.com/eagraf/habitat-new/internal/node/package_manager"
+	"github.com/eagraf/habitat-new/internal/package_manager"
 	"github.com/rs/zerolog/log"
 )
 
 type AppDriver struct {
 	webBundlePath string
+}
+
+type BundleInstallationConfig struct {
+	DownloadURL         string `json:"download_url"`          // Where to download the bundle from. Assume it's in a .tar.gz file.
+	BundleDirectoryName string `json:"bundle_directory_name"` // The directory under $HABITAT_PATH/web/ where the bundle will be extracted into.
 }
 
 // AppDriver implements PackageManager
