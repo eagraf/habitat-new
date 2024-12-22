@@ -6,11 +6,10 @@ import (
 	"testing"
 
 	"github.com/eagraf/habitat-new/core/state/node"
-	"github.com/eagraf/habitat-new/internal/node/config"
+	"github.com/eagraf/habitat-new/hdb"
+	hdb_mocks "github.com/eagraf/habitat-new/hdb/mocks"
 	"github.com/eagraf/habitat-new/internal/node/constants"
 	"github.com/eagraf/habitat-new/internal/node/controller/mocks"
-	"github.com/eagraf/habitat-new/internal/node/hdb"
-	hdb_mocks "github.com/eagraf/habitat-new/internal/node/hdb/mocks"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
@@ -41,12 +40,9 @@ func setupNodeDBTest(ctrl *gomock.Controller, t *testing.T) (NodeController, *mo
 			return mockedClient, nil
 		}).Times(1)
 
-	config, err := config.NewTestNodeConfig(nil)
+	controller, err := NewNodeController(mockedManager, mockedPDSClient)
 	require.Nil(t, err)
-
-	controller, err := NewNodeController(mockedManager, config, mockedPDSClient)
-	require.Nil(t, err)
-	err = controller.InitializeNodeDB()
+	err = controller.InitializeNodeDB(nil)
 	require.Nil(t, err)
 
 	return controller, mockedPDSClient, mockedManager, mockedClient
@@ -58,11 +54,11 @@ func TestInitializeNodeDB(t *testing.T) {
 	controller, _, mockedManager, _ := setupNodeDBTest(ctrl, t)
 
 	mockedManager.EXPECT().CreateDatabase(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, assert.AnError).Times(1)
-	err := controller.InitializeNodeDB()
+	err := controller.InitializeNodeDB(nil)
 	require.NotNil(t, err)
 
 	mockedManager.EXPECT().CreateDatabase(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, &hdb.DatabaseAlreadyExistsError{}).Times(1)
-	err = controller.InitializeNodeDB()
+	err = controller.InitializeNodeDB(nil)
 	require.Nil(t, err)
 }
 

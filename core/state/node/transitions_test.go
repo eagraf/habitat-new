@@ -5,7 +5,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/eagraf/habitat-new/internal/node/hdb"
+	"github.com/eagraf/habitat-new/hdb"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

@@ -1,4 +1,4 @@
-package controller
+package main
 
 import (
 	"fmt"
@@ -13,11 +13,9 @@ import (
 	"github.com/eagraf/habitat-new/internal/node/config"
 	"github.com/eagraf/habitat-new/internal/node/constants"
 	"github.com/google/uuid"
-	"github.com/rs/zerolog/log"
 )
 
 func generatePDSAppConfig(nodeConfig *config.NodeConfig) *types.PostAppRequest {
-
 	pdsMountDir := filepath.Join(nodeConfig.HabitatAppPath(), "pds")
 
 	// TODO @eagraf - unhardcode as much of this as possible
@@ -109,11 +107,10 @@ func generateDefaultReverseProxyRules(frontendDev bool) ([]*node.ReverseProxyRul
 	}, nil
 }
 
-// TODO this is basically a placeholder until we actually have a way of generating
-// the certificate for the node.
 func generateInitState(nodeConfig *config.NodeConfig) (*node.State, error) {
+	// TODO this is basically a placeholder until we actually have a way of generating
+	// the certificate for the node.
 	nodeUUID := uuid.New().String()
-
 	rootCert := nodeConfig.RootUserCertB64()
 
 	initState, err := node.GetEmptyStateForVersion(node.LatestVersion)
@@ -139,30 +136,13 @@ func initTranstitions(initState *node.State, startApps []*types.PostAppRequest, 
 		},
 	}
 
-	// Generate the list of default proxy rules to have available when the node first comes up
-	proxyRules, err := generateDefaultReverseProxyRules(nodeConfig)
-	if err != nil {
-		return nil, err
-	}
-
 	for _, rule := range proxyRules {
 		transitions = append(transitions, &node.AddReverseProxyRuleTransition{
 			Rule: rule,
 		})
 	}
 
-	// Generate the list of apps to have installed and started when the node first comes up
-	pdsAppConfig := generatePDSAppConfig(nodeConfig)
-	defaultApplications := []*types.PostAppRequest{
-		pdsAppConfig,
-	}
-
-	configDefaultApps := nodeConfig.DefaultApps()
-	log.Info().Msgf("configDefaultApps: %v", configDefaultApps)
-
-	defaultApplications = append(defaultApplications, configDefaultApps...)
-
-	for _, app := range defaultApplications {
+	for _, app := range startApps {
 		transitions = append(transitions, &node.StartInstallationTransition{
 			UserID:                 constants.RootUserID,
 			AppInstallation:        app.AppInstallation,

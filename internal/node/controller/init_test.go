@@ -1,16 +1,11 @@
 package controller
 
 import (
-	"crypto/x509"
 	"encoding/json"
 	"fmt"
-	"testing"
 
 	"github.com/eagraf/habitat-new/core/state/node"
-	"github.com/eagraf/habitat-new/internal/node/config"
-	"github.com/eagraf/habitat-new/internal/node/hdb"
-	"github.com/spf13/viper"
-	"github.com/stretchr/testify/require"
+	"github.com/eagraf/habitat-new/hdb"
 )
 
 func testTransitions(oldState *node.State, transitions []hdb.Transition) (*node.State, error) {
@@ -77,35 +72,4 @@ func testTransitions(oldState *node.State, transitions []hdb.Transition) (*node.
 	}
 
 	return &state, nil
-}
-
-func TestInitTransitions(t *testing.T) {
-	config, err := config.NewTestNodeConfig(nil)
-	require.Nil(t, err)
-
-	transitions, err := initTranstitions(config)
-	require.Nil(t, err)
-
-	require.Equal(t, 4, len(transitions))
-}
-
-func TestFrontendDevMode(t *testing.T) {
-	v := viper.New()
-	v.Set("frontend_dev", true)
-	config, err := config.NewTestNodeConfig(v)
-	require.Nil(t, err)
-
-	config.RootUserCert = &x509.Certificate{}
-
-	transitions, err := initTranstitions(config)
-	require.Nil(t, err)
-
-	require.Equal(t, 4, len(transitions))
-
-	newState, err := testTransitions(nil, transitions)
-	require.Nil(t, err)
-
-	frontendRule, ok := (*newState.ReverseProxyRules)["default-rule-frontend"]
-	require.Equal(t, true, ok)
-	require.Equal(t, node.ProxyRuleRedirect, frontendRule.Type)
 }

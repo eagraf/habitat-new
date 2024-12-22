@@ -11,13 +11,12 @@ import (
 	"path/filepath"
 
 	"github.com/eagraf/habitat-new/core/state/node"
-	"github.com/eagraf/habitat-new/internal/node/config"
 	"github.com/eagraf/habitat-new/internal/node/constants"
 	"github.com/rs/zerolog/log"
 )
 
 type AppDriver struct {
-	config *config.NodeConfig
+	webBundlePath string
 }
 
 func (d *AppDriver) Driver() string {
@@ -50,7 +49,7 @@ func (d *AppDriver) InstallPackage(packageSpec *node.Package, version string) er
 	}
 
 	// Make sure the $HABITAT_PATH/web/ directory is created
-	err := os.MkdirAll(d.config.WebBundlePath(), 0755)
+	err := os.MkdirAll(d.webBundlePath, 0755)
 	if err != nil {
 		return err
 	}
@@ -87,7 +86,7 @@ func (d *AppDriver) UninstallPackage(pkg *node.Package, version string) error {
 }
 
 func (d *AppDriver) getBundlePath(bundleConfig *BundleInstallationConfig, version string) string {
-	return filepath.Join(d.config.WebBundlePath(), bundleConfig.BundleDirectoryName, version)
+	return filepath.Join(d.webBundlePath, bundleConfig.BundleDirectoryName, version)
 }
 
 func getWebBundleConfigFromPackage(pkg *node.Package) (*BundleInstallationConfig, error) {

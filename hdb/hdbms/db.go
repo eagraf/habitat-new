@@ -2,7 +2,6 @@ package hdbms
 
 import (
 	"github.com/eagraf/habitat-new/hdb"
-	"github.com/eagraf/habitat-new/internal/node/config"
 	"github.com/eagraf/habitat-new/pubsub"
 
 	"github.com/rs/zerolog"
@@ -13,8 +12,8 @@ type HDBResult struct {
 	StateUpdatePublisher pubsub.Publisher[hdb.StateUpdate] `group:"state_update_publishers"`
 }
 
-func NewHabitatDB(logger *zerolog.Logger, publisher *pubsub.SimplePublisher[hdb.StateUpdate], config *config.NodeConfig) (*HDBResult, func(), error) {
-	dbManager, err := NewDatabaseManager(config, publisher)
+func NewHabitatDB(logger *zerolog.Logger, publisher *pubsub.SimplePublisher[hdb.StateUpdate], habitatPath, hdbPath string) (*HDBResult, func(), error) {
+	dbManager, err := NewDatabaseManager(habitatPath, hdbPath, publisher)
 	if err != nil {
 		return nil, nil, err
 	}

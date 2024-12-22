@@ -7,6 +7,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	types "github.com/eagraf/habitat-new/core/api"
 	"github.com/eagraf/habitat-new/internal/node/api"
 	"github.com/eagraf/habitat-new/internal/node/appstore"
 	"github.com/eagraf/habitat-new/internal/node/config"
@@ -14,14 +15,16 @@ import (
 	"github.com/eagraf/habitat-new/internal/node/controller"
 	"github.com/eagraf/habitat-new/internal/node/drivers/docker"
 	"github.com/eagraf/habitat-new/internal/node/drivers/web"
-	"github.com/eagraf/habitat-new/internal/node/hdb"
-	"github.com/eagraf/habitat-new/internal/node/hdb/hdbms"
 	"github.com/eagraf/habitat-new/internal/node/logging"
 	"github.com/eagraf/habitat-new/internal/node/package_manager"
 	"github.com/eagraf/habitat-new/internal/node/processes"
-	"github.com/eagraf/habitat-new/internal/node/pubsub"
-	"github.com/eagraf/habitat-new/internal/node/reverse_proxy"
 	"github.com/eagraf/habitat-new/internal/node/server"
+	"github.com/eagraf/habitat-new/pubsub"
+
+	"github.com/eagraf/habitat-new/hdb"
+
+	"github.com/eagraf/habitat-new/hdb/hdbms"
+	"github.com/eagraf/habitat-new/reverse_proxy"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/sync/errgroup"
@@ -37,14 +40,14 @@ func main() {
 	zerolog.SetGlobalLevel(nodeConfig.LogLevel())
 
 	hdbPublisher := pubsub.NewSimplePublisher[hdb.StateUpdate]()
-	db, dbClose, err := hdbms.NewHabitatDB(logger, hdbPublisher, nodeConfig)
+	db, dbClose, err := hdbms.NewHabitatDB(logger, hdbPublisher, nodeConfig.HabitatPath(), nodeConfig.HDBPath())
 	if err != nil {
 		log.Fatal().Err(err).Msg("error creating habitat db")
 	}
 	defer dbClose()
 
 	pdsClient := controller.NewPDSClient(nodeConfig.PDSAdminUsername(), nodeConfig.PDSAdminPassword())
-	nodeCtrl, err := controller.NewNodeController(db.Manager, nodeConfig, pdsClient)
+	nodeCtrl, err := controller.NewNodeController(db.Manager, pdsClient)
 	if err != nil {
 		log.Fatal().Err(err).Msg("error creating node controller")
 	}
@@ -55,7 +58,7 @@ func main() {
 		log.Fatal().Err(err).Msg("error creating docker driver")
 	}
 
-	webDriver, err := web.NewDriver(nodeConfig)
+	webDriver, err := web.NewDriver(nodeConfig.WebBundlePath())
 	if err != nil {
 		log.Fatal().Err(err).Msg("error creating web driver")
 	}
@@ -111,7 +114,30 @@ func main() {
 		}
 	}()
 
-	err = nodeCtrl.InitializeNodeDB()
+	initState, err := generateInitState(nodeConfig)
+	if err != nil {
+		log.Fatal().Err(err).Msg("unable to generate initial node state")
+	}
+
+	// Generate the list of default proxy rules to have available when the node first comes up
+	proxyRules, err := generateDefaultReverseProxyRules(nodeConfig.FrontendDev())
+	if err != nil {
+		log.Fatal().Err(err).Msg("unable to generate proxy rules")
+	}
+
+	// Generate the list of apps to have installed and started when the node first comes up
+	pdsAppConfig := generatePDSAppConfig(nodeConfig)
+	defaultApps := append([]*types.PostAppRequest{
+		pdsAppConfig,
+	}, nodeConfig.DefaultApps()...)
+	log.Info().Msgf("configDefaultApps: %v", defaultApps)
+
+	initialTransitions, err := initTranstitions(initState, defaultApps, proxyRules)
+	if err != nil {
+		log.Fatal().Err(err).Msg("unable to generate proxy rules")
+	}
+
+	err = nodeCtrl.InitializeNodeDB(initialTransitions)
 	if err != nil {
 		log.Fatal().Err(err).Msg("error initializing node db")
 	}
@@ -151,10 +177,10 @@ func main() {
 		controller.NewMigrationRoute(nodeCtrl),
 
 		// App store routes
-		appstore.NewAvailableAppsRoute(nodeConfig),
+		appstore.NewAvailableAppsRoute(nodeConfig.HabitatPath()),
 	}
 
-	router := api.NewRouter(routes, logger, nodeCtrl, nodeConfig)
+	router := api.NewRouter(routes, logger, nodeCtrl, nodeConfig.UseTLS(), nodeConfig.RootUserCert)
 	apiServer := &http.Server{
 		Addr:    fmt.Sprintf(":%s", constants.DefaultPortHabitatAPI),
 		Handler: router,

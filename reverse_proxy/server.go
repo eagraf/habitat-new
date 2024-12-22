@@ -55,7 +55,7 @@ func (s *ProxyServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get the handler for the best matching rule
-	handler, err := getHandlerFromRule(bestMatch, s.nodeConfig)
+	handler, err := getHandlerFromRule(bestMatch, s.nodeConfig.WebBundlePath())
 	if err != nil {
 		msg := fmt.Sprintf("error getting handler: %s", err)
 		log.Error().Msg(msg)

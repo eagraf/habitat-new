@@ -6,7 +6,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/eagraf/habitat-new/internal/node/hdb"
+	"github.com/eagraf/habitat-new/hdb"
+
 	"github.com/google/uuid"
 )
 

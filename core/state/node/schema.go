@@ -7,7 +7,8 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/eagraf/habitat-new/internal/node/hdb"
+	"github.com/eagraf/habitat-new/hdb"
+
 	"github.com/qri-io/jsonschema"
 )
 
