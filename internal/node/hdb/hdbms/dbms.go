@@ -14,8 +14,7 @@ import (
 )
 
 type DatabaseManager struct {
-	habitatPath string
-	hdbPath     string
+	path string
 
 	raft *consensus.ClusterService
 
@@ -52,22 +51,21 @@ func (d *Database) Protocol() string {
 	return filepath.Join("/habitat-raft", "0.0.1", d.id)
 }
 
-func NewDatabaseManager(habitatPath, hdbPath string, publisher pubsub.Publisher[hdb.StateUpdate]) (*DatabaseManager, error) {
+func NewDatabaseManager(path string, publisher pubsub.Publisher[hdb.StateUpdate]) (*DatabaseManager, error) {
 	// TODO this is obviously wrong
 	host := "localhost"
 	raft := consensus.NewClusterService(host)
 
-	err := os.MkdirAll(hdbPath, 0700)
+	err := os.MkdirAll(path, 0700)
 	if err != nil {
 		return nil, err
 	}
 
 	dm := &DatabaseManager{
-		habitatPath: habitatPath,
-		hdbPath:     hdbPath,
-		publisher:   publisher,
-		databases:   make(map[string]*Database),
-		raft:        raft,
+		path:      path,
+		publisher: publisher,
+		databases: make(map[string]*Database),
+		raft:      raft,
 	}
 
 	return dm, nil
@@ -86,14 +84,14 @@ func (dm *DatabaseManager) Stop() {
 }
 
 func (dm *DatabaseManager) RestartDBs() error {
-	dirs, err := os.ReadDir(dm.hdbPath)
+	dirs, err := os.ReadDir(dm.path)
 	if err != nil {
 		return fmt.Errorf("error reading existing databases : %s", err)
 	}
 	for _, dir := range dirs {
 		dbID := dir.Name()
 		log.Info().Msgf("Restoring database %s", dbID)
-		dbDir := filepath.Join(dm.hdbPath, dbID)
+		dbDir := filepath.Join(dm.path, dbID)
 
 		typeBytes, err := os.ReadFile(filepath.Join(dbDir, "schema_type"))
 		if err != nil {
@@ -120,7 +118,7 @@ func (dm *DatabaseManager) RestartDBs() error {
 		db := &Database{
 			id:   dbID,
 			name: name,
-			path: filepath.Join(dm.habitatPath, "hdb", dbID),
+			path: filepath.Join(dm.path, dbID),
 		}
 
 		cluster, err := dm.raft.RestoreNode(db, fsm)
@@ -155,7 +153,7 @@ func (dm *DatabaseManager) CreateDatabase(name string, schemaType string, initia
 	db := &Database{
 		id:   id,
 		name: name,
-		path: filepath.Join(dm.habitatPath, "hdb", id),
+		path: filepath.Join(dm.path, id),
 	}
 
 	err = os.MkdirAll(db.Path(), 0700)
@@ -225,12 +223,12 @@ func (dm *DatabaseManager) GetDatabaseClientByName(name string) (hdb.Client, err
 
 func (dm *DatabaseManager) checkDatabaseExists(name string) error {
 	// TODO we need a much cleaner way to do this. Maybe a db metadata file.
-	dirs, err := os.ReadDir(dm.hdbPath)
+	dirs, err := os.ReadDir(dm.path)
 	if err != nil {
 		return fmt.Errorf("error reading existing databases : %s", err)
 	}
 	for _, dir := range dirs {
-		nameFilePath := filepath.Join(dm.hdbPath, dir.Name(), "name")
+		nameFilePath := filepath.Join(dm.path, dir.Name(), "name")
 		dbName, err := os.ReadFile(nameFilePath)
 		if err != nil {
 			return fmt.Errorf("error reading name for database %s: %s", dir.Name(), err)

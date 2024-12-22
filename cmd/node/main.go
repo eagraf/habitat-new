@@ -46,7 +46,7 @@ func main() {
 	zerolog.SetGlobalLevel(nodeConfig.LogLevel())
 
 	hdbPublisher := pubsub.NewSimplePublisher[hdb.StateUpdate]()
-	db, dbClose, err := hdbms.NewHabitatDB(logger, hdbPublisher, nodeConfig.HabitatPath(), nodeConfig.HDBPath())
+	db, dbClose, err := hdbms.NewHabitatDB(logger, hdbPublisher, nodeConfig.HDBPath())
 	if err != nil {
 		log.Fatal().Err(err).Msg("error creating habitat db")
 	}
@@ -188,9 +188,10 @@ func main() {
 		controller.NewInstallAppRoute(nodeCtrl),
 		controller.NewStartProcessHandler(nodeCtrl),
 		controller.NewMigrationRoute(nodeCtrl),
-
-		// App store routes
-		appstore.NewAvailableAppsRoute(nodeConfig.HabitatPath()),
+	}
+	if nodeConfig.Environment() == constants.EnvironmentDev {
+		// App store is unimplemented in production
+		routes = append(routes, appstore.NewAvailableAppsRoute(nodeConfig.HabitatPath()))
 	}
 
 	router := api.NewRouter(routes, logger, nodeCtrl, nodeConfig.UseTLS(), nodeConfig.RootUserCert)
