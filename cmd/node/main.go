@@ -29,7 +29,6 @@ import (
 	"github.com/eagraf/habitat-new/internal/node/pubsub"
 	"github.com/eagraf/habitat-new/internal/node/reverse_proxy"
 	"github.com/eagraf/habitat-new/internal/node/server"
-	"github.com/google/uuid"
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -119,7 +118,7 @@ func main() {
 		}
 	}()
 
-	initState, err := generateInitState(nodeConfig.RootUserCertB64())
+	initState, err := node.InitRootState(nodeConfig.RootUserCertB64())
 	if err != nil {
 		log.Fatal().Err(err).Msg("unable to generate initial node state")
 	}
@@ -329,27 +328,6 @@ func generateDefaultReverseProxyRules(frontendDev bool) ([]*node.ReverseProxyRul
 		},
 		frontendRule,
 	}, nil
-}
-
-func generateInitState(rootUserCert string) (*node.State, error) {
-	// TODO this is basically a placeholder until we actually have a way of generating
-	// the certificate for the node.
-	nodeUUID := uuid.New().String()
-	rootCert := rootUserCert
-
-	initState, err := node.GetEmptyStateForVersion(node.LatestVersion)
-	if err != nil {
-		return nil, err
-	}
-
-	initState.NodeID = nodeUUID
-	initState.Users[constants.RootUserID] = &node.User{
-		ID:          constants.RootUserID,
-		Username:    constants.RootUsername,
-		Certificate: rootCert,
-	}
-
-	return initState, nil
 }
 
 func initTranstitions(initState *node.State, startApps []*types.PostAppRequest, proxyRules []*node.ReverseProxyRule) ([]hdb.Transition, error) {
