@@ -12,12 +12,16 @@ import (
 
 	"github.com/eagraf/habitat-new/core/state/node"
 	"github.com/eagraf/habitat-new/internal/node/constants"
+	"github.com/eagraf/habitat-new/internal/node/package_manager"
 	"github.com/rs/zerolog/log"
 )
 
 type AppDriver struct {
 	webBundlePath string
 }
+
+// AppDriver implements PackageManager
+var _ package_manager.PackageManager = &AppDriver{}
 
 func (d *AppDriver) Driver() string {
 	return constants.AppDriverWeb
