@@ -119,7 +119,7 @@ func main() {
 		}
 	}()
 
-	initState, err := generateInitState(nodeConfig)
+	initState, err := generateInitState(nodeConfig.RootUserCertB64())
 	if err != nil {
 		log.Fatal().Err(err).Msg("unable to generate initial node state")
 	}
@@ -330,11 +330,11 @@ func generateDefaultReverseProxyRules(frontendDev bool) ([]*node.ReverseProxyRul
 	}, nil
 }
 
-func generateInitState(nodeConfig *config.NodeConfig) (*node.State, error) {
+func generateInitState(rootUserCert string) (*node.State, error) {
 	// TODO this is basically a placeholder until we actually have a way of generating
 	// the certificate for the node.
 	nodeUUID := uuid.New().String()
-	rootCert := nodeConfig.RootUserCertB64()
+	rootCert := rootUserCert
 
 	initState, err := node.GetEmptyStateForVersion(node.LatestVersion)
 	if err != nil {
