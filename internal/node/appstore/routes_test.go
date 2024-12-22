@@ -70,6 +70,9 @@ func TestAvailableAppsRouteDev(t *testing.T) {
 	resp := httptest.NewRecorder()
 	handler.ServeHTTP(resp, httptest.NewRequest(http.MethodGet, handler.Pattern(), nil))
 	require.Equal(t, http.StatusOK, resp.Result().StatusCode)
+	// Get test coverage to pass
+	require.Equal(t, "/app_store/available_apps", handler.Pattern())
+	require.Equal(t, http.MethodGet, handler.Method())
 
 	bytes, err := io.ReadAll(resp.Result().Body)
 	require.NoError(t, err)
