@@ -8,7 +8,6 @@ import (
 	"reflect"
 
 	"github.com/eagraf/habitat-new/hdb"
-
 	"github.com/qri-io/jsonschema"
 )
 
