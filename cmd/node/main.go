@@ -138,7 +138,7 @@ func main() {
 
 	initialTransitions, err := initTranstitions(initState, defaultApps, proxyRules)
 	if err != nil {
-		log.Fatal().Err(err).Msg("unable to generate proxy rules")
+		log.Fatal().Err(err).Msg("unable to do initial node transitions")
 	}
 
 	err = nodeCtrl.InitializeNodeDB(initialTransitions)
