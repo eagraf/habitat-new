@@ -16,16 +16,18 @@ type PDSClientI interface {
 	CreateAccount(email, handle, password string) (types.PDSCreateAccountResponse, error)
 }
 
-type PDSClient struct {
+var _ PDSClientI = &pdsClient{}
+
+type pdsClient struct {
 	pdsUsername string
 	pdsPassword string
 }
 
-func NewPDSClient(username string, password string) *PDSClient {
-	return &PDSClient{username, password}
+func NewPDSClient(username string, password string) PDSClientI {
+	return &pdsClient{username, password}
 }
 
-func (p *PDSClient) CreateAccount(email, handle, password string) (types.PDSCreateAccountResponse, error) {
+func (p *pdsClient) CreateAccount(email, handle, password string) (types.PDSCreateAccountResponse, error) {
 	reqBody := types.PDSCreateAccountRequest{
 		Email:    email,
 		Handle:   handle,
@@ -51,7 +53,7 @@ func (p *PDSClient) CreateAccount(email, handle, password string) (types.PDSCrea
 	return createAccountResponse, nil
 }
 
-func (p *PDSClient) CreateSession(identifier, password string) (types.PDSCreateSessionResponse, error) {
+func (p *pdsClient) CreateSession(identifier, password string) (types.PDSCreateSessionResponse, error) {
 	reqBody := types.PDSCreateSessionRequest{
 		Identifier: identifier,
 		Password:   password,
@@ -77,7 +79,7 @@ func (p *PDSClient) CreateSession(identifier, password string) (types.PDSCreateS
 }
 
 // Helper function to make HTTP requests to PDS
-func (p *PDSClient) makePDSHttpReq(endpoint, method string, body []byte, isAdminReq bool) ([]byte, error) {
+func (p *pdsClient) makePDSHttpReq(endpoint, method string, body []byte, isAdminReq bool) ([]byte, error) {
 	pdsURL := fmt.Sprintf("http://%s:%s/xrpc/%s", "host.docker.internal", "5001", endpoint)
 
 	req, err := http.NewRequest(method, pdsURL, bytes.NewReader(body))
