@@ -12,6 +12,10 @@ services:
   habitat_node:
     volumes:
         - ${TOPDIR}/core:${DOCKER_WORKDIR}/core
+        - ${TOPDIR}/hdb:${DOCKER_WORKDIR}/hdb
+        - ${TOPDIR}/pubsub:${DOCKER_WORKDIR}/pubsub
+        - ${TOPDIR}/reverse_proxy:${DOCKER_WORKDIR}/reverse_proxy
+        - ${TOPDIR}/frontend_server:${DOCKER_WORKDIR}/frontend_server
         - ${TOPDIR}/cmd:${DOCKER_WORKDIR}/cmd
         - ${TOPDIR}/internal:${DOCKER_WORKDIR}/internal
         - ${TOPDIR}/pkg:${DOCKER_WORKDIR}/pkg
