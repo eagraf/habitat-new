@@ -38,7 +38,7 @@ func (s *ProxyServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	for _, rule := range s.RuleSet.rules {
 		if rule != nil {
 			if matchRule(r.URL, rule) {
-				rank := rankMatch(r.URL, rule)
+				rank := rankMatch(rule)
 				if rank > highestRank {
 					bestMatch = rule
 					highestRank = rank
@@ -118,6 +118,6 @@ func matchRule(requestURL *url.URL, rule *node.ReverseProxyRule) bool {
 }
 
 // Find the rank of a match, given a requestURL and a rule
-func rankMatch(requestURL *url.URL, rule *node.ReverseProxyRule) int {
+func rankMatch(rule *node.ReverseProxyRule) int {
 	return strings.Count(rule.Matcher, "/")
 }
