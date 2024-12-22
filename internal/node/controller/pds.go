@@ -13,8 +13,7 @@ import (
 
 type PDSClientI interface {
 	CreateSession(identifier, password string) (types.PDSCreateSessionResponse, error)
-	GetInviteCode() (string, error)
-	CreateAccount(email, handle, password, inviteCode string) (types.PDSCreateAccountResponse, error)
+	CreateAccount(email, handle, password string) (types.PDSCreateAccountResponse, error)
 }
 
 type PDSClient struct {
@@ -26,28 +25,11 @@ func NewPDSClient(username string, password string) *PDSClient {
 	return &PDSClient{username, password}
 }
 
-func (p *PDSClient) GetInviteCode() (string, error) {
-	// Parse the response body to get the invite code
-	body, err := p.makePDSHttpReq("com.atproto.server.createInviteCode", http.MethodPost, []byte("{\"useCount\": 1}"), true)
-	if err != nil {
-		return "", err
-	}
-
-	var inviteResponse types.PDSInviteCodeResponse
-	err = json.Unmarshal(body, &inviteResponse)
-	if err != nil {
-		return "", err
-	}
-
-	return inviteResponse.Code, nil
-}
-
-func (p *PDSClient) CreateAccount(email, handle, password, inviteCode string) (types.PDSCreateAccountResponse, error) {
+func (p *PDSClient) CreateAccount(email, handle, password string) (types.PDSCreateAccountResponse, error) {
 	reqBody := types.PDSCreateAccountRequest{
-		Email:      email,
-		Handle:     handle,
-		Password:   password,
-		InviteCode: inviteCode,
+		Email:    email,
+		Handle:   handle,
+		Password: password,
 	}
 
 	body, err := json.Marshal(reqBody)
