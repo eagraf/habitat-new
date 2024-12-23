@@ -11,8 +11,7 @@ type entry struct {
 }
 
 type mockDriver struct {
-	nextProcessID string
-	log           []entry
+	log []entry
 }
 
 var _ Driver = &mockDriver{}

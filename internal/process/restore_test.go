@@ -102,6 +102,7 @@ func TestProcessRestorer(t *testing.T) {
 			},
 		},
 	})
+	require.Nil(t, err)
 
 	nc.EXPECT().SetProcessRunning("proc2").Times(1)
 	nc.EXPECT().SetProcessRunning("proc3").Times(1)
