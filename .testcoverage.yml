@@ -4,7 +4,7 @@ local-prefix: "github.com/eagraf/habitat-new"
 # Holds coverage thresholds percentages, values should be in range [0-100]
 threshold:
   # The minimum coverage that each file should have
-  file: 0
+  file: 70
   # The minimum coverage that each package should have
   package: 70
   # The minimum total coverage project should have
@@ -38,3 +38,7 @@ exclude:
     - ^internal/node/server/server.go
     - ^internal/frontend
     - ^internal/node/controller/pds.go
+    - ^internal/process/web.go
+    - ^internal/process/docker.go
+    - ^internal/package_manager/docker.go
+    - ^internal/package_manager/web.go

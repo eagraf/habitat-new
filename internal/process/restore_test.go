@@ -71,24 +71,27 @@ func TestProcessRestorer(t *testing.T) {
 		Processes: map[string]*node.ProcessState{
 			"proc1": {
 				Process: &node.Process{
-					ID:    "proc1",
-					AppID: "app1",
+					ID:     "proc1",
+					AppID:  "app1",
+					Driver: "test",
 				},
 				State: node.ProcessStateRunning,
 			},
 			// This process was not in a running state, but should be started
 			"proc2": {
 				Process: &node.Process{
-					ID:    "proc2",
-					AppID: "app2",
+					ID:     "proc2",
+					AppID:  "app2",
+					Driver: "test",
 				},
 				State: node.ProcessStateStarting,
 			},
 			// Error out when restoring starting
 			"proc3": {
 				Process: &node.Process{
-					ID:    "proc3",
-					AppID: "app3",
+					ID:     "proc3",
+					AppID:  "app3",
+					Driver: "test",
 				},
 				State: node.ProcessStateStarting,
 			},
@@ -114,4 +117,16 @@ func TestProcessRestorer(t *testing.T) {
 	for _, entry := range mockDriver.log {
 		require.True(t, entry.isStart)
 	}
+
+	// Test ListProcesses() and StopProcess()
+	procs, err := pm.ListProcesses()
+	require.NoError(t, err)
+	require.Len(t, procs, 4)
+
+	require.NoError(t, pm.StopProcess("proc2"))
+	require.ErrorContains(t, pm.StopProcess("proc4"), "driver  not found")
+
+	procs, err = pm.ListProcesses()
+	require.NoError(t, err)
+	require.Len(t, procs, 3)
 }
