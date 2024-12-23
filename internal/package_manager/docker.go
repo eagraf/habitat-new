@@ -39,20 +39,20 @@ import (
 	}
 **/
 
-type DockerPackageManager struct {
+type dockerPackageManager struct {
 	client *client.Client
 }
 
-func NewDockerPackageManager(client *client.Client) *DockerPackageManager {
-	return &DockerPackageManager{
+func NewDockerPackageManager(client *client.Client) PackageManager {
+	return &dockerPackageManager{
 		client: client,
 	}
 }
 
-// DockerPackageManager implements PackageManager
-var _ PackageManager = &DockerPackageManager{}
+// dockerPackageManager implements PackageManager
+var _ PackageManager = &dockerPackageManager{}
 
-func (d *DockerPackageManager) Driver() string {
+func (d *dockerPackageManager) Driver() string {
 	return constants.AppDriverDocker
 }
 
@@ -60,7 +60,7 @@ func repoURLFromPackage(packageSpec *node.Package) string {
 	return fmt.Sprintf("%s/%s:%s", packageSpec.RegistryURLBase, packageSpec.RegistryPackageID, packageSpec.RegistryPackageTag)
 }
 
-func (d *DockerPackageManager) IsInstalled(packageSpec *node.Package, version string) (bool, error) {
+func (d *dockerPackageManager) IsInstalled(packageSpec *node.Package, version string) (bool, error) {
 	// TODO review all contexts we create.
 	repoURL := repoURLFromPackage(packageSpec)
 	images, err := d.client.ImageList(context.Background(), types.ImageListOptions{
@@ -75,7 +75,7 @@ func (d *DockerPackageManager) IsInstalled(packageSpec *node.Package, version st
 }
 
 // Implement the package manager interface
-func (d *DockerPackageManager) InstallPackage(packageSpec *node.Package, version string) error {
+func (d *dockerPackageManager) InstallPackage(packageSpec *node.Package, version string) error {
 	if packageSpec.Driver != constants.AppDriverDocker {
 		return fmt.Errorf("invalid package driver: %s, expected docker", packageSpec.Driver)
 	}
@@ -90,7 +90,7 @@ func (d *DockerPackageManager) InstallPackage(packageSpec *node.Package, version
 	return nil
 }
 
-func (d *DockerPackageManager) UninstallPackage(packageURL *node.Package, version string) error {
+func (d *dockerPackageManager) UninstallPackage(packageURL *node.Package, version string) error {
 	repoURL := repoURLFromPackage(packageURL)
 	_, err := d.client.ImageRemove(context.Background(), repoURL, types.ImageRemoveOptions{})
 	if err != nil {

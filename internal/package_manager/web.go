@@ -15,12 +15,12 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-type WebPackageManager struct {
+type webPackageManager struct {
 	webBundlePath string
 }
 
-func NewWebPackageManager(webBundlePath string) *WebPackageManager {
-	return &WebPackageManager{
+func NewWebPackageManager(webBundlePath string) PackageManager {
+	return &webPackageManager{
 		webBundlePath: webBundlePath,
 	}
 }
@@ -30,14 +30,14 @@ type BundleInstallationConfig struct {
 	BundleDirectoryName string `json:"bundle_directory_name"` // The directory under $HABITAT_PATH/web/ where the bundle will be extracted into.
 }
 
-// WebPackageManager implements PackageManager
-var _ PackageManager = &WebPackageManager{}
+// webPackageManager implements PackageManager
+var _ PackageManager = &webPackageManager{}
 
-func (d *WebPackageManager) Driver() string {
+func (d *webPackageManager) Driver() string {
 	return constants.AppDriverWeb
 }
 
-func (d *WebPackageManager) IsInstalled(pkg *node.Package, version string) (bool, error) {
+func (d *webPackageManager) IsInstalled(pkg *node.Package, version string) (bool, error) {
 	// Check for the existence of the bundle directory with the right version.
 	bundleConfig, err := getWebBundleConfigFromPackage(pkg)
 	if err != nil {
@@ -57,7 +57,7 @@ func (d *WebPackageManager) IsInstalled(pkg *node.Package, version string) (bool
 }
 
 // Implement the package manager interface
-func (d *WebPackageManager) InstallPackage(packageSpec *node.Package, version string) error {
+func (d *webPackageManager) InstallPackage(packageSpec *node.Package, version string) error {
 	if packageSpec.Driver != constants.AppDriverWeb {
 		return fmt.Errorf("invalid package driver: %s, expected 'web' driver", packageSpec.Driver)
 	}
@@ -85,7 +85,7 @@ func (d *WebPackageManager) InstallPackage(packageSpec *node.Package, version st
 	return nil
 }
 
-func (d *WebPackageManager) UninstallPackage(pkg *node.Package, version string) error {
+func (d *webPackageManager) UninstallPackage(pkg *node.Package, version string) error {
 	bundleConfig, err := getWebBundleConfigFromPackage(pkg)
 	if err != nil {
 		return err
@@ -99,7 +99,7 @@ func (d *WebPackageManager) UninstallPackage(pkg *node.Package, version string) 
 	return os.RemoveAll(bundlePath)
 }
 
-func (d *WebPackageManager) getBundlePath(bundleConfig *BundleInstallationConfig, version string) string {
+func (d *webPackageManager) getBundlePath(bundleConfig *BundleInstallationConfig, version string) string {
 	return filepath.Join(d.webBundlePath, bundleConfig.BundleDirectoryName, version)
 }
 
