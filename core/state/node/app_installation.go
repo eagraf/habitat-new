@@ -5,6 +5,10 @@ import (
 	"github.com/docker/go-connections/nat"
 )
 
+// Types for managing app installations, mostly related to internal/package_manager
+const AppLifecycleStateInstalling = "installing"
+const AppLifecycleStateInstalled = "installed"
+
 // TODO some fields should be ignored by the REST api
 type AppInstallation struct {
 	ID      string `json:"id" yaml:"id"`
@@ -25,4 +29,21 @@ type AppInstallationConfig struct {
 	PortBindings nat.PortMap `json:"port_bindings"`
 	// Mounts is a slice of mounts to be mounted in the container
 	Mounts []mount.Mount `json:"mounts"`
+}
+
+type Package struct {
+	Driver             string                 `json:"driver" yaml:"driver"`
+	DriverConfig       map[string]interface{} `json:"driver_config" yaml:"driver_config"`
+	RegistryURLBase    string                 `json:"registry_url_base" yaml:"registry_url_base"`
+	RegistryPackageID  string                 `json:"registry_app_id" yaml:"registry_app_id"`
+	RegistryPackageTag string                 `json:"registry_tag" yaml:"registry_tag"`
+}
+
+const AppStateInstalling = "installing"
+const AppStateInstalled = "installed"
+const AppStateUninstalled = "uninstalled"
+
+type AppInstallationState struct {
+	*AppInstallation `tstype:",extends,required"`
+	State            string `json:"state"`
 }
