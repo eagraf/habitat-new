@@ -1,4 +1,4 @@
-package web
+package package_manager
 
 import (
 	"archive/tar"
@@ -12,12 +12,17 @@ import (
 
 	"github.com/eagraf/habitat-new/core/state/node"
 	"github.com/eagraf/habitat-new/internal/node/constants"
-	"github.com/eagraf/habitat-new/internal/package_manager"
 	"github.com/rs/zerolog/log"
 )
 
-type AppDriver struct {
+type WebPackageManager struct {
 	webBundlePath string
+}
+
+func NewWebPackageManager(webBundlePath string) *WebPackageManager {
+	return &WebPackageManager{
+		webBundlePath: webBundlePath,
+	}
 }
 
 type BundleInstallationConfig struct {
@@ -25,14 +30,14 @@ type BundleInstallationConfig struct {
 	BundleDirectoryName string `json:"bundle_directory_name"` // The directory under $HABITAT_PATH/web/ where the bundle will be extracted into.
 }
 
-// AppDriver implements PackageManager
-var _ package_manager.PackageManager = &AppDriver{}
+// WebPackageManager implements PackageManager
+var _ PackageManager = &WebPackageManager{}
 
-func (d *AppDriver) Driver() string {
+func (d *WebPackageManager) Driver() string {
 	return constants.AppDriverWeb
 }
 
-func (d *AppDriver) IsInstalled(pkg *node.Package, version string) (bool, error) {
+func (d *WebPackageManager) IsInstalled(pkg *node.Package, version string) (bool, error) {
 	// Check for the existence of the bundle directory with the right version.
 	bundleConfig, err := getWebBundleConfigFromPackage(pkg)
 	if err != nil {
@@ -52,7 +57,7 @@ func (d *AppDriver) IsInstalled(pkg *node.Package, version string) (bool, error)
 }
 
 // Implement the package manager interface
-func (d *AppDriver) InstallPackage(packageSpec *node.Package, version string) error {
+func (d *WebPackageManager) InstallPackage(packageSpec *node.Package, version string) error {
 	if packageSpec.Driver != constants.AppDriverWeb {
 		return fmt.Errorf("invalid package driver: %s, expected 'web' driver", packageSpec.Driver)
 	}
@@ -80,7 +85,7 @@ func (d *AppDriver) InstallPackage(packageSpec *node.Package, version string) er
 	return nil
 }
 
-func (d *AppDriver) UninstallPackage(pkg *node.Package, version string) error {
+func (d *WebPackageManager) UninstallPackage(pkg *node.Package, version string) error {
 	bundleConfig, err := getWebBundleConfigFromPackage(pkg)
 	if err != nil {
 		return err
@@ -94,7 +99,7 @@ func (d *AppDriver) UninstallPackage(pkg *node.Package, version string) error {
 	return os.RemoveAll(bundlePath)
 }
 
-func (d *AppDriver) getBundlePath(bundleConfig *BundleInstallationConfig, version string) string {
+func (d *WebPackageManager) getBundlePath(bundleConfig *BundleInstallationConfig, version string) string {
 	return filepath.Join(d.webBundlePath, bundleConfig.BundleDirectoryName, version)
 }
 

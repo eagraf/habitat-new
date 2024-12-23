@@ -11,6 +11,7 @@ import (
 	"syscall"
 
 	"github.com/docker/docker/api/types/mount"
+	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
 	types "github.com/eagraf/habitat-new/core/api"
 	"github.com/eagraf/habitat-new/core/state/node"
@@ -22,12 +23,10 @@ import (
 	"github.com/eagraf/habitat-new/internal/node/hdb"
 	"github.com/eagraf/habitat-new/internal/node/hdb/hdbms"
 	"github.com/eagraf/habitat-new/internal/node/logging"
-	"github.com/eagraf/habitat-new/internal/node/processes"
 	"github.com/eagraf/habitat-new/internal/node/reverse_proxy"
 	"github.com/eagraf/habitat-new/internal/node/server"
 	"github.com/eagraf/habitat-new/internal/package_manager"
-	"github.com/eagraf/habitat-new/internal/package_manager/drivers/docker"
-	"github.com/eagraf/habitat-new/internal/package_manager/drivers/web"
+	"github.com/eagraf/habitat-new/internal/process"
 	"github.com/eagraf/habitat-new/internal/pubsub"
 
 	"github.com/rs/zerolog"
@@ -57,31 +56,25 @@ func main() {
 		log.Fatal().Err(err).Msg("error creating node controller")
 	}
 
-	// Initialize application drivers
-	dockerDriver, err := docker.NewDriver()
+	dockerClient, err := client.NewClientWithOpts(client.FromEnv)
 	if err != nil {
-		log.Fatal().Err(err).Msg("error creating docker driver")
+		log.Fatal().Err(err).Msg("Failed to create docker client")
 	}
 
-	webDriver, err := web.NewDriver(nodeConfig.WebBundlePath())
-	if err != nil {
-		log.Fatal().Err(err).Msg("error creating web driver")
-	}
-
+	// Initialize package managers
 	stateLogger := hdbms.NewStateUpdateLogger(logger)
 	appLifecycleSubscriber, err := package_manager.NewAppLifecycleSubscriber(
 		map[string]package_manager.PackageManager{
-			constants.AppDriverDocker: dockerDriver.PackageManager,
-			constants.AppDriverWeb:    webDriver.PackageManager,
+			constants.AppDriverDocker: package_manager.NewDockerPackageManager(dockerClient),
+			constants.AppDriverWeb:    package_manager.NewWebPackageManager(nodeConfig.WebBundlePath()),
 		},
 		nodeCtrl,
 	)
 	if err != nil {
 		log.Fatal().Err(err).Msg("error creating app lifecycle subscriber")
 	}
-
-	pm := processes.NewProcessManager([]processes.ProcessDriver{dockerDriver.ProcessDriver, webDriver.ProcessDriver})
-	pmSub, err := processes.NewProcessManagerStateUpdateSubscriber(pm, nodeCtrl)
+	pm := process.NewProcessManager([]process.Driver{process.NewDockerDriver(dockerClient), process.NewWebDriver()})
+	pmSub, err := process.NewProcessManagerStateUpdateSubscriber(pm, nodeCtrl)
 	if err != nil {
 		log.Fatal().Err(err).Msg("error creating process manager state update subscriber")
 	}

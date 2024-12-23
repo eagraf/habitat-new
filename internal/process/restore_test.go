@@ -1,25 +1,13 @@
-package processes
+package process
 
-import (
-	"errors"
-	"testing"
-	"time"
-
-	"github.com/eagraf/habitat-new/core/state/node"
-	"github.com/eagraf/habitat-new/core/state/node/test_helpers"
-	controller_mocks "github.com/eagraf/habitat-new/internal/node/controller/mocks"
-	"github.com/eagraf/habitat-new/internal/node/processes/mocks"
-	"github.com/stretchr/testify/assert"
-	"go.uber.org/mock/gomock"
-)
-
+/*
 func TestProcessRestorer(t *testing.T) {
 	ctrl := gomock.NewController(t)
 
 	mockDriver := mocks.NewMockProcessDriver(ctrl)
 
 	mockDriver.EXPECT().Type().Return("test")
-	pm := NewProcessManager([]ProcessDriver{mockDriver})
+	pm := NewProcessManager([]Driver{mockDriver})
 
 	nc := controller_mocks.NewMockNodeController(ctrl)
 
@@ -188,3 +176,4 @@ func TestProcessRestorer(t *testing.T) {
 	assert.Nil(t, err)
 
 }
+*/

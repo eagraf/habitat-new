@@ -1,4 +1,4 @@
-package processes
+package process
 
 import (
 	"github.com/eagraf/habitat-new/core/state/node"
