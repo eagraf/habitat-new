@@ -1,6 +1,6 @@
 package types
 
-import node "github.com/eagraf/habitat-new/core/state"
+import node "github.com/eagraf/habitat-new/core/state/node"
 
 type MigrateRequest struct {
 	TargetVersion string `json:"target_version"`

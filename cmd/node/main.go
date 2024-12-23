@@ -23,12 +23,12 @@ import (
 	"github.com/eagraf/habitat-new/internal/node/hdb/hdbms"
 	"github.com/eagraf/habitat-new/internal/node/logging"
 	"github.com/eagraf/habitat-new/internal/node/processes"
-	"github.com/eagraf/habitat-new/internal/node/pubsub"
 	"github.com/eagraf/habitat-new/internal/node/reverse_proxy"
 	"github.com/eagraf/habitat-new/internal/node/server"
 	"github.com/eagraf/habitat-new/internal/package_manager"
 	"github.com/eagraf/habitat-new/internal/package_manager/drivers/docker"
 	"github.com/eagraf/habitat-new/internal/package_manager/drivers/web"
+	"github.com/eagraf/habitat-new/internal/pubsub"
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
