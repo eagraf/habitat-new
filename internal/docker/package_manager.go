@@ -1,4 +1,4 @@
-package package_manager
+package docker
 
 import (
 	"context"
@@ -9,6 +9,7 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/eagraf/habitat-new/core/state/node"
 	"github.com/eagraf/habitat-new/internal/node/constants"
+	"github.com/eagraf/habitat-new/internal/package_manager"
 	"github.com/rs/zerolog/log"
 )
 
@@ -43,14 +44,14 @@ type dockerPackageManager struct {
 	client *client.Client
 }
 
-func NewDockerPackageManager(client *client.Client) PackageManager {
+// dockerPackageManager implements PackageManager
+var _ package_manager.PackageManager = &dockerPackageManager{}
+
+func NewPackageManager(client *client.Client) package_manager.PackageManager {
 	return &dockerPackageManager{
 		client: client,
 	}
 }
-
-// dockerPackageManager implements PackageManager
-var _ PackageManager = &dockerPackageManager{}
 
 func (d *dockerPackageManager) Driver() string {
 	return constants.AppDriverDocker

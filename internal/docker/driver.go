@@ -1,4 +1,4 @@
-package process
+package docker
 
 import (
 	"context"
@@ -10,6 +10,7 @@ import (
 	"github.com/docker/go-connections/nat"
 	"github.com/eagraf/habitat-new/core/state/node"
 	"github.com/eagraf/habitat-new/internal/node/constants"
+	"github.com/eagraf/habitat-new/internal/process"
 	"github.com/rs/zerolog/log"
 )
 
@@ -17,7 +18,10 @@ type dockerDriver struct {
 	client *client.Client
 }
 
-func NewDockerDriver(client *client.Client) Driver {
+// dockerDriver implements process.Driver
+var _ process.Driver = &dockerDriver{}
+
+func NewDriver(client *client.Client) process.Driver {
 	return &dockerDriver{
 		client: client,
 	}

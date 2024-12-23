@@ -1,4 +1,4 @@
-package package_manager
+package web
 
 import (
 	"archive/tar"
@@ -12,6 +12,7 @@ import (
 
 	"github.com/eagraf/habitat-new/core/state/node"
 	"github.com/eagraf/habitat-new/internal/node/constants"
+	"github.com/eagraf/habitat-new/internal/package_manager"
 	"github.com/rs/zerolog/log"
 )
 
@@ -19,7 +20,10 @@ type webPackageManager struct {
 	webBundlePath string
 }
 
-func NewWebPackageManager(webBundlePath string) PackageManager {
+// webPackageManager implements PackageManager
+var _ package_manager.PackageManager = &webPackageManager{}
+
+func NewPackageManager(webBundlePath string) package_manager.PackageManager {
 	return &webPackageManager{
 		webBundlePath: webBundlePath,
 	}
@@ -29,9 +33,6 @@ type BundleInstallationConfig struct {
 	DownloadURL         string `json:"download_url"`          // Where to download the bundle from. Assume it's in a .tar.gz file.
 	BundleDirectoryName string `json:"bundle_directory_name"` // The directory under $HABITAT_PATH/web/ where the bundle will be extracted into.
 }
-
-// webPackageManager implements PackageManager
-var _ PackageManager = &webPackageManager{}
 
 func (d *webPackageManager) Driver() string {
 	return constants.AppDriverWeb

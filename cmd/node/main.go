@@ -15,6 +15,7 @@ import (
 	"github.com/docker/go-connections/nat"
 	types "github.com/eagraf/habitat-new/core/api"
 	"github.com/eagraf/habitat-new/core/state/node"
+	"github.com/eagraf/habitat-new/internal/docker"
 	"github.com/eagraf/habitat-new/internal/node/api"
 	"github.com/eagraf/habitat-new/internal/node/appstore"
 	"github.com/eagraf/habitat-new/internal/node/config"
@@ -28,6 +29,7 @@ import (
 	"github.com/eagraf/habitat-new/internal/package_manager"
 	"github.com/eagraf/habitat-new/internal/process"
 	"github.com/eagraf/habitat-new/internal/pubsub"
+	"github.com/eagraf/habitat-new/internal/web"
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -65,15 +67,15 @@ func main() {
 	stateLogger := hdbms.NewStateUpdateLogger(logger)
 	appLifecycleSubscriber, err := package_manager.NewAppLifecycleSubscriber(
 		map[string]package_manager.PackageManager{
-			constants.AppDriverDocker: package_manager.NewDockerPackageManager(dockerClient),
-			constants.AppDriverWeb:    package_manager.NewWebPackageManager(nodeConfig.WebBundlePath()),
+			constants.AppDriverDocker: docker.NewPackageManager(dockerClient),
+			constants.AppDriverWeb:    web.NewPackageManager(nodeConfig.WebBundlePath()),
 		},
 		nodeCtrl,
 	)
 	if err != nil {
 		log.Fatal().Err(err).Msg("error creating app lifecycle subscriber")
 	}
-	pm := process.NewProcessManager([]process.Driver{process.NewDockerDriver(dockerClient), process.NewWebDriver()})
+	pm := process.NewProcessManager([]process.Driver{docker.NewDriver(dockerClient), web.NewDriver()})
 	pmSub, err := process.NewProcessManagerStateUpdateSubscriber(pm, nodeCtrl)
 	if err != nil {
 		log.Fatal().Err(err).Msg("error creating process manager state update subscriber")

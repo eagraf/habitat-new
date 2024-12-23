@@ -1,8 +1,9 @@
-package process
+package web
 
 import (
 	"github.com/eagraf/habitat-new/core/state/node"
 	"github.com/eagraf/habitat-new/internal/node/constants"
+	"github.com/eagraf/habitat-new/internal/process"
 )
 
 // Currently the implementation is just no-ops because all we need is for the state machine
@@ -10,9 +11,9 @@ import (
 // served.
 type webDriver struct{}
 
-var _ Driver = &webDriver{}
+var _ process.Driver = &webDriver{}
 
-func NewWebDriver() *webDriver {
+func NewDriver() process.Driver {
 	return &webDriver{}
 }
 

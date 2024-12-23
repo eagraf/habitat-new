@@ -38,7 +38,5 @@ exclude:
     - ^internal/node/server/server.go
     - ^internal/frontend
     - ^internal/node/controller/pds.go
-    - ^internal/process/web.go
-    - ^internal/process/docker.go
-    - ^internal/package_manager/docker.go
-    - ^internal/package_manager/web.go
+    - ^internal/docker
+    - ^internal/web
