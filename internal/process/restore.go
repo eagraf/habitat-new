@@ -13,7 +13,6 @@ type ProcessRestorer struct {
 }
 
 func (r *ProcessRestorer) Restore(restoreEvent hdb.StateUpdate) error {
-
 	nodeState := restoreEvent.NewState().(*node.State)
 	for _, process := range nodeState.Processes {
 		app, err := nodeState.GetAppByID(process.AppID)
@@ -22,30 +21,26 @@ func (r *ProcessRestorer) Restore(restoreEvent hdb.StateUpdate) error {
 			continue
 		}
 
-		go func(process *node.ProcessState) {
-
-			switch process.State {
-			case node.ProcessStateRunning:
-				err = r.processManager.StartProcess(process.Process, app.AppInstallation)
-				if err != nil {
-					log.Error().Msgf("Error starting process %s: %s", process.ID, err)
-					break
-				}
-			case node.ProcessStateStarting:
-				log.Info().Msgf("Process %s was in starting state, starting process", process.ID)
-				err = r.processManager.StartProcess(process.Process, app.AppInstallation)
-				if err != nil {
-					log.Error().Msgf("Error starting process %s: %s", process.ID, err)
-					break
-				}
-
-				err = r.nodeController.SetProcessRunning(process.ID)
-				if err != nil {
-					log.Error().Msgf("Error setting process %s to running: %s", process.ID, err)
-				}
+		switch process.State {
+		case node.ProcessStateRunning:
+			err = r.processManager.StartProcess(process.Process, app.AppInstallation)
+			if err != nil {
+				log.Error().Msgf("Error starting process %s: %s", process.ID, err)
+				break
 			}
-		}(process)
+		case node.ProcessStateStarting:
+			log.Info().Msgf("Process %s was in starting state, starting process", process.ID)
+			err = r.processManager.StartProcess(process.Process, app.AppInstallation)
+			if err != nil {
+				log.Error().Msgf("Error starting process %s: %s", process.ID, err)
+				break
+			}
 
+			err = r.nodeController.SetProcessRunning(process.ID)
+			if err != nil {
+				log.Error().Msgf("Error setting process %s to running: %s", process.ID, err)
+			}
+		}
 	}
 
 	return nil

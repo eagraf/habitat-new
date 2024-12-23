@@ -1,14 +1,22 @@
 package process
 
-/*
-func TestSubscriber(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	mockDriver := mocks.NewMockProcessDriver(ctrl)
+import (
+	"testing"
 
-	mockDriver.EXPECT().Type().Return("test")
+	"github.com/eagraf/habitat-new/core/state/node"
+	"github.com/eagraf/habitat-new/core/state/node/test_helpers"
+	controller_mocks "github.com/eagraf/habitat-new/internal/node/controller/mocks"
+	"github.com/stretchr/testify/require"
+	"go.uber.org/mock/gomock"
+)
+
+func TestSubscriber(t *testing.T) {
+
+	mockDriver := newMockDriver()
 	pm := NewProcessManager([]Driver{mockDriver})
 
-	nc := ctrl_mocks.NewMockNodeController(ctrl)
+	ctrl := gomock.NewController(t)
+	nc := controller_mocks.NewMockNodeController(ctrl)
 
 	startProcessExecutor := &StartProcessExecutor{
 		processManager: pm,
@@ -24,37 +32,29 @@ func TestSubscriber(t *testing.T) {
 					UserID: "0",
 					ID:     "app1",
 					Package: node.Package{
-						Driver: "test",
+						Driver: mockDriver.Type(),
 					},
 				},
 			},
 		},
 		Processes: map[string]*node.ProcessState{},
 	})
-	assert.Nil(t, err)
+	require.Nil(t, err)
+	nc.EXPECT().SetProcessRunning(gomock.Any()).Times(1)
 
 	shouldExecute, err := startProcessExecutor.ShouldExecute(startProcessStateUpdate)
-	assert.Nil(t, err)
-	assert.Equal(t, true, shouldExecute)
-
-	mockDriver.EXPECT().StartProcess(gomock.Any(), gomock.Any()).DoAndReturn(
-		func(process *node.Process, app *node.AppInstallation) (string, error) {
-			require.Equal(t, "app1", process.AppID)
-			require.Equal(t, "0", process.UserID)
-
-			require.Equal(t, "test", app.Package.Driver)
-
-			return "ext_proc1", nil
-		},
-	)
-
-	nc.EXPECT().SetProcessRunning(gomock.Any()).Return(nil)
+	require.Nil(t, err)
+	require.Equal(t, true, shouldExecute)
 
 	err = startProcessExecutor.Execute(startProcessStateUpdate)
-	assert.Nil(t, err)
+	require.Nil(t, err)
 
 	shouldExecute, err = startProcessExecutor.ShouldExecute(startProcessStateUpdate)
-	assert.Nil(t, err)
-	assert.Equal(t, false, shouldExecute)
+	require.Nil(t, err)
+	require.Equal(t, false, shouldExecute)
+
+	require.Len(t, mockDriver.log, 1)
+	for _, entry := range mockDriver.log {
+		require.True(t, entry.isStart)
+	}
 }
-*/
