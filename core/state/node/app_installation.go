@@ -6,8 +6,12 @@ import (
 )
 
 // Types for managing app installations, mostly related to internal/package_manager
-const AppLifecycleStateInstalling = "installing"
-const AppLifecycleStateInstalled = "installed"
+type AppLifecycleStateType string
+
+const (
+	AppLifecycleStateInstalling AppLifecycleStateType = "installing"
+	AppLifecycleStateInstalled  AppLifecycleStateType = "installed"
+)
 
 // TODO some fields should be ignored by the REST api
 type AppInstallation struct {
@@ -39,11 +43,7 @@ type Package struct {
 	RegistryPackageTag string                 `json:"registry_tag" yaml:"registry_tag"`
 }
 
-const AppStateInstalling = "installing"
-const AppStateInstalled = "installed"
-const AppStateUninstalled = "uninstalled"
-
 type AppInstallationState struct {
 	*AppInstallation `tstype:",extends,required"`
-	State            string `json:"state"`
+	State            AppLifecycleStateType `json:"state"`
 }

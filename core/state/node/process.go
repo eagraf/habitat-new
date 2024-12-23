@@ -2,8 +2,12 @@ package node
 
 // Types related to running processes, mostly used by internal/process
 
-const ProcessStateStarting = "starting"
-const ProcessStateRunning = "running"
+const (
+	ProcessStateStarting ProcessStateType = "starting"
+	ProcessStateRunning  ProcessStateType = "running"
+)
+
+type ProcessStateType string
 
 type Process struct {
 	ID      string `json:"id"`
@@ -15,6 +19,6 @@ type Process struct {
 
 type ProcessState struct {
 	*Process    `tstype:",extends,required"`
-	State       string `json:"state"`
-	ExtDriverID string `json:"ext_driver_id"`
+	State       ProcessStateType `json:"state"`
+	ExtDriverID string           `json:"ext_driver_id"`
 }
