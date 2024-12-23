@@ -1,6 +1,7 @@
 package process
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/eagraf/habitat-new/core/state/node"
@@ -23,7 +24,7 @@ func TestProcessRestorer(t *testing.T) {
 		nodeController: nc,
 	}
 
-	restoreUpdate, err := test_helpers.StateUpdateTestHelper(&node.InitalizationTransition{}, &node.State{
+	state := &node.State{
 		Users: map[string]*node.User{
 			"user1": {
 				ID: "user1",
@@ -104,7 +105,8 @@ func TestProcessRestorer(t *testing.T) {
 				State: node.ProcessStateRunning,
 			},
 		},
-	})
+	}
+	restoreUpdate, err := test_helpers.StateUpdateTestHelper(&node.InitalizationTransition{}, state)
 	require.Nil(t, err)
 
 	nc.EXPECT().SetProcessRunning("proc2").Times(1)
@@ -129,4 +131,22 @@ func TestProcessRestorer(t *testing.T) {
 	procs, err = pm.ListProcesses()
 	require.NoError(t, err)
 	require.Len(t, procs, 3)
+
+	mockDriver.returnErr = fmt.Errorf("test error")
+	err = pm.StartProcess(&node.Process{
+		ID:    "proc5",
+		AppID: "app5",
+	}, &node.AppInstallation{
+		ID:   "app5",
+		Name: "appname5",
+		Package: node.Package{
+			Driver: "test",
+		},
+	})
+	require.ErrorContains(t, err, "test error")
+
+	restoreUpdate, err = test_helpers.StateUpdateTestHelper(&node.InitalizationTransition{}, state)
+	require.NoError(t, err)
+	err = pr.Restore(restoreUpdate)
+	require.ErrorContains(t, err, "test error")
 }

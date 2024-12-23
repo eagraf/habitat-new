@@ -11,7 +11,8 @@ type entry struct {
 }
 
 type mockDriver struct {
-	log []entry
+	returnErr error
+	log       []entry
 }
 
 var _ Driver = &mockDriver{}
@@ -25,6 +26,9 @@ func (d *mockDriver) Type() string {
 }
 
 func (d *mockDriver) StartProcess(process *node.Process, app *node.AppInstallation) (string, error) {
+	if d.returnErr != nil {
+		return "", d.returnErr
+	}
 	id := uuid.New().String()
 	d.log = append(d.log, entry{isStart: true, id: id})
 	return id, nil
