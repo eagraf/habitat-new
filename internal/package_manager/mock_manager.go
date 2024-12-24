@@ -2,7 +2,6 @@ package package_manager
 
 import (
 	"errors"
-	"fmt"
 	"slices"
 
 	"github.com/eagraf/habitat-new/core/state/node"
@@ -23,7 +22,6 @@ func (m *mockManager) Driver() string {
 }
 
 func packageEq(a *node.Package, b *node.Package) bool {
-	fmt.Println("packageEq", a, b)
 	return a.Driver == b.Driver && a.RegistryURLBase == b.RegistryURLBase && a.RegistryPackageID == b.RegistryPackageID
 }
 
@@ -44,8 +42,6 @@ func (m *mockManager) InstallPackage(packageSpec *node.Package, version string) 
 		return errDuplicate
 	}
 	m.installed = append(m.installed, packageSpec)
-	fmt.Println("installed", packageSpec)
-	fmt.Println(packageSpec.Driver, packageSpec.RegistryPackageID, packageSpec.RegistryURLBase)
 	return nil
 }
 
