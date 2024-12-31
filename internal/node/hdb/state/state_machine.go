@@ -18,7 +18,7 @@ import (
 type Replicator interface {
 	Dispatch([]byte) (*hdb.JSONState, error)
 	UpdateChannel() <-chan hdb.StateUpdate
-	IsLeader() bool
+	//IsLeader() bool
 	GetLastCommandIndex() (uint64, error)
 }
 
@@ -41,6 +41,8 @@ type StateMachine struct {
 
 	schema hdb.Schema
 }
+
+const MaxUint64 = ^uint64(0)
 
 func NewStateMachine(databaseID string, schema hdb.Schema, initRawState []byte, replicator Replicator, publisher pubsub.Publisher[hdb.StateUpdate]) (StateMachineController, error) {
 	jsonState, err := hdb.NewJSONState(schema, initRawState)
@@ -71,35 +73,32 @@ func (sm *StateMachine) StartListening() {
 			// TODO this bit of code should be well tested
 			case stateUpdate := <-sm.updateChan:
 
-				// Only publish state updates if this node is the leader node.
-				if sm.replicator.IsLeader() {
-					// Only apply state updates if the update index is greater than the restart index.
-					// If the update index is equal to the restart index, then the state update is a
-					// restore message which tells the subscribers to restore everything from the most up to date state.
-					if sm.restartIndex > stateUpdate.Index() {
-						continue
-					}
+				// Only apply state updates if the update index is greater than the restart index.
+				// If the update index is equal to the restart index, then the state update is a
+				// restore message which tells the subscribers to restore everything from the most up to date state.
+				if sm.restartIndex > stateUpdate.Index() && sm.restartIndex != MaxUint64 {
+					continue
+				}
 
-					// execute state update
-					stateBytes, err := stateUpdate.NewState().Bytes()
-					if err != nil {
-						log.Error().Err(err).Msgf("error getting new state bytes from state update chan")
-					}
-					jsonState, err := hdb.NewJSONState(sm.schema, stateBytes)
-					if err != nil {
-						log.Error().Err(err).Msgf("error getting new state from state update chan")
-					}
-					sm.jsonState = jsonState
+				// execute state update
+				stateBytes, err := stateUpdate.NewState().Bytes()
+				if err != nil {
+					log.Error().Err(err).Msgf("error getting new state bytes from state update chan")
+				}
+				jsonState, err := hdb.NewJSONState(sm.schema, stateBytes)
+				if err != nil {
+					log.Error().Err(err).Msgf("error getting new state from state update chan")
+				}
+				sm.jsonState = jsonState
 
-					if sm.restartIndex == stateUpdate.Index() {
-						log.Info().Msgf("Restoring node state")
-						stateUpdate.SetRestore()
-					}
+				if sm.restartIndex == stateUpdate.Index() {
+					log.Info().Msgf("Restoring node state")
+					stateUpdate.SetRestore()
+				}
 
-					err = sm.publisher.PublishEvent(stateUpdate)
-					if err != nil {
-						log.Error().Err(err).Msgf("error publishing state update")
-					}
+				err = sm.publisher.PublishEvent(stateUpdate)
+				if err != nil {
+					log.Error().Err(err).Msgf("error publishing state update")
 				}
 			case <-sm.doneChan:
 				return
@@ -190,19 +189,37 @@ type StableStorageState struct {
 
 // StableStorageOnlyReplicator is a bare minimum replicator that just persists state to a file.
 type StableStorageOnlyReplicator struct {
-	FSM           *RaftFSMAdapter
 	stateFilePath string
 	mutex         sync.Mutex
-	lastIndex     uint64
+
+	updateChan chan hdb.StateUpdate
+	schema     hdb.Schema
+	jsonState  *hdb.JSONState
 }
 
-func NewStableStorageOnlyReplicator(fsm *RaftFSMAdapter, stateFilePath string) *StableStorageOnlyReplicator {
+func NewStableStorageOnlyReplicator(stateFilePath string, schema hdb.Schema) (*StableStorageOnlyReplicator, error) {
+	var jsonState *hdb.JSONState
+	emptyState, err := schema.EmptyState()
+	if err != nil {
+		return nil, err
+	}
+	emptyStateBytes, err := emptyState.Bytes()
+	if err != nil {
+		return nil, err
+	}
+	jsonState, err = hdb.NewJSONState(schema, emptyStateBytes)
+	if err != nil {
+		return nil, err
+	}
+
 	return &StableStorageOnlyReplicator{
-		FSM:           fsm,
 		stateFilePath: stateFilePath,
 		mutex:         sync.Mutex{},
-		lastIndex:     0,
-	}
+
+		jsonState:  jsonState,
+		updateChan: make(chan hdb.StateUpdate),
+		schema:     schema,
+	}, nil
 }
 
 // InitializeState initializes stable storage for the state machine.
@@ -220,8 +237,6 @@ func (r *StableStorageOnlyReplicator) InitializeState() error {
 	if err != nil {
 		return fmt.Errorf("error writing stable storage state file: %s", err)
 	}
-
-	r.lastIndex = 0
 
 	return nil
 }
@@ -266,16 +281,13 @@ func (r *StableStorageOnlyReplicator) persistEntry(entry []byte) (uint64, error)
 		return 0, fmt.Errorf("error writing stable storage state file: %s", err)
 	}
 
-	newIndex := r.lastIndex + 1
-	r.lastIndex = newIndex
-
-	return newIndex, nil
+	return uint64(len(state.LogEntries)) - 1, nil
 }
 
 func (r *StableStorageOnlyReplicator) emitUpdate(log []byte, index uint64) {
 	logB64 := []byte(base64.StdEncoding.EncodeToString(log))
 
-	r.FSM.Apply(&raft.Log{
+	r.apply(&raft.Log{
 		Data:  logB64,
 		Type:  raft.LogCommand,
 		Index: index,
@@ -295,17 +307,16 @@ func (r *StableStorageOnlyReplicator) RestoreState() error {
 		for i, entry := range state.LogEntries {
 			r.emitUpdate(entry.Entry, uint64(i))
 		}
-
-		r.lastIndex = uint64(len(state.LogEntries))
-
 	}()
 	return nil
 }
 
 func (r *StableStorageOnlyReplicator) UpdateChannel() <-chan hdb.StateUpdate {
-	return r.FSM.UpdateChan()
+	return r.updateChan
 }
 
+// Dispatch takes a transition and applies it to the state machine.
+// Note that since no replication takes place in this implementation, it is just persisted to stable storage.
 func (r *StableStorageOnlyReplicator) Dispatch(transition []byte) (*hdb.JSONState, error) {
 	newIndex, err := r.persistEntry(transition)
 	if err != nil {
@@ -314,14 +325,53 @@ func (r *StableStorageOnlyReplicator) Dispatch(transition []byte) (*hdb.JSONStat
 
 	r.emitUpdate(transition, newIndex)
 
-	return r.FSM.JSONState(), nil
-}
-
-func (r *StableStorageOnlyReplicator) IsLeader() bool {
-	return true
+	return r.jsonState, nil
 }
 
 // GetLastCommandIndex returns the index of the last log entry that was a command applied to the state machine.
 func (r *StableStorageOnlyReplicator) GetLastCommandIndex() (uint64, error) {
-	return r.lastIndex, nil
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+
+	state, err := r.loadState()
+	if err != nil {
+		return 0, err
+	}
+
+	return uint64(len(state.LogEntries)) - 1, nil
+}
+
+// Apply log is invoked once a log entry is committed.
+// It returns a value which will be made available in the
+// ApplyFuture returned by Raft.Apply method if that
+// method was called on the same Raft node as the FSM.
+func (r *StableStorageOnlyReplicator) apply(entry *raft.Log) interface{} {
+	buf, err := base64.StdEncoding.DecodeString(string(entry.Data))
+	if err != nil {
+		log.Error().Msgf("error decoding log entry data: %s", err)
+	}
+
+	var wrappers []*hdb.TransitionWrapper
+	err = json.Unmarshal(buf, &wrappers)
+	if err != nil {
+		log.Error().Msgf("error unmarshaling transition wrapper: %s", err)
+	}
+
+	for _, w := range wrappers {
+		err = r.jsonState.ApplyPatch(w.Patch)
+		if err != nil {
+			log.Error().Msgf("error applying patch: %s", err)
+		}
+
+		metadata := hdb.NewStateUpdateMetadata(entry.Index, r.schema.Name())
+
+		update, err := StateUpdateInternalFactory(r.schema.Name(), r.jsonState.Bytes(), w, metadata)
+		if err != nil {
+			log.Error().Msgf("error creating state update internal: %s", err)
+		}
+
+		r.updateChan <- update
+	}
+
+	return r.jsonState
 }

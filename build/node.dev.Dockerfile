@@ -20,6 +20,9 @@ RUN mkdir -p /go/src/github.com/eagraf/habitat-new/cmd
 RUN mkdir -p /go/src/github.com/eagraf/habitat-new/internal
 RUN mkdir -p /go/src/github.com/eagraf/habitat-new/pkg
 
+# Install utilities
+RUN apt-get update && apt-get install -y jq
+
 # Optional:
 # To bind to a TCP port, runtime parameters must be supplied to the docker command.
 # But we can document in the Dockerfile what ports

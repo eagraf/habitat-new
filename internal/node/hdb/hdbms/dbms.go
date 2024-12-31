@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 
 	"github.com/eagraf/habitat-new/internal/node/hdb"
-	"github.com/eagraf/habitat-new/internal/node/hdb/consensus"
 	"github.com/eagraf/habitat-new/internal/node/hdb/state"
 	"github.com/eagraf/habitat-new/internal/pubsub"
 	"github.com/google/uuid"
@@ -15,8 +14,6 @@ import (
 
 type DatabaseManager struct {
 	path string
-
-	raft *consensus.ClusterService
 
 	databases map[string]*Database
 
@@ -52,9 +49,6 @@ func (d *Database) Protocol() string {
 }
 
 func NewDatabaseManager(path string, publisher pubsub.Publisher[hdb.StateUpdate]) (*DatabaseManager, error) {
-	// TODO this is obviously wrong
-	host := "localhost"
-	raft := consensus.NewClusterService(host)
 
 	err := os.MkdirAll(path, 0700)
 	if err != nil {
@@ -65,7 +59,6 @@ func NewDatabaseManager(path string, publisher pubsub.Publisher[hdb.StateUpdate]
 		path:      path,
 		publisher: publisher,
 		databases: make(map[string]*Database),
-		raft:      raft,
 	}
 
 	return dm, nil
@@ -110,18 +103,16 @@ func (dm *DatabaseManager) RestartDBs() error {
 			return err
 		}
 
-		fsm, err := state.NewRaftFSMAdapter(dbID, schema, nil)
-		if err != nil {
-			return fmt.Errorf("error creating Raft adapter for database %s: %s", dbID, err)
-		}
-
 		db := &Database{
 			id:   dbID,
 			name: name,
 			path: filepath.Join(dm.path, dbID),
 		}
 
-		replicator := state.NewStableStorageOnlyReplicator(fsm, filepath.Join(db.Path(), "state.json"))
+		replicator, err := state.NewStableStorageOnlyReplicator(filepath.Join(db.Path(), "state.json"), schema)
+		if err != nil {
+			return err
+		}
 
 		stateMachineController, err := state.StateMachineFactory(dbID, schemaType, nil, replicator, dm.publisher)
 		if err != nil {
@@ -178,17 +169,11 @@ func (dm *DatabaseManager) CreateDatabase(name string, schemaType string, initia
 		return nil, err
 	}
 
-	fsm, err := state.NewRaftFSMAdapter(db.id, schema, nil)
+	replicator, err := state.NewStableStorageOnlyReplicator(filepath.Join(db.Path(), "state.json"), schema)
 	if err != nil {
 		return nil, err
 	}
 
-	//cluster, err := dm.raft.CreateCluster(db, fsm)
-	//if err != nil {
-	//return nil, err
-	//}
-
-	replicator := state.NewStableStorageOnlyReplicator(fsm, filepath.Join(db.Path(), "state.json"))
 	err = replicator.InitializeState()
 	if err != nil {
 		return nil, err

@@ -183,7 +183,7 @@ func main() {
 	}
 	if nodeConfig.Environment() == constants.EnvironmentDev {
 		// App store is unimplemented in production
-		routes = append(routes, appstore.NewAvailableAppsRoute(nodeConfig.HabitatPath()))
+		routes = append(routes, appstore.NewAvailableAppsRoute(nodeConfig.HostMachineRepoPath()))
 	}
 
 	router := api.NewRouter(routes, logger, nodeCtrl, nodeConfig.UseTLS(), nodeConfig.RootUserCert)

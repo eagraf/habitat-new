@@ -32,11 +32,10 @@ type StateUpdateMetadata struct {
 	restore    bool
 }
 
-func NewStateUpdateMetadata(index uint64, schemaType, databaseID string) *StateUpdateMetadata {
+func NewStateUpdateMetadata(index uint64, schemaType string) *StateUpdateMetadata {
 	return &StateUpdateMetadata{
 		index:      index,
 		schemaType: schemaType,
-		databaseID: databaseID,
 	}
 }
 

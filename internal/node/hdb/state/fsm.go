@@ -1,26 +1,18 @@
 package state
 
-import (
-	"encoding/base64"
-	"encoding/json"
-	"io"
-
-	"github.com/eagraf/habitat-new/internal/node/hdb"
-	"github.com/hashicorp/raft"
-	"github.com/rs/zerolog/log"
-)
-
 // RaftFSMAdapter makes our state machine struct play nice with the Raft library
 // It treats all state as a JSON blob so that things are serializable, which makes it
 // easy to decouple the state machine types from the Raft library
-type RaftFSMAdapter struct {
+
+/*type RaftFSMAdapter struct {
 	databaseID string
 	jsonState  *hdb.JSONState
 	updateChan chan hdb.StateUpdate
 	schema     hdb.Schema
-}
+}*/
 
 // RaftFSMAdapter should implement the raft.FSM interface
+/*
 var _ raft.FSM = &RaftFSMAdapter{}
 
 func NewRaftFSMAdapter(databaseID string, schema hdb.Schema, commState []byte) (*RaftFSMAdapter, error) {
@@ -60,8 +52,8 @@ func (sm *RaftFSMAdapter) JSONState() *hdb.JSONState {
 
 func (sm *RaftFSMAdapter) UpdateChan() <-chan hdb.StateUpdate {
 	return sm.updateChan
-}
-
+}*/
+/*
 // Apply log is invoked once a log entry is committed.
 // It returns a value which will be made available in the
 // ApplyFuture returned by Raft.Apply method if that
@@ -84,7 +76,7 @@ func (sm *RaftFSMAdapter) Apply(entry *raft.Log) interface{} {
 			log.Error().Msgf("error applying patch: %s", err)
 		}
 
-		metadata := hdb.NewStateUpdateMetadata(entry.Index, sm.schema.Name(), sm.databaseID)
+		metadata := hdb.NewStateUpdateMetadata(entry.Index, sm.schema.Name())
 
 		update, err := StateUpdateInternalFactory(sm.schema.Name(), sm.jsonState.Bytes(), w, metadata)
 		if err != nil {
@@ -148,3 +140,4 @@ func (s *FSMSnapshot) Persist(sink raft.SnapshotSink) error {
 // Release is invoked when we are finished with the snapshot.
 func (s *FSMSnapshot) Release() {
 }
+*/

@@ -60,7 +60,7 @@ run-dev: $(PDS_BLOB_DIR)
 	docker-compose -f ./build/compose.yml up
 
 clear-volumes:
-	docker container rm -f habitat_node || true
+	docker system prune -f
 	docker volume rm build_node-state || true
 
 run-dev-fresh: clear-volumes run-dev
