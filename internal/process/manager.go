@@ -4,10 +4,16 @@ import (
 	"fmt"
 
 	"github.com/eagraf/habitat-new/core/state/node"
+	"github.com/eagraf/habitat-new/internal/node/hdb"
 )
 
 type RunningProcess struct {
 	*node.ProcessState
+}
+
+type RestoreInfo struct {
+	Procs map[string]*node.ProcessState
+	Apps  map[string]*node.AppInstallationState
 }
 
 type ProcessManager interface {
@@ -15,12 +21,13 @@ type ProcessManager interface {
 	StartProcess(*node.Process, *node.AppInstallation) error
 	StopProcess(extProcessID string) error
 	GetProcess(processID string) (*node.ProcessState, error)
+
+	node.Component[RestoreInfo]
 }
 
 type baseProcessManager struct {
 	processDrivers map[string]Driver
-
-	processes map[string]*RunningProcess
+	processes      map[string]*RunningProcess
 }
 
 func NewProcessManager(drivers []Driver) ProcessManager {
@@ -70,6 +77,7 @@ func (pm *baseProcessManager) StartProcess(process *node.Process, app *node.AppI
 	pm.processes[process.ID] = &RunningProcess{
 		ProcessState: &node.ProcessState{
 			Process:     process,
+			State:       node.ProcessStateStarted,
 			ExtDriverID: extProcessID,
 		},
 	}
@@ -96,5 +104,31 @@ func (pm *baseProcessManager) StopProcess(processID string) error {
 
 	delete(pm.processes, processID)
 
+	return nil
+}
+
+func (pm *baseProcessManager) SupportedTransitionTypes() []hdb.TransitionType {
+	return []hdb.TransitionType{
+		hdb.TransitionStartProcess,
+		hdb.TransitionStopProcess,
+		hdb.TransitionProcessRunning,
+	}
+}
+
+func (pm *baseProcessManager) RestoreFromState(state RestoreInfo) error {
+	for _, process := range state.Procs {
+		app, ok := state.Apps[process.AppID]
+		if !ok {
+			return fmt.Errorf("No app installation found for given AppID %s", process.AppID)
+		}
+
+		switch process.State {
+		case node.ProcessStateStarted:
+			err := pm.StartProcess(process.Process, app.AppInstallation)
+			if err != nil {
+				return fmt.Errorf("Error starting process %s: %s", process.ID, err)
+			}
+		}
+	}
 	return nil
 }
