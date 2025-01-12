@@ -154,7 +154,7 @@ func TestBackwardsCompatibility(t *testing.T) {
 					Created: "now",
 					Driver:  "docker",
 				},
-				State: ProcessStateRunning,
+				State: ProcessStateStarted,
 			},
 			// This process was not in a running state, but should be started
 			"proc2": {
@@ -165,7 +165,7 @@ func TestBackwardsCompatibility(t *testing.T) {
 					Created: "now",
 					Driver:  "docker",
 				},
-				State: ProcessStateStarting,
+				State: ProcessStateStarted,
 			},
 		},
 	}

@@ -426,37 +426,16 @@ func TestProcesses(t *testing.T) {
 
 	proc := procs[0]
 	assert.NotEmpty(t, proc.ID)
-	assert.Equal(t, ProcessStateStarting, proc.State)
+	assert.Equal(t, ProcessStateStarted, proc.State)
 	assert.Equal(t, "App1", proc.AppID)
 	assert.Equal(t, "123", proc.UserID)
 
-	// The app moves to running state
-
-	testProcessRunning := []hdb.Transition{
-		&ProcessRunningTransition{
-			ProcessID: proc.ID,
-		},
-	}
-
-	newState, err = testTransitionsOnCopy(newState, testProcessRunning)
-	assert.Nil(t, err)
-	assert.Equal(t, ProcessStateRunning, newState.Processes[proc.ID].State)
-
 	testProcessRunningNoMatchingID := []hdb.Transition{
-		&ProcessRunningTransition{
-			ProcessID: "proc2",
+		&ProcessStartTransition{
+			AppID: proc.AppID,
 		},
 	}
 	_, err = testTransitionsOnCopy(newState, testProcessRunningNoMatchingID)
-	assert.NotNil(t, err)
-
-	testProcessAlreadyRunning := []hdb.Transition{
-		&ProcessRunningTransition{
-			ProcessID: "proc1",
-		},
-	}
-
-	_, err = testTransitionsOnCopy(newState, testProcessAlreadyRunning)
 	assert.NotNil(t, err)
 
 	testAppIDConflict := []hdb.Transition{

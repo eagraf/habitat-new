@@ -3,8 +3,8 @@ package node
 // Types related to running processes, mostly used by internal/process
 
 const (
-	ProcessStateStarting ProcessStateType = "starting"
-	ProcessStateRunning  ProcessStateType = "running"
+	ProcessStateStarted ProcessStateType = "started"
+	ProcessStateStopped ProcessStateType = "stopped"
 )
 
 type ProcessStateType string

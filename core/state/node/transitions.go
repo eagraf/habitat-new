@@ -420,7 +420,7 @@ func (t *ProcessStartTransition) Enrich(oldState hdb.SerializedState) error {
 			Driver: app.Driver,
 			AppID:  app.ID,
 		},
-		State:       ProcessStateStarting,
+		State:       ProcessStateStarted,
 		ExtDriverID: "", // this should not be set yet
 	}
 
@@ -470,63 +470,6 @@ func (t *ProcessStartTransition) Validate(oldState hdb.SerializedState) error {
 		if proc.AppID == t.AppID {
 			return fmt.Errorf("app with id %s already has a process", t.AppID)
 		}
-	}
-
-	return nil
-}
-
-type ProcessRunningTransition struct {
-	ProcessID string `json:"process_id"`
-}
-
-func (t *ProcessRunningTransition) Type() hdb.TransitionType {
-	return hdb.TransitionProcessRunning
-}
-
-func (t *ProcessRunningTransition) Patch(oldState hdb.SerializedState) (hdb.SerializedState, error) {
-	var oldNode State
-	err := json.Unmarshal(oldState, &oldNode)
-	if err != nil {
-		return nil, err
-	}
-
-	// Find the matching process
-	proc, ok := oldNode.Processes[t.ProcessID]
-	if !ok {
-		return nil, fmt.Errorf("process with id %s not found", t.ProcessID)
-	}
-	proc.State = ProcessStateRunning
-
-	marshaled, err := json.Marshal(proc)
-	if err != nil {
-		return nil, err
-	}
-
-	return []byte(fmt.Sprintf(`[{
-		"op": "replace",
-		"path": "/processes/%s",
-		"value": %s
-	}]`, t.ProcessID, marshaled)), nil
-}
-
-func (t *ProcessRunningTransition) Enrich(oldState hdb.SerializedState) error {
-	return nil
-}
-
-func (t *ProcessRunningTransition) Validate(oldState hdb.SerializedState) error {
-	var oldNode State
-	err := json.Unmarshal(oldState, &oldNode)
-	if err != nil {
-		return err
-	}
-
-	// Make sure there is a matching process
-	proc, ok := oldNode.Processes[t.ProcessID]
-	if !ok {
-		return fmt.Errorf("process with id %s not found", t.ProcessID)
-	}
-	if proc.State != ProcessStateStarting {
-		return fmt.Errorf("Process with id %s is in state %s, must be in state %s", t.ProcessID, proc.State, ProcessStateStarting)
 	}
 
 	return nil

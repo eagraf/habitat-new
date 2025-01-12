@@ -163,7 +163,12 @@ func main() {
 		server.WithListener(ln),
 	))
 
-	ctrlServer, err := controller.NewCtrlServer(pm)
+	dbClient, err := db.Manager.GetDatabaseClientByName(constants.NodeDBDefaultName)
+	if err != nil {
+		log.Fatal().Err(err).Msg("error getting hdb client")
+	}
+
+	ctrlServer, err := controller.NewCtrlServer(pm, dbClient)
 	// Set up the main API server
 	// TODO: create a less tedious way to register all the routes in the future. It might be as simple
 	// as having a dedicated file to list these, instead of putting them all in main.
