@@ -169,6 +169,9 @@ func main() {
 	}
 
 	ctrlServer, err := controller.NewCtrlServer(pm, dbClient)
+	if err != nil {
+		log.Fatal().Err(err).Msg("error creating node control server")
+	}
 	// Set up the main API server
 	// TODO: create a less tedious way to register all the routes in the future. It might be as simple
 	// as having a dedicated file to list these, instead of putting them all in main.

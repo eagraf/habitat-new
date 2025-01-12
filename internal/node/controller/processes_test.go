@@ -3,7 +3,6 @@ package controller
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -219,13 +218,11 @@ func (db *mockHDB) ProposeTransitions(transitions []hdb.Transition) (*hdb.JSONSt
 		if err != nil {
 			return nil, err
 		}
-		fmt.Println("patch", string(patch))
 		err = db.jsonState.ApplyPatch(patch)
 		if err != nil {
 			return nil, err
 		}
 	}
-	fmt.Println("new state", string(db.jsonState.Bytes()))
 	return db.jsonState, nil
 }
 func (db *mockHDB) ProposeTransitionsEnriched(ts []hdb.Transition) (*hdb.JSONState, error) {
@@ -313,7 +310,6 @@ func TestStartProcessHandler(t *testing.T) {
 		resp,
 		httptest.NewRequest(http.MethodPost, startProcessRoute.Pattern(), bytes.NewReader(b)),
 	)
-	fmt.Println(string(resp.Body.Bytes()))
 	require.Equal(t, http.StatusCreated, resp.Result().StatusCode)
 
 	respBody, err := io.ReadAll(resp.Result().Body)
