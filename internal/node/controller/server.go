@@ -5,18 +5,21 @@ import (
 	"net/http"
 
 	"github.com/eagraf/habitat-new/internal/node/api"
+	"github.com/eagraf/habitat-new/internal/node/hdb"
 	"github.com/eagraf/habitat-new/internal/process"
+	"github.com/pkg/errors"
 )
 
 type CtrlServer struct {
 	inner *controller2
 }
 
-func NewCtrlServer(pm process.ProcessManager) (*CtrlServer, error) {
-	inner, err := newController2(pm)
+func NewCtrlServer(pm process.ProcessManager, db hdb.Client) (*CtrlServer, error) {
+	inner, err := newController2(pm, db)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "error initializing controller")
 	}
+
 	return &CtrlServer{
 		inner: inner,
 	}, nil

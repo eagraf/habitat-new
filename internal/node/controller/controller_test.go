@@ -246,18 +246,11 @@ func TestStartProcessController(t *testing.T) {
 
 	mockedClient.EXPECT().Bytes().Return(marshaledNodeState).Times(1)
 
-	mockedManager.EXPECT().GetDatabaseClientByName(constants.NodeDBDefaultName).Return(mockedClient, nil).Times(3)
+	mockedManager.EXPECT().GetDatabaseClientByName(constants.NodeDBDefaultName).Return(mockedClient, nil).Times(2)
 	mockedClient.EXPECT().ProposeTransitions(gomock.Eq(
 		[]hdb.Transition{
 			&node.ProcessStartTransition{
 				AppID: "app_1",
-			},
-		},
-	)).Return(nil, nil).Times(1)
-	mockedClient.EXPECT().ProposeTransitions(gomock.Eq(
-		[]hdb.Transition{
-			&node.ProcessRunningTransition{
-				ProcessID: "process_1",
 			},
 		},
 	)).Return(nil, nil).Times(1)
@@ -271,10 +264,6 @@ func TestStartProcessController(t *testing.T) {
 	)).Return(nil, nil).Times(1)
 
 	err = controller.StartProcess("app_1")
-	assert.Nil(t, err)
-
-	// Test setting the process to running, and then stopping it.
-	err = controller.SetProcessRunning("process_1")
 	assert.Nil(t, err)
 
 	err = controller.StopProcess("process_1")

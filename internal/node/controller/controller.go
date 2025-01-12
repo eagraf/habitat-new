@@ -25,7 +25,6 @@ type NodeController interface {
 	GetAppByID(appID string) (*node.AppInstallation, error)
 
 	StartProcess(appID string) error
-	SetProcessRunning(processID string) error
 	StopProcess(processID string) error
 }
 
@@ -157,24 +156,6 @@ func (c *BaseNodeController) StartProcess(appID string) error {
 	_, err = dbClient.ProposeTransitions([]hdb.Transition{
 		&node.ProcessStartTransition{
 			AppID: appID,
-		},
-	})
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (c *BaseNodeController) SetProcessRunning(processID string) error {
-	dbClient, err := c.databaseManager.GetDatabaseClientByName(constants.NodeDBDefaultName)
-	if err != nil {
-		return err
-	}
-
-	_, err = dbClient.ProposeTransitions([]hdb.Transition{
-		&node.ProcessRunningTransition{
-			ProcessID: processID,
 		},
 	})
 	if err != nil {

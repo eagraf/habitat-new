@@ -7,6 +7,7 @@ import (
 	"github.com/eagraf/habitat-new/core/state/node"
 	"github.com/eagraf/habitat-new/internal/node/hdb"
 	"github.com/eagraf/habitat-new/internal/process"
+	"github.com/pkg/errors"
 )
 
 type controller2 struct {
@@ -14,14 +15,27 @@ type controller2 struct {
 	processManager process.ProcessManager
 }
 
-func newController2(pm process.ProcessManager) (*controller2, error) {
-	_, ok := pm.(Component[*node.Process])
+func newController2(pm process.ProcessManager, db hdb.Client) (*controller2, error) {
+	// Validate types of all input components
+	_, ok := pm.(node.Component[process.RestoreInfo])
 	if !ok {
 		return nil, fmt.Errorf("Process manager of type %T does not implement Component[*node.Process]", pm)
 	}
-	return &controller2{
+
+	ctrl := &controller2{
 		processManager: pm,
-	}, nil
+		db:             db,
+	}
+
+	state, err := ctrl.getNodeState()
+	if err != nil {
+		return nil, errors.Wrap(err, "error getting initial node state")
+	}
+	err = ctrl.restore(state)
+	if err != nil {
+		return nil, errors.Wrap(err, "error restoring controller to initial state")
+	}
+	return ctrl, nil
 }
 
 func (c *controller2) getNodeState() (node.State, error) {
@@ -49,31 +63,31 @@ func (c *controller2) startProcess(installationID string) error {
 
 	bytes, err := state.Bytes()
 	if err != nil {
-		return err
+		return errors.Wrap(err, "error getting state")
 	}
 	err = transition.Enrich(bytes)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "error enriching transition")
 	}
 
 	_, err = c.db.ProposeTransitionsEnriched([]hdb.Transition{
 		transition,
 	})
 	if err != nil {
-		return err
+		return errors.Wrap(err, "error proposing transition")
 	}
 
 	proc := transition.EnrichedData.Process
 	err = c.processManager.StartProcess(proc.Process, app.AppInstallation)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "error starting process")
 	}
+	return nil
+}
 
-	_, err = c.db.ProposeTransitionsEnriched([]hdb.Transition{
-		&node.ProcessRunningTransition{
-			ProcessID: proc.ID,
-		},
-	})
+func (c *controller2) restore(state node.State) error {
+	// Restore processes to the current state
+	err := c.processManager.RestoreFromState(process.RestoreInfo{Procs: state.Processes, Apps: state.AppInstallations})
 	if err != nil {
 		return err
 	}
