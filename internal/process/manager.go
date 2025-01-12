@@ -111,7 +111,6 @@ func (pm *baseProcessManager) SupportedTransitionTypes() []hdb.TransitionType {
 	return []hdb.TransitionType{
 		hdb.TransitionStartProcess,
 		hdb.TransitionStopProcess,
-		hdb.TransitionProcessRunning,
 	}
 }
 

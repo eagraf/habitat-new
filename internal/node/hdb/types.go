@@ -32,7 +32,6 @@ const (
 	TransitionFinishInstallation  TransitionType = "finish_installation"
 	TransitionStartUninstallation TransitionType = "start_uninstallation"
 	TransitionStartProcess        TransitionType = "process_start"
-	TransitionProcessRunning      TransitionType = "process_running"
 	TransitionStopProcess         TransitionType = "process_stop"
 	TransitionAddReverseProxyRule TransitionType = "add_reverse_proxy_rule"
 )
