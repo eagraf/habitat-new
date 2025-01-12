@@ -4,8 +4,6 @@ import (
 	"fmt"
 
 	"github.com/eagraf/habitat-new/core/state/node"
-	"github.com/eagraf/habitat-new/internal/node/controller"
-	"github.com/eagraf/habitat-new/internal/node/hdb"
 )
 
 type RunningProcess struct {
@@ -19,14 +17,14 @@ type ProcessManager interface {
 	GetProcess(processID string) (*node.ProcessState, error)
 }
 
-type BaseProcessManager struct {
+type baseProcessManager struct {
 	processDrivers map[string]Driver
 
 	processes map[string]*RunningProcess
 }
 
 func NewProcessManager(drivers []Driver) ProcessManager {
-	pm := &BaseProcessManager{
+	pm := &baseProcessManager{
 		processDrivers: make(map[string]Driver),
 		processes:      make(map[string]*RunningProcess),
 	}
@@ -36,24 +34,7 @@ func NewProcessManager(drivers []Driver) ProcessManager {
 	return pm
 }
 
-func NewProcessManagerStateUpdateSubscriber(processManager ProcessManager, controller controller.NodeController) (*hdb.IdempotentStateUpdateSubscriber, error) {
-	return hdb.NewIdempotentStateUpdateSubscriber(
-		"StartProcessSubscriber",
-		node.SchemaName,
-		[]hdb.IdempotentStateUpdateExecutor{
-			&StartProcessExecutor{
-				processManager: processManager,
-				nodeController: controller,
-			},
-		},
-		&ProcessRestorer{
-			processManager: processManager,
-			nodeController: controller,
-		},
-	)
-}
-
-func (pm *BaseProcessManager) ListProcesses() ([]*node.ProcessState, error) {
+func (pm *baseProcessManager) ListProcesses() ([]*node.ProcessState, error) {
 	processList := make([]*node.ProcessState, 0, len(pm.processes))
 	for _, process := range pm.processes {
 		processList = append(processList, process.ProcessState)
@@ -62,7 +43,7 @@ func (pm *BaseProcessManager) ListProcesses() ([]*node.ProcessState, error) {
 	return processList, nil
 }
 
-func (pm *BaseProcessManager) GetProcess(processID string) (*node.ProcessState, error) {
+func (pm *baseProcessManager) GetProcess(processID string) (*node.ProcessState, error) {
 	proc, ok := pm.processes[processID]
 	if !ok {
 		return nil, fmt.Errorf("error getting process: process %s not found", processID)
@@ -70,7 +51,12 @@ func (pm *BaseProcessManager) GetProcess(processID string) (*node.ProcessState, 
 	return proc.ProcessState, nil
 }
 
-func (pm *BaseProcessManager) StartProcess(process *node.Process, app *node.AppInstallation) error {
+func (pm *baseProcessManager) StartProcess(process *node.Process, app *node.AppInstallation) error {
+	proc, ok := pm.processes[process.ID]
+	if ok {
+		return fmt.Errorf("error starting process: process %s already found: %v", process.ID, proc)
+	}
+
 	driver, ok := pm.processDrivers[app.Driver]
 	if !ok {
 		return fmt.Errorf("error starting process: driver %s not found", app.Driver)
@@ -92,7 +78,7 @@ func (pm *BaseProcessManager) StartProcess(process *node.Process, app *node.AppI
 	return nil
 }
 
-func (pm *BaseProcessManager) StopProcess(processID string) error {
+func (pm *baseProcessManager) StopProcess(processID string) error {
 	process, ok := pm.processes[processID]
 	if !ok {
 		return fmt.Errorf("error stopping process: process %s not found", processID)

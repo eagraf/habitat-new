@@ -12,9 +12,7 @@ import (
 	"golang.org/x/mod/semver"
 )
 
-// NodeController is an interface to manage common admin actions on a Habitat node.
-// For example, installing apps or adding users. This will likely expand to be a much bigger API as we move forward.
-
+// implements nodeServerInner
 type NodeController interface {
 	InitializeNodeDB(transitions []hdb.Transition) error
 	MigrateNodeDB(targetVersion string) error

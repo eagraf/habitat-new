@@ -32,8 +32,8 @@ type ProcessProxyRulesExecutor struct {
 	RuleSet *RuleSet
 }
 
-func (e *ProcessProxyRulesExecutor) TransitionType() string {
-	return node.TransitionStartProcess
+func (e *ProcessProxyRulesExecutor) TransitionType() hdb.TransitionType {
+	return hdb.TransitionStartProcess
 }
 
 func (e *ProcessProxyRulesExecutor) ShouldExecute(update hdb.StateUpdate) (bool, error) {
@@ -72,8 +72,8 @@ type AddProxyRulesExecutor struct {
 	RuleSet *RuleSet
 }
 
-func (e *AddProxyRulesExecutor) TransitionType() string {
-	return node.TransitionAddReverseProxyRule
+func (e *AddProxyRulesExecutor) TransitionType() hdb.TransitionType {
+	return hdb.TransitionAddReverseProxyRule
 }
 
 func (e *AddProxyRulesExecutor) ShouldExecute(update hdb.StateUpdate) (bool, error) {

@@ -1,15 +1,15 @@
-package process
+package controller
 
 import (
 	"github.com/eagraf/habitat-new/core/state/node"
-	"github.com/eagraf/habitat-new/internal/node/controller"
 	"github.com/eagraf/habitat-new/internal/node/hdb"
+	"github.com/eagraf/habitat-new/internal/process"
 	"github.com/rs/zerolog/log"
 )
 
 type ProcessRestorer struct {
-	processManager ProcessManager
-	nodeController controller.NodeController
+	processManager process.ProcessManager
+	nodeController NodeController
 }
 
 // TODO: Return []error for each failure rather than one

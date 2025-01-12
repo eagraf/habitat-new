@@ -10,25 +10,12 @@ import (
 	"github.com/google/uuid"
 )
 
-var (
-	TransitionInitialize          = "initialize"
-	TransitionMigrationUp         = "migration_up"
-	TransitionAddUser             = "add_user"
-	TransitionStartInstallation   = "start_installation"
-	TransitionFinishInstallation  = "finish_installation"
-	TransitionStartUninstallation = "start_uninstallation"
-	TransitionStartProcess        = "process_start"
-	TransitionProcessRunning      = "process_running"
-	TransitionStopProcess         = "process_stop"
-	TransitionAddReverseProxyRule = "add_reverse_proxy_rule"
-)
-
 type InitalizationTransition struct {
 	InitState *State `json:"init_state"`
 }
 
-func (t *InitalizationTransition) Type() string {
-	return TransitionInitialize
+func (t *InitalizationTransition) Type() hdb.TransitionType {
+	return hdb.TransitionInitialize
 }
 
 func (t *InitalizationTransition) Patch(oldState hdb.SerializedState) (hdb.SerializedState, error) {
@@ -70,8 +57,8 @@ type MigrationTransition struct {
 	TargetVersion string
 }
 
-func (t *MigrationTransition) Type() string {
-	return TransitionMigrationUp
+func (t *MigrationTransition) Type() hdb.TransitionType {
+	return hdb.TransitionMigrationUp
 }
 
 func (t *MigrationTransition) Patch(oldState hdb.SerializedState) (hdb.SerializedState, error) {
@@ -130,8 +117,8 @@ type AddUserTranstitionEnrichedData struct {
 	User *User `json:"user"`
 }
 
-func (t *AddUserTransition) Type() string {
-	return TransitionAddUser
+func (t *AddUserTransition) Type() hdb.TransitionType {
+	return hdb.TransitionAddUser
 }
 
 func (t *AddUserTransition) Patch(oldState hdb.SerializedState) (hdb.SerializedState, error) {
@@ -199,8 +186,8 @@ type StartInstallationTransitionEnrichedData struct {
 	NewProxyRules []*ReverseProxyRule   `json:"new_proxy_rules"`
 }
 
-func (t *StartInstallationTransition) Type() string {
-	return TransitionStartInstallation
+func (t *StartInstallationTransition) Type() hdb.TransitionType {
+	return hdb.TransitionStartInstallation
 }
 
 func (t *StartInstallationTransition) Patch(oldState hdb.SerializedState) (hdb.SerializedState, error) {
@@ -328,8 +315,8 @@ type FinishInstallationTransition struct {
 	StartAfterInstallation bool `json:"start_after_installation"`
 }
 
-func (t *FinishInstallationTransition) Type() string {
-	return TransitionFinishInstallation
+func (t *FinishInstallationTransition) Type() hdb.TransitionType {
+	return hdb.TransitionFinishInstallation
 }
 
 func (t *FinishInstallationTransition) Patch(oldState hdb.SerializedState) (hdb.SerializedState, error) {
@@ -392,8 +379,8 @@ type ProcessStartTransitionEnrichedData struct {
 	App     *AppInstallationState
 }
 
-func (t *ProcessStartTransition) Type() string {
-	return TransitionStartProcess
+func (t *ProcessStartTransition) Type() hdb.TransitionType {
+	return hdb.TransitionStartProcess
 }
 
 func (t *ProcessStartTransition) Patch(oldState hdb.SerializedState) (hdb.SerializedState, error) {
@@ -492,8 +479,8 @@ type ProcessRunningTransition struct {
 	ProcessID string `json:"process_id"`
 }
 
-func (t *ProcessRunningTransition) Type() string {
-	return TransitionProcessRunning
+func (t *ProcessRunningTransition) Type() hdb.TransitionType {
+	return hdb.TransitionProcessRunning
 }
 
 func (t *ProcessRunningTransition) Patch(oldState hdb.SerializedState) (hdb.SerializedState, error) {
@@ -549,8 +536,8 @@ type ProcessStopTransition struct {
 	ProcessID string `json:"process_id"`
 }
 
-func (t *ProcessStopTransition) Type() string {
-	return TransitionStopProcess
+func (t *ProcessStopTransition) Type() hdb.TransitionType {
+	return hdb.TransitionStopProcess
 }
 
 func (t *ProcessStopTransition) Patch(oldState hdb.SerializedState) (hdb.SerializedState, error) {
@@ -594,8 +581,8 @@ type AddReverseProxyRuleTransition struct {
 	Rule *ReverseProxyRule `json:"rule"`
 }
 
-func (t *AddReverseProxyRuleTransition) Type() string {
-	return TransitionAddReverseProxyRule
+func (t *AddReverseProxyRuleTransition) Type() hdb.TransitionType {
+	return hdb.TransitionAddReverseProxyRule
 }
 
 func (t *AddReverseProxyRuleTransition) Patch(oldState hdb.SerializedState) (hdb.SerializedState, error) {

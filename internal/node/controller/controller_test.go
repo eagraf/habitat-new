@@ -50,7 +50,7 @@ func setupNodeDBTest(ctrl *gomock.Controller, t *testing.T) (NodeController, *mo
 			require.Equal(t, 1, len(initTransitions))
 
 			initStateTransition := initTransitions[0]
-			require.Equal(t, node.TransitionInitialize, initStateTransition.Type())
+			require.Equal(t, hdb.TransitionInitialize, initStateTransition.Type())
 
 			state := initStateTransition.(*node.InitalizationTransition).InitState
 

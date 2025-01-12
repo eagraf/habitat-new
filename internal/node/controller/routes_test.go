@@ -138,10 +138,12 @@ func TestStartProcessHandler(t *testing.T) {
 	m := mocks.NewMockNodeController(ctrl)
 
 	middleware := &test_helpers.TestAuthMiddleware{UserID: "user_1"}
-	startProcessHandler := NewStartProcessHandler(m)
+	s := CtrlServer{}
+	startProcessHandler := http.HandlerFunc(s.StartProcess)
+	startProcessRoute := newRoute(http.MethodPost, "/node/processes", startProcessHandler)
 	handler := middleware.Middleware(startProcessHandler)
 
-	b, err := json.Marshal(types.PostProcessRequest{
+	b, err := json.Marshal(PostProcessRequest{
 		AppInstallationID: "app_1",
 	})
 	if err != nil {
@@ -161,7 +163,7 @@ func TestStartProcessHandler(t *testing.T) {
 	resp := httptest.NewRecorder()
 	handler.ServeHTTP(
 		resp,
-		httptest.NewRequest(http.MethodPost, startProcessHandler.Pattern(), bytes.NewReader(b)),
+		httptest.NewRequest(http.MethodPost, startProcessRoute.Pattern(), bytes.NewReader(b)),
 	)
 	require.Equal(t, http.StatusCreated, resp.Result().StatusCode)
 
@@ -178,7 +180,7 @@ func TestStartProcessHandler(t *testing.T) {
 	resp = httptest.NewRecorder()
 	handler.ServeHTTP(
 		resp,
-		httptest.NewRequest(http.MethodPost, startProcessHandler.Pattern(), bytes.NewReader(b)),
+		httptest.NewRequest(http.MethodPost, startProcessRoute.Pattern(), bytes.NewReader(b)),
 	)
 	require.Equal(t, http.StatusInternalServerError, resp.Result().StatusCode)
 
@@ -190,7 +192,7 @@ func TestStartProcessHandler(t *testing.T) {
 		resp,
 		httptest.NewRequest(
 			http.MethodPost,
-			startProcessHandler.Pattern(),
+			startProcessRoute.Pattern(),
 			bytes.NewReader([]byte("invalid")),
 		),
 	)

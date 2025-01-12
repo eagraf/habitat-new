@@ -5,6 +5,7 @@ import (
 
 	"github.com/eagraf/habitat-new/core/state/node"
 	"github.com/eagraf/habitat-new/core/state/node/test_helpers"
+	"github.com/eagraf/habitat-new/internal/node/hdb"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -107,7 +108,7 @@ func TestAddRuleExecutor(t *testing.T) {
 	)
 	require.Nil(t, err)
 
-	exec, err := subscriber.GetExecutor(node.TransitionAddReverseProxyRule)
+	exec, err := subscriber.GetExecutor(hdb.TransitionAddReverseProxyRule)
 	require.Nil(t, err)
 	executor, _ := exec.(*AddProxyRulesExecutor)
 

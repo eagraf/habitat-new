@@ -82,3 +82,18 @@ func (mr *MockClientMockRecorder) ProposeTransitions(transitions any) *gomock.Ca
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ProposeTransitions", reflect.TypeOf((*MockClient)(nil).ProposeTransitions), transitions)
 }
+
+// ProposeTransitionsEnriched mocks base method.
+func (m *MockClient) ProposeTransitionsEnriched(transitions []hdb.Transition) (*hdb.JSONState, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ProposeTransitionsEnriched", transitions)
+	ret0, _ := ret[0].(*hdb.JSONState)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ProposeTransitionsEnriched indicates an expected call of ProposeTransitionsEnriched.
+func (mr *MockClientMockRecorder) ProposeTransitionsEnriched(transitions any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ProposeTransitionsEnriched", reflect.TypeOf((*MockClient)(nil).ProposeTransitionsEnriched), transitions)
+}
