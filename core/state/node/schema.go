@@ -17,6 +17,12 @@ const SchemaName = "node"
 const CurrentVersion = "v0.0.6"
 const LatestVersion = "v0.0.6"
 
+// This paackage contains core structs for the node state. These are intended to be embedable in other structs
+// throughout the application. That way, it's easy to modify the core struct, while having
+// the component specific structs to be decoupled. Fields in these structs should be immutable.
+
+// TODO to make these truly immutable, only methods should be exported, all fields should be private.
+
 //go:embed schema/schema.json
 var nodeSchemaRaw string
 
