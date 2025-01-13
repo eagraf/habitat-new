@@ -403,12 +403,17 @@ func TestProcesses(t *testing.T) {
 				},
 			},
 		},
-		&ProcessStartTransition{
-			AppID: "App1",
-		},
 	}
+	oldState, err := testTransitions(nil, transitions)
+	require.NoError(t, err)
+	bytes, err := oldState.Bytes()
+	require.NoError(t, err)
 
-	newState, err := testTransitions(nil, transitions)
+	startTransition, err := GenProcessStartTransition("App1", bytes)
+	require.NoError(t, err)
+	transitions = append(transitions, startTransition)
+
+	newState, err := testTransitions(oldState, []hdb.Transition{startTransition})
 	require.Nil(t, err)
 	require.NotNil(t, newState)
 	assert.Equal(t, "abc", newState.NodeID)
@@ -431,7 +436,9 @@ func TestProcesses(t *testing.T) {
 
 	testProcessRunningNoMatchingID := []hdb.Transition{
 		&ProcessStartTransition{
-			AppID: proc.AppID,
+			Process: &Process{
+				AppID: proc.AppID,
+			},
 		},
 	}
 	_, err = testTransitionsOnCopy(newState, testProcessRunningNoMatchingID)
@@ -439,7 +446,9 @@ func TestProcesses(t *testing.T) {
 
 	testAppIDConflict := []hdb.Transition{
 		&ProcessStartTransition{
-			AppID: "App1",
+			Process: &Process{
+				AppID: "App1",
+			},
 		},
 	}
 
@@ -458,25 +467,10 @@ func TestProcesses(t *testing.T) {
 
 	testUserDoesntExist := []hdb.Transition{
 		&ProcessStartTransition{
-			EnrichedData: &ProcessStartTransitionEnrichedData{
-				Process: &Process{
-					ID:     "proc2",
-					AppID:  "App1",
-					UserID: "456",
-				},
-				App: &AppInstallationState{
-					AppInstallation: &AppInstallation{
-						ID:      "App1",
-						Name:    "app_name1",
-						Version: "1",
-						Package: Package{
-							Driver:             "docker",
-							RegistryURLBase:    "https://registry.com",
-							RegistryPackageID:  "app_name1",
-							RegistryPackageTag: "v1",
-						},
-					},
-				},
+			Process: &Process{
+				ID:     "proc2",
+				AppID:  "App1",
+				UserID: "456",
 			},
 		},
 	}
@@ -486,25 +480,10 @@ func TestProcesses(t *testing.T) {
 
 	testAppDoesntExist := []hdb.Transition{
 		&ProcessStartTransition{
-			EnrichedData: &ProcessStartTransitionEnrichedData{
-				Process: &Process{
-					ID:     "proc3",
-					AppID:  "App2",
-					UserID: "123",
-				},
-				App: &AppInstallationState{
-					AppInstallation: &AppInstallation{
-						ID:      "App2",
-						Name:    "app_name1",
-						Version: "1",
-						Package: Package{
-							Driver:             "docker",
-							RegistryURLBase:    "https://registry.com",
-							RegistryPackageID:  "app_name1",
-							RegistryPackageTag: "v1",
-						},
-					},
-				},
+			Process: &Process{
+				ID:     "proc3",
+				AppID:  "App2",
+				UserID: "123",
 			},
 		},
 	}

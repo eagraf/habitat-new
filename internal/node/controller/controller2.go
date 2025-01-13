@@ -49,27 +49,24 @@ func (c *controller2) startProcess(installationID string) error {
 		return fmt.Errorf("app with ID %s not found", installationID)
 	}
 
-	transition := &node.ProcessStartTransition{
-		AppID: installationID,
-	}
-
 	bytes, err := state.Bytes()
 	if err != nil {
-		return errors.Wrap(err, "error getting state")
-	}
-	err = transition.Enrich(bytes)
-	if err != nil {
-		return errors.Wrap(err, "error enriching transition")
+		return errors.Wrap(err, "error getting state.Bytes()")
 	}
 
-	_, err = c.db.ProposeTransitionsEnriched([]hdb.Transition{
+	transition, err := node.GenProcessStartTransition(installationID, bytes)
+	if err != nil {
+		return errors.Wrap(err, "error creating transition")
+	}
+
+	_, err = c.db.ProposeTransitions([]hdb.Transition{
 		transition,
 	})
 	if err != nil {
 		return errors.Wrap(err, "error proposing transition")
 	}
 
-	proc := transition.EnrichedData.Process
+	proc := transition.Process
 	err = c.processManager.StartProcess(proc, app.AppInstallation)
 	if err != nil {
 		return errors.Wrap(err, "error starting process")
@@ -78,7 +75,7 @@ func (c *controller2) startProcess(installationID string) error {
 }
 
 func (c *controller2) stopProcess(processID string) error {
-	_, err := c.db.ProposeTransitionsEnriched([]hdb.Transition{
+	_, err := c.db.ProposeTransitions([]hdb.Transition{
 		&node.ProcessStopTransition{
 			ProcessID: processID,
 		},

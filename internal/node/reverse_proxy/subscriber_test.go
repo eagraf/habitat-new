@@ -17,9 +17,7 @@ func TestStartProcessExecutor(t *testing.T) {
 		},
 	}
 
-	startProcessStateUpdate, err := test_helpers.StateUpdateTestHelper(&node.ProcessStartTransition{
-		AppID: "app1",
-	}, &node.State{
+	state := &node.State{
 		AppInstallations: map[string]*node.AppInstallationState{
 			"app1": {
 				AppInstallation: &node.AppInstallation{
@@ -48,7 +46,12 @@ func TestStartProcessExecutor(t *testing.T) {
 			},
 		},
 		Processes: map[string]*node.Process{},
-	})
+	}
+
+	bytes, err := state.Bytes()
+	require.NoError(t, err)
+	trans, err := node.GenProcessStartTransition("app1", bytes)
+	startProcessStateUpdate, err := test_helpers.StateUpdateTestHelper(trans, state)
 	assert.Nil(t, err)
 
 	shouldExecute, err := executor.ShouldExecute(startProcessStateUpdate)
@@ -68,9 +71,7 @@ func TestBrokenRule(t *testing.T) {
 		},
 	}
 
-	startProcessStateUpdate, err := test_helpers.StateUpdateTestHelper(&node.ProcessStartTransition{
-		AppID: "app1",
-	}, &node.State{
+	state := &node.State{
 		AppInstallations: map[string]*node.AppInstallationState{
 			"app1": {
 				AppInstallation: &node.AppInstallation{
@@ -92,7 +93,12 @@ func TestBrokenRule(t *testing.T) {
 			},
 		},
 		Processes: map[string]*node.Process{},
-	})
+	}
+	bytes, err := state.Bytes()
+	require.NoError(t, err)
+	trans, err := node.GenProcessStartTransition("app1", bytes)
+
+	startProcessStateUpdate, err := test_helpers.StateUpdateTestHelper(trans, state)
 	assert.Nil(t, err)
 
 	err = executor.Execute(startProcessStateUpdate)

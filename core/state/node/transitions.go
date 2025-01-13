@@ -369,9 +369,31 @@ func (t *FinishInstallationTransition) Validate(oldState hdb.SerializedState) er
 
 type ProcessStartTransition struct {
 	// Requested data
-	AppID string
+	Process *Process
+}
 
-	EnrichedData *ProcessStartTransitionEnrichedData
+func GenProcessStartTransition(appID string, oldState []byte) (*ProcessStartTransition, error) {
+	var oldNode State
+	err := json.Unmarshal(oldState, &oldNode)
+	if err != nil {
+		return nil, err
+	}
+
+	app, err := oldNode.GetAppByID(appID)
+	if err != nil {
+		return nil, err
+	}
+
+	proc := &Process{
+		UserID: app.UserID,
+		Driver: app.Driver,
+		AppID:  app.ID,
+	}
+	proc.ID = uuid.New().String()
+	proc.Created = time.Now().Format(time.RFC3339)
+	return &ProcessStartTransition{
+		Process: proc,
+	}, nil
 }
 
 type ProcessStartTransitionEnrichedData struct {
@@ -390,7 +412,7 @@ func (t *ProcessStartTransition) Patch(oldState hdb.SerializedState) (hdb.Serial
 		return nil, err
 	}
 
-	marshaled, err := json.Marshal(t.EnrichedData.Process)
+	marshaled, err := json.Marshal(t.Process)
 	if err != nil {
 		return nil, err
 	}
@@ -399,33 +421,10 @@ func (t *ProcessStartTransition) Patch(oldState hdb.SerializedState) (hdb.Serial
 			"op": "add",
 			"path": "/processes/%s",
 			"value": %s
-		}]`, t.EnrichedData.Process.ID, marshaled)), nil
+		}]`, t.Process.ID, marshaled)), nil
 }
 
 func (t *ProcessStartTransition) Enrich(oldState hdb.SerializedState) error {
-	var oldNode State
-	err := json.Unmarshal(oldState, &oldNode)
-	if err != nil {
-		return err
-	}
-
-	app, err := oldNode.GetAppByID(t.AppID)
-	if err != nil {
-		return err
-	}
-
-	proc := &Process{
-		UserID: app.UserID,
-		Driver: app.Driver,
-		AppID:  app.ID,
-	}
-	proc.ID = uuid.New().String()
-	proc.Created = time.Now().Format(time.RFC3339)
-
-	t.EnrichedData = &ProcessStartTransitionEnrichedData{
-		Process: proc,
-		App:     app,
-	}
 	return nil
 }
 
@@ -437,33 +436,33 @@ func (t *ProcessStartTransition) Validate(oldState hdb.SerializedState) error {
 		return err
 	}
 
-	if t.EnrichedData.Process == nil {
-		return fmt.Errorf("process was not properly enriched")
-	}
-
-	if t.EnrichedData.App == nil {
-		return fmt.Errorf("app was not properly enriched")
+	if t.Process == nil {
+		return fmt.Errorf("process transition was not properly created")
 	}
 
 	// Make sure the app installation is in the installed state
-	userID := t.EnrichedData.Process.UserID
-	if t.EnrichedData.App.State != AppLifecycleStateInstalled {
-		return fmt.Errorf("app with id %s for user %s is not in state %s", t.AppID, userID, AppLifecycleStateInstalled)
+	userID := t.Process.UserID
+	app, err := oldNode.GetAppByID(t.Process.AppID)
+	if err != nil {
+		return err
+	}
+	if app.State != AppLifecycleStateInstalled {
+		return fmt.Errorf("app with id %s for user %s is not in state %s", t.Process.AppID, userID, AppLifecycleStateInstalled)
 	}
 
 	// Check user exists
-	_, ok := oldNode.Users[t.EnrichedData.Process.UserID]
+	_, ok := oldNode.Users[t.Process.UserID]
 	if !ok {
 		return fmt.Errorf("user with id %s does not exist", userID)
 	}
-	if _, ok := oldNode.Processes[t.EnrichedData.Process.ID]; ok {
-		return fmt.Errorf("Process with id %s already exists", t.EnrichedData.Process.ID)
+	if _, ok := oldNode.Processes[t.Process.ID]; ok {
+		return fmt.Errorf("Process with id %s already exists", t.Process.ID)
 	}
 
 	for _, proc := range oldNode.Processes {
 		// Make sure that no app with the same ID has a process
-		if proc.AppID == t.AppID {
-			return fmt.Errorf("app with id %s already has a process", t.AppID)
+		if proc.AppID == t.Process.AppID {
+			return fmt.Errorf("app with id %s already has a process", t.Process.AppID)
 		}
 	}
 
