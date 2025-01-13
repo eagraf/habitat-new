@@ -146,15 +146,14 @@ func TestStartProcessHandler(t *testing.T) {
 		jsonState: jsonStateFromNodeState(state),
 	}
 
-	s := &CtrlServer{
-		inner: &controller2{
-			processManager: process.NewProcessManager([]process.Driver{mockDriver}),
-			db:             db,
-		},
-	}
-
-	err := s.inner.restore(state)
+	// NewCtrlServer restores the initial state
+	s, err := NewCtrlServer(&BaseNodeController{}, process.NewProcessManager([]process.Driver{mockDriver}), db)
 	require.NoError(t, err)
+
+	// No processes running
+	procs, err := s.inner.processManager.ListProcesses()
+	require.NoError(t, err)
+	require.Len(t, procs, 0)
 
 	startProcessHandler := http.HandlerFunc(s.StartProcess)
 	startProcessRoute := newRoute(http.MethodPost, "/node/processes", startProcessHandler)
@@ -207,7 +206,7 @@ func TestStartProcessHandler(t *testing.T) {
 
 	// Process exists in node state
 	nodeState := nodeStateFromJSONState(db.jsonState)
-	procs, err := nodeState.GetProcessesForUser("user_1")
+	procs, err = nodeState.GetProcessesForUser("user_1")
 	require.NoError(t, err)
 	require.Len(t, procs, 1)
 
@@ -306,14 +305,12 @@ func TestControllerRestoreProcess(t *testing.T) {
 	mockDriver := newMockDriver("docker")
 	pm := process.NewProcessManager([]process.Driver{mockDriver})
 
-	// newController2 calls restore() on the initial state
-	ctrl := &controller2{
-		processManager: pm,
-		db: &mockHDB{
+	ctrl, err := newController2(
+		pm, &mockHDB{
 			schema:    state.Schema(),
 			jsonState: jsonStateFromNodeState(state),
-		},
-	}
+		})
+	require.NoError(t, err)
 
 	// Restore
 	require.NoError(t, ctrl.restore(state))
