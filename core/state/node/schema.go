@@ -29,12 +29,13 @@ var nodeSchemaRaw string
 // TODO structs defined here can embed the immutable structs, but also include mutable fields.
 
 type State struct {
-	NodeID            string                           `json:"node_id"`
-	Name              string                           `json:"name"`
-	Certificate       string                           `json:"certificate"` // TODO turn this into b64
-	SchemaVersion     string                           `json:"schema_version"`
-	TestField         string                           `json:"test_field,omitempty"`
-	Users             map[string]*User                 `json:"users"`
+	NodeID        string           `json:"node_id"`
+	Name          string           `json:"name"`
+	Certificate   string           `json:"certificate"` // TODO turn this into b64
+	SchemaVersion string           `json:"schema_version"`
+	TestField     string           `json:"test_field,omitempty"`
+	Users         map[string]*User `json:"users"`
+	// A set of running processes that a node can restore to on startup.
 	Processes         map[string]*Process              `json:"processes"`
 	AppInstallations  map[string]*AppInstallationState `json:"app_installations"`
 	ReverseProxyRules *map[string]*ReverseProxyRule    `json:"reverse_proxy_rules,omitempty"`
