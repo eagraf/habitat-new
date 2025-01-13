@@ -23,7 +23,6 @@ type StateMachineController interface {
 	DatabaseID() string
 	Bytes() []byte
 	ProposeTransitions(transitions []hdb.Transition) (*hdb.JSONState, error)
-	ProposeTransitionsEnriched(transitions []hdb.Transition) (*hdb.JSONState, error)
 }
 
 type StateMachine struct {
@@ -120,62 +119,6 @@ func (sm *StateMachine) Bytes() []byte {
 // The hypothetical new state is returned. Importantly, this does not block until the state
 // is "officially updated".
 func (sm *StateMachine) ProposeTransitions(transitions []hdb.Transition) (*hdb.JSONState, error) {
-
-	jsonStateBranch, err := sm.jsonState.Copy()
-	if err != nil {
-		return nil, err
-	}
-
-	wrappers := make([]*hdb.TransitionWrapper, 0)
-
-	for _, t := range transitions {
-
-		err = t.Enrich(sm.jsonState.Bytes())
-		if err != nil {
-			return nil, fmt.Errorf("transition enrichment failed: %s", err)
-		}
-
-		err = t.Validate(jsonStateBranch.Bytes())
-		if err != nil {
-			return nil, fmt.Errorf("transition validation failed: %s", err)
-		}
-
-		patch, err := t.Patch(jsonStateBranch.Bytes())
-		if err != nil {
-			return nil, err
-		}
-
-		err = jsonStateBranch.ApplyPatch(patch)
-		if err != nil {
-			return nil, err
-		}
-
-		wrapped, err := hdb.WrapTransition(t, patch, jsonStateBranch.Bytes())
-		if err != nil {
-			return nil, err
-		}
-
-		wrappers = append(wrappers, wrapped)
-	}
-
-	transitionsJSON, err := json.Marshal(wrappers)
-	if err != nil {
-		return nil, err
-	}
-	log.Info().Msg(string(transitionsJSON))
-
-	_, err = sm.replicator.Dispatch(transitionsJSON)
-	if err != nil {
-		return nil, err
-	}
-
-	return jsonStateBranch, nil
-}
-
-// ProposeTransitions takes a list of transitions and applies them to the current state
-// The hypothetical new state is returned. Importantly, this does not block until the state
-// is "officially updated".
-func (sm *StateMachine) ProposeTransitionsEnriched(transitions []hdb.Transition) (*hdb.JSONState, error) {
 
 	jsonStateBranch, err := sm.jsonState.Copy()
 	if err != nil {

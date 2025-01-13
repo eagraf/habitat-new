@@ -84,9 +84,6 @@ func (db *mockHDB) ProposeTransitions(transitions []hdb.Transition) (*hdb.JSONSt
 	}
 	return db.jsonState, nil
 }
-func (db *mockHDB) ProposeTransitionsEnriched(ts []hdb.Transition) (*hdb.JSONState, error) {
-	return db.ProposeTransitions(ts)
-}
 
 var (
 	testPkg = node.Package{
