@@ -234,42 +234,6 @@ func TestGetAppByID(t *testing.T) {
 	assert.Nil(t, app)
 }
 
-func TestStartProcessController(t *testing.T) {
-	ctrl := gomock.NewController(t)
-
-	controller, _, mockedManager, mockedClient := setupNodeDBTest(ctrl, t)
-
-	marshaledNodeState, err := json.Marshal(nodeState)
-	if err != nil {
-		t.Error(err)
-	}
-
-	mockedClient.EXPECT().Bytes().Return(marshaledNodeState).Times(1)
-
-	mockedManager.EXPECT().GetDatabaseClientByName(constants.NodeDBDefaultName).Return(mockedClient, nil).Times(2)
-	mockedClient.EXPECT().ProposeTransitions(gomock.Eq(
-		[]hdb.Transition{
-			&node.ProcessStartTransition{
-				AppID: "app_1",
-			},
-		},
-	)).Return(nil, nil).Times(1)
-
-	mockedClient.EXPECT().ProposeTransitions(gomock.Eq(
-		[]hdb.Transition{
-			&node.ProcessStopTransition{
-				ProcessID: "process_1",
-			},
-		},
-	)).Return(nil, nil).Times(1)
-
-	err = controller.StartProcess("app_1")
-	assert.Nil(t, err)
-
-	err = controller.StopProcess("process_1")
-	assert.Nil(t, err)
-}
-
 func TestAddUser(t *testing.T) {
 	ctrl := gomock.NewController(t)
 

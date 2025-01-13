@@ -23,9 +23,6 @@ type NodeController interface {
 	InstallApp(userID string, newApp *node.AppInstallation, newProxyRules []*node.ReverseProxyRule) error
 	FinishAppInstallation(userID string, appID, registryURLBase, registryPackageID string, startAfterInstall bool) error
 	GetAppByID(appID string) (*node.AppInstallation, error)
-
-	StartProcess(appID string) error
-	StopProcess(processID string) error
 }
 
 type BaseNodeController struct {
@@ -139,48 +136,6 @@ func (c *BaseNodeController) GetAppByID(appID string) (*node.AppInstallation, er
 	}
 
 	return app.AppInstallation, nil
-}
-
-func (c *BaseNodeController) StartProcess(appID string) error {
-	dbClient, err := c.databaseManager.GetDatabaseClientByName(constants.NodeDBDefaultName)
-	if err != nil {
-		return err
-	}
-
-	var nodeState node.State
-	err = json.Unmarshal(dbClient.Bytes(), &nodeState)
-	if err != nil {
-		return nil
-	}
-
-	_, err = dbClient.ProposeTransitions([]hdb.Transition{
-		&node.ProcessStartTransition{
-			AppID: appID,
-		},
-	})
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (c *BaseNodeController) StopProcess(processID string) error {
-	dbClient, err := c.databaseManager.GetDatabaseClientByName(constants.NodeDBDefaultName)
-	if err != nil {
-		return err
-	}
-
-	_, err = dbClient.ProposeTransitions([]hdb.Transition{
-		&node.ProcessStopTransition{
-			ProcessID: processID,
-		},
-	})
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
 
 func (c *BaseNodeController) AddUser(userID, email, handle, password, certificate string) (types.PDSCreateAccountResponse, error) {

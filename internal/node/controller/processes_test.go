@@ -57,147 +57,6 @@ func (d *mockDriver) StopProcess(extProcessID string) error {
 	return nil
 }
 
-/*
-func TestProcessRestorer(t *testing.T) {
-	mockDriver := newMockDriver()
-	pm := process.NewProcessManager([]process.Driver{mockDriver})
-
-	ctrl := gomock.NewController(t)
-	nc := controller_mocks.NewMockNodeController(ctrl)
-
-	pr := &ProcessRestorer{
-		processManager: pm,
-		nodeController: nc,
-	}
-
-	state := &node.State{
-		Users: map[string]*node.User{
-			"user1": {
-				ID: "user1",
-			},
-		},
-		AppInstallations: map[string]*node.AppInstallationState{
-			"app1": {
-				AppInstallation: &node.AppInstallation{
-					ID:   "app1",
-					Name: "appname1",
-					Package: node.Package{
-						Driver: "test",
-					},
-				},
-			},
-			"app2": {
-				AppInstallation: &node.AppInstallation{
-					ID:   "app2",
-					Name: "appname2",
-					Package: node.Package{
-						Driver: "test",
-					},
-				},
-			},
-			"app3": {
-				AppInstallation: &node.AppInstallation{
-					ID:   "app3",
-					Name: "appname3",
-					Package: node.Package{
-						Driver: "test",
-					},
-				},
-			},
-
-			"app4": {
-				AppInstallation: &node.AppInstallation{
-					ID:   "app4",
-					Name: "appname4",
-					Package: node.Package{
-						Driver: "test",
-					},
-				},
-			},
-		},
-		Processes: map[string]*node.ProcessState{
-			"proc1": {
-				Process: &node.Process{
-					ID:     "proc1",
-					AppID:  "app1",
-					Driver: "test",
-				},
-				State: node.ProcessStateStarted,
-			},
-			// This process was not in a running state, but should be started
-			"proc2": {
-				Process: &node.Process{
-					ID:     "proc2",
-					AppID:  "app2",
-					Driver: "test",
-				},
-				State: node.ProcessStateStarted,
-			},
-			// Error out when restoring starting
-			"proc3": {
-				Process: &node.Process{
-					ID:     "proc3",
-					AppID:  "app3",
-					Driver: "test",
-				},
-				State: node.ProcessStateStarted,
-			},
-			// Error out when restoring running
-			"proc4": {
-				Process: &node.Process{
-					ID:    "proc4",
-					AppID: "app4",
-				},
-				State: node.ProcessStateStarted,
-			},
-		},
-	}
-	restoreUpdate, err := test_helpers.StateUpdateTestHelper(&node.InitalizationTransition{}, state)
-	require.Nil(t, err)
-
-	nc.EXPECT().SetProcessRunning("proc2").Times(1)
-	nc.EXPECT().SetProcessRunning("proc3").Times(1)
-
-	err = pr.Restore(restoreUpdate)
-	require.Nil(t, err)
-
-	require.Len(t, mockDriver.log, 4)
-	for _, entry := range mockDriver.log {
-		require.True(t, entry.isStart)
-	}
-
-	// Test ListProcesses() and StopProcess()
-	procs, err := pm.ListProcesses()
-	require.NoError(t, err)
-	require.Len(t, procs, 4)
-
-	require.NoError(t, pm.StopProcess("proc2"))
-	require.ErrorContains(t, pm.StopProcess("proc4"), "driver  not found")
-
-	procs, err = pm.ListProcesses()
-	require.NoError(t, err)
-	require.Len(t, procs, 3)
-
-	mockDriver.returnErr = fmt.Errorf("test error")
-	err = pm.StartProcess(&node.Process{
-		ID:    "proc5",
-		AppID: "app5",
-	}, &node.AppInstallation{
-		ID:   "app5",
-		Name: "appname5",
-		Package: node.Package{
-			Driver: "test",
-		},
-	})
-	require.ErrorContains(t, err, "test error")
-
-	restoreUpdate, err = test_helpers.StateUpdateTestHelper(&node.InitalizationTransition{}, state)
-	require.NoError(t, err)
-	err = pr.Restore(restoreUpdate)
-	require.ErrorContains(t, err, "test error")
-}
-*/
-
 // mock hdb for tests
 type mockHDB struct {
 	schema    hdb.Schema
@@ -261,6 +120,7 @@ var (
 			"app1": {
 				AppInstallation: &node.AppInstallation{
 					ID:      "app1",
+					UserID:  "user_1",
 					Name:    "appname1",
 					Package: testPkg,
 				},
@@ -269,6 +129,7 @@ var (
 			"app2": {
 				AppInstallation: &node.AppInstallation{
 					ID:      "app2",
+					UserID:  "user_1",
 					Name:    "appname2",
 					Package: testPkg,
 				},
@@ -284,20 +145,25 @@ var (
 )
 
 func TestStartProcessHandler(t *testing.T) {
+	// For this test don't restore to start state
+	proc1.State = node.ProcessStateStopped
+	proc2.State = node.ProcessStateStopped
+
 	middleware := &test_helpers.TestAuthMiddleware{UserID: "user_1"}
 
 	mockDriver := newMockDriver("docker")
-	s, err := NewCtrlServer(process.NewProcessManager([]process.Driver{mockDriver}), &mockHDB{
+	db := &mockHDB{
 		schema:    state.Schema(),
 		jsonState: jsonStateFromNodeState(state),
-	})
+	}
+	s, err := NewCtrlServer(process.NewProcessManager([]process.Driver{mockDriver}), db)
 	require.NoError(t, err)
 
 	startProcessHandler := http.HandlerFunc(s.StartProcess)
 	startProcessRoute := newRoute(http.MethodPost, "/node/processes", startProcessHandler)
 	handler := middleware.Middleware(startProcessHandler)
 
-	b, err := json.Marshal(PostProcessRequest{
+	b, err := json.Marshal(StartProcessRequest{
 		AppInstallationID: "app1",
 	})
 	if err != nil {
@@ -317,7 +183,7 @@ func TestStartProcessHandler(t *testing.T) {
 	require.Equal(t, 0, len(respBody))
 
 	// Test an error returned by the controller
-	b, err = json.Marshal(PostProcessRequest{
+	b, err = json.Marshal(StartProcessRequest{
 		AppInstallationID: "app3", // non-existent app installation
 	})
 	if err != nil {
@@ -341,6 +207,70 @@ func TestStartProcessHandler(t *testing.T) {
 		),
 	)
 	assert.Equal(t, http.StatusBadRequest, resp.Result().StatusCode)
+
+	// Process exists in node state
+	nodeState := nodeStateFromJSONState(db.jsonState)
+	procs, err := nodeState.GetProcessesForUser("user_1")
+	require.NoError(t, err)
+	require.Len(t, procs, 1)
+
+	// Process manager has it
+	id := procs[0].ID
+	proc, ok := s.inner.processManager.GetProcess(id)
+	require.True(t, ok)
+	require.Equal(t, proc.State, node.ProcessStateStarted)
+
+	// Test Stop Process
+	stopRoute := newRoute(http.MethodGet, "/node/processes/stop", http.HandlerFunc(s.StopProcess))
+	handler = middleware.Middleware(stopRoute.fn)
+
+	// Happy Path
+	b, err = json.Marshal(&StopProcessRequest{
+		ProcessID: id,
+	})
+	require.NoError(t, err)
+	resp = httptest.NewRecorder()
+	handler.ServeHTTP(
+		resp,
+		httptest.NewRequest(
+			http.MethodGet,
+			stopRoute.Pattern(),
+			bytes.NewReader(b),
+		),
+	)
+	assert.Equal(t, http.StatusOK, resp.Result().StatusCode)
+
+	// Process no longer exists in node state
+	nodeState = nodeStateFromJSONState(db.jsonState)
+	procs, err = nodeState.GetProcessesForUser("user_1")
+	require.NoError(t, err)
+	require.Len(t, procs, 0)
+
+	// Deleted from process manager
+	_, ok = s.inner.processManager.GetProcess(id)
+	require.False(t, ok)
+	procs, err = s.inner.processManager.ListProcesses()
+	require.NoError(t, err)
+	require.Len(t, procs, 0)
+
+	// Non-existent process
+	b, err = json.Marshal(&StopProcessRequest{
+		ProcessID: "fake-id",
+	})
+	require.NoError(t, err)
+	resp = httptest.NewRecorder()
+	handler.ServeHTTP(
+		resp,
+		httptest.NewRequest(
+			http.MethodGet,
+			stopRoute.Pattern(),
+			bytes.NewReader(b),
+		),
+	)
+	assert.Equal(t, http.StatusInternalServerError, resp.Result().StatusCode)
+
+	// Also test the inner error we get
+	require.ErrorContains(t, s.inner.stopProcess("fake id"), "process with id fake id not found")
 }
 
 // Kind of annoying helper to do some typing
@@ -360,7 +290,20 @@ func jsonStateFromNodeState(s *node.State) *hdb.JSONState {
 	return state
 }
 
+func nodeStateFromJSONState(j *hdb.JSONState) *node.State {
+	var s node.State
+	err := json.Unmarshal(j.Bytes(), &s)
+	if err != nil {
+		panic(err)
+	}
+	return &s
+}
+
 func TestControllerRestoreProcess(t *testing.T) {
+	// For this test, initial state should have Started processees for restore
+	proc1.State = node.ProcessStateStarted
+	proc2.State = node.ProcessStateStarted
+
 	mockDriver := newMockDriver("docker")
 	pm := process.NewProcessManager([]process.Driver{mockDriver})
 

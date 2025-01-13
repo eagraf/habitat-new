@@ -85,6 +85,23 @@ func (c *controller2) startProcess(installationID string) error {
 	return nil
 }
 
+func (c *controller2) stopProcess(processID string) error {
+	_, err := c.db.ProposeTransitionsEnriched([]hdb.Transition{
+		&node.ProcessStopTransition{
+			ProcessID: processID,
+		},
+	})
+	if err != nil {
+		return err
+	}
+
+	err = c.processManager.StopProcess(processID)
+	if err != nil {
+		return errors.Wrap(err, "error stopping process")
+	}
+	return nil
+}
+
 func (c *controller2) restore(state node.State) error {
 	// Restore processes to the current state
 	err := c.processManager.RestoreFromState(process.RestoreInfo{Procs: state.Processes, Apps: state.AppInstallations})

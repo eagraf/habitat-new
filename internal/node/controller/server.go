@@ -25,12 +25,12 @@ func NewCtrlServer(pm process.ProcessManager, db hdb.Client) (*CtrlServer, error
 	}, nil
 }
 
-type PostProcessRequest struct {
+type StartProcessRequest struct {
 	AppInstallationID string `json:"app_id"`
 }
 
 func (s *CtrlServer) StartProcess(w http.ResponseWriter, r *http.Request) {
-	var req PostProcessRequest
+	var req StartProcessRequest
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -44,6 +44,27 @@ func (s *CtrlServer) StartProcess(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusCreated)
+}
+
+type StopProcessRequest struct {
+	ProcessID string `json:"process_id"`
+}
+
+func (s *CtrlServer) StopProcess(w http.ResponseWriter, r *http.Request) {
+	var req StopProcessRequest
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	err = s.inner.stopProcess(req.ProcessID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
 }
 
 type route struct {
@@ -75,5 +96,6 @@ var _ api.Route = &route{}
 func (s *CtrlServer) GetRoutes() []api.Route {
 	return []api.Route{
 		newRoute(http.MethodPost, "/node/processes", s.StartProcess),
+		newRoute(http.MethodGet, "/node/processes/stop", s.StopProcess),
 	}
 }

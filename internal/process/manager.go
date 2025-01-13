@@ -20,7 +20,8 @@ type ProcessManager interface {
 	ListProcesses() ([]*node.ProcessState, error)
 	StartProcess(*node.Process, *node.AppInstallation) error
 	StopProcess(extProcessID string) error
-	GetProcess(processID string) (*node.ProcessState, error)
+	// Returns process state, true if exists, otherwise nil, false to indicate non-existence
+	GetProcess(processID string) (*node.ProcessState, bool)
 
 	node.Component[RestoreInfo]
 }
@@ -50,12 +51,12 @@ func (pm *baseProcessManager) ListProcesses() ([]*node.ProcessState, error) {
 	return processList, nil
 }
 
-func (pm *baseProcessManager) GetProcess(processID string) (*node.ProcessState, error) {
+func (pm *baseProcessManager) GetProcess(processID string) (*node.ProcessState, bool) {
 	proc, ok := pm.processes[processID]
 	if !ok {
-		return nil, fmt.Errorf("error getting process: process %s not found", processID)
+		return nil, false
 	}
-	return proc.ProcessState, nil
+	return proc.ProcessState, true
 }
 
 func (pm *baseProcessManager) StartProcess(process *node.Process, app *node.AppInstallation) error {
@@ -81,8 +82,6 @@ func (pm *baseProcessManager) StartProcess(process *node.Process, app *node.AppI
 			ExtDriverID: extProcessID,
 		},
 	}
-
-	// TODO tell controller that we're in state running
 	return nil
 }
 
