@@ -14,10 +14,21 @@ type CtrlServer struct {
 	inner *controller2
 }
 
-func NewCtrlServer(pm process.ProcessManager, db hdb.Client) (*CtrlServer, error) {
+func NewCtrlServer(b *BaseNodeController, pm process.ProcessManager, db hdb.Client) (*CtrlServer, error) {
 	inner, err := newController2(pm, db)
 	if err != nil {
 		return nil, errors.Wrap(err, "error initializing controller")
+	}
+
+	b.SetCtrl2(inner)
+
+	state, err := inner.getNodeState()
+	if err != nil {
+		return nil, errors.Wrap(err, "error getting initial node state")
+	}
+	err = inner.restore(state)
+	if err != nil {
+		return nil, errors.Wrap(err, "error restoring controller to initial state")
 	}
 
 	return &CtrlServer{

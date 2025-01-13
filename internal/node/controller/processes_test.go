@@ -93,24 +93,20 @@ var (
 		Driver:       "docker",
 		DriverConfig: map[string]interface{}{},
 	}
-	proc1 = &node.ProcessState{
-		Process: &node.Process{
-			ID:     "proc1",
-			AppID:  "app1",
-			Driver: "docker",
-		},
-		State: node.ProcessStateStarted,
+
+	proc1 = &node.Process{
+		ID:     "proc1",
+		AppID:  "app1",
+		Driver: "docker",
 	}
-	proc2 = &node.ProcessState{
-		Process: &node.Process{
-			ID:     "proc2",
-			AppID:  "app2",
-			Driver: "docker",
-		},
-		State: node.ProcessStateStarted,
+	proc2 = &node.Process{
+		ID:     "proc2",
+		AppID:  "app2",
+		Driver: "docker",
 	}
-	state = &node.State{
-		SchemaVersion: "v0.0.6",
+
+	state = node.State{
+		SchemaVersion: "v0.0.7",
 		Users: map[string]*node.User{
 			"user1": {
 				ID: "user1",
@@ -136,19 +132,12 @@ var (
 				State: node.AppLifecycleStateInstalled,
 			},
 		},
-		Processes: map[string]*node.ProcessState{
-			"proc1": proc1,
-			// This process was not in a running state, but should be started
-			"proc2": proc2,
-		},
+		Processes: map[string]*node.Process{},
 	}
 )
 
 func TestStartProcessHandler(t *testing.T) {
-	// For this test don't restore to start state
-	proc1.State = node.ProcessStateStopped
-	proc2.State = node.ProcessStateStopped
-
+	// For this test don't add any running processes to the initial state
 	middleware := &test_helpers.TestAuthMiddleware{UserID: "user_1"}
 
 	mockDriver := newMockDriver("docker")
@@ -156,7 +145,15 @@ func TestStartProcessHandler(t *testing.T) {
 		schema:    state.Schema(),
 		jsonState: jsonStateFromNodeState(state),
 	}
-	s, err := NewCtrlServer(process.NewProcessManager([]process.Driver{mockDriver}), db)
+
+	s := &CtrlServer{
+		inner: &controller2{
+			processManager: process.NewProcessManager([]process.Driver{mockDriver}),
+			db:             db,
+		},
+	}
+
+	err := s.inner.restore(state)
 	require.NoError(t, err)
 
 	startProcessHandler := http.HandlerFunc(s.StartProcess)
@@ -218,7 +215,9 @@ func TestStartProcessHandler(t *testing.T) {
 	id := procs[0].ID
 	proc, ok := s.inner.processManager.GetProcess(id)
 	require.True(t, ok)
-	require.Equal(t, proc.State, node.ProcessStateStarted)
+	require.Equal(t, proc.ID, id)
+	require.Equal(t, proc.AppID, "app1")
+	require.Equal(t, proc.UserID, "user_1")
 
 	// Test Stop Process
 	stopRoute := newRoute(http.MethodGet, "/node/processes/stop", http.HandlerFunc(s.StopProcess))
@@ -278,7 +277,7 @@ func TestStartProcessHandler(t *testing.T) {
 // For example, hdb.NewJSONState() could take in node.State, but right now that causes an import cycle
 // Which leads me to believer that maybe NewJSONState() shouldn't be in the hdb package but somewhere else
 // For now, just work with it
-func jsonStateFromNodeState(s *node.State) *hdb.JSONState {
+func jsonStateFromNodeState(s node.State) *hdb.JSONState {
 	bytes, err := s.Bytes()
 	if err != nil {
 		panic(err)
@@ -301,25 +300,29 @@ func nodeStateFromJSONState(j *hdb.JSONState) *node.State {
 
 func TestControllerRestoreProcess(t *testing.T) {
 	// For this test, initial state should have Started processees for restore
-	proc1.State = node.ProcessStateStarted
-	proc2.State = node.ProcessStateStarted
+	state.Processes["proc1"] = proc1
+	state.Processes["proc2"] = proc2
 
 	mockDriver := newMockDriver("docker")
 	pm := process.NewProcessManager([]process.Driver{mockDriver})
 
 	// newController2 calls restore() on the initial state
-	ctrl, err := newController2(pm, &mockHDB{
-		schema:    state.Schema(),
-		jsonState: jsonStateFromNodeState(state),
-	})
-	require.NoError(t, err)
+	ctrl := &controller2{
+		processManager: pm,
+		db: &mockHDB{
+			schema:    state.Schema(),
+			jsonState: jsonStateFromNodeState(state),
+		},
+	}
+
+	ctrl.restore(state)
 
 	procs, err := ctrl.processManager.ListProcesses()
 	require.NoError(t, err)
 
 	// Sort by procID so we can assert on the states
 	require.Len(t, procs, 2)
-	slices.SortFunc(procs, func(a, b *node.ProcessState) int {
+	slices.SortFunc(procs, func(a, b *node.Process) int {
 		return strings.Compare(a.ID, b.ID)
 	})
 
@@ -327,10 +330,8 @@ func TestControllerRestoreProcess(t *testing.T) {
 	require.Equal(t, procs[0].ID, proc1.ID)
 	require.Equal(t, procs[0].AppID, proc1.AppID)
 	require.Equal(t, procs[0].Driver, "docker")
-	require.Equal(t, procs[0].State, node.ProcessStateStarted)
 
 	require.Equal(t, procs[1].ID, proc2.ID)
 	require.Equal(t, procs[1].AppID, proc2.AppID)
 	require.Equal(t, procs[1].Driver, "docker")
-	require.Equal(t, procs[1].State, node.ProcessStateStarted)
 }

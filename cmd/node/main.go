@@ -52,15 +52,16 @@ func main() {
 	}
 	defer dbClose()
 
+	dockerClient, err := client.NewClientWithOpts(client.FromEnv)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to create docker client")
+	}
+	pm := process.NewProcessManager([]process.Driver{docker.NewDriver(dockerClient), web.NewDriver()})
+
 	pdsClient := controller.NewPDSClient(nodeConfig.PDSAdminUsername(), nodeConfig.PDSAdminPassword())
 	nodeCtrl, err := controller.NewNodeController(db.Manager, pdsClient)
 	if err != nil {
 		log.Fatal().Err(err).Msg("error creating node controller")
-	}
-
-	dockerClient, err := client.NewClientWithOpts(client.FromEnv)
-	if err != nil {
-		log.Fatal().Err(err).Msg("Failed to create docker client")
 	}
 
 	// Initialize package managers
@@ -75,7 +76,6 @@ func main() {
 	if err != nil {
 		log.Fatal().Err(err).Msg("error creating app lifecycle subscriber")
 	}
-	pm := process.NewProcessManager([]process.Driver{docker.NewDriver(dockerClient), web.NewDriver()})
 
 	// ctx.Done() returns when SIGINT is called or cancel() is called.
 	// calling cancel() unregisters the signal trapping.
@@ -165,10 +165,10 @@ func main() {
 
 	dbClient, err := db.Manager.GetDatabaseClientByName(constants.NodeDBDefaultName)
 	if err != nil {
-		log.Fatal().Err(err).Msg("error getting hdb client")
+		log.Fatal().Err(err).Msg("error getting default HDB client")
 	}
 
-	ctrlServer, err := controller.NewCtrlServer(pm, dbClient)
+	ctrlServer, err := controller.NewCtrlServer(nodeCtrl, pm, dbClient)
 	if err != nil {
 		log.Fatal().Err(err).Msg("error creating node control server")
 	}

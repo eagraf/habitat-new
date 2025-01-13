@@ -426,7 +426,6 @@ func TestProcesses(t *testing.T) {
 
 	proc := procs[0]
 	assert.NotEmpty(t, proc.ID)
-	assert.Equal(t, ProcessStateStarted, proc.State)
 	assert.Equal(t, "App1", proc.AppID)
 	assert.Equal(t, "123", proc.UserID)
 
@@ -460,12 +459,10 @@ func TestProcesses(t *testing.T) {
 	testUserDoesntExist := []hdb.Transition{
 		&ProcessStartTransition{
 			EnrichedData: &ProcessStartTransitionEnrichedData{
-				Process: &ProcessState{
-					Process: &Process{
-						ID:     "proc2",
-						AppID:  "App1",
-						UserID: "456",
-					},
+				Process: &Process{
+					ID:     "proc2",
+					AppID:  "App1",
+					UserID: "456",
 				},
 				App: &AppInstallationState{
 					AppInstallation: &AppInstallation{
@@ -490,12 +487,10 @@ func TestProcesses(t *testing.T) {
 	testAppDoesntExist := []hdb.Transition{
 		&ProcessStartTransition{
 			EnrichedData: &ProcessStartTransitionEnrichedData{
-				Process: &ProcessState{
-					Process: &Process{
-						ID:     "proc3",
-						AppID:  "App2",
-						UserID: "123",
-					},
+				Process: &Process{
+					ID:     "proc3",
+					AppID:  "App2",
+					UserID: "123",
 				},
 				App: &AppInstallationState{
 					AppInstallation: &AppInstallation{

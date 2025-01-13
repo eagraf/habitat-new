@@ -28,7 +28,7 @@ func (t *InitalizationTransition) Patch(oldState hdb.SerializedState) (hdb.Seria
 	}
 
 	if t.InitState.Processes == nil {
-		t.InitState.Processes = make(map[string]*ProcessState)
+		t.InitState.Processes = make(map[string]*Process)
 	}
 
 	marshaled, err := json.Marshal(t.InitState)
@@ -375,7 +375,7 @@ type ProcessStartTransition struct {
 }
 
 type ProcessStartTransitionEnrichedData struct {
-	Process *ProcessState
+	Process *Process
 	App     *AppInstallationState
 }
 
@@ -414,18 +414,13 @@ func (t *ProcessStartTransition) Enrich(oldState hdb.SerializedState) error {
 		return err
 	}
 
-	proc := &ProcessState{
-		Process: &Process{
-			UserID: app.UserID,
-			Driver: app.Driver,
-			AppID:  app.ID,
-		},
-		State:       ProcessStateStarted,
-		ExtDriverID: "", // this should not be set yet
+	proc := &Process{
+		UserID: app.UserID,
+		Driver: app.Driver,
+		AppID:  app.ID,
 	}
-
 	proc.ID = uuid.New().String()
-	proc.Process.Created = time.Now().Format(time.RFC3339)
+	proc.Created = time.Now().Format(time.RFC3339)
 
 	t.EnrichedData = &ProcessStartTransitionEnrichedData{
 		Process: proc,

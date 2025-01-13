@@ -62,7 +62,7 @@ func setupNodeDBTest(ctrl *gomock.Controller, t *testing.T) (NodeController, *mo
 			return mockedClient, nil
 		}).Times(1)
 
-	controller, err := NewNodeController(mockedManager, mockedPDSClient, &controller2{})
+	controller, err := NewNodeController(mockedManager, mockedPDSClient)
 	require.Nil(t, err)
 	err = controller.InitializeNodeDB(transitions)
 	require.Nil(t, err)

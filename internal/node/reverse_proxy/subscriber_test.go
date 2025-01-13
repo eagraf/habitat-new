@@ -47,7 +47,7 @@ func TestStartProcessExecutor(t *testing.T) {
 				Target:  "http://localhost:8080",
 			},
 		},
-		Processes: map[string]*node.ProcessState{},
+		Processes: map[string]*node.Process{},
 	})
 	assert.Nil(t, err)
 
@@ -91,7 +91,7 @@ func TestBrokenRule(t *testing.T) {
 				Target:  "http://localhost:8080",
 			},
 		},
-		Processes: map[string]*node.ProcessState{},
+		Processes: map[string]*node.Process{},
 	})
 	assert.Nil(t, err)
 

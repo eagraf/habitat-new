@@ -40,13 +40,21 @@ type BaseNodeController struct {
 	ctrl2 *controller2
 }
 
-func NewNodeController(habitatDBManager hdb.HDBManager, pds PDSClientI, ctrl2 *controller2) (*BaseNodeController, error) {
+func NewNodeController(habitatDBManager hdb.HDBManager, pds PDSClientI) (*BaseNodeController, error) {
 	controller := &BaseNodeController{
 		databaseManager: habitatDBManager,
 		pdsClient:       pds,
-		ctrl2:           ctrl2,
 	}
 	return controller, nil
+}
+
+// TODO: Eventually BaseNodeController will be removed completely and replaced with controller2,
+// so not thinking about this too hard right now. But I had to add a mock call in 50+ callsites as an alternative
+// to doing this, so it was the best path forward.
+//
+// As a consequence, any users of ctrl2 need to check if it is nil first.
+func (c *BaseNodeController) SetCtrl2(c2 *controller2) {
+	c.ctrl2 = c2
 }
 
 // InitializeNodeDB tries initializing the database; it is a noop if a database with the same name already exists
@@ -151,6 +159,9 @@ func (c *BaseNodeController) GetAppByID(appID string) (*node.AppInstallation, er
 
 // TODO: Delete once usages of StartProcess() are deleted
 func (c *BaseNodeController) StartProcess(appID string) error {
+	if c.ctrl2 == nil {
+		return fmt.Errorf("BaseNodeController.ctrl2 field is nil, unable to fulfill request")
+	}
 	return c.ctrl2.startProcess(appID)
 }
 

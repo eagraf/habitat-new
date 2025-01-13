@@ -27,14 +27,6 @@ func newController2(pm process.ProcessManager, db hdb.Client) (*controller2, err
 		db:             db,
 	}
 
-	state, err := ctrl.getNodeState()
-	if err != nil {
-		return nil, errors.Wrap(err, "error getting initial node state")
-	}
-	err = ctrl.restore(state)
-	if err != nil {
-		return nil, errors.Wrap(err, "error restoring controller to initial state")
-	}
 	return ctrl, nil
 }
 
@@ -78,7 +70,7 @@ func (c *controller2) startProcess(installationID string) error {
 	}
 
 	proc := transition.EnrichedData.Process
-	err = c.processManager.StartProcess(proc.Process, app.AppInstallation)
+	err = c.processManager.StartProcess(proc, app.AppInstallation)
 	if err != nil {
 		return errors.Wrap(err, "error starting process")
 	}
