@@ -368,8 +368,7 @@ func TestAppInstallReverseProxyRules(t *testing.T) {
 }
 
 func TestProcesses(t *testing.T) {
-
-	transitions := []hdb.Transition{
+	init := []hdb.Transition{
 		&InitalizationTransition{
 			InitState: &State{
 				NodeID:        "abc",
@@ -404,14 +403,13 @@ func TestProcesses(t *testing.T) {
 			},
 		},
 	}
-	oldState, err := testTransitions(nil, transitions)
+	oldState, err := testTransitions(nil, init)
 	require.NoError(t, err)
 	bytes, err := oldState.Bytes()
 	require.NoError(t, err)
 
 	startTransition, err := GenProcessStartTransition("App1", bytes)
 	require.NoError(t, err)
-	transitions = append(transitions, startTransition)
 
 	newState, err := testTransitions(oldState, []hdb.Transition{startTransition})
 	require.Nil(t, err)

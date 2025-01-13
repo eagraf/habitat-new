@@ -51,16 +51,17 @@ func TestStartProcessExecutor(t *testing.T) {
 	bytes, err := state.Bytes()
 	require.NoError(t, err)
 	trans, err := node.GenProcessStartTransition("app1", bytes)
+	require.NoError(t, err)
 	startProcessStateUpdate, err := test_helpers.StateUpdateTestHelper(trans, state)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 
 	shouldExecute, err := executor.ShouldExecute(startProcessStateUpdate)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, true, shouldExecute)
 	assert.Equal(t, 0, len(executor.RuleSet.rules))
 
 	err = executor.Execute(startProcessStateUpdate)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, 1, len(executor.RuleSet.rules))
 }
 
@@ -97,12 +98,13 @@ func TestBrokenRule(t *testing.T) {
 	bytes, err := state.Bytes()
 	require.NoError(t, err)
 	trans, err := node.GenProcessStartTransition("app1", bytes)
+	require.NoError(t, err)
 
 	startProcessStateUpdate, err := test_helpers.StateUpdateTestHelper(trans, state)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 
 	err = executor.Execute(startProcessStateUpdate)
-	assert.NotNil(t, err)
+	require.ErrorContains(t, err, "rule type unknown is not supported")
 	assert.Equal(t, 0, len(executor.RuleSet.rules))
 }
 

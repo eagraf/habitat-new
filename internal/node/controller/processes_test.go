@@ -315,7 +315,8 @@ func TestControllerRestoreProcess(t *testing.T) {
 		},
 	}
 
-	ctrl.restore(state)
+	// Restore
+	require.NoError(t, ctrl.restore(state))
 
 	procs, err := ctrl.processManager.ListProcesses()
 	require.NoError(t, err)
