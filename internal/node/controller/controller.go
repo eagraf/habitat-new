@@ -23,17 +23,28 @@ type NodeController interface {
 	InstallApp(userID string, newApp *node.AppInstallation, newProxyRules []*node.ReverseProxyRule) error
 	FinishAppInstallation(userID string, appID, registryURLBase, registryPackageID string, startAfterInstall bool) error
 	GetAppByID(appID string) (*node.AppInstallation, error)
+
+	StartProcess(appID string) error
 }
 
 type BaseNodeController struct {
 	databaseManager hdb.HDBManager
 	pdsClient       PDSClientI
+
+	// TODO: eventually BaseNodeController will be fully replaced with controller2 and renamed aptly.
+	// However, until a final migration, there are still some state update subscribers that call the NodeController interface.
+	// This will not be possible after the refactor but during the migration, mux these calls out with the new controller under
+	// the hood.
+	//
+	// See StartProcess() for an example of this.
+	ctrl2 *controller2
 }
 
-func NewNodeController(habitatDBManager hdb.HDBManager, pds PDSClientI) (*BaseNodeController, error) {
+func NewNodeController(habitatDBManager hdb.HDBManager, pds PDSClientI, ctrl2 *controller2) (*BaseNodeController, error) {
 	controller := &BaseNodeController{
 		databaseManager: habitatDBManager,
 		pdsClient:       pds,
+		ctrl2:           ctrl2,
 	}
 	return controller, nil
 }
@@ -136,6 +147,11 @@ func (c *BaseNodeController) GetAppByID(appID string) (*node.AppInstallation, er
 	}
 
 	return app.AppInstallation, nil
+}
+
+// TODO: Delete once usages of StartProcess() are deleted
+func (c *BaseNodeController) StartProcess(appID string) error {
+	return c.ctrl2.startProcess(appID)
 }
 
 func (c *BaseNodeController) AddUser(userID, email, handle, password, certificate string) (types.PDSCreateAccountResponse, error) {
