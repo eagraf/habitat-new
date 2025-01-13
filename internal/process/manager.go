@@ -23,7 +23,7 @@ type ProcessManager interface {
 	StopProcess(extProcessID string) error
 	// Returns process state, true if exists, otherwise nil, false to indicate non-existence
 	GetProcess(processID string) (*node.Process, bool)
-
+	// ProcessManager should implement Component -- specifically, restore state given a set of processes and apps
 	node.Component[RestoreInfo]
 }
 
