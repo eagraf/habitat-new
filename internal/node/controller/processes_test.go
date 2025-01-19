@@ -102,7 +102,7 @@ var (
 		Driver: "docker",
 	}
 
-	state = node.State{
+	state = &node.State{
 		SchemaVersion: "v0.0.7",
 		Users: map[string]*node.User{
 			"user1": {
@@ -273,7 +273,7 @@ func TestStartProcessHandler(t *testing.T) {
 // For example, hdb.NewJSONState() could take in node.State, but right now that causes an import cycle
 // Which leads me to believer that maybe NewJSONState() shouldn't be in the hdb package but somewhere else
 // For now, just work with it
-func jsonStateFromNodeState(s node.State) *hdb.JSONState {
+func jsonStateFromNodeState(s *node.State) *hdb.JSONState {
 	bytes, err := s.Bytes()
 	if err != nil {
 		panic(err)

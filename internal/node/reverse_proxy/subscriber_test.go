@@ -48,9 +48,7 @@ func TestStartProcessExecutor(t *testing.T) {
 		Processes: map[string]*node.Process{},
 	}
 
-	bytes, err := state.Bytes()
-	require.NoError(t, err)
-	trans, err := node.GenProcessStartTransition("app1", bytes)
+	trans, err := node.GenProcessStartTransition("app1", state)
 	require.NoError(t, err)
 	startProcessStateUpdate, err := test_helpers.StateUpdateTestHelper(trans, state)
 	require.NoError(t, err)
@@ -95,9 +93,8 @@ func TestBrokenRule(t *testing.T) {
 		},
 		Processes: map[string]*node.Process{},
 	}
-	bytes, err := state.Bytes()
-	require.NoError(t, err)
-	trans, err := node.GenProcessStartTransition("app1", bytes)
+
+	trans, err := node.GenProcessStartTransition("app1", state)
 	require.NoError(t, err)
 
 	startProcessStateUpdate, err := test_helpers.StateUpdateTestHelper(trans, state)

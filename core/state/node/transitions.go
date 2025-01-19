@@ -372,14 +372,8 @@ type ProcessStartTransition struct {
 	Process *Process
 }
 
-func GenProcessStartTransition(appID string, oldState []byte) (*ProcessStartTransition, error) {
-	var oldNode State
-	err := json.Unmarshal(oldState, &oldNode)
-	if err != nil {
-		return nil, err
-	}
-
-	app, err := oldNode.GetAppByID(appID)
+func GenProcessStartTransition(appID string, oldState *State) (*ProcessStartTransition, error) {
+	app, err := oldState.GetAppByID(appID)
 	if err != nil {
 		return nil, err
 	}

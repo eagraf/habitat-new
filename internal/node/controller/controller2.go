@@ -30,13 +30,13 @@ func newController2(pm process.ProcessManager, db hdb.Client) (*controller2, err
 	return ctrl, nil
 }
 
-func (c *controller2) getNodeState() (node.State, error) {
+func (c *controller2) getNodeState() (*node.State, error) {
 	var nodeState node.State
 	err := json.Unmarshal(c.db.Bytes(), &nodeState)
 	if err != nil {
-		return node.State{}, err
+		return nil, err
 	}
-	return nodeState, nil
+	return &nodeState, nil
 }
 
 func (c *controller2) startProcess(installationID string) error {
@@ -49,12 +49,7 @@ func (c *controller2) startProcess(installationID string) error {
 		return fmt.Errorf("app with ID %s not found", installationID)
 	}
 
-	bytes, err := state.Bytes()
-	if err != nil {
-		return errors.Wrap(err, "error getting state.Bytes()")
-	}
-
-	transition, err := node.GenProcessStartTransition(installationID, bytes)
+	transition, err := node.GenProcessStartTransition(installationID, state)
 	if err != nil {
 		return errors.Wrap(err, "error creating transition")
 	}
@@ -91,7 +86,7 @@ func (c *controller2) stopProcess(processID string) error {
 	return nil
 }
 
-func (c *controller2) restore(state node.State) error {
+func (c *controller2) restore(state *node.State) error {
 	// Restore processes to the current state
 	err := c.processManager.RestoreFromState(process.RestoreInfo{Procs: state.Processes, Apps: state.AppInstallations})
 	if err != nil {

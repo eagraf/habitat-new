@@ -405,10 +405,8 @@ func TestProcesses(t *testing.T) {
 	}
 	oldState, err := testTransitions(nil, init)
 	require.NoError(t, err)
-	bytes, err := oldState.Bytes()
-	require.NoError(t, err)
 
-	startTransition, err := GenProcessStartTransition("App1", bytes)
+	startTransition, err := GenProcessStartTransition("App1", oldState)
 	require.NoError(t, err)
 
 	newState, err := testTransitions(oldState, []hdb.Transition{startTransition})
