@@ -216,6 +216,25 @@ func TestStartProcessHandler(t *testing.T) {
 	require.Equal(t, proc.AppID, "app1")
 	require.Equal(t, proc.UserID, "user_1")
 
+	listProcessRoute := newRoute(http.MethodGet, "/node/processes/list", http.HandlerFunc(s.ListProcesses))
+	resp = httptest.NewRecorder()
+	handler = middleware.Middleware(listProcessRoute.fn)
+	handler.ServeHTTP(
+		resp,
+		httptest.NewRequest(
+			http.MethodGet,
+			listProcessRoute.Pattern(),
+			nil,
+		),
+	)
+
+	var listed []*node.Process
+	err = json.Unmarshal(resp.Body.Bytes(), &listed)
+	require.NoError(t, err)
+	require.Len(t, listed, 1)
+	require.Equal(t, listed[0].ID, id)
+	require.Equal(t, http.StatusOK, resp.Result().StatusCode)
+
 	// Test Stop Process
 	stopRoute := newRoute(http.MethodGet, "/node/processes/stop", http.HandlerFunc(s.StopProcess))
 	handler = middleware.Middleware(stopRoute.fn)

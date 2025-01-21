@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"github.com/eagraf/habitat-new/core/state/node"
@@ -81,6 +82,7 @@ func (s *CtrlServer) StopProcess(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *CtrlServer) ListProcesses(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("hi")
 	procs, err := s.inner.processManager.ListProcesses()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
