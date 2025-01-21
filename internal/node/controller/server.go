@@ -80,6 +80,28 @@ func (s *CtrlServer) StopProcess(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
+func (s *CtrlServer) ListProcesses(w http.ResponseWriter, r *http.Request) {
+	procs, err := s.inner.processManager.ListProcesses()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	bytes, err := json.Marshal(procs)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	_, err = w.Write(bytes)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
 type route struct {
 	method  string
 	pattern string
@@ -108,7 +130,8 @@ var _ api.Route = &route{}
 
 func (s *CtrlServer) GetRoutes() []api.Route {
 	return []api.Route{
-		newRoute(http.MethodPost, "/node/processes", s.StartProcess),
-		newRoute(http.MethodGet, "/node/processes/stop", s.StopProcess),
+		newRoute(http.MethodPost, "/node/processes/start", s.StartProcess),
+		newRoute(http.MethodPost, "/node/processes/stop", s.StopProcess),
+		newRoute(http.MethodGet, "/node/processes/list", s.ListProcesses),
 	}
 }
