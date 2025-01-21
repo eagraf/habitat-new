@@ -26,6 +26,10 @@ GOBIN ?= $$(go env GOPATH)/bin
 
 build: $(TOPDIR)/bin/amd64-linux/habitat $(TOPDIR)/bin/amd64-darwin/habitat
 
+build-ctrl: 
+	$(TOPDIR)/bin 
+	go build -o $(TOPDIR)/bin/node-ctrl $(TOPDIR)/cmd/node_ctrl/main.go 
+
 archive: $(TOPDIR)/bin/amd64-linux/habitat-amd64-linux.tar.gz $(TOPDIR)/bin/amd64-darwin/habitat-amd64-darwin.tar.gz
 
 test::
@@ -112,14 +116,14 @@ $(TOPDIR)/bin: $(TOPDIR)
 
 # Linux AMD64 Builds
 $(TOPDIR)/bin/amd64-linux/habitat: $(TOPDIR)/bin frontend_server/build
-	GOARCH=amd64 GOOS=linux go build -o $(TOPDIR)/bin/amd64-linux/habitat $(TOPDIR)/cmd/node/main.go
+	GOARCH=amd64 GOOS=linux go build -o $(TOPDIR)/bin/amd64-linux/habitat $(TOPDIR)/cmd/node/main.go && go build -o $(TOPDIR)/bin/amd64-linux/node-ctrl $(TOPDIR)/cmd/node_ctrl/main.go
 
 $(TOPDIR)/bin/amd64-linux/habitat-amd64-linux.tar.gz: $(TOPDIR)/bin/amd64-linux/habitat
 	tar -czf $(TOPDIR)/bin/amd64-linux/habitat-amd64-linux.tar.gz -C $(TOPDIR)/bin/amd64-linux habitat
 
 # Darwin AMD64 Builds
 $(TOPDIR)/bin/amd64-darwin/habitat: $(TOPDIR)/bin frontend_server/build
-	GOARCH=amd64 GOOS=darwin go build -o $(TOPDIR)/bin/amd64-darwin/habitat $(TOPDIR)/cmd/node/main.go
+	GOARCH=amd64 GOOS=darwin go build -o $(TOPDIR)/bin/amd64-darwin/habitat $(TOPDIR)/cmd/node/main.go && go build -o $(TOPDIR)/bin/amd64-darwin/node-ctrl $(TOPDIR)/cmd/node_ctrl/main.go
 
 $(TOPDIR)/bin/amd64-darwin/habitat-amd64-darwin.tar.gz: $(TOPDIR)/bin/amd64-darwin/habitat
 	tar -czf $(TOPDIR)/bin/amd64-darwin/habitat-amd64-darwin.tar.gz -C $(TOPDIR)/bin/amd64-darwin habitat
