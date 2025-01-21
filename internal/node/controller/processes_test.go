@@ -2,6 +2,7 @@ package controller
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -22,7 +23,7 @@ import (
 // mock process driver for tests
 type entry struct {
 	isStart bool
-	id      string
+	id      node.ProcessID
 }
 
 type mockDriver struct {
@@ -43,17 +44,17 @@ func (d *mockDriver) Type() string {
 	return d.name
 }
 
-func (d *mockDriver) StartProcess(process *node.Process, app *node.AppInstallation) (string, error) {
+func (d *mockDriver) StartProcess(ctx context.Context, process *node.Process, app *node.AppInstallation) error {
 	if d.returnErr != nil {
-		return "", d.returnErr
+		return d.returnErr
 	}
 	id := uuid.New().String()
-	d.log = append(d.log, entry{isStart: true, id: id})
-	return id, nil
+	d.log = append(d.log, entry{isStart: true, id: node.ProcessID(id)})
+	return nil
 }
 
-func (d *mockDriver) StopProcess(extProcessID string) error {
-	d.log = append(d.log, entry{isStart: false, id: extProcessID})
+func (d *mockDriver) StopProcess(ctx context.Context, processID node.ProcessID) error {
+	d.log = append(d.log, entry{isStart: false, id: processID})
 	return nil
 }
 
@@ -129,7 +130,7 @@ var (
 				State: node.AppLifecycleStateInstalled,
 			},
 		},
-		Processes: map[string]*node.Process{},
+		Processes: map[node.ProcessID]*node.Process{},
 	}
 )
 
@@ -144,7 +145,7 @@ func TestStartProcessHandler(t *testing.T) {
 	}
 
 	// NewCtrlServer restores the initial state
-	s, err := NewCtrlServer(&BaseNodeController{}, process.NewProcessManager([]process.Driver{mockDriver}), db)
+	s, err := NewCtrlServer(context.Background(), &BaseNodeController{}, process.NewProcessManager([]process.Driver{mockDriver}), db)
 	require.NoError(t, err)
 
 	// No processes running
@@ -221,7 +222,7 @@ func TestStartProcessHandler(t *testing.T) {
 
 	// Happy Path
 	b, err = json.Marshal(&StopProcessRequest{
-		ProcessID: id,
+		ProcessID: string(id),
 	})
 	require.NoError(t, err)
 	resp = httptest.NewRecorder()
@@ -303,6 +304,7 @@ func TestControllerRestoreProcess(t *testing.T) {
 	pm := process.NewProcessManager([]process.Driver{mockDriver})
 
 	ctrl, err := newController2(
+		context.Background(),
 		pm, &mockHDB{
 			schema:    state.Schema(),
 			jsonState: jsonStateFromNodeState(state),
@@ -318,7 +320,7 @@ func TestControllerRestoreProcess(t *testing.T) {
 	// Sort by procID so we can assert on the states
 	require.Len(t, procs, 2)
 	slices.SortFunc(procs, func(a, b *node.Process) int {
-		return strings.Compare(a.ID, b.ID)
+		return strings.Compare(string(a.ID), string(b.ID))
 	})
 
 	// Ensure processManager has expected state
