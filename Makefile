@@ -24,11 +24,19 @@ PDS_BLOB_DIR = $(PDS_DIR)/blocks
 
 GOBIN ?= $$(go env GOPATH)/bin
 
-build: $(TOPDIR)/bin/amd64-linux/habitat $(TOPDIR)/bin/amd64-darwin/habitat
+build: $(TOPDIR)/bin/amd64-linux/habitat $(TOPDIR)/bin/amd64-darwin/habitat build-ctrl
 
-build-ctrl: 
-	$(TOPDIR)/bin 
-	go build -o $(TOPDIR)/bin/node-ctrl $(TOPDIR)/cmd/node_ctrl/main.go 
+# Build the CLI program for the node controller
+.PHONY: build-ctrl
+
+build-ctrl: clean-build-ctrl $(TOPDIR)/bin/node-ctrl
+
+clean-build-ctrl: 
+	rm -rf $(TOPDIR)/bin/node-ctrl
+
+build-ctrl: $(TOPDIR)/bin/node-ctrl
+
+# ===============================================================================
 
 archive: $(TOPDIR)/bin/amd64-linux/habitat-amd64-linux.tar.gz $(TOPDIR)/bin/amd64-darwin/habitat-amd64-darwin.tar.gz
 
@@ -114,16 +122,20 @@ $(CERT_DIR)/dev_root_user_cert.pem: $(CERT_DIR)
 $(TOPDIR)/bin: $(TOPDIR)
 	mkdir -p $(TOPDIR)/bin
 
+
+$(TOPDIR)/bin/node-ctrl: 
+	go build -o $(TOPDIR)/bin/node-ctrl $(TOPDIR)/cmd/node_ctrl/main.go
+
 # Linux AMD64 Builds
 $(TOPDIR)/bin/amd64-linux/habitat: $(TOPDIR)/bin frontend_server/build
-	GOARCH=amd64 GOOS=linux go build -o $(TOPDIR)/bin/amd64-linux/habitat $(TOPDIR)/cmd/node/main.go && go build -o $(TOPDIR)/bin/amd64-linux/node-ctrl $(TOPDIR)/cmd/node_ctrl/main.go
+	GOARCH=amd64 GOOS=linux go build -o $(TOPDIR)/bin/amd64-linux/habitat $(TOPDIR)/cmd/node/main.go
 
 $(TOPDIR)/bin/amd64-linux/habitat-amd64-linux.tar.gz: $(TOPDIR)/bin/amd64-linux/habitat
 	tar -czf $(TOPDIR)/bin/amd64-linux/habitat-amd64-linux.tar.gz -C $(TOPDIR)/bin/amd64-linux habitat
 
 # Darwin AMD64 Builds
 $(TOPDIR)/bin/amd64-darwin/habitat: $(TOPDIR)/bin frontend_server/build
-	GOARCH=amd64 GOOS=darwin go build -o $(TOPDIR)/bin/amd64-darwin/habitat $(TOPDIR)/cmd/node/main.go && go build -o $(TOPDIR)/bin/amd64-darwin/node-ctrl $(TOPDIR)/cmd/node_ctrl/main.go
+	GOARCH=amd64 GOOS=darwin go build -o $(TOPDIR)/bin/amd64-darwin/habitat $(TOPDIR)/cmd/node/main.go
 
 $(TOPDIR)/bin/amd64-darwin/habitat-amd64-darwin.tar.gz: $(TOPDIR)/bin/amd64-darwin/habitat
 	tar -czf $(TOPDIR)/bin/amd64-darwin/habitat-amd64-darwin.tar.gz -C $(TOPDIR)/bin/amd64-darwin habitat

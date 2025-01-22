@@ -48,7 +48,6 @@ func (pm *baseProcessManager) ListProcesses() ([]*node.Process, error) {
 	for _, process := range pm.processes {
 		processList = append(processList, process.Process)
 	}
-
 	return processList, nil
 }
 

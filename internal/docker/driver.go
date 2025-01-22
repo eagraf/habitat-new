@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
 	"github.com/eagraf/habitat-new/core/state/node"
@@ -17,7 +17,7 @@ import (
 
 const (
 	habitatLabel   = "habitat_proc_id"
-	errNoProcFound = "no process found with id %s"
+	errNoProcFound = "no container found with label %s"
 )
 
 type dockerDriver struct {
@@ -81,23 +81,22 @@ func (d *dockerDriver) StartProcess(ctx context.Context, process *node.Process, 
 }
 
 func (d *dockerDriver) StopProcess(ctx context.Context, processID node.ProcessID) error {
-	ctrs, err := d.client.ContainerList(ctx, container.ListOptions{})
+	ctrs, err := d.client.ContainerList(ctx, container.ListOptions{
+		Filters: filters.NewArgs(
+			filters.Arg("label", habitatLabel+"="+string(processID)),
+		),
+	})
 	if err != nil {
 		return err
 	}
 
-	var ctr *types.Container
-	for _, c := range ctrs {
-		if id, ok := c.Labels[string(habitatLabel)]; ok && id == string(processID) {
-			ctr = &c
-			break
-		}
-	}
-	if ctr == nil {
-		return fmt.Errorf(errNoProcFound, processID)
+	if len(ctrs) > 1 {
+		return fmt.Errorf("Got multiple processes with label %s: %v", habitatLabel, ctrs)
+	} else if len(ctrs) == 0 {
+		return fmt.Errorf(errNoProcFound, habitatLabel)
 	}
 
-	err = d.client.ContainerStop(ctx, ctr.ID, container.StopOptions{})
+	err = d.client.ContainerStop(ctx, ctrs[0].ID, container.StopOptions{})
 	if err != nil {
 		return err
 	}
