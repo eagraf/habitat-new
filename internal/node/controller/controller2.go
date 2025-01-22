@@ -73,7 +73,13 @@ func (c *controller2) startProcess(installationID string) error {
 }
 
 func (c *controller2) stopProcess(processID node.ProcessID) error {
-	_, err := c.db.ProposeTransitions([]hdb.Transition{
+	err := c.processManager.StopProcess(c.ctx, processID)
+	if err != nil {
+		return errors.Wrap(err, "error stopping process")
+	}
+
+	// Only propose transitions if stopping the process succeeded
+	_, err = c.db.ProposeTransitions([]hdb.Transition{
 		&node.ProcessStopTransition{
 			ProcessID: processID,
 		},
@@ -82,10 +88,6 @@ func (c *controller2) stopProcess(processID node.ProcessID) error {
 		return err
 	}
 
-	err = c.processManager.StopProcess(c.ctx, processID)
-	if err != nil {
-		return errors.Wrap(err, "error stopping process")
-	}
 	return nil
 }
 
