@@ -285,7 +285,7 @@ func TestStartProcessHandler(t *testing.T) {
 	assert.Equal(t, http.StatusInternalServerError, resp.Result().StatusCode)
 
 	// Also test the inner error we get
-	require.ErrorContains(t, s.inner.stopProcess("fake id"), "process with id fake id not found")
+	require.ErrorContains(t, s.inner.stopProcess("fake-id"), "process fake-id not found")
 }
 
 // Kind of annoying helper to do some typing
