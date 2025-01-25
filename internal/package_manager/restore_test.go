@@ -21,7 +21,7 @@ func TestRestore(t *testing.T) {
 				AppInstallation: &node.AppInstallation{
 					ID: "app1",
 					Package: node.Package{
-						Driver: "test",
+						Driver: node.DriverNoop,
 					},
 				},
 				State: node.AppLifecycleStateInstalling,
@@ -30,7 +30,7 @@ func TestRestore(t *testing.T) {
 				AppInstallation: &node.AppInstallation{
 					ID: "app2",
 					Package: node.Package{
-						Driver: "test",
+						Driver: node.DriverNoop,
 					},
 				},
 				State: node.AppLifecycleStateInstalled,
@@ -42,8 +42,8 @@ func TestRestore(t *testing.T) {
 	pm := newMockManager()
 
 	pmRestorer := &PackageManagerRestorer{
-		packageManagers: map[string]PackageManager{
-			"test": pm,
+		packageManagers: map[node.Driver]PackageManager{
+			node.DriverNoop: pm,
 		},
 	}
 

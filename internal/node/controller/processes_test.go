@@ -29,18 +29,18 @@ type entry struct {
 type mockDriver struct {
 	returnErr error
 	log       []entry
-	name      string
+	name      node.Driver
 }
 
 var _ process.Driver = &mockDriver{}
 
-func newMockDriver(driver string) *mockDriver {
+func newMockDriver(driver node.Driver) *mockDriver {
 	return &mockDriver{
 		name: driver,
 	}
 }
 
-func (d *mockDriver) Type() string {
+func (d *mockDriver) Type() node.Driver {
 	return d.name
 }
 
@@ -88,19 +88,19 @@ func (db *mockHDB) ProposeTransitions(transitions []hdb.Transition) (*hdb.JSONSt
 
 var (
 	testPkg = node.Package{
-		Driver:       "docker",
+		Driver:       node.DriverDocker,
 		DriverConfig: map[string]interface{}{},
 	}
 
 	proc1 = &node.Process{
 		ID:     "proc1",
 		AppID:  "app1",
-		Driver: "docker",
+		Driver: node.DriverDocker,
 	}
 	proc2 = &node.Process{
 		ID:     "proc2",
 		AppID:  "app2",
-		Driver: "docker",
+		Driver: node.DriverDocker,
 	}
 
 	state = &node.State{
@@ -138,7 +138,7 @@ func TestStartProcessHandler(t *testing.T) {
 	// For this test don't add any running processes to the initial state
 	middleware := &test_helpers.TestAuthMiddleware{UserID: "user_1"}
 
-	mockDriver := newMockDriver("docker")
+	mockDriver := newMockDriver(node.DriverDocker)
 	db := &mockHDB{
 		schema:    state.Schema(),
 		jsonState: jsonStateFromNodeState(state),
@@ -319,7 +319,7 @@ func TestControllerRestoreProcess(t *testing.T) {
 	state.Processes["proc1"] = proc1
 	state.Processes["proc2"] = proc2
 
-	mockDriver := newMockDriver("docker")
+	mockDriver := newMockDriver(node.DriverDocker)
 	pm := process.NewProcessManager([]process.Driver{mockDriver})
 
 	ctrl, err := newController2(
@@ -345,9 +345,9 @@ func TestControllerRestoreProcess(t *testing.T) {
 	// Ensure processManager has expected state
 	require.Equal(t, procs[0].ID, proc1.ID)
 	require.Equal(t, procs[0].AppID, proc1.AppID)
-	require.Equal(t, procs[0].Driver, "docker")
+	require.Equal(t, procs[0].Driver, node.DriverDocker)
 
 	require.Equal(t, procs[1].ID, proc2.ID)
 	require.Equal(t, procs[1].AppID, proc2.AppID)
-	require.Equal(t, procs[1].Driver, "docker")
+	require.Equal(t, procs[1].Driver, node.DriverDocker)
 }

@@ -379,12 +379,12 @@ func GenProcessStartTransition(appID string, oldState *State) (*ProcessStartTran
 	}
 
 	proc := &Process{
-		UserID: app.UserID,
-		Driver: app.Driver,
-		AppID:  app.ID,
+		ID:      ProcessID(uuid.New().String()),
+		UserID:  app.UserID,
+		Driver:  app.Driver,
+		AppID:   app.ID,
+		Created: time.Now().Format(time.RFC3339),
 	}
-	proc.ID = ProcessID(uuid.New().String())
-	proc.Created = time.Now().Format(time.RFC3339)
 	return &ProcessStartTransition{
 		Process: proc,
 	}, nil

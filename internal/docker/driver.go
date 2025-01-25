@@ -10,7 +10,6 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
 	"github.com/eagraf/habitat-new/core/state/node"
-	"github.com/eagraf/habitat-new/internal/node/constants"
 	"github.com/eagraf/habitat-new/internal/process"
 	"github.com/rs/zerolog/log"
 )
@@ -33,8 +32,8 @@ func NewDriver(client *client.Client) process.Driver {
 	}
 }
 
-func (d *dockerDriver) Type() string {
-	return constants.AppDriverDocker
+func (d *dockerDriver) Type() node.Driver {
+	return node.DriverDocker
 }
 
 // StartProcess helps implement dockerDriver

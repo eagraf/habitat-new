@@ -8,7 +8,7 @@ import (
 )
 
 type PackageManagerRestorer struct {
-	packageManagers map[string]PackageManager
+	packageManagers map[node.Driver]PackageManager
 }
 
 func (r *PackageManagerRestorer) Restore(restoreEvent hdb.StateUpdate) error {

@@ -28,13 +28,13 @@ type ProcessManager interface {
 }
 
 type baseProcessManager struct {
-	processDrivers map[string]Driver
+	processDrivers map[node.Driver]Driver
 	processes      map[node.ProcessID]*runningProcess
 }
 
 func NewProcessManager(drivers []Driver) ProcessManager {
 	pm := &baseProcessManager{
-		processDrivers: make(map[string]Driver),
+		processDrivers: make(map[node.Driver]Driver),
 		processes:      make(map[node.ProcessID]*runningProcess),
 	}
 	for _, driver := range drivers {

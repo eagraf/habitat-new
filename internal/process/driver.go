@@ -7,21 +7,21 @@ import (
 )
 
 type Driver interface {
-	Type() string
+	Type() node.Driver
 	StartProcess(context.Context, *node.Process, *node.AppInstallation) error
 	StopProcess(context.Context, node.ProcessID) error
 }
 
 type noopDriver struct {
-	driverType string
+	driverType node.Driver
 }
 
-func NewNoopDriver(driverType string) Driver {
+func NewNoopDriver(driverType node.Driver) Driver {
 	return &noopDriver{driverType: driverType}
 }
 
-func (d *noopDriver) Type() string {
-	return d.driverType
+func (d *noopDriver) Type() node.Driver {
+	return node.DriverNoop
 }
 
 func (d *noopDriver) StartProcess(context.Context, *node.Process, *node.AppInstallation) error {
