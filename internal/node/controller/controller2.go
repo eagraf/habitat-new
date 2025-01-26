@@ -47,6 +47,7 @@ func (c *controller2) startProcess(installationID string) error {
 	if err != nil {
 		return err
 	}
+
 	app, ok := state.AppInstallations[installationID]
 	if !ok {
 		return fmt.Errorf("app with ID %s not found", installationID)
@@ -66,26 +67,42 @@ func (c *controller2) startProcess(installationID string) error {
 
 	err = c.processManager.StartProcess(c.ctx, transition.Process.ID, app.AppInstallation)
 	if err != nil {
+		// Rollback the state change if the process start failed
+		_, err = c.db.ProposeTransitions([]hdb.Transition{
+			&node.ProcessStopTransition{
+				ProcessID: transition.Process.ID,
+			},
+		})
 		return errors.Wrap(err, "error starting process")
 	}
 	return nil
 }
 
 func (c *controller2) stopProcess(processID node.ProcessID) error {
-	err := c.processManager.StopProcess(c.ctx, processID)
+	procErr := c.processManager.StopProcess(c.ctx, processID)
 	// If there was no process found with this ID, continue with the state transition
 	// Otherwise this action failed, return an error without the transition
-	if err != nil && !errors.Is(err, process.ErrNoProcFound) {
+	if procErr != nil && !errors.Is(procErr, process.ErrNoProcFound) {
+		// process.ErrNoProcFound is sometimes expected. In this case, still
+		// attempt to remove the process from the node state.
+		return procErr
+	}
+
+	state, err := c.getNodeState()
+	if err != nil {
+		return err
+	} else if _, ok := state.Processes[processID]; ok {
+		// Only propose transitions if the process exists in state
+		_, err = c.db.ProposeTransitions([]hdb.Transition{
+			&node.ProcessStopTransition{
+				ProcessID: processID,
+			},
+		})
 		return err
 	}
 
-	// Only propose transitions if stopping the process succeeded
-	_, err = c.db.ProposeTransitions([]hdb.Transition{
-		&node.ProcessStopTransition{
-			ProcessID: processID,
-		},
-	})
-	return err
+	// Nothing to do
+	return nil
 }
 
 func (c *controller2) restore(state *node.State) error {
