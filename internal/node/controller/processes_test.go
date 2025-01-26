@@ -300,10 +300,8 @@ func TestStartProcessHandler(t *testing.T) {
 			bytes.NewReader(b),
 		),
 	)
-	assert.Equal(t, http.StatusInternalServerError, resp.Result().StatusCode)
-
-	// Also test the inner error we get
-	require.ErrorContains(t, s.inner.stopProcess("fake-id"), "process with id fake-id not found")
+	// Nothing to do == status OK
+	assert.Equal(t, http.StatusOK, resp.Result().StatusCode)
 }
 
 // Kind of annoying helper to do some typing
