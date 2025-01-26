@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -15,9 +16,9 @@ import (
 	"github.com/eagraf/habitat-new/internal/node/api/test_helpers"
 	"github.com/eagraf/habitat-new/internal/node/hdb"
 	"github.com/eagraf/habitat-new/internal/process"
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/exp/maps"
 )
 
 // mock process driver for tests
@@ -29,6 +30,7 @@ type entry struct {
 type mockDriver struct {
 	returnErr error
 	log       []entry
+	running   map[node.ProcessID]struct{} // presence indicates process is running
 	name      node.Driver
 }
 
@@ -36,7 +38,8 @@ var _ process.Driver = &mockDriver{}
 
 func newMockDriver(driver node.Driver) *mockDriver {
 	return &mockDriver{
-		name: driver,
+		name:    driver,
+		running: make(map[node.ProcessID]struct{}),
 	}
 }
 
@@ -44,18 +47,30 @@ func (d *mockDriver) Type() node.Driver {
 	return d.name
 }
 
-func (d *mockDriver) StartProcess(ctx context.Context, process *node.Process, app *node.AppInstallation) error {
+func (d *mockDriver) StartProcess(ctx context.Context, processID node.ProcessID, app *node.AppInstallation) error {
 	if d.returnErr != nil {
 		return d.returnErr
 	}
-	id := uuid.New().String()
-	d.log = append(d.log, entry{isStart: true, id: node.ProcessID(id)})
+	d.log = append(d.log, entry{isStart: true, id: processID})
+	d.running[processID] = struct{}{}
 	return nil
 }
 
 func (d *mockDriver) StopProcess(ctx context.Context, processID node.ProcessID) error {
 	d.log = append(d.log, entry{isStart: false, id: processID})
+	delete(d.running, processID)
 	return nil
+}
+
+func (d *mockDriver) IsRunning(ctx context.Context, id node.ProcessID) (bool, error) {
+	_, ok := d.running[id]
+	fmt.Println("isrunning", id, ok)
+	return ok, nil
+}
+
+// Returns all running process or a non-nil error if that information cannot be extracted
+func (d *mockDriver) ListRunningProcesses(context.Context) ([]node.ProcessID, error) {
+	return maps.Keys(d.running), nil
 }
 
 // mock hdb for tests
@@ -149,7 +164,7 @@ func TestStartProcessHandler(t *testing.T) {
 	require.NoError(t, err)
 
 	// No processes running
-	procs, err := s.inner.processManager.ListProcesses()
+	procs, err := s.inner.processManager.ListRunningProcesses(context.Background())
 	require.NoError(t, err)
 	require.Len(t, procs, 0)
 
@@ -204,17 +219,17 @@ func TestStartProcessHandler(t *testing.T) {
 
 	// Process exists in node state
 	nodeState := nodeStateFromJSONState(db.jsonState)
-	procs, err = nodeState.GetProcessesForUser("user_1")
+	procsForUser, err := nodeState.GetProcessesForUser("user_1")
 	require.NoError(t, err)
-	require.Len(t, procs, 1)
+	require.Len(t, procsForUser, 1)
 
 	// Process manager has it
-	id := procs[0].ID
-	proc, ok := s.inner.processManager.GetProcess(id)
-	require.True(t, ok)
-	require.Equal(t, proc.ID, id)
-	require.Equal(t, proc.AppID, "app1")
-	require.Equal(t, proc.UserID, "user_1")
+	id := procsForUser[0].ID
+	fmt.Println("check is running", id)
+	running, driver, err := s.inner.processManager.IsRunning(context.Background(), id)
+	require.NoError(t, err)
+	require.True(t, running)
+	require.Equal(t, driver, node.DriverDocker)
 
 	listProcessRoute := newRoute(http.MethodGet, "/node/processes/list", http.HandlerFunc(s.ListProcesses))
 	resp = httptest.NewRecorder()
@@ -228,11 +243,11 @@ func TestStartProcessHandler(t *testing.T) {
 		),
 	)
 
-	var listed []*node.Process
+	var listed []node.ProcessID
 	err = json.Unmarshal(resp.Body.Bytes(), &listed)
 	require.NoError(t, err)
 	require.Len(t, listed, 1)
-	require.Equal(t, listed[0].ID, id)
+	require.Equal(t, listed[0], id)
 	require.Equal(t, http.StatusOK, resp.Result().StatusCode)
 
 	// Test Stop Process
@@ -257,14 +272,17 @@ func TestStartProcessHandler(t *testing.T) {
 
 	// Process no longer exists in node state
 	nodeState = nodeStateFromJSONState(db.jsonState)
-	procs, err = nodeState.GetProcessesForUser("user_1")
+	procsForUser, err = nodeState.GetProcessesForUser("user_1")
 	require.NoError(t, err)
-	require.Len(t, procs, 0)
+	require.Len(t, procsForUser, 0)
 
 	// Deleted from process manager
-	_, ok = s.inner.processManager.GetProcess(id)
-	require.False(t, ok)
-	procs, err = s.inner.processManager.ListProcesses()
+	running, driver, err = s.inner.processManager.IsRunning(context.Background(), id)
+	require.NoError(t, err)
+	require.False(t, running)
+	require.Equal(t, driver, node.DriverUnknown)
+
+	procs, err = s.inner.processManager.ListRunningProcesses(context.Background())
 	require.NoError(t, err)
 	require.Len(t, procs, 0)
 
@@ -285,7 +303,7 @@ func TestStartProcessHandler(t *testing.T) {
 	assert.Equal(t, http.StatusInternalServerError, resp.Result().StatusCode)
 
 	// Also test the inner error we get
-	require.ErrorContains(t, s.inner.stopProcess("fake-id"), "process fake-id not found")
+	require.ErrorContains(t, s.inner.stopProcess("fake-id"), "process with id fake-id not found")
 }
 
 // Kind of annoying helper to do some typing
@@ -333,21 +351,16 @@ func TestControllerRestoreProcess(t *testing.T) {
 	// Restore
 	require.NoError(t, ctrl.restore(state))
 
-	procs, err := ctrl.processManager.ListProcesses()
+	procs, err := ctrl.processManager.ListRunningProcesses(context.Background())
 	require.NoError(t, err)
 
 	// Sort by procID so we can assert on the states
 	require.Len(t, procs, 2)
-	slices.SortFunc(procs, func(a, b *node.Process) int {
-		return strings.Compare(string(a.ID), string(b.ID))
+	slices.SortFunc(procs, func(a, b node.ProcessID) int {
+		return strings.Compare(string(a), string(b))
 	})
 
 	// Ensure processManager has expected state
-	require.Equal(t, procs[0].ID, proc1.ID)
-	require.Equal(t, procs[0].AppID, proc1.AppID)
-	require.Equal(t, procs[0].Driver, node.DriverDocker)
-
-	require.Equal(t, procs[1].ID, proc2.ID)
-	require.Equal(t, procs[1].AppID, proc2.AppID)
-	require.Equal(t, procs[1].Driver, node.DriverDocker)
+	require.Equal(t, procs[0], proc1.ID)
+	require.Equal(t, procs[1], proc2.ID)
 }

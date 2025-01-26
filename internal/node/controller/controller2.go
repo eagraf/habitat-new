@@ -64,8 +64,7 @@ func (c *controller2) startProcess(installationID string) error {
 		return errors.Wrap(err, "error proposing transition")
 	}
 
-	proc := transition.Process
-	err = c.processManager.StartProcess(c.ctx, proc, app.AppInstallation)
+	err = c.processManager.StartProcess(c.ctx, transition.Process.ID, app.AppInstallation)
 	if err != nil {
 		return errors.Wrap(err, "error starting process")
 	}
@@ -74,8 +73,10 @@ func (c *controller2) startProcess(installationID string) error {
 
 func (c *controller2) stopProcess(processID node.ProcessID) error {
 	err := c.processManager.StopProcess(c.ctx, processID)
-	if err != nil {
-		return errors.Wrap(err, "error stopping process")
+	// If there was no process found with this ID, continue with the state transition
+	// Otherwise this action failed, return an error without the transition
+	if err != nil && !errors.Is(err, process.ErrNoProcFound) {
+		return err
 	}
 
 	// Only propose transitions if stopping the process succeeded
@@ -84,18 +85,18 @@ func (c *controller2) stopProcess(processID node.ProcessID) error {
 			ProcessID: processID,
 		},
 	})
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return err
 }
 
 func (c *controller2) restore(state *node.State) error {
 	// Restore processes to the current state
-	err := c.processManager.RestoreFromState(c.ctx, process.RestoreInfo{Procs: state.Processes, Apps: state.AppInstallations})
-	if err != nil {
-		return err
+	info := make(map[node.ProcessID]*node.AppInstallation)
+	for _, proc := range state.Processes {
+		app, ok := state.AppInstallations[proc.AppID]
+		if !ok {
+			return fmt.Errorf("no app installation found for desired process: ID=%s appID=%s", proc.ID, proc.AppID)
+		}
+		info[proc.ID] = app.AppInstallation
 	}
-	return nil
+	return c.processManager.RestoreFromState(c.ctx, info)
 }

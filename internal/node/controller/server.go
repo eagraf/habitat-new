@@ -81,7 +81,7 @@ func (s *CtrlServer) StopProcess(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *CtrlServer) ListProcesses(w http.ResponseWriter, r *http.Request) {
-	procs, err := s.inner.processManager.ListProcesses()
+	procs, err := s.inner.processManager.ListRunningProcesses(r.Context())
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

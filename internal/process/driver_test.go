@@ -12,9 +12,7 @@ import (
 func TestNoopDriver(t *testing.T) {
 	driver := process.NewNoopDriver(node.DriverNoop)
 	require.Equal(t, node.DriverNoop, driver.Type())
-	err := driver.StartProcess(context.Background(), &node.Process{
-		ID: "my-id",
-	}, nil)
+	err := driver.StartProcess(context.Background(), "my-id", nil)
 	require.NoError(t, err)
 	require.NoError(t, driver.StopProcess(context.Background(), "my-id"))
 }

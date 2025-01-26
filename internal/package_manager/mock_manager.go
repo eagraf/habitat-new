@@ -18,7 +18,7 @@ func newMockManager() *mockManager {
 var _ PackageManager = &mockManager{}
 
 func (m *mockManager) Driver() node.Driver {
-	return node.Driver(4)
+	return node.DriverUnknown
 }
 
 func packageEq(a *node.Package, b *node.Package) bool {

@@ -2,25 +2,14 @@ package node
 
 type ProcessID string
 
-type Driver int
+type Driver string
 
 const (
-	DriverNoop = iota
-	DriverDocker
-	DriverWeb
+	DriverUnknown Driver = "unknown"
+	DriverNoop    Driver = "noop"
+	DriverDocker  Driver = "docker"
+	DriverWeb     Driver = "web"
 )
-
-func (d Driver) String() string {
-	switch d {
-	case DriverNoop:
-		return "noop"
-	case DriverDocker:
-		return "docker"
-	case DriverWeb:
-		return "web"
-	}
-	return "unknown"
-}
 
 // Types related to running processes, mostly used by internal/process
 type Process struct {
