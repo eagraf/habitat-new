@@ -14,5 +14,6 @@ func TestNoopDriver(t *testing.T) {
 	require.Equal(t, node.DriverNoop, driver.Type())
 	err := driver.StartProcess(context.Background(), "my-id", nil)
 	require.NoError(t, err)
-	require.NoError(t, driver.StopProcess(context.Background(), "my-id"))
+	err = driver.StopProcess(context.Background(), "my-id")
+	require.NoError(t, err)
 }

@@ -98,13 +98,19 @@ func (pm *baseProcessManager) StartProcess(ctx context.Context, id node.ProcessI
 // However, it's possible to get into a state where either the ndoe state does not contain the process and it is running
 // For this case, blindly pass the signal to all drivers; processes should be unique across drivers, so this is OK.
 func (pm *baseProcessManager) StopProcess(ctx context.Context, processID node.ProcessID) error {
-	for _, driver := range pm.drivers {
-		err := driver.StopProcess(ctx, processID)
-		if !errors.Is(err, ErrNoProcFound) {
-			return err
-		}
+	running, driverName, err := pm.IsRunning(ctx, processID)
+	if err != nil {
+		return err
 	}
-	return nil
+	if !running {
+		// If no drivers have the process, that means it's not running
+		return ErrNoProcFound
+	}
+	driver, ok := pm.drivers[driverName]
+	if !ok {
+		return fmt.Errorf("%w: %s", ErrDriverNotFound, driverName)
+	}
+	return driver.StopProcess(ctx, processID)
 }
 
 func (pm *baseProcessManager) SupportedTransitionTypes() []hdb.TransitionType {

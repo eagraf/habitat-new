@@ -76,8 +76,6 @@ func (s *CtrlServer) StopProcess(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-
-	w.WriteHeader(http.StatusOK)
 }
 
 func (s *CtrlServer) ListProcesses(w http.ResponseWriter, r *http.Request) {
@@ -98,8 +96,6 @@ func (s *CtrlServer) ListProcesses(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-
-	w.WriteHeader(http.StatusOK)
 }
 
 type route struct {
