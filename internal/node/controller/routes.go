@@ -54,6 +54,7 @@ func (h *MigrationRoute) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
+/*
 // InstallAppRoute calls nodeController.InstallApp()
 type InstallAppRoute struct {
 	nodeController NodeController
@@ -94,6 +95,7 @@ func (h *InstallAppRoute) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// TODO validate request
 	w.WriteHeader(http.StatusCreated)
 }
+*/
 
 // GetNodeRoute gets the node's database and returns its state map.
 type GetNodeRoute struct {

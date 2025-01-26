@@ -173,7 +173,6 @@ func TestAddingUsers(t *testing.T) {
 	_, err = testTransitionsOnCopy(newState, testSecondUserConflictOnUsername)
 	assert.NotNil(t, err)
 }
-
 func TestAppLifecycle(t *testing.T) {
 	transitions := []hdb.Transition{
 		&InitalizationTransition{
@@ -191,21 +190,13 @@ func TestAppLifecycle(t *testing.T) {
 				},
 			},
 		},
-		&StartInstallationTransition{
-			UserID: "123",
-			AppInstallation: &AppInstallation{
-				Name:    "app_name1",
-				Version: "1",
-				Package: Package{
-					Driver:             DriverTypeDocker,
-					RegistryURLBase:    "https://registry.com",
-					RegistryPackageID:  "app_name1",
-					RegistryPackageTag: "v1",
-					DriverConfig:       map[string]interface{}{},
-				},
-			},
-			NewProxyRules: []*ReverseProxyRule{},
-		},
+		GenStartInstallationTransition("123", &Package{
+			Driver:             DriverTypeDocker,
+			RegistryURLBase:    "https://registry.com",
+			RegistryPackageID:  "app_name1",
+			RegistryPackageTag: "v1",
+			DriverConfig:       map[string]interface{}{},
+		}, "1", "app_name1", []*ReverseProxyRule{}),
 	}
 
 	newState, err := testTransitions(nil, transitions)
@@ -228,40 +219,27 @@ func TestAppLifecycle(t *testing.T) {
 	assert.Equal(t, AppLifecycleStateInstalling, app.State)
 
 	testSecondAppConflict := []hdb.Transition{
-		&StartInstallationTransition{
-			UserID: "123",
-			AppInstallation: &AppInstallation{
-				Version: "1",
-				Package: Package{
-					Driver:             DriverTypeDocker,
-					RegistryURLBase:    "https://registry.com",
-					RegistryPackageID:  "app_name1",
-					RegistryPackageTag: "v1",
-				},
+		GenStartInstallationTransition(
+			"123",
+			&Package{
+				Driver:             "docker",
+				RegistryURLBase:    "https://registry.com",
+				RegistryPackageID:  "app_name1",
+				RegistryPackageTag: "v1",
+				DriverConfig:       map[string]interface{}{},
 			},
-		},
+			"1",
+			"app_name1",
+			[]*ReverseProxyRule{},
+		),
 	}
 
 	_, err = testTransitionsOnCopy(newState, testSecondAppConflict)
 	assert.NotNil(t, err)
 
-	testUserDoesntExistOnFinish := []hdb.Transition{
-		&FinishInstallationTransition{
-			AppID:           app.ID,
-			UserID:          "456",
-			RegistryURLBase: "https://registry.com",
-			RegistryAppID:   "app_name1",
-		},
-	}
-	_, err = testTransitionsOnCopy(newState, testUserDoesntExistOnFinish)
-	assert.NotNil(t, err)
-
 	testInstallationCompleted := []hdb.Transition{
 		&FinishInstallationTransition{
-			UserID:          "123",
-			AppID:           app.ID,
-			RegistryURLBase: "https://registry.com",
-			RegistryAppID:   "app_name1",
+			AppID: app.ID,
 		},
 	}
 
@@ -271,11 +249,11 @@ func TestAppLifecycle(t *testing.T) {
 
 	testUserDoesntExist := []hdb.Transition{
 		&StartInstallationTransition{
-			UserID: "456",
 			AppInstallation: &AppInstallation{
+				UserID:  "456",
 				Name:    "app_name1",
 				Version: "1",
-				Package: Package{
+				Package: &Package{
 					Driver:             DriverTypeDocker,
 					RegistryURLBase:    "https://registry.com",
 					RegistryPackageID:  "app_name1",
@@ -289,29 +267,26 @@ func TestAppLifecycle(t *testing.T) {
 	assert.NotNil(t, err)
 
 	testDifferentVersion := []hdb.Transition{
-		&StartInstallationTransition{
-			UserID: "123",
-			AppInstallation: &AppInstallation{
-				ID:      "app1",
-				Name:    "app_name1",
-				Version: "2",
-				Package: Package{
-					Driver:             DriverTypeDocker,
-					RegistryURLBase:    "https://registry.com",
-					RegistryPackageID:  "app_name1",
-					RegistryPackageTag: "v2",
-				},
+		GenStartInstallationTransition(
+			"123",
+			&Package{
+				Driver:             "docker",
+				RegistryURLBase:    "https://registry.com",
+				RegistryPackageID:  "app_name1",
+				RegistryPackageTag: "v2",
+				DriverConfig:       map[string]interface{}{},
 			},
-		},
+			"2",
+			"app_name1",
+			[]*ReverseProxyRule{},
+		),
 	}
 	_, err = testTransitionsOnCopy(newState, testDifferentVersion)
 	assert.NotNil(t, err)
 
 	testFinishOnAppThatsNotInstalling := []hdb.Transition{
 		&FinishInstallationTransition{
-			UserID:          "123",
-			RegistryURLBase: "https://registry.com",
-			RegistryAppID:   "app_name1",
+			AppID: "app_name1", // already installed
 		},
 	}
 
@@ -338,12 +313,12 @@ func TestAppInstallReverseProxyRules(t *testing.T) {
 			},
 		},
 		&StartInstallationTransition{
-			UserID: "123",
 			AppInstallation: &AppInstallation{
 				UserID:  "123",
 				Name:    "app_name1",
 				Version: "1",
-				Package: Package{
+				State:   AppLifecycleStateInstalled,
+				Package: &Package{
 					Driver:             DriverTypeDocker,
 					RegistryURLBase:    "https://registry.com",
 					RegistryPackageID:  "app_name1",
@@ -382,22 +357,20 @@ func TestProcesses(t *testing.T) {
 						Certificate: "placeholder",
 					},
 				},
-				AppInstallations: map[string]*AppInstallationState{
+				AppInstallations: map[string]*AppInstallation{
 					"App1": {
-						AppInstallation: &AppInstallation{
-							ID:      "App1",
-							Name:    "app_name1",
-							UserID:  "123",
-							Version: "1",
-							Package: Package{
-								Driver:             DriverTypeDocker,
-								RegistryURLBase:    "https://registry.com",
-								RegistryPackageID:  "app_name1",
-								RegistryPackageTag: "v1",
-								DriverConfig:       map[string]interface{}{},
-							},
+						ID:      "App1",
+						Name:    "app_name1",
+						UserID:  "123",
+						Version: "1",
+						State:   AppLifecycleStateInstalled,
+						Package: &Package{
+							Driver:             DriverTypeDocker,
+							RegistryURLBase:    "https://registry.com",
+							RegistryPackageID:  "app_name1",
+							RegistryPackageTag: "v1",
+							DriverConfig:       map[string]interface{}{},
 						},
-						State: "installed",
 					},
 				},
 			},
@@ -418,7 +391,6 @@ func TestProcesses(t *testing.T) {
 	assert.Equal(t, 1, len(newState.Users))
 	assert.Equal(t, 1, len(newState.AppInstallations))
 	assert.Equal(t, "app_name1", newState.AppInstallations["App1"].Name)
-	assert.Equal(t, AppLifecycleStateInstalled, newState.AppInstallations["App1"].State)
 	assert.Equal(t, 1, len(newState.Processes))
 
 	procs, err := newState.GetProcessesForUser("123")

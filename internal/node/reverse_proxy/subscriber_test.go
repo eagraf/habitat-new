@@ -18,14 +18,12 @@ func TestStartProcessExecutor(t *testing.T) {
 	}
 
 	state := &node.State{
-		AppInstallations: map[string]*node.AppInstallationState{
+		AppInstallations: map[string]*node.AppInstallation{
 			"app1": {
-				AppInstallation: &node.AppInstallation{
-					ID:   "app1",
-					Name: "appname1",
-					Package: node.Package{
-						Driver: node.DriverTypeNoop,
-					},
+				ID:   "app1",
+				Name: "appname1",
+				Package: &node.Package{
+					Driver: "test",
 				},
 			},
 		},
@@ -71,14 +69,12 @@ func TestBrokenRule(t *testing.T) {
 	}
 
 	state := &node.State{
-		AppInstallations: map[string]*node.AppInstallationState{
+		AppInstallations: map[string]*node.AppInstallation{
 			"app1": {
-				AppInstallation: &node.AppInstallation{
-					ID:   "app1",
-					Name: "appname1",
-					Package: node.Package{
-						Driver: node.DriverTypeNoop,
-					},
+				ID:   "app1",
+				Name: "appname1",
+				Package: &node.Package{
+					Driver: "test",
 				},
 			},
 		},

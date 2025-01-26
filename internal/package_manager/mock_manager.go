@@ -1,6 +1,7 @@
 package package_manager
 
 import (
+	"context"
 	"errors"
 	"slices"
 
@@ -46,5 +47,15 @@ func (m *mockManager) InstallPackage(packageSpec *node.Package, version string) 
 }
 
 func (m *mockManager) UninstallPackage(packageSpec *node.Package, version string) error {
+	return nil
+}
+
+func (m *mockManager) RestoreFromState(ctx context.Context, apps map[string]*node.AppInstallation) error {
+	for _, app := range apps {
+		err := m.InstallPackage(app.Package, app.Version)
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }

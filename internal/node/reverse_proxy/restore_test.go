@@ -23,14 +23,12 @@ func TestProcessRestorer(t *testing.T) {
 				ID: "user1",
 			},
 		},
-		AppInstallations: map[string]*node.AppInstallationState{
+		AppInstallations: map[string]*node.AppInstallation{
 			"app1": {
-				AppInstallation: &node.AppInstallation{
-					ID:   "app1",
-					Name: "appname1",
-					Package: node.Package{
-						Driver: node.DriverTypeNoop,
-					},
+				ID:   "app1",
+				Name: "appname1",
+				Package: &node.Package{
+					Driver: "test",
 				},
 			},
 		},
