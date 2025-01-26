@@ -57,6 +57,9 @@ func (d *mockDriver) StartProcess(ctx context.Context, processID node.ProcessID,
 }
 
 func (d *mockDriver) StopProcess(ctx context.Context, processID node.ProcessID) error {
+	if d.returnErr != nil {
+		return d.returnErr
+	}
 	d.log = append(d.log, entry{isStart: false, id: processID})
 	delete(d.running, processID)
 	return nil
@@ -254,7 +257,25 @@ func TestStartProcessHandler(t *testing.T) {
 	stopRoute := newRoute(http.MethodGet, "/node/processes/stop", http.HandlerFunc(s.StopProcess))
 	handler = middleware.Middleware(stopRoute.fn)
 
+	// Sad Path
+	mockDriver.returnErr = fmt.Errorf("my error")
+	b, err = json.Marshal(&StopProcessRequest{
+		ProcessID: string(id),
+	})
+	require.NoError(t, err)
+	resp = httptest.NewRecorder()
+	handler.ServeHTTP(
+		resp,
+		httptest.NewRequest(
+			http.MethodGet,
+			stopRoute.Pattern(),
+			bytes.NewReader(b),
+		),
+	)
+	assert.Equal(t, http.StatusInternalServerError, resp.Result().StatusCode)
+
 	// Happy Path
+	mockDriver.returnErr = nil
 	b, err = json.Marshal(&StopProcessRequest{
 		ProcessID: string(id),
 	})
@@ -269,6 +290,18 @@ func TestStartProcessHandler(t *testing.T) {
 		),
 	)
 	assert.Equal(t, http.StatusOK, resp.Result().StatusCode)
+
+	// Test invalid request
+	resp = httptest.NewRecorder()
+	handler.ServeHTTP(
+		resp,
+		httptest.NewRequest(
+			http.MethodPost,
+			stopRoute.Pattern(),
+			bytes.NewReader([]byte("invalid")),
+		),
+	)
+	assert.Equal(t, http.StatusBadRequest, resp.Result().StatusCode)
 
 	// Process no longer exists in node state
 	nodeState = nodeStateFromJSONState(db.jsonState)
