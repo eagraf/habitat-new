@@ -15,7 +15,7 @@ type RestoreInfo map[node.ProcessID]*node.AppInstallation
 
 // ProcessManager is a way to manage processes across many different drivers / runtimes
 // Right now, all it does is hold a set of drivers and pass through to calls to the Driver interface for each of them
-// For that reason, we could consider removing it in the future and simply holding a map[node.Driver]Driver in the caller to this
+// For that reason, we could consider removing it in the future and simply holding a map[node.DriverType]Driver in the caller to this
 type ProcessManager interface {
 	// ListAllProcesses returns a list of all running process IDs, across all drivers
 	ListRunningProcesses(context.Context) ([]node.ProcessID, error)
@@ -25,7 +25,7 @@ type ProcessManager interface {
 	// StopProcess stops the process corresponding to the given process ID
 	StopProcess(context.Context, node.ProcessID) error
 	// Returns process state, true if exists, otherwise nil, false to indicate non-existence
-	IsRunning(context.Context, node.ProcessID) (bool, node.Driver, error)
+	IsRunning(context.Context, node.ProcessID) (bool, error)
 	// ProcessManager should implement Component -- specifically, restore state given by RestoreInfo
 	node.Component[RestoreInfo]
 }
@@ -35,12 +35,12 @@ var (
 )
 
 type baseProcessManager struct {
-	drivers map[node.Driver]Driver
+	drivers map[node.DriverType]Driver
 }
 
 func NewProcessManager(drivers []Driver) ProcessManager {
 	pm := &baseProcessManager{
-		drivers: make(map[node.Driver]Driver),
+		drivers: make(map[node.DriverType]Driver),
 	}
 	for _, driver := range drivers {
 		pm.drivers[driver.Type()] = driver
@@ -60,23 +60,16 @@ func (pm *baseProcessManager) ListRunningProcesses(ctx context.Context) ([]node.
 	return allProcs, nil
 }
 
-func (pm *baseProcessManager) IsRunning(ctx context.Context, id node.ProcessID) (bool, node.Driver, error) {
-	var derr error
-	for _, driver := range pm.drivers {
-		ok, err := driver.IsRunning(ctx, id)
-		if ok && err == nil {
-			fmt.Println("found!", ok, driver.Type())
-			// found process -- early return
-			return true, driver.Type(), nil
-		} else if err != nil {
-			// set result error if driver returned error
-			derr = err
-		}
+func (pm *baseProcessManager) IsRunning(ctx context.Context, id node.ProcessID) (bool, error) {
+	driverType, err := node.DriverFromProcessID(id)
+	if err != nil {
+		return false, fmt.Errorf("unable to extract driver from process ID %s: %w", id, err)
 	}
-	if derr != nil {
-		return false, node.DriverUnknown, derr
+	driver, ok := pm.drivers[driverType]
+	if !ok {
+		return false, fmt.Errorf("%w: %s", ErrDriverNotFound, driverType)
 	}
-	return false, node.DriverUnknown, nil
+	return driver.IsRunning(ctx, id)
 }
 
 func (pm *baseProcessManager) StartProcess(ctx context.Context, id node.ProcessID, app *node.AppInstallation) error {
@@ -94,23 +87,16 @@ func (pm *baseProcessManager) StartProcess(ctx context.Context, id node.ProcessI
 	return driver.StartProcess(ctx, id, app)
 }
 
-// This could be a bit more efficient if the process manager new which driver the process belonged to
-// However, it's possible to get into a state where either the ndoe state does not contain the process and it is running
-// For this case, blindly pass the signal to all drivers; processes should be unique across drivers, so this is OK.
-func (pm *baseProcessManager) StopProcess(ctx context.Context, processID node.ProcessID) error {
-	running, driverName, err := pm.IsRunning(ctx, processID)
+func (pm *baseProcessManager) StopProcess(ctx context.Context, id node.ProcessID) error {
+	driverType, err := node.DriverFromProcessID(id)
 	if err != nil {
-		return err
+		return fmt.Errorf("unable to extract driver from process ID %s: %w", id, err)
 	}
-	if !running {
-		// If no drivers have the process, that means it's not running
-		return ErrNoProcFound
-	}
-	driver, ok := pm.drivers[driverName]
+	driver, ok := pm.drivers[driverType]
 	if !ok {
-		return fmt.Errorf("%w: %s", ErrDriverNotFound, driverName)
+		return fmt.Errorf("%w: %s", ErrDriverNotFound, driverType)
 	}
-	return driver.StopProcess(ctx, processID)
+	return driver.StopProcess(ctx, id)
 }
 
 func (pm *baseProcessManager) SupportedTransitionTypes() []hdb.TransitionType {

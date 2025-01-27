@@ -16,7 +16,7 @@ var (
 // For example, web / docker processes will have different contracts to start and stop processes
 // but these can all be implemented behind the Driver interface for easy interaction at the node controller level.
 type Driver interface {
-	Type() node.Driver
+	Type() node.DriverType
 	// Start a process for the given AppInstallation tagged with the given ID
 	StartProcess(context.Context, node.ProcessID, *node.AppInstallation) error
 	// Stop the process according to the given ID
@@ -28,15 +28,15 @@ type Driver interface {
 }
 
 type noopDriver struct {
-	driverType node.Driver
+	driverType node.DriverType
 }
 
-func NewNoopDriver(driverType node.Driver) Driver {
+func NewNoopDriver(driverType node.DriverType) Driver {
 	return &noopDriver{driverType: driverType}
 }
 
-func (d *noopDriver) Type() node.Driver {
-	return node.DriverNoop
+func (d *noopDriver) Type() node.DriverType {
+	return node.DriverTypeNoop
 }
 
 func (d *noopDriver) StartProcess(context.Context, node.ProcessID, *node.AppInstallation) error {

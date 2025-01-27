@@ -88,21 +88,13 @@ func (c *controller2) stopProcess(processID node.ProcessID) error {
 		return procErr
 	}
 
-	state, err := c.getNodeState()
-	if err != nil {
-		return err
-	} else if _, ok := state.Processes[processID]; ok {
-		// Only propose transitions if the process exists in state
-		_, err = c.db.ProposeTransitions([]hdb.Transition{
-			&node.ProcessStopTransition{
-				ProcessID: processID,
-			},
-		})
-		return err
-	}
-
-	// Nothing to do
-	return nil
+	// Only propose transitions if the process exists in state
+	_, err := c.db.ProposeTransitions([]hdb.Transition{
+		&node.ProcessStopTransition{
+			ProcessID: processID,
+		},
+	})
+	return err
 }
 
 func (c *controller2) restore(state *node.State) error {

@@ -31,19 +31,19 @@ type mockDriver struct {
 	returnErr error
 	log       []entry
 	running   map[node.ProcessID]struct{} // presence indicates process is running
-	name      node.Driver
+	name      node.DriverType
 }
 
 var _ process.Driver = &mockDriver{}
 
-func newMockDriver(driver node.Driver) *mockDriver {
+func newMockDriver(driver node.DriverType) *mockDriver {
 	return &mockDriver{
 		name:    driver,
 		running: make(map[node.ProcessID]struct{}),
 	}
 }
 
-func (d *mockDriver) Type() node.Driver {
+func (d *mockDriver) Type() node.DriverType {
 	return d.name
 }
 
@@ -67,7 +67,6 @@ func (d *mockDriver) StopProcess(ctx context.Context, processID node.ProcessID) 
 
 func (d *mockDriver) IsRunning(ctx context.Context, id node.ProcessID) (bool, error) {
 	_, ok := d.running[id]
-	fmt.Println("isrunning", id, ok)
 	return ok, nil
 }
 
@@ -106,23 +105,21 @@ func (db *mockHDB) ProposeTransitions(transitions []hdb.Transition) (*hdb.JSONSt
 
 var (
 	testPkg = node.Package{
-		Driver:       node.DriverDocker,
+		Driver:       node.DriverTypeDocker,
 		DriverConfig: map[string]interface{}{},
 	}
 
 	proc1 = &node.Process{
-		ID:     "proc1",
-		AppID:  "app1",
-		Driver: node.DriverDocker,
+		ID:    "proc1",
+		AppID: "app1",
 	}
 	proc2 = &node.Process{
-		ID:     "proc2",
-		AppID:  "app2",
-		Driver: node.DriverDocker,
+		ID:    "proc2",
+		AppID: "app2",
 	}
 
 	state = &node.State{
-		SchemaVersion: "v0.0.7",
+		SchemaVersion: node.LatestVersion,
 		Users: map[string]*node.User{
 			"user1": {
 				ID: "user1",
@@ -156,7 +153,7 @@ func TestStartProcessHandler(t *testing.T) {
 	// For this test don't add any running processes to the initial state
 	middleware := &test_helpers.TestAuthMiddleware{UserID: "user_1"}
 
-	mockDriver := newMockDriver(node.DriverDocker)
+	mockDriver := newMockDriver(node.DriverTypeDocker)
 	db := &mockHDB{
 		schema:    state.Schema(),
 		jsonState: jsonStateFromNodeState(state),
@@ -228,11 +225,9 @@ func TestStartProcessHandler(t *testing.T) {
 
 	// Process manager has it
 	id := procsForUser[0].ID
-	fmt.Println("check is running", id)
-	running, driver, err := s.inner.processManager.IsRunning(context.Background(), id)
+	running, err := s.inner.processManager.IsRunning(context.Background(), id)
 	require.NoError(t, err)
 	require.True(t, running)
-	require.Equal(t, driver, node.DriverDocker)
 
 	listProcessRoute := newRoute(http.MethodGet, "/node/processes/list", http.HandlerFunc(s.ListProcesses))
 	resp = httptest.NewRecorder()
@@ -260,7 +255,7 @@ func TestStartProcessHandler(t *testing.T) {
 	// Sad Path
 	mockDriver.returnErr = fmt.Errorf("my error")
 	b, err = json.Marshal(&StopProcessRequest{
-		ProcessID: string(id),
+		ProcessID: id,
 	})
 	require.NoError(t, err)
 	resp = httptest.NewRecorder()
@@ -277,7 +272,7 @@ func TestStartProcessHandler(t *testing.T) {
 	// Happy Path
 	mockDriver.returnErr = nil
 	b, err = json.Marshal(&StopProcessRequest{
-		ProcessID: string(id),
+		ProcessID: id,
 	})
 	require.NoError(t, err)
 	resp = httptest.NewRecorder()
@@ -310,10 +305,9 @@ func TestStartProcessHandler(t *testing.T) {
 	require.Len(t, procsForUser, 0)
 
 	// Deleted from process manager
-	running, driver, err = s.inner.processManager.IsRunning(context.Background(), id)
+	running, err = s.inner.processManager.IsRunning(context.Background(), id)
 	require.NoError(t, err)
 	require.False(t, running)
-	require.Equal(t, driver, node.DriverUnknown)
 
 	procs, err = s.inner.processManager.ListRunningProcesses(context.Background())
 	require.NoError(t, err)
@@ -321,7 +315,7 @@ func TestStartProcessHandler(t *testing.T) {
 
 	// Non-existent process
 	b, err = json.Marshal(&StopProcessRequest{
-		ProcessID: "fake-id",
+		ProcessID: "docker:fake-id",
 	})
 	require.NoError(t, err)
 	resp = httptest.NewRecorder()
@@ -333,8 +327,11 @@ func TestStartProcessHandler(t *testing.T) {
 			bytes.NewReader(b),
 		),
 	)
-	// Nothing to do == status OK
-	assert.Equal(t, http.StatusOK, resp.Result().StatusCode)
+
+	assert.Equal(t, http.StatusInternalServerError, resp.Result().StatusCode)
+
+	// Also test the inner error we get
+	require.ErrorContains(t, s.inner.stopProcess("docker:fake-id"), "process with id not found: docker:fake-id")
 }
 
 // Kind of annoying helper to do some typing
@@ -368,7 +365,7 @@ func TestControllerRestoreProcess(t *testing.T) {
 	state.Processes["proc1"] = proc1
 	state.Processes["proc2"] = proc2
 
-	mockDriver := newMockDriver(node.DriverDocker)
+	mockDriver := newMockDriver(node.DriverTypeDocker)
 	pm := process.NewProcessManager([]process.Driver{mockDriver})
 
 	ctrl, err := newController2(

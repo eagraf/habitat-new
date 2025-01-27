@@ -9,5 +9,5 @@ import (
 // to mark the process as started or stopped, in order for files from the web bundle to be
 // served.
 func NewDriver() process.Driver {
-	return process.NewNoopDriver(node.DriverWeb)
+	return process.NewNoopDriver(node.DriverTypeWeb)
 }

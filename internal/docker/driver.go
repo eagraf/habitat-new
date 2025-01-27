@@ -33,8 +33,8 @@ func NewDriver(client *client.Client) process.Driver {
 	}
 }
 
-func (d *dockerDriver) Type() node.Driver {
-	return node.DriverDocker
+func (d *dockerDriver) Type() node.DriverType {
+	return node.DriverTypeDocker
 }
 
 func (d *dockerDriver) StartProcess(ctx context.Context, processID node.ProcessID, app *node.AppInstallation) error {
@@ -91,7 +91,7 @@ func (d *dockerDriver) getContainerWithProcessID(ctx context.Context, processID 
 	}
 
 	if len(ctrs) > 1 {
-		return types.Container{}, false, fmt.Errorf("Got multiple processes with label=%s: %v", labelVal, ctrs)
+		return types.Container{}, false, fmt.Errorf("Found multiple containers with label=%s: %v", labelVal, ctrs)
 	} else if len(ctrs) == 0 {
 		return types.Container{}, false, nil
 	}

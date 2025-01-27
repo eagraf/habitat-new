@@ -33,8 +33,8 @@ type BundleInstallationConfig struct {
 	BundleDirectoryName string `json:"bundle_directory_name"` // The directory under $HABITAT_PATH/web/ where the bundle will be extracted into.
 }
 
-func (d *webPackageManager) Driver() node.Driver {
-	return node.DriverWeb
+func (d *webPackageManager) Driver() node.DriverType {
+	return node.DriverTypeWeb
 }
 
 func (d *webPackageManager) IsInstalled(pkg *node.Package, version string) (bool, error) {
@@ -58,7 +58,7 @@ func (d *webPackageManager) IsInstalled(pkg *node.Package, version string) (bool
 
 // Implement the package manager interface
 func (d *webPackageManager) InstallPackage(packageSpec *node.Package, version string) error {
-	if packageSpec.Driver != node.DriverWeb {
+	if packageSpec.Driver != node.DriverTypeWeb {
 		return fmt.Errorf("invalid package driver: %s, expected 'web' driver", packageSpec.Driver)
 	}
 

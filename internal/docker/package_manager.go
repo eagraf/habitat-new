@@ -52,8 +52,8 @@ func NewPackageManager(client *client.Client) package_manager.PackageManager {
 	}
 }
 
-func (d *dockerPackageManager) Driver() node.Driver {
-	return node.DriverDocker
+func (d *dockerPackageManager) Driver() node.DriverType {
+	return node.DriverTypeDocker
 }
 
 func repoURLFromPackage(packageSpec *node.Package) string {
@@ -76,7 +76,7 @@ func (d *dockerPackageManager) IsInstalled(packageSpec *node.Package, version st
 
 // Implement the package manager interface
 func (d *dockerPackageManager) InstallPackage(packageSpec *node.Package, version string) error {
-	if packageSpec.Driver != node.DriverDocker {
+	if packageSpec.Driver != node.DriverTypeDocker {
 		return fmt.Errorf("invalid package driver: %s, expected docker", packageSpec.Driver)
 	}
 

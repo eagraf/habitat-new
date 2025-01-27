@@ -60,7 +60,7 @@ func (s *CtrlServer) StartProcess(w http.ResponseWriter, r *http.Request) {
 }
 
 type StopProcessRequest struct {
-	ProcessID string `json:"process_id"`
+	ProcessID node.ProcessID `json:"process_id"`
 }
 
 func (s *CtrlServer) StopProcess(w http.ResponseWriter, r *http.Request) {
@@ -71,7 +71,7 @@ func (s *CtrlServer) StopProcess(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = s.inner.stopProcess(node.ProcessID(req.ProcessID))
+	err = s.inner.stopProcess(req.ProcessID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
