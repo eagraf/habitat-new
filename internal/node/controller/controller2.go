@@ -68,7 +68,7 @@ func (c *controller2) startProcess(installationID string) error {
 		return errors.Wrap(err, "error proposing transition")
 	}
 
-	err = c.processManager.StartProcess(c.ctx, transition.Process.ID, app)
+	err = c.processManager.StartProcess(c.ctx, transition.Process, app)
 	if err != nil {
 		// Rollback the state change if the process start failed
 		_, err = c.db.ProposeTransitions([]hdb.Transition{

@@ -4,13 +4,13 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/eagraf/habitat-new/core/state/node"
 	"github.com/eagraf/habitat-new/internal/node/api/test_helpers"
+	"github.com/eagraf/habitat-new/internal/node/constants"
 	"github.com/eagraf/habitat-new/internal/package_manager"
 	"github.com/eagraf/habitat-new/internal/process"
 	"github.com/stretchr/testify/require"
@@ -20,8 +20,8 @@ type mockPkgManager struct {
 	installs map[*node.Package]struct{}
 }
 
-func (m *mockPkgManager) Driver() node.Driver {
-	return node.DriverDocker
+func (m *mockPkgManager) Driver() string {
+	return constants.AppDriverDocker
 }
 func (m *mockPkgManager) IsInstalled(packageSpec *node.Package, version string) (bool, error) {
 	_, ok := m.installs[packageSpec]
@@ -41,13 +41,13 @@ func (m *mockPkgManager) RestoreFromState(context.Context, map[string]*node.AppI
 }
 
 func TestInstallAppController(t *testing.T) {
-	mockDriver := newMockDriver(node.DriverDocker)
+	mockDriver := newMockDriver(constants.AppDriverDocker)
 	ctrlServer, err := NewCtrlServer(
 		context.Background(),
 		&BaseNodeController{},
 		process.NewProcessManager([]process.Driver{mockDriver}),
-		map[node.Driver]package_manager.PackageManager{
-			node.DriverDocker: &mockPkgManager{
+		map[string]package_manager.PackageManager{
+			constants.AppDriverDocker: &mockPkgManager{
 				installs: make(map[*node.Package]struct{}),
 			},
 		},
@@ -59,7 +59,7 @@ func TestInstallAppController(t *testing.T) {
 
 	pkg := &node.Package{
 		DriverConfig:       make(map[string]interface{}),
-		Driver:             node.DriverDocker,
+		Driver:             constants.AppDriverDocker,
 		RegistryURLBase:    "https://registry.com",
 		RegistryPackageID:  "app_name1",
 		RegistryPackageTag: "v1",
@@ -88,7 +88,6 @@ func TestInstallAppController(t *testing.T) {
 	req.SetPathValue("user_id", "user1")
 
 	handler.ServeHTTP(resp, req)
-	fmt.Println(string(resp.Body.Bytes()))
 	require.Equal(t, http.StatusCreated, resp.Result().StatusCode)
 
 }

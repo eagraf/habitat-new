@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/eagraf/habitat-new/core/state/node"
+	"github.com/eagraf/habitat-new/internal/node/constants"
 	"github.com/eagraf/habitat-new/internal/node/hdb"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -190,13 +192,19 @@ func TestAppLifecycle(t *testing.T) {
 				},
 			},
 		},
-		GenStartInstallationTransition("123", &Package{
-			Driver:             DriverTypeDocker,
-			RegistryURLBase:    "https://registry.com",
-			RegistryPackageID:  "app_name1",
-			RegistryPackageTag: "v1",
-			DriverConfig:       map[string]interface{}{},
-		}, "1", "app_name1", []*ReverseProxyRule{}),
+		GenStartInstallationTransition(
+			"123",
+			&Package{
+				Driver:             node.DriverTypeDocker,
+				RegistryURLBase:    "https://registry.com",
+				RegistryPackageID:  "app_name1",
+				RegistryPackageTag: "v1",
+				DriverConfig:       map[string]interface{}{},
+			},
+			"1",
+			"app_name1",
+			[]*ReverseProxyRule{},
+		),
 	}
 
 	newState, err := testTransitions(nil, transitions)
@@ -222,7 +230,7 @@ func TestAppLifecycle(t *testing.T) {
 		GenStartInstallationTransition(
 			"123",
 			&Package{
-				Driver:             "docker",
+				Driver:             constants.AppDriverDocker,
 				RegistryURLBase:    "https://registry.com",
 				RegistryPackageID:  "app_name1",
 				RegistryPackageTag: "v1",
@@ -270,7 +278,7 @@ func TestAppLifecycle(t *testing.T) {
 		GenStartInstallationTransition(
 			"123",
 			&Package{
-				Driver:             "docker",
+				Driver:             constants.AppDriverDocker,
 				RegistryURLBase:    "https://registry.com",
 				RegistryPackageID:  "app_name1",
 				RegistryPackageTag: "v2",
