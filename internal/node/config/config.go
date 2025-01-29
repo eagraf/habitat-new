@@ -237,7 +237,7 @@ func (n *NodeConfig) HDBPath() string {
 
 // WebBundlePath returns the path to the directory where web bundles for various applications are stored.
 func (n *NodeConfig) WebBundlePath() string {
-	return filepath.Join(n.HabitatPath(), constants.AppDriverWeb)
+	return filepath.Join(n.HabitatPath(), "web")
 }
 
 func (n *NodeConfig) NodeCertPath() string {

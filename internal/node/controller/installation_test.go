@@ -10,7 +10,6 @@ import (
 
 	"github.com/eagraf/habitat-new/core/state/node"
 	"github.com/eagraf/habitat-new/internal/node/api/test_helpers"
-	"github.com/eagraf/habitat-new/internal/node/constants"
 	"github.com/eagraf/habitat-new/internal/package_manager"
 	"github.com/eagraf/habitat-new/internal/process"
 	"github.com/stretchr/testify/require"
@@ -20,8 +19,8 @@ type mockPkgManager struct {
 	installs map[*node.Package]struct{}
 }
 
-func (m *mockPkgManager) Driver() string {
-	return constants.AppDriverDocker
+func (m *mockPkgManager) Driver() node.DriverType {
+	return node.DriverTypeUnknown
 }
 func (m *mockPkgManager) IsInstalled(packageSpec *node.Package, version string) (bool, error) {
 	_, ok := m.installs[packageSpec]
@@ -41,13 +40,13 @@ func (m *mockPkgManager) RestoreFromState(context.Context, map[string]*node.AppI
 }
 
 func TestInstallAppController(t *testing.T) {
-	mockDriver := newMockDriver(constants.AppDriverDocker)
+	mockDriver := newMockDriver(node.DriverTypeDocker)
 	ctrlServer, err := NewCtrlServer(
 		context.Background(),
 		&BaseNodeController{},
 		process.NewProcessManager([]process.Driver{mockDriver}),
-		map[string]package_manager.PackageManager{
-			constants.AppDriverDocker: &mockPkgManager{
+		map[node.DriverType]package_manager.PackageManager{
+			node.DriverTypeDocker: &mockPkgManager{
 				installs: make(map[*node.Package]struct{}),
 			},
 		},
@@ -59,7 +58,7 @@ func TestInstallAppController(t *testing.T) {
 
 	pkg := &node.Package{
 		DriverConfig:       make(map[string]interface{}),
-		Driver:             constants.AppDriverDocker,
+		Driver:             node.DriverTypeDocker,
 		RegistryURLBase:    "https://registry.com",
 		RegistryPackageID:  "app_name1",
 		RegistryPackageTag: "v1",
