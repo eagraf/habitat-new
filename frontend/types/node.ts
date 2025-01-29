@@ -4,12 +4,6 @@
 // source: app_installation.go
 
 /**
- * Types for managing app installations, mostly related to internal/package_manager
- */
-export type AppLifecycleStateType = string;
-export const AppLifecycleStateInstalling: AppLifecycleStateType = "installing";
-export const AppLifecycleStateInstalled: AppLifecycleStateType = "installed";
-/**
  * TODO some fields should be ignored by the REST api
  */
 export interface AppInstallation {
@@ -17,7 +11,7 @@ export interface AppInstallation {
   user_id: string;
   name: string;
   version: string;
-  Package: Package;
+  Package?: Package;
 }
 /**
  * AppInstallationConfig is a struct to hold the configuration for a docker container
@@ -42,20 +36,22 @@ export interface AppInstallationConfig {
   mounts: any /* mount.Mount */[];
 }
 export interface Package {
-  driver: string;
+  driver: Driver;
   driver_config: { [key: string]: any};
   registry_url_base: string;
   registry_app_id: string;
   registry_tag: string;
-}
-export interface AppInstallationState extends AppInstallation {
-  state: AppLifecycleStateType;
 }
 
 //////////
 // source: process.go
 
 export type ProcessID = string;
+export type Driver = string;
+export const DriverUnknown: Driver = "unknown";
+export const DriverNoop: Driver = "noop";
+export const DriverDocker: Driver = "docker";
+export const DriverWeb: Driver = "web";
 /**
  * Types related to running processes, mostly used by internal/process
  */
@@ -64,7 +60,7 @@ export interface Process {
   app_id: string;
   user_id: string;
   created: string;
-  driver: string;
+  driver: Driver;
 }
 
 //////////
@@ -108,7 +104,7 @@ export interface State {
    * A set of running processes that a node can restore to on startup.
    */
   processes: { [key: ProcessID]: Process | undefined};
-  app_installations: { [key: string]: AppInstallationState | undefined};
+  app_installations: { [key: string]: AppInstallation | undefined};
   reverse_proxy_rules?: { [key: string]: ReverseProxyRule | undefined};
 }
 export interface User {

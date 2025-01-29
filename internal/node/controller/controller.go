@@ -19,12 +19,6 @@ type NodeController interface {
 
 	AddUser(userID, email, handle, password, certificate string) (types.PDSCreateAccountResponse, error)
 	GetUserByUsername(username string) (*node.User, error)
-
-	InstallApp(userID string, newApp *node.AppInstallation, newProxyRules []*node.ReverseProxyRule) error
-	FinishAppInstallation(userID string, appID, registryURLBase, registryPackageID string, startAfterInstall bool) error
-	GetAppByID(appID string) (*node.AppInstallation, error)
-
-	StartProcess(appID string) error
 }
 
 type BaseNodeController struct {
@@ -95,6 +89,7 @@ func (c *BaseNodeController) MigrateNodeDB(targetVersion string) error {
 	return err
 }
 
+/*
 // InstallApp attempts to install the given app installation, with the userID as the action initiato.
 func (c *BaseNodeController) InstallApp(userID string, newApp *node.AppInstallation, newProxyRules []*node.ReverseProxyRule) error {
 	dbClient, err := c.databaseManager.GetDatabaseClientByName(constants.NodeDBDefaultName)
@@ -136,26 +131,7 @@ func (c *BaseNodeController) FinishAppInstallation(userID string, appID, registr
 
 	return nil
 }
-
-func (c *BaseNodeController) GetAppByID(appID string) (*node.AppInstallation, error) {
-	dbClient, err := c.databaseManager.GetDatabaseClientByName(constants.NodeDBDefaultName)
-	if err != nil {
-		return nil, err
-	}
-
-	var nodeState node.State
-	err = json.Unmarshal(dbClient.Bytes(), &nodeState)
-	if err != nil {
-		return nil, err
-	}
-
-	app, ok := nodeState.AppInstallations[appID]
-	if !ok {
-		return nil, fmt.Errorf("app with ID %s not found", appID)
-	}
-
-	return app.AppInstallation, nil
-}
+*/
 
 // TODO: Delete once usages of StartProcess() are deleted
 func (c *BaseNodeController) StartProcess(appID string) error {

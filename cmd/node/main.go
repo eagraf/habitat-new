@@ -13,7 +13,6 @@ import (
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
-	types "github.com/eagraf/habitat-new/core/api"
 	"github.com/eagraf/habitat-new/core/state/node"
 	"github.com/eagraf/habitat-new/internal/docker"
 	"github.com/eagraf/habitat-new/internal/node/api"
@@ -66,13 +65,11 @@ func main() {
 
 	// Initialize package managers
 	stateLogger := hdbms.NewStateUpdateLogger(logger)
-	appLifecycleSubscriber, err := package_manager.NewAppLifecycleSubscriber(
-		map[node.DriverType]package_manager.PackageManager{
-			node.DriverTypeDocker: docker.NewPackageManager(dockerClient),
-			node.DriverTypeWeb:    web.NewPackageManager(nodeConfig.WebBundlePath()),
-		},
-		nodeCtrl,
-	)
+	pkgManagers := map[node.DriverType]package_manager.PackageManager{
+		node.DriverTypeDocker: docker.NewPackageManager(dockerClient),
+		node.DriverTypeWeb:    web.NewPackageManager(nodeConfig.WebBundlePath()),
+	}
+
 	if err != nil {
 		log.Fatal().Err(err).Msg("error creating app lifecycle subscriber")
 	}
@@ -97,7 +94,6 @@ func main() {
 		[]pubsub.Publisher[hdb.StateUpdate]{hdbPublisher},
 		[]pubsub.Subscriber[hdb.StateUpdate]{
 			stateLogger,
-			appLifecycleSubscriber,
 			proxyRuleStateUpdateSubscriber,
 		},
 	)
@@ -119,7 +115,7 @@ func main() {
 
 	// Generate the list of apps to have installed and started when the node first comes up
 	pdsAppConfig := generatePDSAppConfig(nodeConfig)
-	defaultApps := append([]*types.PostAppRequest{
+	defaultApps := append([]*controller.InstallAppRequest{
 		pdsAppConfig,
 	}, nodeConfig.DefaultApps()...)
 	log.Info().Msgf("configDefaultApps: %v", defaultApps)
@@ -168,7 +164,7 @@ func main() {
 		log.Fatal().Err(err).Msg("error getting default HDB client")
 	}
 
-	ctrlServer, err := controller.NewCtrlServer(ctx, nodeCtrl, pm, dbClient)
+	ctrlServer, err := controller.NewCtrlServer(ctx, nodeCtrl, pm, pkgManagers, dbClient)
 	if err != nil {
 		log.Fatal().Err(err).Msg("error creating node control server")
 	}
@@ -181,7 +177,6 @@ func main() {
 		controller.NewGetNodeRoute(db.Manager),
 		controller.NewLoginRoute(pdsClient),
 		controller.NewAddUserRoute(nodeCtrl),
-		controller.NewInstallAppRoute(nodeCtrl),
 		controller.NewMigrationRoute(nodeCtrl),
 	}
 	routes = append(routes, ctrlServer.GetRoutes()...)
@@ -240,16 +235,16 @@ func main() {
 	log.Info().Msg("Finished!")
 }
 
-func generatePDSAppConfig(nodeConfig *config.NodeConfig) *types.PostAppRequest {
+func generatePDSAppConfig(nodeConfig *config.NodeConfig) *controller.InstallAppRequest {
 	pdsMountDir := filepath.Join(nodeConfig.HabitatAppPath(), "pds")
 
 	// TODO @eagraf - unhardcode as much of this as possible
-	return &types.PostAppRequest{
+	return &controller.InstallAppRequest{
 		AppInstallation: &node.AppInstallation{
 			Name:    "pds",
 			Version: "1",
 			UserID:  constants.RootUserID,
-			Package: node.Package{
+			Package: &node.Package{
 				Driver: node.DriverTypeDocker,
 				DriverConfig: map[string]interface{}{
 					"env": []string{
@@ -332,14 +327,13 @@ func generateDefaultReverseProxyRules(frontendDev bool) ([]*node.ReverseProxyRul
 	}, nil
 }
 
-func initTranstitions(initState *node.State, startApps []*types.PostAppRequest, proxyRules []*node.ReverseProxyRule) ([]hdb.Transition, error) {
+func initTranstitions(initState *node.State, startApps []*controller.InstallAppRequest, proxyRules []*node.ReverseProxyRule) ([]hdb.Transition, error) {
 	// A list of transitions to apply when the node starts up for the first time.
 	transitions := []hdb.Transition{
 		&node.InitalizationTransition{
 			InitState: initState,
 		},
 	}
-
 	for _, rule := range proxyRules {
 		transitions = append(transitions, &node.AddReverseProxyRuleTransition{
 			Rule: rule,
@@ -348,10 +342,8 @@ func initTranstitions(initState *node.State, startApps []*types.PostAppRequest, 
 
 	for _, app := range startApps {
 		transitions = append(transitions, &node.StartInstallationTransition{
-			UserID:                 constants.RootUserID,
-			AppInstallation:        app.AppInstallation,
-			NewProxyRules:          app.ReverseProxyRules,
-			StartAfterInstallation: true,
+			AppInstallation: app.AppInstallation,
+			NewProxyRules:   app.ReverseProxyRules,
 		})
 	}
 

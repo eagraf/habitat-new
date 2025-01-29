@@ -18,18 +18,16 @@ func TestStartProcessExecutor(t *testing.T) {
 	}
 
 	state := &node.State{
-		AppInstallations: map[string]*node.AppInstallationState{
+		AppInstallations: map[string]*node.AppInstallation{
 			"app1": {
-				AppInstallation: &node.AppInstallation{
-					ID:   "app1",
-					Name: "appname1",
-					Package: node.Package{
-						Driver: node.DriverTypeNoop,
-					},
+				ID:   "app1",
+				Name: "appname1",
+				Package: &node.Package{
+					Driver: "test",
 				},
 			},
 		},
-		ReverseProxyRules: &map[string]*node.ReverseProxyRule{
+		ReverseProxyRules: map[string]*node.ReverseProxyRule{
 			"rule1": {
 				ID:      "rule1",
 				AppID:   "app1",
@@ -71,18 +69,16 @@ func TestBrokenRule(t *testing.T) {
 	}
 
 	state := &node.State{
-		AppInstallations: map[string]*node.AppInstallationState{
+		AppInstallations: map[string]*node.AppInstallation{
 			"app1": {
-				AppInstallation: &node.AppInstallation{
-					ID:   "app1",
-					Name: "appname1",
-					Package: node.Package{
-						Driver: node.DriverTypeNoop,
-					},
+				ID:   "app1",
+				Name: "appname1",
+				Package: &node.Package{
+					Driver: "test",
 				},
 			},
 		},
-		ReverseProxyRules: &map[string]*node.ReverseProxyRule{
+		ReverseProxyRules: map[string]*node.ReverseProxyRule{
 			"brokenrule": {
 				ID:      "rule1",
 				AppID:   "app1",
@@ -125,7 +121,7 @@ func TestAddRuleExecutor(t *testing.T) {
 			Target:  "http://myhost/api",
 		},
 	}, &node.State{
-		ReverseProxyRules: &map[string]*node.ReverseProxyRule{},
+		ReverseProxyRules: map[string]*node.ReverseProxyRule{},
 	})
 	assert.Nil(t, err)
 

@@ -36,9 +36,9 @@ type State struct {
 	TestField     string           `json:"test_field,omitempty"`
 	Users         map[string]*User `json:"users"`
 	// A set of running processes that a node can restore to on startup.
-	Processes         map[ProcessID]*Process           `json:"processes"`
-	AppInstallations  map[string]*AppInstallationState `json:"app_installations"`
-	ReverseProxyRules *map[string]*ReverseProxyRule    `json:"reverse_proxy_rules,omitempty"`
+	Processes         map[ProcessID]*Process       `json:"processes"`
+	AppInstallations  map[string]*AppInstallation  `json:"app_installations"`
+	ReverseProxyRules map[string]*ReverseProxyRule `json:"reverse_proxy_rules,omitempty"`
 }
 
 type User struct {
@@ -57,7 +57,15 @@ func (s State) Bytes() ([]byte, error) {
 	return json.Marshal(s)
 }
 
-func (s State) GetAppByID(appID string) (*AppInstallationState, error) {
+func (s State) String() string {
+	bytes, err := s.Bytes()
+	if err != nil {
+		return "Error in s.Bytes()"
+	}
+	return string(bytes)
+}
+
+func (s State) GetAppByID(appID string) (*AppInstallation, error) {
 	app, ok := s.AppInstallations[appID]
 	if !ok {
 		return nil, fmt.Errorf("app with ID %s not found", appID)
@@ -65,8 +73,8 @@ func (s State) GetAppByID(appID string) (*AppInstallationState, error) {
 	return app, nil
 }
 
-func (s State) GetAppsForUser(userID string) ([]*AppInstallationState, error) {
-	apps := make([]*AppInstallationState, 0)
+func (s State) GetAppsForUser(userID string) ([]*AppInstallation, error) {
+	apps := make([]*AppInstallation, 0)
 	for _, app := range s.AppInstallations {
 		if app.UserID == userID {
 			apps = append(apps, app)
@@ -95,7 +103,7 @@ func (s State) GetReverseProxyRulesForProcess(processID ProcessID) ([]*ReversePr
 		return nil, fmt.Errorf("app with ID %s not found", process.AppID)
 	}
 	rules := make([]*ReverseProxyRule, 0)
-	for _, rule := range *s.ReverseProxyRules {
+	for _, rule := range s.ReverseProxyRules {
 		if rule.AppID == app.ID {
 			rules = append(rules, rule)
 		}
@@ -178,7 +186,6 @@ func (s *NodeSchema) JSONSchemaForVersion(version string) (*jsonschema.Schema, e
 	if err != nil {
 		return nil, err
 	}
-
 	rs := &jsonschema.Schema{}
 	err = json.Unmarshal([]byte(schema), rs)
 	if err != nil {
@@ -195,9 +202,7 @@ func (s *NodeSchema) ValidateState(state []byte) error {
 		return err
 	}
 
-	version := stateObj.SchemaVersion
-
-	jsonSchema, err := s.JSONSchemaForVersion(version)
+	jsonSchema, err := s.JSONSchemaForVersion(stateObj.SchemaVersion)
 	if err != nil {
 		return err
 	}

@@ -115,34 +115,30 @@ func TestBackwardsCompatibility(t *testing.T) {
 				Certificate: "fake user certificate",
 			},
 		},
-		AppInstallations: map[string]*AppInstallationState{
+		AppInstallations: map[string]*AppInstallation{
 			"app1": {
-				AppInstallation: &AppInstallation{
-					ID:      "app1",
-					Name:    "appname1",
-					Version: "1.0.0",
-					Package: Package{
-						Driver:             DriverTypeDocker,
-						RegistryURLBase:    "https://registry.example.com",
-						RegistryPackageID:  "appname1",
-						RegistryPackageTag: "1.0.0",
-					},
+				ID:      "app1",
+				Name:    "appname1",
+				Version: "1.0.0",
+				State:   AppLifecycleStateInstalled,
+				Package: &Package{
+					Driver:             DriverTypeDocker,
+					RegistryURLBase:    "https://registry.example.com",
+					RegistryPackageID:  "appname1",
+					RegistryPackageTag: "1.0.0",
 				},
-				State: AppLifecycleStateInstalled,
 			},
 			"app2": {
-				AppInstallation: &AppInstallation{
-					ID:      "app2",
-					Name:    "appname2",
-					Version: "1.0.0",
-					Package: Package{
-						Driver:             DriverTypeDocker,
-						RegistryURLBase:    "https://registry.example.com",
-						RegistryPackageID:  "appname1",
-						RegistryPackageTag: "1.0.0",
-					},
+				ID:      "app2",
+				Name:    "appname2",
+				Version: "1.0.0",
+				State:   AppLifecycleStateInstalled,
+				Package: &Package{
+					Driver:             DriverTypeDocker,
+					RegistryURLBase:    "https://registry.example.com",
+					RegistryPackageID:  "appname1",
+					RegistryPackageTag: "1.0.0",
 				},
-				State: AppLifecycleStateInstalled,
 			},
 		},
 		Processes: map[ProcessID]*Process{

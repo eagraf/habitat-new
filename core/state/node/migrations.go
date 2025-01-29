@@ -283,7 +283,7 @@ var NodeDataMigrations = MigrationsList{
 				SchemaVersion:    "v0.0.1",
 				Users:            make(map[string]*User),
 				Processes:        make(map[ProcessID]*Process),
-				AppInstallations: make(map[string]*AppInstallationState),
+				AppInstallations: make(map[string]*AppInstallation),
 			}, nil
 		},
 		down: func(state *State) (*State, error) {
@@ -343,7 +343,7 @@ var NodeDataMigrations = MigrationsList{
 				appInstallation.DriverConfig = map[string]interface{}{}
 			}
 			rules := make(map[string]*ReverseProxyRule)
-			newState.ReverseProxyRules = &rules
+			newState.ReverseProxyRules = rules
 			return newState, nil
 		},
 		down: func(state *State) (*State, error) {

@@ -104,7 +104,7 @@ func (db *mockHDB) ProposeTransitions(transitions []hdb.Transition) (*hdb.JSONSt
 }
 
 var (
-	testPkg = node.Package{
+	testPkg = &node.Package{
 		Driver:       node.DriverTypeDocker,
 		DriverConfig: map[string]interface{}{},
 	}
@@ -125,24 +125,20 @@ var (
 				ID: "user1",
 			},
 		},
-		AppInstallations: map[string]*node.AppInstallationState{
+		AppInstallations: map[string]*node.AppInstallation{
 			"app1": {
-				AppInstallation: &node.AppInstallation{
-					ID:      "app1",
-					UserID:  "user_1",
-					Name:    "appname1",
-					Package: testPkg,
-				},
-				State: node.AppLifecycleStateInstalled,
+				ID:      "app1",
+				UserID:  "user_1",
+				Name:    "appname1",
+				State:   node.AppLifecycleStateInstalled,
+				Package: testPkg,
 			},
 			"app2": {
-				AppInstallation: &node.AppInstallation{
-					ID:      "app2",
-					UserID:  "user_1",
-					Name:    "appname2",
-					Package: testPkg,
-				},
-				State: node.AppLifecycleStateInstalled,
+				ID:      "app2",
+				UserID:  "user_1",
+				Name:    "appname2",
+				State:   node.AppLifecycleStateInstalled,
+				Package: testPkg,
 			},
 		},
 		Processes: map[node.ProcessID]*node.Process{},
@@ -160,7 +156,7 @@ func TestStartProcessHandler(t *testing.T) {
 	}
 
 	// NewCtrlServer restores the initial state
-	s, err := NewCtrlServer(context.Background(), &BaseNodeController{}, process.NewProcessManager([]process.Driver{mockDriver}), db)
+	s, err := NewCtrlServer(context.Background(), &BaseNodeController{}, process.NewProcessManager([]process.Driver{mockDriver}), nil, db)
 	require.NoError(t, err)
 
 	// No processes running
@@ -370,7 +366,7 @@ func TestControllerRestoreProcess(t *testing.T) {
 
 	ctrl, err := newController2(
 		context.Background(),
-		pm, &mockHDB{
+		pm, nil, &mockHDB{
 			schema:    state.Schema(),
 			jsonState: jsonStateFromNodeState(state),
 		})

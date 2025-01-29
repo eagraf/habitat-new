@@ -56,11 +56,9 @@ func TestInitializationTransition(t *testing.T) {
 
 func TestGetAppByID(t *testing.T) {
 	state := &State{
-		AppInstallations: map[string]*AppInstallationState{
+		AppInstallations: map[string]*AppInstallation{
 			"app1": {
-				AppInstallation: &AppInstallation{
-					ID: "app1",
-				},
+				ID: "app1",
 			},
 		},
 	}
@@ -76,11 +74,9 @@ func TestGetAppByID(t *testing.T) {
 func TestGetReverseProxyRulesForProcess(t *testing.T) {
 
 	state := &State{
-		AppInstallations: map[string]*AppInstallationState{
+		AppInstallations: map[string]*AppInstallation{
 			"app1": {
-				AppInstallation: &AppInstallation{
-					ID: "app1",
-				},
+				ID: "app1",
 			},
 		},
 		Processes: map[ProcessID]*Process{
@@ -93,7 +89,7 @@ func TestGetReverseProxyRulesForProcess(t *testing.T) {
 				AppID: "non-existant-this-shouldn'thappen",
 			},
 		},
-		ReverseProxyRules: &map[string]*ReverseProxyRule{
+		ReverseProxyRules: map[string]*ReverseProxyRule{
 			"rule1": {
 				ID:    "rule1",
 				AppID: "app1",

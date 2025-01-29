@@ -49,7 +49,7 @@ func (e *ProcessProxyRulesExecutor) Execute(update hdb.StateUpdate) error {
 	}
 
 	nodeState := update.NewState().(*node.State)
-	for _, rule := range *nodeState.ReverseProxyRules {
+	for _, rule := range nodeState.ReverseProxyRules {
 		if rule.AppID == processStartTransition.Process.AppID {
 			log.Info().Msgf("Adding reverse proxy rule %v", rule)
 			err = e.RuleSet.AddRule(rule)
