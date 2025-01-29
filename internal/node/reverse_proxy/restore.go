@@ -16,7 +16,7 @@ func (r *ReverseProxyRestorer) Restore(restoreEvent hdb.StateUpdate) error {
 		return nil
 	}
 
-	for _, rule := range *nodeState.ReverseProxyRules {
+	for _, rule := range nodeState.ReverseProxyRules {
 		log.Info().Msgf("Restoring rule %s, matcher: %s", rule.ID, rule.Matcher)
 		err := r.ruleSet.AddRule(rule)
 		if err != nil {

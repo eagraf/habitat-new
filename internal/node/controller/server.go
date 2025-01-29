@@ -127,6 +127,26 @@ func (s *CtrlServer) InstallApp(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 }
 
+func (s *CtrlServer) GetNodeState(w http.ResponseWriter, r *http.Request) {
+	state, err := s.inner.getNodeState()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	bytes, err := json.Marshal(state)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	_, err = w.Write(bytes)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
+
 type route struct {
 	method  string
 	pattern string
@@ -155,8 +175,9 @@ var _ api.Route = &route{}
 
 func (s *CtrlServer) GetRoutes() []api.Route {
 	return []api.Route{
+		newRoute(http.MethodGet, "/node/processes/list", s.ListProcesses),
 		newRoute(http.MethodPost, "/node/processes/start", s.StartProcess),
 		newRoute(http.MethodPost, "/node/processes/stop", s.StopProcess),
-		newRoute(http.MethodGet, "/node/processes/list", s.ListProcesses),
+		newRoute(http.MethodGet, "/node/state", s.GetNodeState),
 	}
 }

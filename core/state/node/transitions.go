@@ -325,6 +325,35 @@ func (t *FinishInstallationTransition) Validate(oldState hdb.SerializedState) er
 
 // TODO handle uninstallation
 
+type UninstallTransition struct {
+	AppID string `json:"app_id"`
+}
+
+func (t *UninstallTransition) Type() hdb.TransitionType {
+	return hdb.TransitionUninstallation
+}
+func (t *UninstallTransition) Patch(oldState hdb.SerializedState) (hdb.SerializedState, error) {
+	return []byte(fmt.Sprintf(`[{
+		"op": "remove",
+		"path": "/app_installations/%s",
+	}]`, t.AppID)), nil
+}
+func (t *UninstallTransition) Enrich(oldState hdb.SerializedState) error {
+	return nil
+}
+func (t *UninstallTransition) Validate(oldState hdb.SerializedState) error {
+	var oldNode State
+	err := json.Unmarshal(oldState, &oldNode)
+	if err != nil {
+		return err
+	}
+	_, ok := oldNode.AppInstallations[t.AppID]
+	if !ok {
+		return fmt.Errorf("app with id %s not found", t.AppID)
+	}
+	return nil
+}
+
 type ProcessStartTransition struct {
 	// Requested data
 	Process *Process
@@ -507,7 +536,7 @@ func (t *AddReverseProxyRuleTransition) Validate(oldState hdb.SerializedState) e
 		return err
 	}
 
-	for _, rule := range *oldNode.ReverseProxyRules {
+	for _, rule := range oldNode.ReverseProxyRules {
 		if rule.ID == t.Rule.ID {
 			return fmt.Errorf("reverse proxy rule with id %s already exists", t.Rule.ID)
 		}

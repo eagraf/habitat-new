@@ -89,7 +89,7 @@ func TestGetReverseProxyRulesForProcess(t *testing.T) {
 				AppID: "non-existant-this-shouldn'thappen",
 			},
 		},
-		ReverseProxyRules: &map[string]*ReverseProxyRule{
+		ReverseProxyRules: map[string]*ReverseProxyRule{
 			"rule1": {
 				ID:    "rule1",
 				AppID: "app1",

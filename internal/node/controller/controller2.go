@@ -131,6 +131,21 @@ func (c *controller2) installApp(userID string, pkg *node.Package, version strin
 	return err
 }
 
+func (c *controller2) uninstallApp(appID string) error {
+	return fmt.Errorf("unimplemented")
+	/*
+		_, err := c.db.ProposeTransitions([]hdb.Transition{
+			&node.UninstallTransition{
+				AppID: appID,
+			},
+		})
+
+		if err != nil {
+			return err
+		}
+	*/
+}
+
 func (c *controller2) restore(state *node.State) error {
 	// Restore app installations to desired state
 	for _, pkgManager := range c.pkgManagers {

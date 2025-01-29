@@ -30,7 +30,7 @@ const (
 	TransitionAddUser             TransitionType = "add_user"
 	TransitionStartInstallation   TransitionType = "start_installation"
 	TransitionFinishInstallation  TransitionType = "finish_installation"
-	TransitionStartUninstallation TransitionType = "start_uninstallation"
+	TransitionUninstallation      TransitionType = "start_uninstallation"
 	TransitionStartProcess        TransitionType = "process_start"
 	TransitionStopProcess         TransitionType = "process_stop"
 	TransitionAddReverseProxyRule TransitionType = "add_reverse_proxy_rule"

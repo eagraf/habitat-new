@@ -91,7 +91,7 @@ func TestFrontendDevMode(t *testing.T) {
 	})
 	require.Nil(t, err)
 
-	frontendRule, ok := (*newState.ReverseProxyRules)["default-rule-frontend"]
+	frontendRule, ok := (newState.ReverseProxyRules)["default-rule-frontend"]
 	require.Equal(t, true, ok)
 	require.Equal(t, ProxyRuleRedirect, frontendRule.Type)
 }
@@ -317,7 +317,7 @@ func TestAppInstallReverseProxyRules(t *testing.T) {
 						Certificate: "placeholder",
 					},
 				},
-				ReverseProxyRules: &proxyRules,
+				ReverseProxyRules: proxyRules,
 			},
 		},
 		&StartInstallationTransition{

@@ -26,9 +26,16 @@ func printResponse(res *http.Response) error {
 	if err != nil {
 		return err
 	}
+	// Kinda wack, but we want to embed this JSON response into the msg type
+	// So unmarshal it and then immediately marshal the whole thing
+	var body any
+	err = json.Unmarshal(slurp, &body)
+	if err != nil {
+		return err
+	}
 	bytes, err := json.Marshal(msg{
 		Status: res.Status,
-		Body:   string(slurp),
+		Body:   body,
 	})
 	if err != nil {
 		return err
@@ -110,6 +117,21 @@ func listProcesses() *cli.Command {
 	}
 }
 
+func getState() *cli.Command {
+	return &cli.Command{
+		Name:  "state",
+		Usage: "Get node state",
+		Action: func(ctx *cli.Context) error {
+			url := fmt.Sprintf("http://localhost:%s/node/state", port)
+			res, err := http.Get(url)
+			if err != nil {
+				return err
+			}
+			return printResponse(res)
+		},
+	}
+}
+
 func main() {
 	app := &cli.App{
 		Name:  "node_ctl",
@@ -134,6 +156,13 @@ func main() {
 					startProcess(),
 					stopProcess(),
 					listProcesses(),
+				},
+			},
+			{
+				Name:  "node",
+				Usage: "Commands related to general node actions.",
+				Subcommands: []*cli.Command{
+					getState(),
 				},
 			},
 		},

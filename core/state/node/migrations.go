@@ -343,7 +343,7 @@ var NodeDataMigrations = MigrationsList{
 				appInstallation.DriverConfig = map[string]interface{}{}
 			}
 			rules := make(map[string]*ReverseProxyRule)
-			newState.ReverseProxyRules = &rules
+			newState.ReverseProxyRules = rules
 			return newState, nil
 		},
 		down: func(state *State) (*State, error) {

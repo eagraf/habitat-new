@@ -38,7 +38,7 @@ func TestProcessRestorer(t *testing.T) {
 				AppID: "app1",
 			},
 		},
-		ReverseProxyRules: &map[string]*node.ReverseProxyRule{
+		ReverseProxyRules: map[string]*node.ReverseProxyRule{
 			"rule1": {
 				ID:      "rule1",
 				AppID:   "app1",

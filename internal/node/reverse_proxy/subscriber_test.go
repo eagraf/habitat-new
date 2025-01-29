@@ -27,7 +27,7 @@ func TestStartProcessExecutor(t *testing.T) {
 				},
 			},
 		},
-		ReverseProxyRules: &map[string]*node.ReverseProxyRule{
+		ReverseProxyRules: map[string]*node.ReverseProxyRule{
 			"rule1": {
 				ID:      "rule1",
 				AppID:   "app1",
@@ -78,7 +78,7 @@ func TestBrokenRule(t *testing.T) {
 				},
 			},
 		},
-		ReverseProxyRules: &map[string]*node.ReverseProxyRule{
+		ReverseProxyRules: map[string]*node.ReverseProxyRule{
 			"brokenrule": {
 				ID:      "rule1",
 				AppID:   "app1",
@@ -121,7 +121,7 @@ func TestAddRuleExecutor(t *testing.T) {
 			Target:  "http://myhost/api",
 		},
 	}, &node.State{
-		ReverseProxyRules: &map[string]*node.ReverseProxyRule{},
+		ReverseProxyRules: map[string]*node.ReverseProxyRule{},
 	})
 	assert.Nil(t, err)
 

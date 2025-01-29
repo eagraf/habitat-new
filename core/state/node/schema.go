@@ -36,9 +36,9 @@ type State struct {
 	TestField     string           `json:"test_field,omitempty"`
 	Users         map[string]*User `json:"users"`
 	// A set of running processes that a node can restore to on startup.
-	Processes         map[ProcessID]*Process        `json:"processes"`
-	AppInstallations  map[string]*AppInstallation   `json:"app_installations"`
-	ReverseProxyRules *map[string]*ReverseProxyRule `json:"reverse_proxy_rules,omitempty"`
+	Processes         map[ProcessID]*Process       `json:"processes"`
+	AppInstallations  map[string]*AppInstallation  `json:"app_installations"`
+	ReverseProxyRules map[string]*ReverseProxyRule `json:"reverse_proxy_rules,omitempty"`
 }
 
 type User struct {
@@ -103,7 +103,7 @@ func (s State) GetReverseProxyRulesForProcess(processID ProcessID) ([]*ReversePr
 		return nil, fmt.Errorf("app with ID %s not found", process.AppID)
 	}
 	rules := make([]*ReverseProxyRule, 0)
-	for _, rule := range *s.ReverseProxyRules {
+	for _, rule := range s.ReverseProxyRules {
 		if rule.AppID == app.ID {
 			rules = append(rules, rule)
 		}
