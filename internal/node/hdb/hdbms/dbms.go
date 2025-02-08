@@ -74,7 +74,7 @@ func NewDatabaseManager(path string, publisher pubsub.Publisher[hdb.StateUpdate]
 
 func (dm *DatabaseManager) Start(ctx context.Context) {
 	for _, db := range dm.databases {
-		db.StateMachineController.StartListening(ctx)
+		go db.StateMachineController.StartListening(ctx)
 	}
 }
 
@@ -135,6 +135,7 @@ func (dm *DatabaseManager) RestartDBs(ctx context.Context) error {
 		db.StateMachineController = stateMachineController
 
 		dm.databases[dbID] = db
+		go db.StateMachineController.StartListening(ctx)
 	}
 	return nil
 }

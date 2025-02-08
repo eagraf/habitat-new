@@ -96,15 +96,17 @@ func (c *Controller2) startProcess(installationID string) error {
 	}
 
 	// Register with reverse proxy server
-	for _, rule := range newState.ReverseProxyRules {
-		if rule.AppID == transition.Process.AppID {
-			log.Info().Msgf("Adding reverse proxy rule %v", rule)
-			err = c.proxyServer.RuleSet.AddRule(rule)
-			if err != nil {
-				return err
+	/*
+		for _, rule := range newState.ReverseProxyRules {
+			if rule.AppID == transition.Process.AppID {
+				log.Info().Msgf("Adding reverse proxy rule %v", rule)
+				err = c.proxyServer.RuleSet.AddRule(rule)
+				if err != nil {
+					return err
+				}
 			}
 		}
-	}
+	*/
 
 	return nil
 }
@@ -146,17 +148,16 @@ func (c *Controller2) installApp(userID string, pkg *node.Package, version strin
 	if err != nil {
 		return err
 	}
-	if start {
-		defer c.startProcess(transition.ID)
-	}
-
 	_, err = c.db.ProposeTransitions([]hdb.Transition{
 		&node.FinishInstallationTransition{
 			AppID: transition.ID,
 		},
 	})
 
-	return err
+	if start {
+		return c.startProcess(transition.ID)
+	}
+	return nil
 }
 
 func (c *Controller2) uninstallApp(appID string) error {

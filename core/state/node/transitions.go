@@ -334,7 +334,7 @@ type UninstallTransition struct {
 }
 
 func (t *UninstallTransition) Type() hdb.TransitionType {
-	return hdb.TransitionUninstallation
+	return hdb.TransitionStartUninstallation
 }
 func (t *UninstallTransition) Patch(oldState hdb.SerializedState) (hdb.SerializedState, error) {
 	return []byte(fmt.Sprintf(`[{

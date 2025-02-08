@@ -121,7 +121,7 @@ func (sm *StateMachine) Bytes() []byte {
 // is "officially updated".
 func (sm *StateMachine) ProposeTransitions(transitions []hdb.Transition) (*hdb.JSONState, error) {
 
-	fmt.Println("ProposeTransitionsSM")
+	fmt.Println("ProposeTransitionsSM", transitions)
 	jsonStateBranch, err := sm.jsonState.Copy()
 	if err != nil {
 		return nil, err

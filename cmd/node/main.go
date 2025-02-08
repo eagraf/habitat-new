@@ -29,6 +29,7 @@ import (
 	"github.com/eagraf/habitat-new/internal/process"
 	"github.com/eagraf/habitat-new/internal/pubsub"
 	"github.com/eagraf/habitat-new/internal/web"
+	"github.com/google/uuid"
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -98,18 +99,20 @@ func main() {
 	}
 
 	// Generate the list of apps to have installed and started when the node first comes up
-	pdsAppConfig := generatePDSAppConfig(nodeConfig)
-	defaultApps := append([]*controller.InstallAppRequest{
-		pdsAppConfig,
-	}, nodeConfig.DefaultApps()...)
-	log.Info().Msgf("configDefaultApps: %v", defaultApps)
+	pdsApp, pdsAppProxyRule := generatePDSAppConfig(nodeConfig)
+	defaultApps, defaultProxyRules, err := nodeConfig.DefaultApps()
+	if err != nil {
+		log.Fatal().Err(err).Msg("unable to generate proxy rules")
+	}
 
-	initState, initialTransitions, err := initialState(nodeConfig.RootUserCertB64(), defaultApps, proxyRules)
+	apps := append(defaultApps, pdsApp)
+	rules := append(append(defaultProxyRules, pdsAppProxyRule), proxyRules...)
+
+	initState, initialTransitions, err := initialState(nodeConfig.RootUserCertB64(), apps, rules)
 	if err != nil {
 		log.Fatal().Err(err).Msg("unable to do initial node transitions")
 	}
 
-	fmt.Println("initialTransitions", initialTransitions)
 	err = nodeCtrl.InitializeNodeDB(egCtx, initialTransitions)
 	if err != nil {
 		log.Fatal().Err(err).Msg("error initializing node db")
@@ -226,12 +229,13 @@ func main() {
 	log.Info().Msg("Finished!")
 }
 
-func generatePDSAppConfig(nodeConfig *config.NodeConfig) *controller.InstallAppRequest {
+func generatePDSAppConfig(nodeConfig *config.NodeConfig) (*node.AppInstallation, *node.ReverseProxyRule) {
 	pdsMountDir := filepath.Join(nodeConfig.HabitatAppPath(), "pds")
 
 	// TODO @eagraf - unhardcode as much of this as possible
-	return &controller.InstallAppRequest{
-		AppInstallation: &node.AppInstallation{
+	appID := uuid.NewString()
+	return &node.AppInstallation{
+			ID:      appID,
 			Name:    "pds",
 			Version: "1",
 			UserID:  constants.RootUserID,
@@ -275,14 +279,13 @@ func generatePDSAppConfig(nodeConfig *config.NodeConfig) *controller.InstallAppR
 				RegistryPackageTag: "latest",
 			},
 		},
-		ReverseProxyRules: []*node.ReverseProxyRule{
-			{
-				Type:    "redirect",
-				Matcher: "/xrpc",
-				Target:  "http://host.docker.internal:5001/xrpc",
-			},
-		},
-	}
+		&node.ReverseProxyRule{
+			ID:      "pds-app-reverse-proxy-rule",
+			AppID:   appID,
+			Type:    "redirect",
+			Matcher: "/xrpc",
+			Target:  "https://host.docker.internal:5001/xrpc",
+		}
 }
 
 func generateDefaultReverseProxyRules(frontendDev bool) ([]*node.ReverseProxyRule, error) {
@@ -318,22 +321,21 @@ func generateDefaultReverseProxyRules(frontendDev bool) ([]*node.ReverseProxyRul
 	}, nil
 }
 
-func initialState(rootUserCert string, startApps []*controller.InstallAppRequest, proxyRules []*node.ReverseProxyRule) (*node.State, []hdb.Transition, error) {
+func initialState(rootUserCert string, startApps []*node.AppInstallation, proxyRules []*node.ReverseProxyRule) (*node.State, []hdb.Transition, error) {
 	state, err := node.NewStateForLatestVersion()
 	if err != nil {
 		log.Fatal().Err(err).Msg("unable to generate initial node state")
 	}
 	state.SetRootUserCert(rootUserCert)
 
+	for _, app := range startApps {
+		state.AppInstallations[app.ID] = app
+		state.AppInstallations[app.ID].State = node.AppLifecycleStateInstalled
+	}
 	for _, rule := range proxyRules {
 		state.ReverseProxyRules[rule.ID] = rule
 	}
-	for _, app := range startApps {
-		state.AppInstallations[app.AppInstallation.ID] = app.AppInstallation
-		for _, rule := range app.ReverseProxyRules {
-			state.ReverseProxyRules[rule.ID] = rule
-		}
-	}
+
 	// A list of transitions to apply when the node starts up for the first time.
 	transitions := []hdb.Transition{
 		&node.InitalizationTransition{

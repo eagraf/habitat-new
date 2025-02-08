@@ -24,7 +24,7 @@ func NewHabitatDB(ctx context.Context, logger *zerolog.Logger, publisher *pubsub
 		return nil, nil, err
 	}
 
-	go dbManager.Start(ctx)
+	dbManager.Start(ctx)
 
 	return &HDBResult{
 		Manager:              dbManager,
