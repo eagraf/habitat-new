@@ -32,6 +32,10 @@ func (t *InitalizationTransition) Patch(oldState hdb.SerializedState) (hdb.Seria
 		t.InitState.Processes = make(map[ProcessID]*Process)
 	}
 
+	if t.InitState.ReverseProxyRules == nil {
+		t.InitState.ReverseProxyRules = make(map[string]*ReverseProxyRule)
+	}
+
 	marshaled, err := json.Marshal(t.InitState)
 	if err != nil {
 		return nil, err
@@ -508,12 +512,10 @@ func (t *AddReverseProxyRuleTransition) Type() hdb.TransitionType {
 }
 
 func (t *AddReverseProxyRuleTransition) Patch(oldState hdb.SerializedState) (hdb.SerializedState, error) {
-
 	marshaledRule, err := json.Marshal(t.Rule)
 	if err != nil {
 		return nil, err
 	}
-
 	return []byte(fmt.Sprintf(`[{
 		"op": "add",
 		"path": "/reverse_proxy_rules/%s",

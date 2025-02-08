@@ -38,7 +38,7 @@ type State struct {
 	// A set of running processes that a node can restore to on startup.
 	Processes         map[ProcessID]*Process       `json:"processes"`
 	AppInstallations  map[string]*AppInstallation  `json:"app_installations"`
-	ReverseProxyRules map[string]*ReverseProxyRule `json:"reverse_proxy_rules,omitempty"`
+	ReverseProxyRules map[string]*ReverseProxyRule `json:"reverse_proxy_rules"`
 }
 
 type User struct {

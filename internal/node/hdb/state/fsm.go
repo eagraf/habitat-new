@@ -3,6 +3,7 @@ package state
 import (
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"io"
 
 	"github.com/eagraf/habitat-new/internal/node/hdb"
@@ -138,6 +139,7 @@ type FSMSnapshot struct {
 // Persist should dump all necessary state to the WriteCloser 'sink',
 // and call sink.Close() when finished or call sink.Cancel() on error.
 func (s *FSMSnapshot) Persist(sink raft.SnapshotSink) error {
+	fmt.Println("Persist", sink)
 	_, err := sink.Write(s.state)
 	if err != nil {
 		return err

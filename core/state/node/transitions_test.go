@@ -475,7 +475,6 @@ func TestProcesses(t *testing.T) {
 }
 
 func TestMigrationsTransition(t *testing.T) {
-
 	transitions := []hdb.Transition{
 		&InitalizationTransition{
 			InitState: &State{

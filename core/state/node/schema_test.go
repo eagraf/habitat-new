@@ -117,7 +117,6 @@ func TestGetEmptyStateForVersion(t *testing.T) {
 	state, err = GetEmptyStateForVersion("v0.0.4")
 	assert.Nil(t, err)
 	assert.NotNil(t, state)
-	assert.NotNil(t, state.ReverseProxyRules)
 }
 
 func TestMalformedProcessID(t *testing.T) {

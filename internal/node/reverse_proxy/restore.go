@@ -1,6 +1,8 @@
 package reverse_proxy
 
 import (
+	"fmt"
+
 	"github.com/eagraf/habitat-new/core/state/node"
 	"github.com/eagraf/habitat-new/internal/node/hdb"
 	"github.com/rs/zerolog/log"
@@ -16,6 +18,7 @@ func (r *ReverseProxyRestorer) Restore(restoreEvent hdb.StateUpdate) error {
 		return nil
 	}
 
+	fmt.Println("reverse proxy restore called")
 	for _, rule := range nodeState.ReverseProxyRules {
 		log.Info().Msgf("Restoring rule %s, matcher: %s", rule.ID, rule.Matcher)
 		err := r.ruleSet.AddRule(rule)

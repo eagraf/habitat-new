@@ -45,7 +45,7 @@ func main() {
 	zerolog.SetGlobalLevel(nodeConfig.LogLevel())
 
 	hdbPublisher := pubsub.NewSimplePublisher[hdb.StateUpdate]()
-	db, dbClose, err := hdbms.NewHabitatDB(logger, hdbPublisher, nodeConfig.HDBPath())
+	db, dbClose, err := hdbms.NewHabitatDB(context.Background(), logger, hdbPublisher, nodeConfig.HDBPath())
 	if err != nil {
 		log.Fatal().Err(err).Msg("error creating habitat db")
 	}
@@ -120,12 +120,15 @@ func main() {
 	}, nodeConfig.DefaultApps()...)
 	log.Info().Msgf("configDefaultApps: %v", defaultApps)
 
-	initialTransitions, err := initTranstitions(initState, defaultApps, proxyRules)
+	initialTransitions, err := initialState(initState, defaultApps, proxyRules)
+	fmt.Println("initState is ", initState)
 	if err != nil {
 		log.Fatal().Err(err).Msg("unable to do initial node transitions")
 	}
 
-	err = nodeCtrl.InitializeNodeDB(initialTransitions)
+	fmt.Println("initialTransitions", initialTransitions)
+
+	err = nodeCtrl.InitializeNodeDB(egCtx, initialTransitions)
 	if err != nil {
 		log.Fatal().Err(err).Msg("error initializing node db")
 	}
@@ -327,25 +330,21 @@ func generateDefaultReverseProxyRules(frontendDev bool) ([]*node.ReverseProxyRul
 	}, nil
 }
 
-func initTranstitions(initState *node.State, startApps []*controller.InstallAppRequest, proxyRules []*node.ReverseProxyRule) ([]hdb.Transition, error) {
+func initialState(state *node.State, startApps []*controller.InstallAppRequest, proxyRules []*node.ReverseProxyRule) ([]hdb.Transition, error) {
+	for _, rule := range proxyRules {
+		state.ReverseProxyRules[rule.ID] = rule
+	}
+	for _, app := range startApps {
+		state.AppInstallations[app.AppInstallation.ID] = app.AppInstallation
+		for _, rule := range app.ReverseProxyRules {
+			state.ReverseProxyRules[rule.ID] = rule
+		}
+	}
 	// A list of transitions to apply when the node starts up for the first time.
 	transitions := []hdb.Transition{
 		&node.InitalizationTransition{
-			InitState: initState,
+			InitState: state,
 		},
 	}
-	for _, rule := range proxyRules {
-		transitions = append(transitions, &node.AddReverseProxyRuleTransition{
-			Rule: rule,
-		})
-	}
-
-	for _, app := range startApps {
-		transitions = append(transitions, &node.StartInstallationTransition{
-			AppInstallation: app.AppInstallation,
-			NewProxyRules:   app.ReverseProxyRules,
-		})
-	}
-
 	return transitions, nil
 }

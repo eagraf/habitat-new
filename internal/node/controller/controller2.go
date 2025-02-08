@@ -119,7 +119,7 @@ func (c *controller2) installApp(userID string, pkg *node.Package, version strin
 		return err
 	}
 	if start {
-		return c.startProcess(transition.ID)
+		defer c.startProcess(transition.ID)
 	}
 
 	_, err = c.db.ProposeTransitions([]hdb.Transition{
@@ -132,18 +132,15 @@ func (c *controller2) installApp(userID string, pkg *node.Package, version strin
 }
 
 func (c *controller2) uninstallApp(appID string) error {
-	return fmt.Errorf("unimplemented")
-	/*
-		_, err := c.db.ProposeTransitions([]hdb.Transition{
-			&node.UninstallTransition{
-				AppID: appID,
-			},
-		})
+	//return fmt.Errorf("unimplemented")
 
-		if err != nil {
-			return err
-		}
-	*/
+	_, err := c.db.ProposeTransitions([]hdb.Transition{
+		&node.UninstallTransition{
+			AppID: appID,
+		},
+	})
+
+	return err
 }
 
 func (c *controller2) restore(state *node.State) error {

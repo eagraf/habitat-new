@@ -179,5 +179,6 @@ func (s *CtrlServer) GetRoutes() []api.Route {
 		newRoute(http.MethodPost, "/node/processes/start", s.StartProcess),
 		newRoute(http.MethodPost, "/node/processes/stop", s.StopProcess),
 		newRoute(http.MethodGet, "/node/state", s.GetNodeState),
+		newRoute(http.MethodPost, "/node/users/{user_id}/apps", s.InstallApp),
 	}
 }

@@ -141,7 +141,8 @@ var (
 				Package: testPkg,
 			},
 		},
-		Processes: map[node.ProcessID]*node.Process{},
+		Processes:         map[node.ProcessID]*node.Process{},
+		ReverseProxyRules: map[string]*node.ReverseProxyRule{},
 	}
 )
 

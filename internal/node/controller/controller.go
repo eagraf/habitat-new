@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 
@@ -14,7 +15,7 @@ import (
 
 // implements nodeServerInner
 type NodeController interface {
-	InitializeNodeDB(transitions []hdb.Transition) error
+	InitializeNodeDB(ctx context.Context, transitions []hdb.Transition) error
 	MigrateNodeDB(targetVersion string) error
 
 	AddUser(userID, email, handle, password, certificate string) (types.PDSCreateAccountResponse, error)
@@ -52,8 +53,9 @@ func (c *BaseNodeController) SetCtrl2(c2 *controller2) {
 }
 
 // InitializeNodeDB tries initializing the database; it is a noop if a database with the same name already exists
-func (c *BaseNodeController) InitializeNodeDB(transitions []hdb.Transition) error {
-	_, err := c.databaseManager.CreateDatabase(constants.NodeDBDefaultName, node.SchemaName, transitions)
+func (c *BaseNodeController) InitializeNodeDB(ctx context.Context, transitions []hdb.Transition) error {
+	fmt.Println("initialize")
+	_, err := c.databaseManager.CreateDatabase(ctx, constants.NodeDBDefaultName, node.SchemaName, transitions)
 	if err != nil {
 		if _, ok := err.(*hdb.DatabaseAlreadyExistsError); ok {
 			log.Info().Msg("Node database already exists, doing nothing.")
