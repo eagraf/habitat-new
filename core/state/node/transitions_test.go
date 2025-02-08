@@ -76,8 +76,9 @@ func testTransitions(oldState *State, transitions []hdb.Transition) (*State, err
 }
 
 func TestFrontendDevMode(t *testing.T) {
-	state, err := InitRootState("fake_user_cert")
+	state, err := NewStateForLatestVersion()
 	require.NoError(t, err)
+	state.SetRootUserCert("fake_user_cert")
 	newState, err := testTransitions(state, []hdb.Transition{
 		&AddReverseProxyRuleTransition{
 			Rule: &ReverseProxyRule{

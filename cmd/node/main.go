@@ -82,30 +82,14 @@ func main() {
 	// egCtx is cancelled if any function called with eg.Go() returns an error.
 	eg, egCtx := errgroup.WithContext(ctx)
 
-	proxy := reverse_proxy.NewProxyServer(logger, nodeConfig.WebBundlePath())
-	proxyRuleStateUpdateSubscriber, err := reverse_proxy.NewProcessProxyRuleSubscriber(
-		proxy.RuleSet,
-	)
-	if err != nil {
-		log.Fatal().Err(err).Msg("error creating proxy rule state update subscriber")
-	}
-
 	stateUpdates := pubsub.NewSimpleChannel(
 		[]pubsub.Publisher[hdb.StateUpdate]{hdbPublisher},
-		[]pubsub.Subscriber[hdb.StateUpdate]{
-			stateLogger,
-			proxyRuleStateUpdateSubscriber,
-		},
+		[]pubsub.Subscriber[hdb.StateUpdate]{stateLogger},
 	)
 
 	eg.Go(func() error {
 		return stateUpdates.Listen()
 	})
-
-	initState, err := node.InitRootState(nodeConfig.RootUserCertB64())
-	if err != nil {
-		log.Fatal().Err(err).Msg("unable to generate initial node state")
-	}
 
 	// Generate the list of default proxy rules to have available when the node first comes up
 	proxyRules, err := generateDefaultReverseProxyRules(nodeConfig.FrontendDev())
@@ -120,14 +104,12 @@ func main() {
 	}, nodeConfig.DefaultApps()...)
 	log.Info().Msgf("configDefaultApps: %v", defaultApps)
 
-	initialTransitions, err := initialState(initState, defaultApps, proxyRules)
-	fmt.Println("initState is ", initState)
+	initState, initialTransitions, err := initialState(nodeConfig.RootUserCertB64(), defaultApps, proxyRules)
 	if err != nil {
 		log.Fatal().Err(err).Msg("unable to do initial node transitions")
 	}
 
 	fmt.Println("initialTransitions", initialTransitions)
-
 	err = nodeCtrl.InitializeNodeDB(egCtx, initialTransitions)
 	if err != nil {
 		log.Fatal().Err(err).Msg("error initializing node db")
@@ -139,6 +121,8 @@ func main() {
 		log.Fatal().Err(err).Msg("error getting tls config")
 	}
 	addr := fmt.Sprintf(":%s", nodeConfig.ReverseProxyPort())
+
+	proxy := reverse_proxy.NewProxyServer(logger, nodeConfig.WebBundlePath())
 	proxyServer := &http.Server{
 		Addr:    addr,
 		Handler: proxy,
@@ -167,7 +151,11 @@ func main() {
 		log.Fatal().Err(err).Msg("error getting default HDB client")
 	}
 
-	ctrlServer, err := controller.NewCtrlServer(ctx, nodeCtrl, pm, pkgManagers, dbClient)
+	ctrl2, err := controller.NewController2(ctx, pm, pkgManagers, dbClient, proxy)
+	if err != nil {
+		log.Fatal().Err(err).Msg("error creating node Controller2")
+	}
+	ctrlServer, err := controller.NewCtrlServer(ctx, nodeCtrl, ctrl2, initState)
 	if err != nil {
 		log.Fatal().Err(err).Msg("error creating node control server")
 	}
@@ -330,7 +318,13 @@ func generateDefaultReverseProxyRules(frontendDev bool) ([]*node.ReverseProxyRul
 	}, nil
 }
 
-func initialState(state *node.State, startApps []*controller.InstallAppRequest, proxyRules []*node.ReverseProxyRule) ([]hdb.Transition, error) {
+func initialState(rootUserCert string, startApps []*controller.InstallAppRequest, proxyRules []*node.ReverseProxyRule) (*node.State, []hdb.Transition, error) {
+	state, err := node.NewStateForLatestVersion()
+	if err != nil {
+		log.Fatal().Err(err).Msg("unable to generate initial node state")
+	}
+	state.SetRootUserCert(rootUserCert)
+
 	for _, rule := range proxyRules {
 		state.ReverseProxyRules[rule.ID] = rule
 	}
@@ -346,5 +340,5 @@ func initialState(state *node.State, startApps []*controller.InstallAppRequest, 
 			InitState: state,
 		},
 	}
-	return transitions, nil
+	return state, transitions, nil
 }

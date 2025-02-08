@@ -4,6 +4,12 @@
 // source: app_installation.go
 
 /**
+ * Types for managing app installations, mostly related to internal/package_manager
+ */
+export type AppLifecycleStateType = string;
+export const AppLifecycleStateInstalling: AppLifecycleStateType = "installing";
+export const AppLifecycleStateInstalled: AppLifecycleStateType = "installed";
+/**
  * TODO some fields should be ignored by the REST api
  */
 export interface AppInstallation {
@@ -11,6 +17,7 @@ export interface AppInstallation {
   user_id: string;
   name: string;
   version: string;
+  state: AppLifecycleStateType;
   Package?: Package;
 }
 /**
@@ -36,7 +43,7 @@ export interface AppInstallationConfig {
   mounts: any /* mount.Mount */[];
 }
 export interface Package {
-  driver: Driver;
+  driver: DriverType;
   driver_config: { [key: string]: any};
   registry_url_base: string;
   registry_app_id: string;
@@ -47,11 +54,11 @@ export interface Package {
 // source: process.go
 
 export type ProcessID = string;
-export type Driver = string;
-export const DriverUnknown: Driver = "unknown";
-export const DriverNoop: Driver = "noop";
-export const DriverDocker: Driver = "docker";
-export const DriverWeb: Driver = "web";
+export type DriverType = string;
+export const DriverTypeUnknown: DriverType = "unknown";
+export const DriverTypeNoop: DriverType = "noop";
+export const DriverTypeDocker: DriverType = "docker";
+export const DriverTypeWeb: DriverType = "web";
 /**
  * Types related to running processes, mostly used by internal/process
  */
@@ -60,7 +67,6 @@ export interface Process {
   app_id: string;
   user_id: string;
   created: string;
-  driver: Driver;
 }
 
 //////////
@@ -91,8 +97,8 @@ export const ProxyRuleEmbeddedFrontend: ReverseProxyRuleType = "embedded_fronten
 // source: schema.go
 
 export const SchemaName = "node";
-export const CurrentVersion = "v0.0.7";
-export const LatestVersion = "v0.0.7";
+export const CurrentVersion = "v0.0.8";
+export const LatestVersion = "v0.0.8";
 export interface State {
   node_id: string;
   name: string;
@@ -105,7 +111,7 @@ export interface State {
    */
   processes: { [key: ProcessID]: Process | undefined};
   app_installations: { [key: string]: AppInstallation | undefined};
-  reverse_proxy_rules?: { [key: string]: ReverseProxyRule | undefined};
+  reverse_proxy_rules: { [key: string]: ReverseProxyRule | undefined};
 }
 export interface User {
   id: string;

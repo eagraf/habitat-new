@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"testing"
@@ -44,7 +45,7 @@ func setupNodeDBTest(ctrl *gomock.Controller, t *testing.T) (NodeController, *mo
 	}
 
 	// Check that fakeInitState is based off of the config we pass in
-	mockedManager.EXPECT().CreateDatabase(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(
+	mockedManager.EXPECT().CreateDatabase(context.Background(), gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(
 		// signature of anonymous function must have the same number of input and output arguments as the mocked method.
 		func(nodeName, schemaName string, initTransitions []hdb.Transition) (hdb.Client, error) {
 			require.Equal(t, 1, len(initTransitions))
@@ -64,7 +65,7 @@ func setupNodeDBTest(ctrl *gomock.Controller, t *testing.T) (NodeController, *mo
 
 	controller, err := NewNodeController(mockedManager, mockedPDSClient)
 	require.Nil(t, err)
-	err = controller.InitializeNodeDB(transitions)
+	err = controller.InitializeNodeDB(context.Background(), transitions)
 	require.Nil(t, err)
 
 	return controller, mockedPDSClient, mockedManager, mockedClient
@@ -75,12 +76,12 @@ func TestInitializeNodeDB(t *testing.T) {
 
 	controller, _, mockedManager, _ := setupNodeDBTest(ctrl, t)
 
-	mockedManager.EXPECT().CreateDatabase(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, assert.AnError).Times(1)
-	err := controller.InitializeNodeDB(nil)
+	mockedManager.EXPECT().CreateDatabase(context.Background(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, assert.AnError).Times(1)
+	err := controller.InitializeNodeDB(context.Background(), nil)
 	require.NotNil(t, err)
 
-	mockedManager.EXPECT().CreateDatabase(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, &hdb.DatabaseAlreadyExistsError{}).Times(1)
-	err = controller.InitializeNodeDB(nil)
+	mockedManager.EXPECT().CreateDatabase(context.Background(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, &hdb.DatabaseAlreadyExistsError{}).Times(1)
+	err = controller.InitializeNodeDB(context.Background(), nil)
 	require.Nil(t, err)
 }
 

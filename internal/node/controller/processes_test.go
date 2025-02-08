@@ -157,7 +157,10 @@ func TestStartProcessHandler(t *testing.T) {
 	}
 
 	// NewCtrlServer restores the initial state
-	s, err := NewCtrlServer(context.Background(), &BaseNodeController{}, process.NewProcessManager([]process.Driver{mockDriver}), nil, db)
+	ctrl2, err := NewController2(context.Background(), process.NewProcessManager([]process.Driver{mockDriver}), nil, db, nil)
+	require.NoError(t, err)
+
+	s, err := NewCtrlServer(context.Background(), &BaseNodeController{}, ctrl2, state)
 	require.NoError(t, err)
 
 	// No processes running
@@ -365,12 +368,10 @@ func TestControllerRestoreProcess(t *testing.T) {
 	mockDriver := newMockDriver(node.DriverTypeDocker)
 	pm := process.NewProcessManager([]process.Driver{mockDriver})
 
-	ctrl, err := newController2(
-		context.Background(),
-		pm, nil, &mockHDB{
-			schema:    state.Schema(),
-			jsonState: jsonStateFromNodeState(state),
-		})
+	ctrl, err := NewController2(context.Background(), pm, nil, &mockHDB{
+		schema:    state.Schema(),
+		jsonState: jsonStateFromNodeState(state),
+	}, nil)
 	require.NoError(t, err)
 
 	// Restore

@@ -41,6 +41,15 @@ type State struct {
 	ReverseProxyRules map[string]*ReverseProxyRule `json:"reverse_proxy_rules"`
 }
 
+func NewStateForLatestVersion() (*State, error) {
+	initState, err := GetEmptyStateForVersion(LatestVersion)
+	if err != nil {
+		return nil, err
+	}
+	initState.NodeID = uuid.New().String()
+	return initState, nil
+}
+
 type User struct {
 	ID          string `json:"id"`
 	Username    string `json:"username"`
@@ -48,16 +57,16 @@ type User struct {
 	AtprotoDID  string `json:"atproto_did,omitempty"`
 }
 
-func (s State) Schema() hdb.Schema {
+func (s *State) Schema() hdb.Schema {
 	ns := &NodeSchema{}
 	return ns
 }
 
-func (s State) Bytes() ([]byte, error) {
+func (s *State) Bytes() ([]byte, error) {
 	return json.Marshal(s)
 }
 
-func (s State) String() string {
+func (s *State) String() string {
 	bytes, err := s.Bytes()
 	if err != nil {
 		return "Error in s.Bytes()"
@@ -65,7 +74,7 @@ func (s State) String() string {
 	return string(bytes)
 }
 
-func (s State) GetAppByID(appID string) (*AppInstallation, error) {
+func (s *State) GetAppByID(appID string) (*AppInstallation, error) {
 	app, ok := s.AppInstallations[appID]
 	if !ok {
 		return nil, fmt.Errorf("app with ID %s not found", appID)
@@ -73,7 +82,7 @@ func (s State) GetAppByID(appID string) (*AppInstallation, error) {
 	return app, nil
 }
 
-func (s State) GetAppsForUser(userID string) ([]*AppInstallation, error) {
+func (s *State) GetAppsForUser(userID string) ([]*AppInstallation, error) {
 	apps := make([]*AppInstallation, 0)
 	for _, app := range s.AppInstallations {
 		if app.UserID == userID {
@@ -83,7 +92,7 @@ func (s State) GetAppsForUser(userID string) ([]*AppInstallation, error) {
 	return apps, nil
 }
 
-func (s State) GetProcessesForUser(userID string) ([]*Process, error) {
+func (s *State) GetProcessesForUser(userID string) ([]*Process, error) {
 	procs := make([]*Process, 0)
 	for _, proc := range s.Processes {
 		if proc.UserID == userID {
@@ -111,7 +120,17 @@ func (s State) GetReverseProxyRulesForProcess(processID ProcessID) ([]*ReversePr
 	return rules, nil
 }
 
-func (s State) Copy() (*State, error) {
+func (s *State) SetRootUserCert(rootUserCert string) {
+	// TODO this is basically a placeholder until we actually have a way of generating
+	// the certificate for the node.
+	s.Users[constants.RootUserID] = &User{
+		ID:          constants.RootUserID,
+		Username:    constants.RootUsername,
+		Certificate: rootUserCert,
+	}
+}
+
+func (s *State) Copy() (*State, error) {
 	marshaled, err := s.Bytes()
 	if err != nil {
 		return nil, err
@@ -124,7 +143,7 @@ func (s State) Copy() (*State, error) {
 	return &copy, nil
 }
 
-func (s State) Validate() error {
+func (s *State) Validate() error {
 	schemaVersion := s.SchemaVersion
 
 	ns := &NodeSchema{}
@@ -215,25 +234,4 @@ func (s *NodeSchema) ValidateState(state []byte) error {
 		return keyErrs[0]
 	}
 	return nil
-}
-
-func InitRootState(rootUserCert string) (*State, error) {
-	// TODO this is basically a placeholder until we actually have a way of generating
-	// the certificate for the node.
-	nodeUUID := uuid.New().String()
-	rootCert := rootUserCert
-
-	initState, err := GetEmptyStateForVersion(LatestVersion)
-	if err != nil {
-		return nil, err
-	}
-
-	initState.NodeID = nodeUUID
-	initState.Users[constants.RootUserID] = &User{
-		ID:          constants.RootUserID,
-		Username:    constants.RootUsername,
-		Certificate: rootCert,
-	}
-
-	return initState, nil
 }

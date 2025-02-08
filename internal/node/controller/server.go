@@ -3,33 +3,29 @@ package controller
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"github.com/eagraf/habitat-new/core/state/node"
 	"github.com/eagraf/habitat-new/internal/node/api"
-	"github.com/eagraf/habitat-new/internal/node/hdb"
-	"github.com/eagraf/habitat-new/internal/package_manager"
-	"github.com/eagraf/habitat-new/internal/process"
 	"github.com/pkg/errors"
 )
 
 type CtrlServer struct {
-	inner *controller2
+	inner *Controller2
 }
 
-func NewCtrlServer(ctx context.Context, b *BaseNodeController, processManager process.ProcessManager, pkgManagers map[node.DriverType]package_manager.PackageManager, db hdb.Client) (*CtrlServer, error) {
-	inner, err := newController2(ctx, processManager, pkgManagers, db)
-	if err != nil {
-		return nil, errors.Wrap(err, "error initializing controller")
-	}
+func NewCtrlServer(
+	ctx context.Context,
+	b *BaseNodeController,
+	inner *Controller2,
+	state *node.State,
+) (*CtrlServer, error) {
 
 	b.SetCtrl2(inner)
 
-	state, err := inner.getNodeState()
-	if err != nil {
-		return nil, errors.Wrap(err, "error getting initial node state")
-	}
-	err = inner.restore(state)
+	fmt.Println("getNodeState", state)
+	err := inner.restore(state)
 	if err != nil {
 		return nil, errors.Wrap(err, "error restoring controller to initial state")
 	}
@@ -107,6 +103,7 @@ type InstallAppRequest struct {
 
 func (s *CtrlServer) InstallApp(w http.ResponseWriter, r *http.Request) {
 	userID := r.PathValue("user_id")
+	// TODO: authenticate user
 
 	var req InstallAppRequest
 	err := json.NewDecoder(r.Body).Decode(&req)
@@ -125,6 +122,32 @@ func (s *CtrlServer) InstallApp(w http.ResponseWriter, r *http.Request) {
 
 	// TODO validate request
 	w.WriteHeader(http.StatusCreated)
+}
+
+type UninstallAppRequest struct {
+	AppID string `json:"app_id" yaml:"app_installation"`
+}
+
+func (s *CtrlServer) UninstallApp(w http.ResponseWriter, r *http.Request) {
+	var req UninstallAppRequest
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	err = s.inner.uninstallApp(req.AppID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// TODO validate request
+	w.WriteHeader(http.StatusCreated)
+}
+
+func (s *CtrlServer) ListApps(w http.ResponseWriter, r *http.Request) {
+	http.Error(w, fmt.Errorf("Unimplemented").Error(), http.StatusInternalServerError)
 }
 
 func (s *CtrlServer) GetNodeState(w http.ResponseWriter, r *http.Request) {
@@ -179,6 +202,8 @@ func (s *CtrlServer) GetRoutes() []api.Route {
 		newRoute(http.MethodPost, "/node/processes/start", s.StartProcess),
 		newRoute(http.MethodPost, "/node/processes/stop", s.StopProcess),
 		newRoute(http.MethodGet, "/node/state", s.GetNodeState),
-		newRoute(http.MethodPost, "/node/users/{user_id}/apps", s.InstallApp),
+		newRoute(http.MethodPost, "/node/apps/{user_id}/install", s.InstallApp),
+		newRoute(http.MethodPost, "/node/apps/uninstall", s.UninstallApp),
+		newRoute(http.MethodGet, "/node/apps/list", s.ListApps),
 	}
 }

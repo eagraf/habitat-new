@@ -26,13 +26,13 @@ type BaseNodeController struct {
 	databaseManager hdb.HDBManager
 	pdsClient       PDSClientI
 
-	// TODO: eventually BaseNodeController will be fully replaced with controller2 and renamed aptly.
+	// TODO: eventually BaseNodeController will be fully replaced with Controller2 and renamed aptly.
 	// However, until a final migration, there are still some state update subscribers that call the NodeController interface.
 	// This will not be possible after the refactor but during the migration, mux these calls out with the new controller under
 	// the hood.
 	//
 	// See StartProcess() for an example of this.
-	ctrl2 *controller2
+	ctrl2 *Controller2
 }
 
 func NewNodeController(habitatDBManager hdb.HDBManager, pds PDSClientI) (*BaseNodeController, error) {
@@ -43,12 +43,12 @@ func NewNodeController(habitatDBManager hdb.HDBManager, pds PDSClientI) (*BaseNo
 	return controller, nil
 }
 
-// TODO: Eventually BaseNodeController will be removed completely and replaced with controller2,
+// TODO: Eventually BaseNodeController will be removed completely and replaced with Controller2,
 // so not thinking about this too hard right now. But I had to add a mock call in 50+ callsites as an alternative
 // to doing this, so it was the best path forward.
 //
 // As a consequence, any users of ctrl2 need to check if it is nil first.
-func (c *BaseNodeController) SetCtrl2(c2 *controller2) {
+func (c *BaseNodeController) SetCtrl2(c2 *Controller2) {
 	c.ctrl2 = c2
 }
 

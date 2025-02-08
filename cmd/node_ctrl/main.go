@@ -132,6 +132,41 @@ func getState() *cli.Command {
 	}
 }
 
+func listApps() *cli.Command {
+	return &cli.Command{
+		Name:  "list",
+		Usage: "Get list of installed apps.",
+		Action: func(ctx *cli.Context) error {
+			url := fmt.Sprintf("http://localhost:%s/node/apps/list", port)
+			res, err := http.Get(url)
+			if err != nil {
+				return err
+			}
+			return printResponse(res)
+		},
+	}
+}
+
+func installApp() *cli.Command {
+	return &cli.Command{
+		Name:  "install",
+		Usage: "Install an application.",
+		Action: func(ctx *cli.Context) error {
+			return fmt.Errorf("unimplemented")
+		},
+	}
+}
+
+func uninstallApp() *cli.Command {
+	return &cli.Command{
+		Name:  "uninstall",
+		Usage: "Uninstall an application",
+		Action: func(ctx *cli.Context) error {
+			return fmt.Errorf("unimplemented")
+		},
+	}
+}
+
 func main() {
 	app := &cli.App{
 		Name:  "node_ctl",
@@ -163,6 +198,15 @@ func main() {
 				Usage: "Commands related to general node actions.",
 				Subcommands: []*cli.Command{
 					getState(),
+				},
+			},
+			{
+				Name:  "app",
+				Usage: "Commands related to app installations managed by the node.",
+				Subcommands: []*cli.Command{
+					listApps(),
+					installApp(),
+					uninstallApp(),
 				},
 			},
 		},
