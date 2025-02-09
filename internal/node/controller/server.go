@@ -21,10 +21,7 @@ func NewCtrlServer(
 	inner *Controller2,
 	state *node.State,
 ) (*CtrlServer, error) {
-
 	b.SetCtrl2(inner)
-
-	fmt.Println("getNodeState", state)
 	err := inner.restore(state)
 	if err != nil {
 		return nil, errors.Wrap(err, "error restoring controller to initial state")

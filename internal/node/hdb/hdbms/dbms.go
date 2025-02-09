@@ -143,7 +143,6 @@ func (dm *DatabaseManager) RestartDBs(ctx context.Context) error {
 // CreateDatabase creates a new database with the given name and schema type.
 // This is a no-op if a database with the same name already exists.
 func (dm *DatabaseManager) CreateDatabase(ctx context.Context, name string, schemaType string, initialTransitions []hdb.Transition) (hdb.Client, error) {
-	fmt.Println("createDB")
 	// First ensure that no db has the same name
 	err := dm.checkDatabaseExists(name)
 	if err != nil {

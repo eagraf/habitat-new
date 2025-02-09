@@ -153,6 +153,9 @@ func (c *Controller2) installApp(userID string, pkg *node.Package, version strin
 			AppID: transition.ID,
 		},
 	})
+	if err != nil {
+		return err
+	}
 
 	if start {
 		return c.startProcess(transition.ID)

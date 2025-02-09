@@ -26,8 +26,6 @@ func printResponse(res *http.Response) error {
 	if err != nil {
 		return err
 	}
-	copy := slurp
-	fmt.Println("got ", string(copy))
 	// Kinda wack, but we want to embed this JSON response into the msg type
 	// So unmarshal it and then immediately marshal the whole thing
 	var body any

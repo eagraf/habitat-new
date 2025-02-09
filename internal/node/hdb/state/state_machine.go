@@ -120,8 +120,6 @@ func (sm *StateMachine) Bytes() []byte {
 // The hypothetical new state is returned. Importantly, this does not block until the state
 // is "officially updated".
 func (sm *StateMachine) ProposeTransitions(transitions []hdb.Transition) (*hdb.JSONState, error) {
-
-	fmt.Println("ProposeTransitionsSM", transitions)
 	jsonStateBranch, err := sm.jsonState.Copy()
 	if err != nil {
 		return nil, err
