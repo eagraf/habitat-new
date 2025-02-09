@@ -54,7 +54,6 @@ func (c *BaseNodeController) SetCtrl2(c2 *Controller2) {
 
 // InitializeNodeDB tries initializing the database; it is a noop if a database with the same name already exists
 func (c *BaseNodeController) InitializeNodeDB(ctx context.Context, transitions []hdb.Transition) error {
-	fmt.Println("initialize")
 	_, err := c.databaseManager.CreateDatabase(ctx, constants.NodeDBDefaultName, node.SchemaName, transitions)
 	if err != nil {
 		if _, ok := err.(*hdb.DatabaseAlreadyExistsError); ok {
