@@ -47,7 +47,7 @@ func setupNodeDBTest(ctrl *gomock.Controller, t *testing.T) (NodeController, *mo
 	// Check that fakeInitState is based off of the config we pass in
 	mockedManager.EXPECT().CreateDatabase(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(
 		// signature of anonymous function must have the same number of input and output arguments as the mocked method.
-		func(nodeName, schemaName string, initTransitions []hdb.Transition) (hdb.Client, error) {
+		func(ctx context.Context, nodeName, schemaName string, initTransitions []hdb.Transition) (hdb.Client, error) {
 			require.Equal(t, 1, len(initTransitions))
 
 			initStateTransition := initTransitions[0]

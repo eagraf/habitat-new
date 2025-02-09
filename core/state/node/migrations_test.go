@@ -88,7 +88,14 @@ func TestValidationFailure(t *testing.T) {
 	state, err := nodeSchema.EmptyState()
 	assert.Nil(t, err)
 
-	state.(*State).TestField = "test"
+	// Users is a required field, but has "omitempty" on it
+	state.(*State).Users = make(map[string]*User)
+	// Validation succeeds
+	err = state.Validate()
+	assert.Nil(t, err)
+
+	state.(*State).Users = nil
+	// Validation fails
 	err = state.Validate()
 	assert.NotNil(t, err)
 }
