@@ -29,7 +29,6 @@ import (
 	"github.com/eagraf/habitat-new/internal/process"
 	"github.com/eagraf/habitat-new/internal/pubsub"
 	"github.com/eagraf/habitat-new/internal/web"
-	"github.com/google/uuid"
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -233,7 +232,7 @@ func generatePDSAppConfig(nodeConfig *config.NodeConfig) (*node.AppInstallation,
 	pdsMountDir := filepath.Join(nodeConfig.HabitatAppPath(), "pds")
 
 	// TODO @eagraf - unhardcode as much of this as possible
-	appID := uuid.NewString()
+	appID := "pds-default-app-ID"
 	return &node.AppInstallation{
 			ID:      appID,
 			Name:    "pds",
