@@ -74,7 +74,6 @@ func getRedirectHandler(rule *node.ReverseProxyRule) (http.Handler, error) {
 		ErrorHandler: func(rw http.ResponseWriter, r *http.Request, err error) {
 			log.Error().Err(err).Msg("reverse proxy request forwarding error")
 			_, _ = rw.Write([]byte(err.Error()))
-			rw.WriteHeader(http.StatusInternalServerError)
 		},
 	}, nil
 }
