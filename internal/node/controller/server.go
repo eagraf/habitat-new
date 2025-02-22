@@ -34,8 +34,16 @@ func NewCtrlServer(ctx context.Context, b *BaseNodeController, pm process.Proces
 	}
 
 	return &CtrlServer{
-		inner: inner,
+		inner: b.ctrl2,
 	}, nil
+}
+
+func (s *CtrlServer) Restore() error {
+	state, err := s.inner.getNodeState()
+	if err != nil {
+		return err
+	}
+	return s.inner.restore(state)
 }
 
 type StartProcessRequest struct {

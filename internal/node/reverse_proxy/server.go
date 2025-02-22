@@ -83,6 +83,7 @@ func (s *ProxyServer) TailscaleListener(addr, hostname, tsStatePath string, funn
 	}
 
 	if funnelEnabled {
+		log.Info().Msgf("Listening on Tailscale funnel: hostname=%s, addr=%s", hostname, addr)
 		ln, err := tsnet.ListenFunnel("tcp", addr)
 		if err != nil {
 			return nil, err

@@ -106,6 +106,13 @@ func main() {
 		return stateUpdates.Listen()
 	})
 
+	// Generate the list of apps to have installed and started when the node first comes up
+	pdsAppConfig := generatePDSAppConfig(nodeConfig)
+	defaultApps := append([]*types.PostAppRequest{
+		pdsAppConfig,
+	}, nodeConfig.DefaultApps()...)
+	log.Info().Msgf("configDefaultApps: %v", defaultApps)
+
 	initState, err := node.InitRootState(nodeConfig.RootUserCertB64())
 	if err != nil {
 		log.Fatal().Err(err).Msg("unable to generate initial node state")
@@ -117,21 +124,31 @@ func main() {
 		log.Fatal().Err(err).Msg("unable to generate proxy rules")
 	}
 
-	// Generate the list of apps to have installed and started when the node first comes up
-	pdsAppConfig := generatePDSAppConfig(nodeConfig)
-	defaultApps := append([]*types.PostAppRequest{
-		pdsAppConfig,
-	}, nodeConfig.DefaultApps()...)
-	log.Info().Msgf("configDefaultApps: %v", defaultApps)
-
 	initialTransitions, err := initTranstitions(initState, defaultApps, proxyRules)
 	if err != nil {
 		log.Fatal().Err(err).Msg("unable to do initial node transitions")
 	}
 
-	err = nodeCtrl.InitializeNodeDB(initialTransitions)
+	initFirstTime, err := nodeCtrl.InitializeNodeDB(initialTransitions)
 	if err != nil {
 		log.Fatal().Err(err).Msg("error initializing node db")
+	}
+
+	dbClient, err := db.Manager.GetDatabaseClientByName(constants.NodeDBDefaultName)
+	if err != nil {
+		log.Fatal().Err(err).Msg("error getting default HDB client")
+	}
+
+	ctrlServer, err := controller.NewCtrlServer(ctx, nodeCtrl, pm, dbClient)
+	if err != nil {
+		log.Fatal().Err(err).Msg("error creating node control server")
+	}
+
+	if !initFirstTime {
+		err = ctrlServer.Restore()
+		if err != nil {
+			log.Fatal().Err(err).Msg("error restoring controller to initial state")
+		}
 	}
 
 	// Set up the reverse proxy server
@@ -163,15 +180,6 @@ func main() {
 		server.WithListener(ln),
 	))
 
-	dbClient, err := db.Manager.GetDatabaseClientByName(constants.NodeDBDefaultName)
-	if err != nil {
-		log.Fatal().Err(err).Msg("error getting default HDB client")
-	}
-
-	ctrlServer, err := controller.NewCtrlServer(ctx, nodeCtrl, pm, dbClient)
-	if err != nil {
-		log.Fatal().Err(err).Msg("error creating node control server")
-	}
 	// Set up the main API server
 	// TODO: create a less tedious way to register all the routes in the future. It might be as simple
 	// as having a dedicated file to list these, instead of putting them all in main.

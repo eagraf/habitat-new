@@ -22,5 +22,6 @@ const (
 	PortReverseProxyTSFunnel = "443"
 
 	TSNetHostnameDefault = "habitat"
-	TSNetHostnameDev     = "habitat-dev"
+
+// TSNetHostnameDev     = "habitat-dev"
 )

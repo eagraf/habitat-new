@@ -21,7 +21,7 @@ func newController2(ctx context.Context, pm process.ProcessManager, db hdb.Clien
 	// Validate types of all input components
 	_, ok := pm.(node.Component[process.RestoreInfo])
 	if !ok {
-		return nil, fmt.Errorf("Process manager of type %T does not implement Component[*node.Process]", pm)
+		return nil, fmt.Errorf("process manager of type %T does not implement Component[*node.Process]", pm)
 	}
 
 	ctrl := &controller2{
