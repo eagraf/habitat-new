@@ -11,6 +11,8 @@ type HDBResult struct {
 	StateUpdatePublisher pubsub.Publisher[hdb.StateUpdate] `group:"state_update_publishers"`
 }
 
+const NodeDBDir = "node_db"
+
 func NewHabitatDB(logger *zerolog.Logger, publisher *pubsub.SimplePublisher[hdb.StateUpdate], path string) (*HDBResult, func(), error) {
 	dbManager, err := NewDatabaseManager(path, publisher)
 	if err != nil {

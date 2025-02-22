@@ -21,10 +21,12 @@ type DatabaseManager struct {
 }
 
 type Database struct {
-	id   string
-	name string
-	path string
+	id         string
+	name       string
+	path       string
+	schemaType string
 
+	publisher pubsub.Publisher[hdb.StateUpdate]
 	state.StateMachineController
 }
 
@@ -46,6 +48,161 @@ func (d *Database) DatabaseAddress() string {
 
 func (d *Database) Protocol() string {
 	return filepath.Join("/habitat-raft", "0.0.1", d.id)
+}
+
+func (d *Database) restartDB() error {
+	log.Info().Msgf("Restoring database %s", d.id)
+
+	typeBytes, err := os.ReadFile(filepath.Join(d.path, "schema_type"))
+	if err != nil {
+		return fmt.Errorf("error reading schema for database %s: %s", d.id, err)
+	}
+	schemaType := string(typeBytes)
+
+	schema, err := state.GetSchema(schemaType)
+	if err != nil {
+		return err
+	}
+
+	replicator, err := state.NewStableStorageOnlyReplicator(filepath.Join(d.path, "state.json"), schema)
+	if err != nil {
+		return err
+	}
+
+	stateMachineController, err := state.StateMachineFactory(dbID, schemaType, nil, replicator, dm.publisher)
+	if err != nil {
+		return err
+	}
+	err = replicator.RestoreState()
+	if err != nil {
+		return fmt.Errorf("error restoring state for database %s: %s", d.id, err)
+	}
+
+	d.StateMachineController = stateMachineController
+
+	d.StateMachineController.StartListening()
+
+	return nil
+}
+
+func (d *Database) initializeDB() error {
+	err := os.MkdirAll(d.path, 0700)
+	if err != nil {
+		return err
+	}
+
+	schema, err := state.GetSchema(d.schemaType)
+	if err != nil {
+		return err
+	}
+
+	err = os.WriteFile(filepath.Join(d.path, "schema_type"), []byte(schema.Name()), 0600)
+	if err != nil {
+		return err
+	}
+
+	err = os.WriteFile(filepath.Join(d.path, "name"), []byte(d.name), 0600)
+	if err != nil {
+		return err
+	}
+
+	replicator, err := state.NewStableStorageOnlyReplicator(filepath.Join(d.path, "state.json"), schema)
+	if err != nil {
+		return err
+	}
+
+	err = replicator.InitializeState()
+	if err != nil {
+		return nil, err
+	}
+
+	stateMachineController, err := state.StateMachineFactory(db.id, schemaType, nil, replicator, dm.publisher)
+	if err != nil {
+		return nil, err
+	}
+	db.StateMachineController = stateMachineController
+
+	db.StateMachineController.StartListening()
+
+	_, err = db.StateMachineController.ProposeTransitions(initialTransitions)
+	if err != nil {
+		return nil, err
+	}
+
+}
+
+func NewDatabase(path string, publisher pubsub.Publisher[hdb.StateUpdate]) (*Database, error) {
+	db := &Database{
+		path:      path,
+		publisher: publisher,
+	}
+	exists := checkDatabaseExists(db.path)
+	if exists {
+		err := db.restartDB()
+		if err != nil {
+			return nil, err
+		}
+		return db, nil
+	} else {
+
+	}
+	err := dm.checkDatabaseExists(name)
+	if err != nil {
+		return nil, err
+	}
+
+	id := uuid.New().String()
+
+	db := &Database{
+		id:   id,
+		name: name,
+		path: filepath.Join(dm.path, id),
+	}
+
+	err = os.MkdirAll(db.Path(), 0700)
+	if err != nil {
+		return nil, err
+	}
+
+	schema, err := state.GetSchema(schemaType)
+	if err != nil {
+		return nil, err
+	}
+
+	err = os.WriteFile(filepath.Join(db.Path(), "schema_type"), []byte(schema.Name()), 0600)
+	if err != nil {
+		return nil, err
+	}
+
+	err = os.WriteFile(filepath.Join(db.Path(), "name"), []byte(db.name), 0600)
+	if err != nil {
+		return nil, err
+	}
+
+	replicator, err := state.NewStableStorageOnlyReplicator(filepath.Join(db.Path(), "state.json"), schema)
+	if err != nil {
+		return nil, err
+	}
+
+	err = replicator.InitializeState()
+	if err != nil {
+		return nil, err
+	}
+
+	stateMachineController, err := state.StateMachineFactory(db.id, schemaType, nil, replicator, dm.publisher)
+	if err != nil {
+		return nil, err
+	}
+	db.StateMachineController = stateMachineController
+
+	db.StateMachineController.StartListening()
+
+	_, err = db.StateMachineController.ProposeTransitions(initialTransitions)
+	if err != nil {
+		return nil, err
+	}
+
+	return db, nil
 }
 
 func NewDatabaseManager(path string, publisher pubsub.Publisher[hdb.StateUpdate]) (*DatabaseManager, error) {
@@ -76,61 +233,19 @@ func (dm *DatabaseManager) Stop() {
 	}
 }
 
-func (dm *DatabaseManager) RestartDBs() error {
-	dirs, err := os.ReadDir(dm.path)
-	if err != nil {
-		return fmt.Errorf("error reading existing databases : %s", err)
-	}
-	for _, dir := range dirs {
-		dbID := dir.Name()
-		log.Info().Msgf("Restoring database %s", dbID)
-		dbDir := filepath.Join(dm.path, dbID)
-
-		typeBytes, err := os.ReadFile(filepath.Join(dbDir, "schema_type"))
-		if err != nil {
-			return fmt.Errorf("error reading schema for database %s: %s", dbID, err)
-		}
-		schemaType := string(typeBytes)
-
-		nameBytes, err := os.ReadFile(filepath.Join(dbDir, "name"))
-		if err != nil {
-			return fmt.Errorf("error reading name for database %s: %s", dbID, err)
-		}
-		name := string(nameBytes)
-
-		schema, err := state.GetSchema(schemaType)
-		if err != nil {
-			return err
-		}
-
-		db := &Database{
-			id:   dbID,
-			name: name,
-			path: filepath.Join(dm.path, dbID),
-		}
-
-		replicator, err := state.NewStableStorageOnlyReplicator(filepath.Join(db.Path(), "state.json"), schema)
-		if err != nil {
-			return err
-		}
-
-		stateMachineController, err := state.StateMachineFactory(dbID, schemaType, nil, replicator, dm.publisher)
-		if err != nil {
-			return err
-		}
-		err = replicator.RestoreState()
-		if err != nil {
-			return fmt.Errorf("error restoring state for database %s: %s", dbID, err)
-		}
-
-		db.StateMachineController = stateMachineController
-
-		dm.databases[dbID] = db
-		db.StateMachineController.StartListening()
-
-	}
-	return nil
-}
+//func (dm *DatabaseManager) RestartDBs() error {
+//dirs, err := os.ReadDir(dm.path)
+//if err != nil {
+//return fmt.Errorf("error reading existing databases : %s", err)
+//}
+//for _, dir := range dirs {
+//err := dm.RestartDB(dir)
+//if err != nil {
+//return err
+//}
+//}
+//return nil
+//}
 
 // CreateDatabase creates a new database with the given name and schema type.
 // This is a no-op if a database with the same name already exists.
@@ -214,22 +329,9 @@ func (dm *DatabaseManager) GetDatabaseClientByName(name string) (hdb.Client, err
 	return nil, &hdb.DatabaseNotFoundError{DatabaseName: name}
 }
 
-func (dm *DatabaseManager) checkDatabaseExists(name string) error {
-	// TODO we need a much cleaner way to do this. Maybe a db metadata file.
-	dirs, err := os.ReadDir(dm.path)
-	if err != nil {
-		return fmt.Errorf("error reading existing databases : %s", err)
+func checkDatabaseExists(path string) bool {
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		return false
 	}
-	for _, dir := range dirs {
-		nameFilePath := filepath.Join(dm.path, dir.Name(), "name")
-		dbName, err := os.ReadFile(nameFilePath)
-		if err != nil {
-			return fmt.Errorf("error reading name for database %s: %s", dir.Name(), err)
-		}
-
-		if string(dbName) == name {
-			return &hdb.DatabaseAlreadyExistsError{DatabaseName: name}
-		}
-	}
-	return nil
+	return true
 }
