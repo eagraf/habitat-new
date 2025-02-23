@@ -251,6 +251,14 @@ func main() {
 func generatePDSAppConfig(nodeConfig *config.NodeConfig) *types.PostAppRequest {
 	pdsMountDir := filepath.Join(nodeConfig.HabitatAppPath(), "pds")
 
+	arch := runtime.GOARCH
+	var pdsTag string
+	if arch == "arm64" {
+		pdsTag = "arm-latest"
+	} else {
+		pdsTag = "latest"
+	}
+
 	// TODO @eagraf - unhardcode as much of this as possible
 	return &types.PostAppRequest{
 		AppInstallation: &node.AppInstallation{
@@ -294,7 +302,7 @@ func generatePDSAppConfig(nodeConfig *config.NodeConfig) *types.PostAppRequest {
 				},
 				RegistryURLBase:    "registry.hub.docker.com",
 				RegistryPackageID:  "ethangraf/pds",
-				RegistryPackageTag: "latest",
+				RegistryPackageTag: pdsTag,
 			},
 		},
 		ReverseProxyRules: []*node.ReverseProxyRule{
