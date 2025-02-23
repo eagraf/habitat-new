@@ -4,14 +4,8 @@ import * as node from '../types/api';
 
 export const getNode = async (): Promise<node.GetNodeResponse> => {
     try {
-        const accessToken = Cookies.get('access_token');
-        if (!accessToken) {
-            throw new Error('No access token found');
-        }
-
         const response = await axios.get(`${window.location.origin}/habitat/api/node`, {
             headers: {
-                'Authorization': `Bearer ${accessToken}`,
                 'Content-Type': 'application/json',
             },
         });
@@ -25,17 +19,11 @@ export const getNode = async (): Promise<node.GetNodeResponse> => {
 
 export const installApp = async (appInstallation: any) => {
     try {
-        const accessToken = Cookies.get('access_token');
-        if (!accessToken) {
-            throw new Error('No access token found');
-        }
-
         const response = await axios.post(
             `${window.location.origin}/habitat/api/node/users/0/apps`,
             appInstallation,
             {
                 headers: {
-                    'Authorization': `Bearer ${accessToken}`,
                     'Content-Type': 'application/json',
                 },
             }
@@ -60,7 +48,6 @@ export const getAvailableApps = async (): Promise<any[]> => {
 
 
 // Helpers
-
 
 export const getWebApps = async (): Promise<any[]> => {
     try {

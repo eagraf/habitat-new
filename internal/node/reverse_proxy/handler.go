@@ -63,6 +63,7 @@ func getRedirectHandler(rule *node.ReverseProxyRule) (http.Handler, error) {
 				strings.TrimPrefix(req.URL.Path, rule.Matcher),
 			)
 		},
+
 		Transport: &http.Transport{
 			Dial: (&net.Dialer{
 				Timeout: 10 * time.Second,

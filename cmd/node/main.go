@@ -8,11 +8,13 @@ import (
 	"net/url"
 	"os/signal"
 	"path/filepath"
+	"runtime"
 	"syscall"
 
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
+	"github.com/eagraf/go-atproto-oauth/oauth"
 	types "github.com/eagraf/habitat-new/core/api"
 	"github.com/eagraf/habitat-new/core/state/node"
 	"github.com/eagraf/habitat-new/internal/docker"
@@ -187,30 +189,46 @@ func main() {
 		// Node routes
 		api.NewVersionHandler(),
 		controller.NewGetNodeRoute(db.Manager),
-		controller.NewLoginRoute(pdsClient),
 		controller.NewAddUserRoute(nodeCtrl),
 		controller.NewInstallAppRoute(nodeCtrl),
 		controller.NewMigrationRoute(nodeCtrl),
 	}
 	routes = append(routes, ctrlServer.GetRoutes()...)
+
+	authPersister := oauth.NewInMemoryPersister()
+
 	if nodeConfig.Environment() == constants.EnvironmentDev {
 		// App store is unimplemented in production
 		routes = append(routes, appstore.NewAvailableAppsRoute(nodeConfig.HabitatPath()))
 	}
 
+	// Set up the API server
 	authMiddleware := controller.NewAuthenticationMiddleware(
 		nodeCtrl,
 		nodeConfig.UseTLS(),
-		nodeConfig.RootUserCert,
+		authPersister,
 	)
-	router := api.NewRouter(routes, logger, authMiddleware.Middleware)
-	apiServer := &http.Server{
+	apiRouter := api.NewRouter(routes, logger, authMiddleware.Middleware)
+
+	// Set up the auth routes
+	oauthProxy := controller.NewHabitatOAuthProxy(nodeConfig.Domain(), authPersister)
+	authRoutes := oauthProxy.OAuthRoutes()
+
+	authRouter := api.NewRouter(authRoutes, logger)
+
+	// Set up the root router and server
+	rootRouter := http.NewServeMux()
+	rootRouter.Handle("/api/", http.StripPrefix("/api", apiRouter))
+	rootRouter.Handle("/oauth/", http.StripPrefix("/oauth", authRouter))
+
+	rootAPIServer := &http.Server{
 		Addr:    fmt.Sprintf(":%s", constants.DefaultPortHabitatAPI),
-		Handler: router,
+		Handler: rootRouter,
 	}
+
 	eg.Go(
 		server.ServeFn(
-			apiServer,
+			rootAPIServer,
 			"api-server",
 			server.WithTLSConfig(tlsConfig, nodeConfig.NodeCertPath(), nodeConfig.NodeKeyPath()),
 		),
@@ -227,7 +245,7 @@ func main() {
 	}
 
 	// Shutdown the API server
-	err = apiServer.Shutdown(context.Background())
+	err = rootAPIServer.Shutdown(context.Background())
 	if err != nil {
 		log.Err(err).Msg("error on api-server shutdown")
 	}
@@ -341,10 +359,28 @@ func generateDefaultReverseProxyRules(frontendDev bool) ([]*node.ReverseProxyRul
 		{
 			ID:      "default-rule-api",
 			Type:    node.ProxyRuleRedirect,
-			Matcher: "/habitat/api",
+			Matcher: "/habitat",
 			Target:  apiURL.String(),
 		},
 		frontendRule,
+		{
+			ID:      "default-rule-oauth-well-known",
+			Type:    "redirect",
+			Matcher: "/.well-known",
+			Target:  "http://host.docker.internal:5001/.well-known/",
+		},
+		{
+			ID:      "default-rule-oauth-login",
+			Type:    "redirect",
+			Matcher: "/oauth",
+			Target:  "http://host.docker.internal:5001/oauth/",
+		},
+		{
+			ID:      "default-rule-atproto",
+			Type:    "redirect",
+			Matcher: "/@atproto",
+			Target:  "http://host.docker.internal:5001/@atproto/",
+		},
 	}, nil
 }
 
