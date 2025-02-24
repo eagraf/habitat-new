@@ -51,9 +51,15 @@ func (h *HabitatOAuthProxy) clientMetadataHandler(w http.ResponseWriter, r *http
 	handler.ServeHTTP(w, r)
 }
 
+func (h *HabitatOAuthProxy) logoutHandler(w http.ResponseWriter, r *http.Request) {
+	handler := oauth.LogoutHandler(h.oauthConfig, h.persister)
+	handler.ServeHTTP(w, r)
+}
+
 func (h *HabitatOAuthProxy) OAuthRoutes() []api.Route {
 	return []api.Route{
 		newRoute(http.MethodPost, "/login", h.loginHandler),
+		newRoute(http.MethodPost, "/logout", h.logoutHandler),
 		newRoute(http.MethodGet, "/callback", h.callbackHandler),
 		newRoute(http.MethodGet, "/jwks.json", h.jwksHandler),
 		newRoute(http.MethodGet, "/client_metadata.json", h.clientMetadataHandler),

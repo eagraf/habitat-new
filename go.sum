@@ -102,6 +102,8 @@ github.com/eagraf/go-atproto-oauth v0.0.0-20250223073737-03b1d4dde9eb h1:NKSwINq
 github.com/eagraf/go-atproto-oauth v0.0.0-20250223073737-03b1d4dde9eb/go.mod h1:0zK7AiWrhB273XusWudGnCtTpMIi+KW6IQw83Wvphm4=
 github.com/eagraf/go-atproto-oauth v0.0.0-20250223081623-20bc2d2fe1ea h1:E+rId0gdW0573JNGLzx08gRGevDxRuOErmuQaGIC7Y4=
 github.com/eagraf/go-atproto-oauth v0.0.0-20250223081623-20bc2d2fe1ea/go.mod h1:0zK7AiWrhB273XusWudGnCtTpMIi+KW6IQw83Wvphm4=
+github.com/eagraf/go-atproto-oauth v0.0.0-20250223222908-6435b726dfbe h1:HZk+OZCIi8ed9V24+GfhKzOsnyUXLrK4VXTcnC2BIbQ=
+github.com/eagraf/go-atproto-oauth v0.0.0-20250223222908-6435b726dfbe/go.mod h1:0zK7AiWrhB273XusWudGnCtTpMIi+KW6IQw83Wvphm4=
 github.com/evanphx/json-patch/v5 v5.9.0 h1:kcBlZQbplgElYIlo/n1hJbls2z/1awpXxpRi0/FOJfg=
 github.com/evanphx/json-patch/v5 v5.9.0/go.mod h1:VNkHZ/282BpEyt/tObQO8s5CMPmYYq14uClGH4abBuQ=
 github.com/fatih/color v1.13.0/go.mod h1:kLAiJbzzSOZDVNGyDpeOxJ47H46qBXwg5ILebYFFOfk=
