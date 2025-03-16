@@ -1,7 +1,6 @@
 package api
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/rs/zerolog"
@@ -24,14 +23,14 @@ func processRoute(route Route) processedRoute {
 }
 
 func (p processedRoute) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if r.Method != p.Route.Method() {
+	/*if r.Method != p.Route.Method() {
 		http.Error(
 			w,
 			fmt.Sprintf("invalid method, require %s", p.Route.Method()),
 			http.StatusMethodNotAllowed,
 		)
 		return
-	}
+	}*/
 	p.Route.ServeHTTP(w, r)
 }
 

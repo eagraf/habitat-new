@@ -16,7 +16,8 @@ type HabitatOAuthProxy struct {
 func NewHabitatOAuthProxy(domain string, authPersister oauth.Persister) *HabitatOAuthProxy {
 
 	// In Habitat, the domain for this tailnet happens to be the same as the PDS URL.
-	pdsURL := fmt.Sprintf("https://%s", domain)
+	//pdsURL := fmt.Sprintf("https://%s", domain)
+	pdsURL := "https://host.docker.internal:5001"
 
 	oauthConfig := oauth.Config{
 		Protocol:     "https",
@@ -56,6 +57,14 @@ func (h *HabitatOAuthProxy) logoutHandler(w http.ResponseWriter, r *http.Request
 	handler.ServeHTTP(w, r)
 }
 
+func (h *HabitatOAuthProxy) xrpcBrokerHandler(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("TOO BROKE")
+	a := 1
+	fmt.Println(a)
+	broker := oauth.NewTokenBroker(h.persister, h.oauthConfig.SecretJWK, h.oauthConfig.SecretJWK, h.oauthConfig.Host)
+	broker.Endpoint().ServeHTTP(w, r)
+}
+
 func (h *HabitatOAuthProxy) OAuthRoutes() []api.Route {
 	return []api.Route{
 		newRoute(http.MethodPost, "/login", h.loginHandler),
@@ -63,5 +72,6 @@ func (h *HabitatOAuthProxy) OAuthRoutes() []api.Route {
 		newRoute(http.MethodGet, "/callback", h.callbackHandler),
 		newRoute(http.MethodGet, "/jwks.json", h.jwksHandler),
 		newRoute(http.MethodGet, "/client_metadata.json", h.clientMetadataHandler),
+		newRoute(http.MethodPost, "/xrpc/{rest...}", h.xrpcBrokerHandler),
 	}
 }

@@ -5,7 +5,7 @@ go 1.22.3
 require (
 	github.com/docker/docker v25.0.5+incompatible
 	github.com/docker/go-connections v0.5.0
-	github.com/eagraf/go-atproto-oauth v0.0.0-20250223222908-6435b726dfbe
+	github.com/eagraf/go-atproto-oauth v0.0.0-20250304041432-19996b5b96ac
 	github.com/evanphx/json-patch/v5 v5.9.0
 	github.com/google/uuid v1.5.0
 	github.com/hashicorp/raft v1.6.0

@@ -121,7 +121,7 @@ func main() {
 	}
 
 	// Generate the list of default proxy rules to have available when the node first comes up
-	proxyRules, err := generateDefaultReverseProxyRules(nodeConfig.FrontendDev())
+	proxyRules, err := generateDefaultReverseProxyRules(nodeConfig.FrontendDev(), nodeConfig.DefaultReverseProxyRules())
 	if err != nil {
 		log.Fatal().Err(err).Msg("unable to generate proxy rules")
 	}
@@ -299,7 +299,9 @@ func generatePDSAppConfig(nodeConfig *config.NodeConfig) *types.PostAppRequest {
 						"PDS_INVITE_REQUIRED=false",
 						"PDS_REPORT_SERVICE_DID=did:plc:ar7c4by46qjdydhdevvrndac",
 						"PDS_CRAWLERS=https://bsky.network",
-						"DEBUG=t",
+						"DEBUG=1",
+						"LOG_LEVEL=debug",
+						"LOG_ENABLED=1",
 					},
 					"mounts": []mount.Mount{
 						{
@@ -327,13 +329,18 @@ func generatePDSAppConfig(nodeConfig *config.NodeConfig) *types.PostAppRequest {
 			{
 				Type:    "redirect",
 				Matcher: "/xrpc",
-				Target:  "http://host.docker.internal:5001/xrpc",
+				Target:  "http://host.docker.internal:3000/oauth/xrpc",
+			},
+			{
+				Type:    "redirect",
+				Matcher: "/xrpc/com.atproto.identity.resolveHandle",
+				Target:  "http://host.docker.internal:5001/xrpc/com.atproto.identity.resolveHandle",
 			},
 		},
 	}
 }
 
-func generateDefaultReverseProxyRules(frontendDev bool) ([]*node.ReverseProxyRule, error) {
+func generateDefaultReverseProxyRules(frontendDev bool, configRules []*node.ReverseProxyRule) ([]*node.ReverseProxyRule, error) {
 	apiURL, err := url.Parse(fmt.Sprintf("http://localhost:%s", constants.DefaultPortHabitatAPI))
 	if err != nil {
 		return nil, err
@@ -355,7 +362,20 @@ func generateDefaultReverseProxyRules(frontendDev bool) ([]*node.ReverseProxyRul
 		frontendRule.Type = node.ProxyRuleEmbeddedFrontend
 	}
 
-	return []*node.ReverseProxyRule{
+	res := []*node.ReverseProxyRule{}
+	fmt.Printf("configRules: %+v\n", configRules)
+
+	for i, rule := range configRules {
+		res = append(res, &node.ReverseProxyRule{
+			ID:      fmt.Sprintf("config-rule-%d", i),
+			Type:    rule.Type,
+			Matcher: rule.Matcher,
+			Target:  rule.Target,
+		})
+	}
+	fmt.Println(res)
+
+	return append(res, []*node.ReverseProxyRule{
 		{
 			ID:      "default-rule-api",
 			Type:    node.ProxyRuleRedirect,
@@ -381,7 +401,7 @@ func generateDefaultReverseProxyRules(frontendDev bool) ([]*node.ReverseProxyRul
 			Matcher: "/@atproto",
 			Target:  "http://host.docker.internal:5001/@atproto/",
 		},
-	}, nil
+	}...), nil
 }
 
 func initTranstitions(initState *node.State, startApps []*types.PostAppRequest, proxyRules []*node.ReverseProxyRule) ([]hdb.Transition, error) {

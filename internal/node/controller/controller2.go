@@ -97,6 +97,19 @@ func (c *controller2) stopProcess(processID node.ProcessID) error {
 	return err
 }
 
+func (c *controller2) addReverseProxyRule(rule *node.ReverseProxyRule) error {
+	_, err := c.db.ProposeTransitions([]hdb.Transition{
+		&node.AddReverseProxyRuleTransition{
+			Rule: rule,
+		},
+	})
+
+	// TODO once reverse proxy uses the new way of managing components, tell the
+	// reverse proxy to update its rules
+
+	return err
+}
+
 func (c *controller2) restore(state *node.State) error {
 	// Restore processes to the current state
 	info := make(map[node.ProcessID]*node.AppInstallation)

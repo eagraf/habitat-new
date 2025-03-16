@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	types "github.com/eagraf/habitat-new/core/api"
 	"github.com/eagraf/habitat-new/core/state/node"
 	"github.com/eagraf/habitat-new/internal/node/api"
 	"github.com/eagraf/habitat-new/internal/node/hdb"
@@ -106,6 +107,21 @@ func (s *CtrlServer) ListProcesses(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (s *CtrlServer) AddReverseProxyRule(w http.ResponseWriter, r *http.Request) {
+	var req types.PostReverseProxyRuleRequest
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	err = s.inner.addReverseProxyRule(req.Rule)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
+
 type route struct {
 	method  string
 	pattern string
@@ -137,5 +153,6 @@ func (s *CtrlServer) GetRoutes() []api.Route {
 		newRoute(http.MethodPost, "/node/processes/start", s.StartProcess),
 		newRoute(http.MethodPost, "/node/processes/stop", s.StopProcess),
 		newRoute(http.MethodGet, "/node/processes/list", s.ListProcesses),
+		newRoute(http.MethodPost, "/node/reverse_proxy/rules", s.AddReverseProxyRule),
 	}
 }

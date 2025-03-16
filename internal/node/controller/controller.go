@@ -25,6 +25,8 @@ type NodeController interface {
 	GetAppByID(appID string) (*node.AppInstallation, error)
 
 	StartProcess(appID string) error
+
+	AddReverseProxyRule(rule *node.ReverseProxyRule) error
 }
 
 type BaseNodeController struct {
@@ -219,4 +221,11 @@ func (c *BaseNodeController) GetUserByUsername(username string) (*node.User, err
 	}
 
 	return nil, fmt.Errorf("user with username %s not found", username)
+}
+
+func (c *BaseNodeController) AddReverseProxyRule(rule *node.ReverseProxyRule) error {
+	if c.ctrl2 == nil {
+		return fmt.Errorf("BaseNodeController.ctrl2 field is nil, unable to fulfill request")
+	}
+	return c.ctrl2.addReverseProxyRule(rule)
 }
