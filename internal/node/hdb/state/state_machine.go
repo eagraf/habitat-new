@@ -25,11 +25,12 @@ type StateMachine struct {
 	publisher  pubsub.Publisher[hdb.StateUpdate]
 	updateChan <-chan hdb.StateUpdate
 	doneChan   chan bool
+	writeToDB  func([]byte) error
 
 	schema hdb.Schema
 }
 
-func NewStateMachine(databaseID string, schema hdb.Schema, initRawState []byte, publisher pubsub.Publisher[hdb.StateUpdate]) (StateMachineController, error) {
+func NewStateMachine(databaseID string, schema hdb.Schema, initRawState []byte, publisher pubsub.Publisher[hdb.StateUpdate], writeToDB func([]byte) error) (StateMachineController, error) {
 	jsonState, err := hdb.NewJSONState(schema, initRawState)
 	if err != nil {
 		return nil, err
@@ -42,6 +43,7 @@ func NewStateMachine(databaseID string, schema hdb.Schema, initRawState []byte, 
 		doneChan:   make(chan bool),
 		publisher:  publisher,
 		schema:     schema,
+		writeToDB:  writeToDB,
 	}, nil
 }
 
@@ -126,5 +128,6 @@ func (sm *StateMachine) ProposeTransitions(transitions []hdb.Transition) (*hdb.J
 	}
 	log.Info().Msg(string(transitionsJSON))
 
-	return jsonStateBranch, nil
+	// Write to the database
+	return jsonStateBranch, sm.writeToDB(jsonStateBranch.Bytes())
 }
