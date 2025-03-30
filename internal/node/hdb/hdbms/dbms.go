@@ -104,7 +104,7 @@ func (dm *DatabaseManager) RestartDBs(ctx context.Context) error {
 			path: filepath.Join(dm.path, dbID),
 		}
 
-		stateMachineController, err := state.StateMachineFactory(dbID, schemaType, nil, dm.publisher)
+		stateMachineController, err := state.StateMachineFactory(dbID, schemaType, nil, dm.publisher, dm.writeState)
 		if err != nil {
 			return err
 		}
@@ -115,6 +115,10 @@ func (dm *DatabaseManager) RestartDBs(ctx context.Context) error {
 		go db.StateMachineController.StartListening(ctx)
 	}
 	return nil
+}
+
+func (dm *DatabaseManager) writeState(bytes []byte) error {
+	return os.WriteFile(filepath.Join(dm.path, "state"), bytes, 0600)
 }
 
 // CreateDatabase creates a new database with the given name and schema type.
@@ -154,7 +158,13 @@ func (dm *DatabaseManager) CreateDatabase(ctx context.Context, name string, sche
 		return nil, err
 	}
 
-	stateMachineController, err := state.StateMachineFactory(db.id, schemaType, nil, dm.publisher)
+	// Path where node state lives
+	err = os.WriteFile(filepath.Join(db.Path(), "state"), []byte{}, 0600)
+	if err != nil {
+		return nil, err
+	}
+
+	stateMachineController, err := state.StateMachineFactory(db.id, schemaType, nil, dm.publisher, dm.writeState)
 	if err != nil {
 		return nil, err
 	}
