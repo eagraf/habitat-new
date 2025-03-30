@@ -183,8 +183,11 @@ func TestStartProcessHandler(t *testing.T) {
 	resp := httptest.NewRecorder()
 	handler.ServeHTTP(
 		resp,
-		httptest.NewRequest(http.MethodPost, startProcessRoute.Pattern(), bytes.NewReader(b)),
-	)
+		httptest.NewRequest(
+			startProcessRoute.Method(),
+			startProcessRoute.Pattern(),
+			bytes.NewReader(b),
+		))
 	require.Equal(t, http.StatusCreated, resp.Result().StatusCode)
 
 	respBody, err := io.ReadAll(resp.Result().Body)
@@ -201,8 +204,11 @@ func TestStartProcessHandler(t *testing.T) {
 	resp = httptest.NewRecorder()
 	handler.ServeHTTP(
 		resp,
-		httptest.NewRequest(http.MethodPost, startProcessRoute.Pattern(), bytes.NewReader(b)),
-	)
+		httptest.NewRequest(
+			startProcessRoute.Method(),
+			startProcessRoute.Pattern(),
+			bytes.NewReader(b),
+		))
 	require.Equal(t, http.StatusInternalServerError, resp.Result().StatusCode)
 
 	// Test invalid request
@@ -210,7 +216,7 @@ func TestStartProcessHandler(t *testing.T) {
 	handler.ServeHTTP(
 		resp,
 		httptest.NewRequest(
-			http.MethodPost,
+			startProcessRoute.Method(),
 			startProcessRoute.Pattern(),
 			bytes.NewReader([]byte("invalid")),
 		),

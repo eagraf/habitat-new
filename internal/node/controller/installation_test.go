@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/eagraf/habitat-new/core/state/node"
@@ -67,9 +68,6 @@ func TestInstallAppController(t *testing.T) {
 		RegistryPackageID:  "app_name1",
 		RegistryPackageTag: "v1",
 	}
-	err = ctrlServer.inner.installApp("user1", pkg, "1", "app_name1", []*node.ReverseProxyRule{}, false)
-
-	require.Nil(t, err)
 
 	// Same thing but with the server
 	middleware := &test_helpers.TestAuthMiddleware{UserID: "user_1"}
@@ -92,5 +90,35 @@ func TestInstallAppController(t *testing.T) {
 
 	handler.ServeHTTP(resp, req)
 	require.Equal(t, http.StatusCreated, resp.Result().StatusCode)
+	state, err = ctrl2.getNodeState()
+	require.NoError(t, err)
+	require.Len(t, state.AppInstallations, 3, state)
+	appID := ""
+	for id := range state.AppInstallations {
+		if !strings.HasPrefix(id, "app") {
+			appID = id
+			break
+		}
+	}
 
+	// Uninstall app unit test
+	handler = middleware.Middleware(http.HandlerFunc(ctrlServer.UninstallApp))
+	b, err = json.Marshal(&UninstallAppRequest{
+		AppID: appID,
+	})
+	require.NoError(t, err)
+	req = httptest.NewRequest(
+		http.MethodPost,
+		`/uninstall-app/users/{user_id}`, // fake path for tests
+		bytes.NewReader(b),
+	)
+	req.SetPathValue("user_id", "user1")
+
+	resp = httptest.NewRecorder()
+	handler.ServeHTTP(resp, req)
+
+	require.Equal(t, http.StatusOK, resp.Result().StatusCode)
+	state, err = ctrl2.getNodeState()
+	require.NoError(t, err)
+	require.Len(t, state.AppInstallations, 2)
 }

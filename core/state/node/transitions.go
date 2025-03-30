@@ -339,7 +339,7 @@ func (t *UninstallTransition) Type() hdb.TransitionType {
 func (t *UninstallTransition) Patch(oldState hdb.SerializedState) (hdb.SerializedState, error) {
 	return []byte(fmt.Sprintf(`[{
 		"op": "remove",
-		"path": "/app_installations/%s",
+		"path": "/app_installations/%s"
 	}]`, t.AppID)), nil
 }
 func (t *UninstallTransition) Enrich(oldState hdb.SerializedState) error {

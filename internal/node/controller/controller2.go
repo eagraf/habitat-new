@@ -56,7 +56,6 @@ func (c *Controller2) getNodeState() (*node.State, error) {
 }
 
 func (c *Controller2) startProcess(installationID string) error {
-	fmt.Println("got ", installationID)
 	state, err := c.getNodeState()
 	if err != nil {
 		return fmt.Errorf("error getting node state: %s", err.Error())
@@ -72,10 +71,8 @@ func (c *Controller2) startProcess(installationID string) error {
 		return errors.Wrap(err, "error creating transition")
 	}
 
-	fmt.Println("here")
 	newJSONState, err := c.db.ProposeTransitions([]hdb.Transition{transition})
 	if err != nil {
-		fmt.Println("hello?", err)
 		return errors.Wrap(err, "error proposing transition")
 	}
 
@@ -84,8 +81,6 @@ func (c *Controller2) startProcess(installationID string) error {
 	if err != nil {
 		return errors.Wrap(err, "error getting new state")
 	}
-
-	fmt.Println("here 2")
 
 	err = c.processManager.StartProcess(c.ctx, transition.Process.ID, app)
 	if err != nil {
@@ -101,9 +96,7 @@ func (c *Controller2) startProcess(installationID string) error {
 	// Register with reverse proxy server
 	for _, rule := range newState.ReverseProxyRules {
 		if rule.AppID == transition.Process.AppID {
-			log.Info().Msgf("Adding reverse proxy rule %v", rule)
-			err = c.proxyServer.RuleSet.AddRule(rule)
-			if err != nil {
+			if c.proxyServer.RuleSet.AddRule(rule) != nil {
 				return errors.Wrap(err, "error adding reverse proxy rule")
 			}
 		}
@@ -165,8 +158,6 @@ func (c *Controller2) installApp(userID string, pkg *node.Package, version strin
 }
 
 func (c *Controller2) uninstallApp(appID string) error {
-	//return fmt.Errorf("unimplemented")
-
 	_, err := c.db.ProposeTransitions([]hdb.Transition{
 		&node.UninstallTransition{
 			AppID: appID,

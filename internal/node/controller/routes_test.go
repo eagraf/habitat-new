@@ -2,6 +2,7 @@ package controller
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
@@ -10,9 +11,12 @@ import (
 	"testing"
 
 	types "github.com/eagraf/habitat-new/core/api"
+	"github.com/eagraf/habitat-new/core/state/node"
 	"github.com/eagraf/habitat-new/internal/node/constants"
 	"github.com/eagraf/habitat-new/internal/node/controller/mocks"
 	hdb_mocks "github.com/eagraf/habitat-new/internal/node/hdb/mocks"
+	"github.com/eagraf/habitat-new/internal/package_manager"
+	"github.com/eagraf/habitat-new/internal/process"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -229,4 +233,35 @@ func TestLogin(t *testing.T) {
 	)
 	require.Equal(t, http.StatusOK, resp.Result().StatusCode)
 
+}
+
+func TestGetNodeState(t *testing.T) {
+	mockDriver := newMockDriver(node.DriverTypeDocker)
+	ctrl2, err := NewController2(context.Background(), process.NewProcessManager([]process.Driver{mockDriver}),
+		map[node.DriverType]package_manager.PackageManager{
+			node.DriverTypeDocker: &mockPkgManager{
+				installs: make(map[*node.Package]struct{}),
+			},
+		},
+		&mockHDB{
+			schema:    state.Schema(),
+			jsonState: jsonStateFromNodeState(state),
+		}, nil)
+	require.NoError(t, err)
+	ctrlServer, err := NewCtrlServer(
+		context.Background(),
+		&BaseNodeController{},
+		ctrl2,
+		state,
+	)
+	require.NoError(t, err)
+
+	handler := http.HandlerFunc(ctrlServer.GetNodeState)
+	resp := httptest.NewRecorder()
+	handler.ServeHTTP(resp, httptest.NewRequest("get", "/test", nil))
+	bytes, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	sb, err := state.Bytes()
+	require.NoError(t, err)
+	require.Equal(t, bytes, sb)
 }

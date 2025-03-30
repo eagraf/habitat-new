@@ -243,6 +243,7 @@ func generatePDSAppConfig(nodeConfig *config.NodeConfig) (*node.AppInstallation,
 				DriverConfig: map[string]interface{}{
 					"env": []string{
 						fmt.Sprintf("PDS_HOSTNAME=%s", nodeConfig.Domain()),
+						"PDS_DEV_MODE=true",
 						"PDS_DATA_DIRECTORY=/pds",
 						"PDS_BLOBSTORE_DISK_LOCATION=/pds/blocks",
 						"PDS_PLC_ROTATION_KEY_K256_PRIVATE_KEY_HEX=5290bb1866a03fb23b09a6ffd64d21f6a4ebf624eaa301930eeb81740699239c",

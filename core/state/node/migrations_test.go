@@ -149,14 +149,14 @@ func TestBackwardsCompatibility(t *testing.T) {
 			},
 		},
 		Processes: map[ProcessID]*Process{
-			"proc1": &Process{
+			"proc1": {
 				ID:      "proc1",
 				AppID:   "app1",
 				UserID:  "user1",
 				Created: "now",
 			},
 			// This process was not in a running state, but should be started
-			"proc2": &Process{
+			"proc2": {
 				ID:      "proc2",
 				AppID:   "app2",
 				UserID:  "user1",

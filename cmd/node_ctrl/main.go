@@ -30,23 +30,21 @@ func printResponse(res *http.Response) error {
 	// Kinda wack, but we want to embed this JSON response into the msg type
 	// So unmarshal it and then immediately marshal the whole thing
 	var body any
-	fmt.Println("got status code", res.StatusCode, res.StatusCode == http.StatusOK, res.StatusCode == int(http.StatusOK))
 	if res.StatusCode != int(http.StatusOK) {
 		body = string(slurp)
-	} else {
+	} else if len(slurp) > 0 {
 		err = json.Unmarshal(slurp, &body)
 		if err != nil {
 			return errors.Wrap(err, "error unmarshalling response body")
 		}
 	}
-	bytes, err := json.Marshal(msg{
+	_, err = json.Marshal(msg{
 		Status: res.Status,
 		Body:   body,
 	})
 	if err != nil {
 		return errors.Wrap(err, "error marshalling response body into msg type")
 	}
-	fmt.Println(string(bytes))
 	return nil
 }
 

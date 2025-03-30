@@ -3,7 +3,6 @@ package controller
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
 
 	"github.com/eagraf/habitat-new/core/state/node"
@@ -85,11 +84,7 @@ func (s *CtrlServer) ListProcesses(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = w.Write(bytes)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
+	w.Write(bytes)
 }
 
 type InstallAppRequest struct {
@@ -140,11 +135,7 @@ func (s *CtrlServer) UninstallApp(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// TODO validate request
-	w.WriteHeader(http.StatusCreated)
-}
-
-func (s *CtrlServer) ListApps(w http.ResponseWriter, r *http.Request) {
-	http.Error(w, fmt.Errorf("Unimplemented").Error(), http.StatusInternalServerError)
+	w.WriteHeader(http.StatusOK)
 }
 
 func (s *CtrlServer) GetNodeState(w http.ResponseWriter, r *http.Request) {
@@ -160,11 +151,7 @@ func (s *CtrlServer) GetNodeState(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = w.Write(bytes)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
+	w.Write(bytes)
 }
 
 type route struct {
@@ -201,6 +188,5 @@ func (s *CtrlServer) GetRoutes() []api.Route {
 		newRoute(http.MethodGet, "/node/state", s.GetNodeState),
 		newRoute(http.MethodPost, "/node/apps/{user_id}/install", s.InstallApp),
 		newRoute(http.MethodPost, "/node/apps/uninstall", s.UninstallApp),
-		newRoute(http.MethodGet, "/node/apps/list", s.ListApps),
 	}
 }
