@@ -8,6 +8,7 @@ import (
 	"github.com/eagraf/habitat-new/core/state/node"
 	"github.com/eagraf/habitat-new/internal/node/api"
 	"github.com/pkg/errors"
+	"github.com/rs/zerolog/log"
 )
 
 type CtrlServer struct {
@@ -84,7 +85,9 @@ func (s *CtrlServer) ListProcesses(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Write(bytes)
+	if _, err := w.Write(bytes); err != nil {
+		log.Err(err).Msgf("error sending response in for ListProcesses request")
+	}
 }
 
 type InstallAppRequest struct {
@@ -151,7 +154,9 @@ func (s *CtrlServer) GetNodeState(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Write(bytes)
+	if _, err := w.Write(bytes); err != nil {
+		log.Err(err).Msgf("error sending response in for GetNodeState request")
+	}
 }
 
 type route struct {
