@@ -18,7 +18,7 @@ const AppList: React.FC<AppListProps> = ({ apps, processes, reverseProxyRules })
         <ul className="space-y-4">
           {apps.map((app: AppInstallation) => {
             const matchingProcess = processes.find((process: Process) => process.app_id === app.id);
-            const state = matchingProcess ? "running" : "installed";
+            const state = matchingProcess ? "running" : app.state;
             
             const matchingRules = reverseProxyRules.filter(rule => rule.app_id === app.id);
             

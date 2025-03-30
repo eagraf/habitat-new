@@ -99,13 +99,15 @@ func (m *dockerPackageManager) UninstallPackage(packageURL *node.Package, versio
 }
 
 func (m *dockerPackageManager) RestoreFromState(ctx context.Context, apps map[string]*node.AppInstallation) error {
+	var err error
 	for _, app := range apps {
 		if app.Driver == m.Driver() {
-			err := m.InstallPackage(app.Package, app.Version)
-			if err != nil {
-				return err
+			perr := m.InstallPackage(app.Package, app.Version)
+			if perr != nil {
+				// Set the returned error to the last one we run into, but keep iterating
+				err = perr
 			}
 		}
 	}
-	return nil
+	return err
 }

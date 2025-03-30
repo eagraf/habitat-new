@@ -57,7 +57,7 @@ func TestProxy(t *testing.T) {
 	err = proxy.RuleSet.AddRule(&node.ReverseProxyRule{
 		ID:      "backend1",
 		Type:    node.ProxyRuleRedirect,
-		Matcher: "/backend2",
+		Matcher: "/backend1",
 		Target:  redirectedServerURL.String(),
 	})
 	require.NotNil(t, err)

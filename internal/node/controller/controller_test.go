@@ -148,66 +148,6 @@ var nodeState = &node.State{
 	},
 }
 
-/*
-func TestInstallAppController(t *testing.T) {
-	ctrl := gomock.NewController(t)
-
-	controller, _, mockedManager, mockedClient := setupNodeDBTest(ctrl, t)
-
-	mockedManager.EXPECT().GetDatabaseClientByName(constants.NodeDBDefaultName).Return(mockedClient, nil).Times(1)
-	mockedClient.EXPECT().ProposeTransitions(gomock.Eq(
-		[]hdb.Transition{
-			&node.StartInstallationTransition{
-				AppInstallation: &node.AppInstallation{
-					Name:    "app_name1",
-					Version: "1",
-					Package: &node.Package{
-						Driver:             node.DriverTypeDocker,
-						RegistryURLBase:    "https://registry.com",
-						RegistryPackageID:  "app_name1",
-						RegistryPackageTag: "v1",
-					},
-				},
-				NewProxyRules: []*node.ReverseProxyRule{},
-			},
-		},
-	)).Return(nil, nil).Times(1)
-
-	err := controller.InstallApp("0", &node.AppInstallation{
-		Name:    "app_name1",
-		Version: "1",
-		Package: node.Package{
-			Driver:             node.DriverTypeDocker,
-			RegistryURLBase:    "https://registry.com",
-			RegistryPackageID:  "app_name1",
-			RegistryPackageTag: "v1",
-		},
-	}, []*node.ReverseProxyRule{})
-	assert.Nil(t, err)
-}
-
-func TestFinishAppInstallationController(t *testing.T) {
-	ctrl := gomock.NewController(t)
-
-	controller, _, mockedManager, mockedClient := setupNodeDBTest(ctrl, t)
-
-	mockedManager.EXPECT().GetDatabaseClientByName(constants.NodeDBDefaultName).Return(mockedClient, nil).Times(1)
-	mockedClient.EXPECT().ProposeTransitions(gomock.Eq(
-		[]hdb.Transition{
-			&node.FinishInstallationTransition{
-				AppID:           "app1",
-				UserID:          "user_1",
-				RegistryURLBase: "https://registry.com",
-				RegistryAppID:   "app_1",
-			},
-		},
-	)).Return(nil, nil).Times(1)
-
-	err := controller.FinishAppInstallation("user_1", "app1", "https://registry.com", "app_1", false)
-	assert.Nil(t, err)
-}
-*/
-
 func TestAddUser(t *testing.T) {
 	ctrl := gomock.NewController(t)
 
