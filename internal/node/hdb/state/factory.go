@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/eagraf/habitat-new/core/state/node"
+	"github.com/eagraf/habitat-new/core/state/node/test_helpers"
 	"github.com/eagraf/habitat-new/internal/node/hdb"
 	"github.com/eagraf/habitat-new/internal/pubsub"
 )
@@ -19,7 +20,7 @@ func GetSchema(schemaType string) (hdb.Schema, error) {
 }
 
 // TODO this should account for schema version too
-func StateMachineFactory(databaseID string, schemaType string, emptyState []byte, replicator Replicator, publisher pubsub.Publisher[hdb.StateUpdate]) (StateMachineController, error) {
+func StateMachineFactory(databaseID string, schemaType string, emptyState []byte, publisher pubsub.Publisher[hdb.StateUpdate], writeToDB func([]byte) error) (StateMachineController, error) {
 	var schema hdb.Schema
 
 	switch schemaType {
@@ -41,7 +42,7 @@ func StateMachineFactory(databaseID string, schemaType string, emptyState []byte
 		emptyState = emptyStateBytes
 	}
 
-	stateMachineController, err := NewStateMachine(databaseID, schema, emptyState, replicator, publisher)
+	stateMachineController, err := NewStateMachine(databaseID, schema, emptyState, publisher, writeToDB)
 	if err != nil {
 		return nil, err
 	}
@@ -61,7 +62,7 @@ func StateUpdateInternalFactory(
 		if err != nil {
 			return nil, err
 		}
-		return node.NewNodeStateUpdate(&state, transitionWrapper, metadata), nil
+		return test_helpers.NewNodeStateUpdate(&state, transitionWrapper, metadata), nil
 	default:
 		return nil, fmt.Errorf("schema type %s not found", schemaType)
 	}

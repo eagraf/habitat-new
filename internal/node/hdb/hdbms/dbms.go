@@ -1,12 +1,12 @@
 package hdbms
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
 
 	"github.com/eagraf/habitat-new/internal/node/hdb"
-	"github.com/eagraf/habitat-new/internal/node/hdb/consensus"
 	"github.com/eagraf/habitat-new/internal/node/hdb/state"
 	"github.com/eagraf/habitat-new/internal/pubsub"
 	"github.com/google/uuid"
@@ -15,8 +15,6 @@ import (
 
 type DatabaseManager struct {
 	path string
-
-	raft *consensus.ClusterService
 
 	databases map[string]*Database
 
@@ -52,10 +50,6 @@ func (d *Database) Protocol() string {
 }
 
 func NewDatabaseManager(path string, publisher pubsub.Publisher[hdb.StateUpdate]) (*DatabaseManager, error) {
-	// TODO this is obviously wrong
-	host := "localhost"
-	raft := consensus.NewClusterService(host)
-
 	err := os.MkdirAll(path, 0700)
 	if err != nil {
 		return nil, err
@@ -65,15 +59,14 @@ func NewDatabaseManager(path string, publisher pubsub.Publisher[hdb.StateUpdate]
 		path:      path,
 		publisher: publisher,
 		databases: make(map[string]*Database),
-		raft:      raft,
 	}
 
 	return dm, nil
 }
 
-func (dm *DatabaseManager) Start() {
+func (dm *DatabaseManager) Start(ctx context.Context) {
 	for _, db := range dm.databases {
-		db.StateMachineController.StartListening()
+		go db.StateMachineController.StartListening(ctx)
 	}
 }
 
@@ -83,7 +76,7 @@ func (dm *DatabaseManager) Stop() {
 	}
 }
 
-func (dm *DatabaseManager) RestartDBs() error {
+func (dm *DatabaseManager) RestartDBs(ctx context.Context) error {
 	dirs, err := os.ReadDir(dm.path)
 	if err != nil {
 		return fmt.Errorf("error reading existing databases : %s", err)
@@ -105,28 +98,13 @@ func (dm *DatabaseManager) RestartDBs() error {
 		}
 		name := string(nameBytes)
 
-		schema, err := state.GetSchema(schemaType)
-		if err != nil {
-			return err
-		}
-
-		fsm, err := state.NewRaftFSMAdapter(dbID, schema, nil)
-		if err != nil {
-			return fmt.Errorf("error creating Raft adapter for database %s: %s", dbID, err)
-		}
-
 		db := &Database{
 			id:   dbID,
 			name: name,
 			path: filepath.Join(dm.path, dbID),
 		}
 
-		cluster, err := dm.raft.RestoreNode(db, fsm)
-		if err != nil {
-			return fmt.Errorf("error restoring database %s: %s", dbID, err)
-		}
-
-		stateMachineController, err := state.StateMachineFactory(dbID, schemaType, nil, cluster, dm.publisher)
+		stateMachineController, err := state.StateMachineFactory(dbID, schemaType, nil, dm.publisher, dm.writeState)
 		if err != nil {
 			return err
 		}
@@ -134,14 +112,18 @@ func (dm *DatabaseManager) RestartDBs() error {
 		db.StateMachineController = stateMachineController
 
 		dm.databases[dbID] = db
-		db.StateMachineController.StartListening()
+		go db.StateMachineController.StartListening(ctx)
 	}
 	return nil
 }
 
+func (dm *DatabaseManager) writeState(bytes []byte) error {
+	return os.WriteFile(filepath.Join(dm.path, "state"), bytes, 0600)
+}
+
 // CreateDatabase creates a new database with the given name and schema type.
 // This is a no-op if a database with the same name already exists.
-func (dm *DatabaseManager) CreateDatabase(name string, schemaType string, initialTransitions []hdb.Transition) (hdb.Client, error) {
+func (dm *DatabaseManager) CreateDatabase(ctx context.Context, name string, schemaType string, initialTransitions []hdb.Transition) (hdb.Client, error) {
 	// First ensure that no db has the same name
 	err := dm.checkDatabaseExists(name)
 	if err != nil {
@@ -176,23 +158,18 @@ func (dm *DatabaseManager) CreateDatabase(name string, schemaType string, initia
 		return nil, err
 	}
 
-	fsm, err := state.NewRaftFSMAdapter(db.id, schema, nil)
+	// Path where node state lives
+	err = os.WriteFile(filepath.Join(db.Path(), "state"), []byte{}, 0600)
 	if err != nil {
 		return nil, err
 	}
 
-	cluster, err := dm.raft.CreateCluster(db, fsm)
-	if err != nil {
-		return nil, err
-	}
-
-	stateMachineController, err := state.StateMachineFactory(db.id, schemaType, nil, cluster, dm.publisher)
+	stateMachineController, err := state.StateMachineFactory(db.id, schemaType, nil, dm.publisher, dm.writeState)
 	if err != nil {
 		return nil, err
 	}
 	db.StateMachineController = stateMachineController
-
-	db.StateMachineController.StartListening()
+	go db.StateMachineController.StartListening(ctx)
 
 	_, err = db.StateMachineController.ProposeTransitions(initialTransitions)
 	if err != nil {
@@ -200,7 +177,6 @@ func (dm *DatabaseManager) CreateDatabase(name string, schemaType string, initia
 	}
 
 	dm.databases[id] = db
-
 	return db, nil
 }
 
