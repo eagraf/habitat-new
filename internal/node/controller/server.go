@@ -87,8 +87,14 @@ func (s *CtrlServer) ListProcesses(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if _, err := w.Write(bytes); err != nil {
-		log.Err(err).Msgf("error sending response in for ListProcesses request")
+		log.Err(err).Msgf("error sending response in for GetNodeState request")
 	}
+}
+
+type InstallAppRequest struct {
+	AppInstallation   *node.AppInstallation    `json:"app_installation" yaml:"app_installation"`
+	ReverseProxyRules []*node.ReverseProxyRule `json:"reverse_proxy_rules" yaml:"reverse_proxy_rules"`
+	StartAfterInstall bool
 }
 
 func (s *CtrlServer) InstallApp(w http.ResponseWriter, r *http.Request) {
@@ -151,6 +157,18 @@ func (s *CtrlServer) GetNodeState(w http.ResponseWriter, r *http.Request) {
 
 	if _, err := w.Write(bytes); err != nil {
 		log.Err(err).Msgf("error sending response in for GetNodeState request")
+	}
+}
+
+type route struct {
+	method  string
+	pattern string
+	fn      http.HandlerFunc
+}
+
+func newRoute(method, pattern string, fn http.HandlerFunc) *route {
+	return &route{
+		method, pattern, fn,
 	}
 }
 
