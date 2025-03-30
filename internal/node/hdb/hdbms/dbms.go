@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 
 	"github.com/eagraf/habitat-new/internal/node/hdb"
-	"github.com/eagraf/habitat-new/internal/node/hdb/consensus"
 	"github.com/eagraf/habitat-new/internal/node/hdb/state"
 	"github.com/eagraf/habitat-new/internal/pubsub"
 	"github.com/google/uuid"
@@ -16,8 +15,6 @@ import (
 
 type DatabaseManager struct {
 	path string
-
-	raft *consensus.ClusterService
 
 	databases map[string]*Database
 
@@ -53,10 +50,6 @@ func (d *Database) Protocol() string {
 }
 
 func NewDatabaseManager(path string, publisher pubsub.Publisher[hdb.StateUpdate]) (*DatabaseManager, error) {
-	// TODO this is obviously wrong
-	host := "localhost"
-	raft := consensus.NewClusterService(host)
-
 	err := os.MkdirAll(path, 0700)
 	if err != nil {
 		return nil, err
@@ -66,7 +59,6 @@ func NewDatabaseManager(path string, publisher pubsub.Publisher[hdb.StateUpdate]
 		path:      path,
 		publisher: publisher,
 		databases: make(map[string]*Database),
-		raft:      raft,
 	}
 
 	return dm, nil
@@ -106,28 +98,13 @@ func (dm *DatabaseManager) RestartDBs(ctx context.Context) error {
 		}
 		name := string(nameBytes)
 
-		schema, err := state.GetSchema(schemaType)
-		if err != nil {
-			return err
-		}
-
-		fsm, err := state.NewRaftFSMAdapter(dbID, schema, nil)
-		if err != nil {
-			return fmt.Errorf("error creating Raft adapter for database %s: %s", dbID, err)
-		}
-
 		db := &Database{
 			id:   dbID,
 			name: name,
 			path: filepath.Join(dm.path, dbID),
 		}
 
-		cluster, err := dm.raft.RestoreNode(db, fsm)
-		if err != nil {
-			return fmt.Errorf("error restoring database %s: %s", dbID, err)
-		}
-
-		stateMachineController, err := state.StateMachineFactory(dbID, schemaType, nil, cluster, dm.publisher)
+		stateMachineController, err := state.StateMachineFactory(dbID, schemaType, nil, dm.publisher)
 		if err != nil {
 			return err
 		}
@@ -177,17 +154,7 @@ func (dm *DatabaseManager) CreateDatabase(ctx context.Context, name string, sche
 		return nil, err
 	}
 
-	fsm, err := state.NewRaftFSMAdapter(db.id, schema, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	cluster, err := dm.raft.CreateCluster(db, fsm)
-	if err != nil {
-		return nil, err
-	}
-
-	stateMachineController, err := state.StateMachineFactory(db.id, schemaType, nil, cluster, dm.publisher)
+	stateMachineController, err := state.StateMachineFactory(db.id, schemaType, nil, dm.publisher)
 	if err != nil {
 		return nil, err
 	}
