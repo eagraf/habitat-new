@@ -3,7 +3,7 @@ import styles from './header.module.css';
 import { useAuth } from './authContext';
 
 interface HeaderProps {
-  isAuthenticated: boolean;
+  authenticated: boolean;
   handle: string | null;
   logout: () => void;
 }
@@ -17,7 +17,7 @@ function formatHandle(handle: string | null) {
   return handle;
 }
 
-const Header: React.FC<HeaderProps> = ({ isAuthenticated, handle, logout }) => {
+const Header: React.FC<HeaderProps> = ({ authenticated, handle, logout }) => {
   return (
     <header className={styles.header}>
       <div className={styles.logo}>
@@ -26,7 +26,7 @@ const Header: React.FC<HeaderProps> = ({ isAuthenticated, handle, logout }) => {
           <span className={styles.logo}> Habitat</span>
         </a>
       </div>
-      {isAuthenticated && (
+      {authenticated && (
       <div className={styles.userInfo}>
         {handle && <span className={styles.handle}>{formatHandle(handle)}</span>}
         <button className={styles.logoutButton} onClick={logout}>

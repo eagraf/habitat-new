@@ -1,20 +1,28 @@
 'use client'
 
 import React, { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import Cookies from 'js-cookie';
+import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from './authContext';
 
 const withAuth = (WrappedComponent: React.FC) => {
     const ComponentWithAuth = (props: any) => {
-        const { isAuthenticated } = useAuth();
+        const pathname = usePathname();
         const router = useRouter();
 
+        const isAuthenticated = () => {
+            const handleCookie = Cookies.get('handle');
+            return handleCookie !== undefined;
+        }
+
         useEffect(() => {
-            console.log(isAuthenticated);
-            if (!isAuthenticated) {
+            const authenticated = isAuthenticated();
+            if (!authenticated) {
+                console.log("Redirecting to login");
                 router.push('/login');
             }
-        }, [isAuthenticated, router]);
+        }, [pathname]);
+
 
         return <WrappedComponent {...props} />;
     };

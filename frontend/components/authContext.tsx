@@ -2,14 +2,13 @@
 
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import Cookies from 'js-cookie';
-import axios from 'axios';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import Header from './header';
 
+import axios from 'axios';
 interface AuthContextType {
-    isAuthenticated: boolean;
+    authenticated: boolean;
     handle: string | null;
-    login: (email: string, password: string, redirectRoute: string | null, source: string | null) => Promise<void>;
     logout: () => void;
 }
 
@@ -17,120 +16,47 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
 
-        
-    const [isAuthenticated, setIsAuthenticated] = useState<boolean>(true);
-
     const [handle, setHandle] = useState<string | null>(null);
+    const [authenticated, setAuthenticated] = useState(false);
     const router = useRouter();
+    const pathname = usePathname();
 
-    useEffect(() => {
-        const token = Cookies.get('access_token');
-        const authed = token ? true : false;
-        setIsAuthenticated(authed);
-    }, []);
-
+    // Check the handle, every time a page navigation change occurs. Since the cookie
+    // is set by the oauth server's redirect, this will detect changes in the handle.
     useEffect(() => {
         const handle = Cookies.get('handle');
         if (handle) {
             setHandle(handle);
         }
-    }, []);
+    }, [pathname]);
 
 
-    const login = async (
-        identifier: string,
-        password: string,
-        redirectRoute: string | null = null,
-        source: string | null = null
-    ) => {
-        try {
-            const fullHandle = `${identifier}.${window.location.hostname}`;
-            const response = await axios.post(`${window.location.origin}/habitat/api/node/login`, {
-                password: password,
-                identifier: fullHandle,
-              }, {
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-            });
-            console.log(response.data);
+    const logout = async () => {
+        // Remove all session state from the browser side.
+        Cookies.remove('state');
+        Cookies.remove('handle');
+        setHandle(null);
+        setAuthenticated(false);
 
-            const { accessJwt, refreshJwt, did, handle } = response.data;
-
-            // If we are using a *ts.net domain, make sure the cookies are applied to all other subdomains on that TailNet.
-            let parentDomain = window.location.hostname;
-            if (window.location.hostname.endsWith(".ts.net")) {
-                const parts = window.location.hostname.split(".")
-                if (parts.length > 2) {
-                    parentDomain = parts.slice(-3).join(".");
-                }
-            }
-
-            // Set the access token in a cookie
-            Cookies.set('access_token', accessJwt, {
-                expires: 7,
-                domain: parentDomain,
-            });
-            Cookies.set('refresh_token', refreshJwt, {
-                expires: 7,
-                domain: parentDomain,
-            });
-            // To help dev app frontends figure out where to make API requests.
-            Cookies.set('habitat_domain', window.location.hostname, {
-                expires: 7,
-                domain: parentDomain,
-            });
-
-            // The user's did
-            Cookies.set('user_did', did, {
-                expires: 7,
-                domain: parentDomain,
-            });
-            
-            Cookies.set('handle', handle, {
-                expires: 7,
-                domain: parentDomain,
-            });
-
-            setIsAuthenticated(true);
-            setHandle(handle);
-
-            // Set cookies required for the Habitat chrome extensioon
-            if (source === 'chrome_extension') {
-                Cookies.set('chrome_extension_user_id', did);
-                Cookies.set('chrome_extension_access_token', accessJwt);
-                Cookies.set('chrome_extension_refresh_token', refreshJwt);
-            }
-
-            if (!redirectRoute) {
-                redirectRoute = '/';
-            }
-            router.push(redirectRoute);
-
-        } catch (err) {
-            throw new Error('Login failed');
+        // Tell the server to invalidate the session
+        const response = await axios.post('/habitat/oauth/logout');
+        if (response.status === 200) {
+            router.push('/login');
+        } else {
+            console.error('Logout failed: ', response.status);
         }
     };
 
-    const logout = () => {
-        Cookies.remove('access_token');
-        Cookies.remove('refresh_token');
-
-        Cookies.remove('chrome_extension_user_id');
-        Cookies.remove('chrome_extension_access_token');
-        Cookies.remove('chrome_extension_refresh_token');
-
-        Cookies.remove('handle');
-
-        setIsAuthenticated(false);
-        router.push('/login');
-    };
+    useEffect(() => {
+        const handleCookie = Cookies.get('handle');
+        setAuthenticated(handleCookie !== undefined);
+    }, [pathname]);
 
     return (
-        <AuthContext.Provider value={{ isAuthenticated, handle, login, logout }}>
+        <AuthContext.Provider value={{ authenticated, handle, logout }}>
             <div className="flex flex-col items-center justify-center w-full h-screen">
                 <div className="flex flex-col items-center justify-center w-full">
-                    <Header isAuthenticated={isAuthenticated} handle={handle} logout={logout} />
+                    <Header authenticated={authenticated} handle={handle} logout={logout} />
                 </div>
                 <div className="flex flex-col items-center justify-center w-full h-screen">
                     {children}

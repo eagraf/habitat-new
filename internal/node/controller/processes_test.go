@@ -368,7 +368,7 @@ func TestControllerRestoreProcess(t *testing.T) {
 	mockDriver := newMockDriver(node.DriverTypeDocker)
 	pm := process.NewProcessManager([]process.Driver{mockDriver})
 
-	ctrl, err := newController2(
+	ctrl, err := NewController2(
 		context.Background(),
 		pm, &mockHDB{
 			schema:    state.Schema(),

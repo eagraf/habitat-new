@@ -9,8 +9,10 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
+	"strings"
 
 	types "github.com/eagraf/habitat-new/core/api"
+	"github.com/eagraf/habitat-new/core/state/node"
 	"github.com/eagraf/habitat-new/internal/node/constants"
 	"github.com/mitchellh/mapstructure"
 	"github.com/rs/zerolog"
@@ -291,7 +293,12 @@ func (n *NodeConfig) UseTLS() bool {
 func (n *NodeConfig) Hostname() string {
 	if n.TailscaleAuthkey() != "" {
 		if n.Environment() == constants.EnvironmentDev {
-			return constants.TSNetHostnameDev
+			parts := strings.Split(n.Domain(), ".")
+			if len(parts) > 0 {
+				return parts[0]
+			} else {
+				log.Fatal().Msgf("Failed to parse domain: %s", n.Domain())
+			}
 		} else {
 			return constants.TSNetHostnameDefault
 		}
@@ -367,6 +374,21 @@ func (n *NodeConfig) DefaultApps() []*types.PostAppRequest {
 		appRequests = append(appRequests, appRequest)
 	}
 	return appRequests
+}
+
+func (n *NodeConfig) DefaultReverseProxyRules() []*node.ReverseProxyRule {
+	var rules []*node.ReverseProxyRule
+	err := n.viper.UnmarshalKey("reverse_proxy_rules", &rules, viper.DecoderConfigOption(
+		func(decoderConfig *mapstructure.DecoderConfig) {
+			decoderConfig.TagName = "yaml"
+			decoderConfig.Squash = true
+		},
+	))
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to unmarshal default reverse proxy rules")
+		return nil
+	}
+	return rules
 }
 
 // Helper functions

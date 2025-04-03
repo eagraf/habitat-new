@@ -14,7 +14,7 @@ import (
 
 // implements nodeServerInner
 type NodeController interface {
-	InitializeNodeDB(transitions []hdb.Transition) error
+	InitializeNodeDB(transitions []hdb.Transition) (bool, error)
 	MigrateNodeDB(targetVersion string) error
 
 	AddUser(userID, email, handle, password, certificate string) (types.PDSCreateAccountResponse, error)
@@ -25,6 +25,8 @@ type NodeController interface {
 	GetAppByID(appID string) (*node.AppInstallation, error)
 
 	StartProcess(appID string) error
+
+	AddReverseProxyRule(rule *node.ReverseProxyRule) error
 }
 
 type BaseNodeController struct {
@@ -58,16 +60,17 @@ func (c *BaseNodeController) SetCtrl2(c2 *controller2) {
 }
 
 // InitializeNodeDB tries initializing the database; it is a noop if a database with the same name already exists
-func (c *BaseNodeController) InitializeNodeDB(transitions []hdb.Transition) error {
+func (c *BaseNodeController) InitializeNodeDB(transitions []hdb.Transition) (bool, error) {
 	_, err := c.databaseManager.CreateDatabase(constants.NodeDBDefaultName, node.SchemaName, transitions)
 	if err != nil {
 		if _, ok := err.(*hdb.DatabaseAlreadyExistsError); ok {
 			log.Info().Msg("Node database already exists, doing nothing.")
+			return true, nil
 		} else {
-			return err
+			return false, err
 		}
 	}
-	return nil
+	return false, nil
 }
 
 func (c *BaseNodeController) MigrateNodeDB(targetVersion string) error {
@@ -218,4 +221,11 @@ func (c *BaseNodeController) GetUserByUsername(username string) (*node.User, err
 	}
 
 	return nil, fmt.Errorf("user with username %s not found", username)
+}
+
+func (c *BaseNodeController) AddReverseProxyRule(rule *node.ReverseProxyRule) error {
+	if c.ctrl2 == nil {
+		return fmt.Errorf("BaseNodeController.ctrl2 field is nil, unable to fulfill request")
+	}
+	return c.ctrl2.addReverseProxyRule(rule)
 }
