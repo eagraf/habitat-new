@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"syscall"
 
+	"github.com/bluesky-social/indigo/xrpc"
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
@@ -21,6 +22,7 @@ import (
 	"github.com/eagraf/habitat-new/internal/node/config"
 	"github.com/eagraf/habitat-new/internal/node/constants"
 	"github.com/eagraf/habitat-new/internal/node/controller"
+	"github.com/eagraf/habitat-new/internal/node/controller/encrypter"
 	"github.com/eagraf/habitat-new/internal/node/hdb"
 	"github.com/eagraf/habitat-new/internal/node/hdb/hdbms"
 	"github.com/eagraf/habitat-new/internal/node/logging"
@@ -154,7 +156,9 @@ func main() {
 		log.Fatal().Err(err).Msg("error getting default HDB client")
 	}
 
-	ctrl2, err := controller.NewController2(ctx, pm, pkgManagers, dbClient, proxy)
+	ctrl2, err := controller.NewController2(ctx, pm, pkgManagers, dbClient, proxy, &xrpc.Client{
+		// TODO: fill in
+	}, &encrypter.NoopEncrypter{})
 	if err != nil {
 		log.Fatal().Err(err).Msg("error creating node Controller2")
 	}
