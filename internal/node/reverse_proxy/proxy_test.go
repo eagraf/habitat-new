@@ -28,7 +28,7 @@ func TestProxy(t *testing.T) {
 
 	redirectedServerURL, err := url.Parse(redirectedServer.URL)
 	if err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err.Error())
 	}
 
 	// Simulate a static file dir to be served
@@ -37,7 +37,7 @@ func TestProxy(t *testing.T) {
 
 	file, err := os.CreateTemp(fileDir, "file")
 	if err != nil {
-		log.Fatalf(err.Error())
+		log.Fatal(err.Error())
 	}
 
 	_, _ = file.Write([]byte("Hello, World!"))
@@ -84,14 +84,14 @@ func TestProxy(t *testing.T) {
 	// Check redirection
 	resp, err := http.Get(url + "/backend1")
 	if err != nil {
-		t.Errorf(err.Error())
+		t.Error(err.Error())
 	}
 
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 
 	b, err := io.ReadAll(resp.Body)
 	if err != nil {
-		t.Errorf(err.Error())
+		t.Error(err.Error())
 	}
 
 	require.Equal(t, "Hello, World!", string(b))
@@ -99,14 +99,14 @@ func TestProxy(t *testing.T) {
 	// Check file serving
 	resp, err = http.Get(fmt.Sprintf("%s/fileserver/%s", url, filepath.Base(file.Name())))
 	if err != nil {
-		t.Errorf(err.Error())
+		t.Error(err.Error())
 	}
 
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 
 	b, err = io.ReadAll(resp.Body)
 	if err != nil {
-		t.Errorf(err.Error())
+		t.Error(err.Error())
 	}
 
 	require.Equal(t, "Hello, World!", string(b))
@@ -114,7 +114,7 @@ func TestProxy(t *testing.T) {
 	// Check getting a file that doesn't exist
 	resp, err = http.Get(fmt.Sprintf("%s/fileserver/%s", url, "nonexistentfile"))
 	if err != nil {
-		t.Errorf(err.Error())
+		t.Error(err.Error())
 	}
 
 	require.Equal(t, http.StatusNotFound, resp.StatusCode)
