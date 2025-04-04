@@ -270,7 +270,6 @@ func (c *Controller2) putRecord(ctx context.Context, input *agnostic.RepoPutReco
 			"cid": cid.String(),
 		},
 	}
-
 	return agnostic.RepoPutRecord(ctx, c.xrpc, encInput)
 }
 
