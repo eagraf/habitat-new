@@ -336,6 +336,8 @@ func (c *Controller2) getRecord(ctx context.Context, cid string, collection stri
 			Uri:   output.Uri,
 			Value: dec, // TODO: should we validate this?
 		}, nil
+
+		// TODO: decode the response to do the blob lookup
 	}
 
 	// Otherwise the lookup failed in some other way, return the error
