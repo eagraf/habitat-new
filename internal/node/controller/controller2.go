@@ -9,7 +9,6 @@ import (
 
 	"github.com/bluesky-social/indigo/api/agnostic"
 	"github.com/bluesky-social/indigo/api/atproto"
-	"github.com/bluesky-social/indigo/lex/util"
 	"github.com/bluesky-social/indigo/xrpc"
 	"github.com/eagraf/habitat-new/core/state/node"
 	"github.com/eagraf/habitat-new/internal/node/controller/encrypter"
@@ -264,6 +263,7 @@ func (c *Controller2) putRecord(ctx context.Context, input *agnostic.RepoPutReco
 	rkey := encryptedRecordRKey(input.Collection, input.Rkey)
 	// It's our fault if this fails, but always attempt to validate the habitat encoded request
 	validate := true
+	// TODO: let's make a helper function for this
 	encInput := &agnostic.RepoPutRecord_Input{
 		Collection: encryptedRecordNSID,
 		Repo:       input.Repo,
@@ -298,27 +298,22 @@ type GetRecordResponse struct {
 //
 // Hacky: returning GetRecordResponse because returning *atproto.RepoGetRecord_Output which we should meant when we convert from blob -> record we need to create our own
 // *util.LexiconTypeDecoder for the Value field, which seemed too hard.
-func (c *Controller2) getRecord(ctx context.Context, cid string, collection string, did string, rkey string) (*atproto.RepoGetRecord_Output, error) {
+func (c *Controller2) getRecord(ctx context.Context, cid string, collection string, did string, rkey string) (*agnostic.RepoGetRecord_Output, error) {
 	// Attempt to get a public record corresponding to the Collection + Repo + Rkey.
 	// If the given cid does not point to anything, the GetRecord endpoint returns an error.
 	// Record not found results in an error, as does any other non-200 response from the endpoint.
 	//
 	// Cases 1a - 1c are handled directly by this case.
-	output, err := atproto.RepoGetRecord(ctx, c.xrpc, cid, collection, did, rkey)
+	output, err := agnostic.RepoGetRecord(ctx, c.xrpc, cid, collection, did, rkey)
 	// If this is a cid lookup (cases 1a-1c) or the record was found (2a + 2b), simply return ()
 	if err == nil {
-		fmt.Println("no err", cid, collection, did, rkey)
 		return output, nil
-	} else if cid != "" || collection == encryptedRecordNSID {
-		fmt.Println("request is for encryptedrecord or cid is nill", cid, collection)
-		return nil, err
 	}
 
 	// If the record with the given collection + rkey identifier was not found (case 2c), attempt to get a private record with permissions look up.
 	if strings.Contains(err.Error(), "RecordNotFound") || strings.Contains(err.Error(), "Could not locate record") {
-		fmt.Println("record not found, do unencryption")
 		indirectRkey := encryptedRecordRKey(collection, rkey)
-		output, err := atproto.RepoGetRecord(ctx, c.xrpc, "", encryptedRecordNSID, did, indirectRkey)
+		output, err := agnostic.RepoGetRecord(ctx, c.xrpc, cid, encryptedRecordNSID, did, indirectRkey)
 		if err != nil {
 			return nil, err
 		}
@@ -341,26 +336,19 @@ func (c *Controller2) getRecord(ctx context.Context, cid string, collection stri
 		if err != nil {
 			return nil, err
 		}
-		fmt.Println("got blob", string(blob))
 
 		dec, err := c.e.Decrypt(rkey, blob)
 		if err != nil {
 			return nil, err
 		}
 
-		var ltd *util.LexiconTypeDecoder
-		err = ltd.UnmarshalJSON(dec)
-		if err != nil {
-			return nil, err
-		}
-
-		return &atproto.RepoGetRecord_Output{
+		asJson := json.RawMessage(dec)
+		return &agnostic.RepoGetRecord_Output{
 			Cid:   output.Cid,
 			Uri:   output.Uri,
-			Value: ltd,
+			Value: &asJson,
 		}, nil
 	}
-
 	// Otherwise the lookup failed in some other way, return the error
 	return nil, err
 }
