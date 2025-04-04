@@ -19,22 +19,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type mockTripper struct {
-	t     *testing.T
-	curr  int
-	reqs  []*http.Request
-	resps []*http.Response
-	errs  []error
-}
-
-func (m *mockTripper) RoundTrip(r *http.Request) (*http.Response, error) {
-	require.Equal(m.t, m.reqs[m.curr], r)
-	resp := m.resps[m.curr]
-	err := m.errs[m.curr]
-	m.curr++
-	return resp, err
-}
-
 // TODO: An integration test with PDS running + real encryption
 // This mocks out the PDS and uses a no-op encrypter
 func TestControllerPrivateDataPutGet(t *testing.T) {
