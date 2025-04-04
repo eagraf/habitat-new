@@ -13,6 +13,7 @@ import (
 	types "github.com/eagraf/habitat-new/core/api"
 	"github.com/eagraf/habitat-new/core/state/node"
 	"github.com/eagraf/habitat-new/internal/node/constants"
+	"github.com/eagraf/habitat-new/internal/node/controller/encrypter"
 	"github.com/eagraf/habitat-new/internal/node/controller/mocks"
 	hdb_mocks "github.com/eagraf/habitat-new/internal/node/hdb/mocks"
 	"github.com/eagraf/habitat-new/internal/package_manager"
@@ -177,7 +178,10 @@ func TestGetNodeState(t *testing.T) {
 		&mockHDB{
 			schema:    state.Schema(),
 			jsonState: jsonStateFromNodeState(state),
-		}, nil)
+		}, nil,
+		nil,
+		&encrypter.NoopEncrypter{},
+	)
 	require.NoError(t, err)
 	ctrlServer, err := NewCtrlServer(
 		context.Background(),

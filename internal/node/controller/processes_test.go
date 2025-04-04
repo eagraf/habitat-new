@@ -14,6 +14,7 @@ import (
 
 	"github.com/eagraf/habitat-new/core/state/node"
 	"github.com/eagraf/habitat-new/internal/node/api/test_helpers"
+	"github.com/eagraf/habitat-new/internal/node/controller/encrypter"
 	"github.com/eagraf/habitat-new/internal/node/hdb"
 	"github.com/eagraf/habitat-new/internal/process"
 	"github.com/stretchr/testify/assert"
@@ -157,7 +158,10 @@ func TestStartProcessHandler(t *testing.T) {
 	}
 
 	// NewCtrlServer restores the initial state
-	ctrl2, err := NewController2(context.Background(), process.NewProcessManager([]process.Driver{mockDriver}), nil, db, nil)
+	ctrl2, err := NewController2(context.Background(), process.NewProcessManager([]process.Driver{mockDriver}), nil, db, nil,
+		nil,
+		&encrypter.NoopEncrypter{},
+	)
 	require.NoError(t, err)
 
 	s, err := NewCtrlServer(context.Background(), &BaseNodeController{}, ctrl2, state)
@@ -377,7 +381,11 @@ func TestControllerRestoreProcess(t *testing.T) {
 	ctrl, err := NewController2(context.Background(), pm, nil, &mockHDB{
 		schema:    state.Schema(),
 		jsonState: jsonStateFromNodeState(state),
-	}, nil)
+	},
+		nil,
+		nil,
+		&encrypter.NoopEncrypter{},
+	)
 	require.NoError(t, err)
 
 	// Restore
