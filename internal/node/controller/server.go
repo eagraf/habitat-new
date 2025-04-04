@@ -3,8 +3,11 @@ package controller
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
+	"net/url"
 
+	"github.com/bluesky-social/indigo/api/agnostic"
 	"github.com/eagraf/habitat-new/core/state/node"
 	"github.com/eagraf/habitat-new/internal/node/api"
 	"github.com/pkg/errors"
@@ -159,6 +162,63 @@ func (s *CtrlServer) GetNodeState(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+type PutRecordRequest struct {
+	input   *agnostic.RepoPutRecord_Input
+	Encrypt bool `json:"encrypt"`
+}
+
+func (s *CtrlServer) PutRecord(w http.ResponseWriter, r *http.Request) {
+	var req PutRecordRequest
+	slurp, err := io.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	err = json.Unmarshal(slurp, &req)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	out, err := s.inner.putRecord(r.Context(), req.input, req.Encrypt)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	slurp, err = json.Marshal(out)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Write(slurp)
+}
+
+func (s *CtrlServer) GetRecord(w http.ResponseWriter, r *http.Request) {
+	u, err := url.Parse(r.URL.String())
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	cid := u.Query().Get("cid")
+	collection := u.Query().Get("collection")
+	did := u.Query().Get("did")
+	rkey := u.Query().Get("rkey")
+
+	out, err := s.inner.getRecord(r.Context(), cid, collection, did, rkey)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	slurp, err := json.Marshal(out)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Write(slurp)
+}
+
 type route struct {
 	method  string
 	pattern string
@@ -193,5 +253,7 @@ func (s *CtrlServer) GetRoutes() []api.Route {
 		newRoute(http.MethodGet, "/node/state", s.GetNodeState),
 		newRoute(http.MethodPost, "/node/apps/{user_id}/install", s.InstallApp),
 		newRoute(http.MethodPost, "/node/apps/uninstall", s.UninstallApp),
+		newRoute(http.MethodPost, "/node/put-record", s.PutRecord),
+		newRoute(http.MethodGet, "/node/get-record", s.GetRecord),
 	}
 }
