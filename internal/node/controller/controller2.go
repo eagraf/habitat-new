@@ -193,7 +193,6 @@ func (c *Controller2) restore(state *node.State) error {
 
 	// Restore reverse proxy rules to the desired state
 	for _, rule := range state.ReverseProxyRules {
-		log.Info().Msgf("Restoring rule %s, matcher: %s", rule.ID, rule.Matcher)
 		err := c.proxyServer.RuleSet.AddRule(rule)
 		if err != nil {
 			log.Error().Msgf("error restoring rule: %s", err)
@@ -301,8 +300,7 @@ type GetRecordResponse struct {
 	Value any     `json:"value"`
 }
 
-// TODO: write tests for all of these scenarios
-// There are some different scenarios here:
+// There are some different scenarios here: (TODO: write tests for all of these scenarios)
 //
 //	1a) cid = that of a non-com.habitat.encryptedRecord --> return that data as-is.
 //	1b) cid = that of a com.habitat.encryptedRecord --> return that data as-is, it will simply be encrypted. getRecord will not attempt to authz and decrypt.
@@ -318,7 +316,6 @@ func (c *Controller2) getRecord(ctx context.Context, cid string, collection stri
 	// Attempt to get a public record corresponding to the Collection + Repo + Rkey.
 	// If the given cid does not point to anything, the GetRecord endpoint returns an error.
 	// Record not found results in an error, as does any other non-200 response from the endpoint.
-	//
 	// Cases 1a - 1c are handled directly by this case.
 	output, err := agnostic.RepoGetRecord(ctx, c.xrpc, cid, collection, did, rkey)
 	// If this is a cid lookup (cases 1a-1c) or the record was found (2a + 2b), simply return ()
