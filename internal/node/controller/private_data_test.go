@@ -28,7 +28,6 @@ func TestControllerPrivateDataPutGet(t *testing.T) {
 
 	type req struct {
 		url   string
-		req   []byte
 		resp  []byte
 		isErr bool
 	}
@@ -115,7 +114,7 @@ func TestControllerPrivateDataPutGet(t *testing.T) {
 		if expReq.isErr {
 			w.WriteHeader(http.StatusForbidden)
 		}
-		w.Write(expReq.resp)
+		_, _ = w.Write(expReq.resp)
 		curr += 1
 	}))
 	defer mockPDS.Close()
@@ -137,6 +136,7 @@ func TestControllerPrivateDataPutGet(t *testing.T) {
 		},
 		encrypter,
 	)
+	require.NoError(t, err)
 
 	// putRecord with encryption
 	coll := "my.fake.collection"
@@ -155,5 +155,6 @@ func TestControllerPrivateDataPutGet(t *testing.T) {
 	require.Equal(t, *got.Cid, encRecordCid)
 	require.Equal(t, got.Uri, testUri)
 	bytes, err := got.Value.MarshalJSON()
+	require.NoError(t, err)
 	require.Equal(t, bytes, marshalledVal)
 }

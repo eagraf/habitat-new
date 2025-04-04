@@ -190,7 +190,10 @@ func (s *CtrlServer) PutRecord(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	w.Write(slurp)
+
+	if _, err := w.Write(slurp); err != nil {
+		log.Err(err).Msgf("error sending response for PutRecord request")
+	}
 }
 
 func (s *CtrlServer) GetRecord(w http.ResponseWriter, r *http.Request) {
@@ -216,7 +219,9 @@ func (s *CtrlServer) GetRecord(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	w.Write(slurp)
+	if _, err := w.Write(slurp); err != nil {
+		log.Err(err).Msgf("error sending response for GetRecord request")
+	}
 }
 
 type route struct {
