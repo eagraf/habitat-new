@@ -9,6 +9,7 @@ import (
 
 	"github.com/bluesky-social/indigo/api/agnostic"
 	"github.com/bluesky-social/indigo/api/atproto"
+	"github.com/bluesky-social/indigo/atproto/data"
 	"github.com/bluesky-social/indigo/xrpc"
 	"github.com/eagraf/habitat-new/core/state/node"
 	"github.com/eagraf/habitat-new/internal/node/controller/encrypter"
@@ -19,10 +20,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 )
-
-type xrpcClient interface {
-	Do(ctx context.Context, kind xrpc.XRPCRequestType, inpenc string, method string, params map[string]interface{}, bodyobj interface{}, out interface{}) error
-}
 
 type Controller2 struct {
 	ctx            context.Context
@@ -224,10 +221,23 @@ func encryptedRecordRKey(collection string, rkey string) string {
 
 type encryptedRecord map[string]string
 
+var (
+	ErrPublicRecordExists = fmt.Errorf("a public record exists with the same key")
+)
+
+// Returns true if err indicates the RecordNotFound error
+func errorIsNoRecordFound(err error) bool {
+	// TODO: Not sure if the atproto lib has an error to directly use with errors.Is()
+	return strings.Contains(err.Error(), "RecordNotFound") || strings.Contains(err.Error(), "Could not locate record")
+}
+
 // type encryptedRecord map[string]any
 // the shape of the lexicon is { "cid": <cid pointing to the encrypted blob> }
 
 // putRecord with encryption wrapper around this
+// ONLY YOU CAN CALL PUT RECORD, NO ONE ELSE
+// Our security relies on this -- if this wasn't true then theoretically an attacker could call putRecord trying different rkey.
+// If they were unable to create with an rkey, that means that it exists privately.
 func (c *Controller2) putRecord(ctx context.Context, input *agnostic.RepoPutRecord_Input, encrypt bool) (*agnostic.RepoPutRecord_Output, error) {
 	// Not encrypted -- blindly forward the request to PDS
 	if !encrypt {
@@ -236,7 +246,14 @@ func (c *Controller2) putRecord(ctx context.Context, input *agnostic.RepoPutReco
 
 	// Check if a record under this collection already exists publicly with this rkey
 	// if so, return error (need a different rkey)
+	_, err := agnostic.RepoGetRecord(ctx, c.xrpc, "", input.Collection, input.Repo, input.Rkey)
+	if err == nil {
+		return nil, fmt.Errorf("%w: %s", ErrPublicRecordExists, input.Rkey)
+	} else if !errorIsNoRecordFound(err) {
+		return nil, err
+	}
 
+	// If we're here, then this record is to be encrypted and there is no existing public record with rkey
 	// Encrypted -- unpack the request and use special habitat encrypted record lexicon
 	marshalled, err := json.Marshal(input.Record)
 	if err != nil {
@@ -249,8 +266,10 @@ func (c *Controller2) putRecord(ctx context.Context, input *agnostic.RepoPutReco
 	}
 
 	if input.Validate != nil && *input.Validate {
-		// TODO: we need to independently validate since the PDS does not know about this lexicon
-		return nil, fmt.Errorf("TODO: unimplemented")
+		err = data.Validate(input.Record)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	blobOut, err := atproto.RepoUploadBlob(ctx, c.xrpc, bytes.NewBuffer(enc))
@@ -286,7 +305,7 @@ type GetRecordResponse struct {
 // There are some different scenarios here:
 //
 //	1a) cid = that of a non-com.habitat.encryptedRecord --> return that data as-is.
-//	1b) cid = that of a com.habitat.encryptedRecord --> return that data as-is, it will simply be encrypted. getRecord will not attempt to authn and decrypt.
+//	1b) cid = that of a com.habitat.encryptedRecord --> return that data as-is, it will simply be encrypted. getRecord will not attempt to authz and decrypt.
 //	1c) cid = that of a private or public blob --> return that blob as-is.
 //
 // If no cid is provided, fallback to using collection + rkey as the lookup:
@@ -295,9 +314,6 @@ type GetRecordResponse struct {
 //	--) collection + rkey = a non-com.habitat.encryptedRecord:
 //	   2b) if a corresponding record is found, return that
 //	   2c) if no corresponding record is found, attempt to decrypt the record a com.habitat.encryptedRecord would point to for that collection + rkey
-//
-// Hacky: returning GetRecordResponse because returning *atproto.RepoGetRecord_Output which we should meant when we convert from blob -> record we need to create our own
-// *util.LexiconTypeDecoder for the Value field, which seemed too hard.
 func (c *Controller2) getRecord(ctx context.Context, cid string, collection string, did string, rkey string) (*agnostic.RepoGetRecord_Output, error) {
 	// Attempt to get a public record corresponding to the Collection + Repo + Rkey.
 	// If the given cid does not point to anything, the GetRecord endpoint returns an error.

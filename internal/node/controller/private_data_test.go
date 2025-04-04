@@ -76,7 +76,7 @@ func TestControllerPrivateDataPutGet(t *testing.T) {
 		ErrStr:  "Could not locate record",
 		Message: "Could not locate record",
 	}
-	resp3, err := json.Marshal(xrpcErr)
+	recordNotFoundResp, err := json.Marshal(xrpcErr)
 	require.NoError(t, err)
 
 	resp4 := []byte(fmt.Sprintf(`{
@@ -96,6 +96,11 @@ func TestControllerPrivateDataPutGet(t *testing.T) {
 
 	reqOrder := []req{
 		{
+			url:   "/xrpc/com.atproto.repo.getRecord?cid=&collection=my.fake.collection&repo=my-did&rkey=my-rkey",
+			resp:  recordNotFoundResp,
+			isErr: true,
+		},
+		{
 			url:  "/xrpc/com.atproto.repo.uploadBlob",
 			resp: resp1,
 		},
@@ -105,7 +110,7 @@ func TestControllerPrivateDataPutGet(t *testing.T) {
 		},
 		{
 			url:   "/xrpc/com.atproto.repo.getRecord?cid=&collection=my.fake.collection&repo=my-did&rkey=my-rkey",
-			resp:  resp3,
+			resp:  recordNotFoundResp,
 			isErr: true,
 		},
 		{
