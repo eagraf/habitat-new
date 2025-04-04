@@ -1,11 +1,17 @@
 package controller
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
+	"github.com/bluesky-social/indigo/api/agnostic"
+	"github.com/bluesky-social/indigo/api/atproto"
+	"github.com/bluesky-social/indigo/xrpc"
 	"github.com/eagraf/habitat-new/core/state/node"
+	"github.com/eagraf/habitat-new/internal/node/controller/encrypter"
 	"github.com/eagraf/habitat-new/internal/node/hdb"
 	"github.com/eagraf/habitat-new/internal/node/reverse_proxy"
 	"github.com/eagraf/habitat-new/internal/package_manager"
@@ -14,12 +20,20 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+type xrpcClient interface {
+	Do(ctx context.Context, kind xrpc.XRPCRequestType, inpenc string, method string, params map[string]interface{}, bodyobj interface{}, out interface{}) error
+}
+
 type Controller2 struct {
 	ctx            context.Context
 	db             hdb.Client
 	processManager process.ProcessManager
 	pkgManagers    map[node.DriverType]package_manager.PackageManager
 	proxyServer    *reverse_proxy.ProxyServer
+	xrpc           *xrpc.Client
+
+	// use for encrypted record wrappers on top of pds
+	e encrypter.Encrypter
 }
 
 func NewController2(
@@ -28,6 +42,8 @@ func NewController2(
 	pkgManagers map[node.DriverType]package_manager.PackageManager,
 	db hdb.Client,
 	proxyServer *reverse_proxy.ProxyServer,
+	xrpcClient *xrpc.Client,
+	encrypter encrypter.Encrypter,
 ) (*Controller2, error) {
 	// Validate types of all input components
 	_, ok := processManager.(node.Component[process.RestoreInfo])
@@ -41,6 +57,8 @@ func NewController2(
 		pkgManagers:    pkgManagers,
 		db:             db,
 		proxyServer:    proxyServer,
+		xrpc:           xrpcClient,
+		e:              encrypter,
 	}
 
 	return ctrl, nil
@@ -196,4 +214,131 @@ func (c *Controller2) restore(state *node.State) error {
 	}
 
 	return c.processManager.RestoreFromState(c.ctx, info)
+}
+
+const encryptedRecordNSID = "com.habitat.encryptedRecord"
+
+func encryptedRecordRKey(collection string, rkey string) string {
+	return fmt.Sprintf("enc:%s:%s", collection, rkey)
+}
+
+// type encryptedRecord map[string]any
+// the shape of the lexicon is { "cid": <cid pointing to the encrypted blob> }
+
+// putRecord with encryption wrapper around this
+func (c *Controller2) putRecord(ctx context.Context, input *agnostic.RepoPutRecord_Input, encrypt bool) (*agnostic.RepoPutRecord_Output, error) {
+	// Not encrypted -- blindly forward the request to PDS
+	if !encrypt {
+		return agnostic.RepoPutRecord(ctx, c.xrpc, input)
+	}
+
+	// Check if a record under this collection already exists publicly with this rkey
+	// if so, return error (need a different rkey)
+
+	// Encrypted -- unpack the request and use special habitat encrypted record lexicon
+	marshalled, err := json.Marshal(input.Record)
+	if err != nil {
+		return nil, err
+	}
+
+	enc, err := c.e.Encrypt(input.Rkey, marshalled)
+	if err != nil {
+		return nil, err
+	}
+
+	if input.Validate != nil && *input.Validate {
+		// TODO: we need to independently validate since the PDS does not know about this lexicon
+		return nil, fmt.Errorf("TODO: unimplemented")
+	}
+
+	blobOut, err := atproto.RepoUploadBlob(ctx, c.xrpc, bytes.NewBuffer(enc))
+	if err != nil {
+		return nil, err
+	}
+
+	// CID is returned on uploadBlob
+	cid := blobOut.Blob.Ref
+	rkey := encryptedRecordRKey(input.Collection, input.Rkey)
+	// It's our fault if this fails, but always attempt to validate the habitat encoded request
+	validate := true
+	encInput := &agnostic.RepoPutRecord_Input{
+		Collection: encryptedRecordNSID,
+		Repo:       input.Repo,
+		Rkey:       rkey,
+		Validate:   &validate,
+		Record: map[string]any{
+			"cid": cid.String(),
+		},
+	}
+
+	return agnostic.RepoPutRecord(ctx, c.xrpc, encInput)
+}
+
+type GetRecordResponse struct {
+	Cid   *string `json:"cid"`
+	Uri   string  `json:"uri"`
+	Value any     `json:"value"`
+}
+
+// TODO: write tests for all of these scenarios
+// There are some different scenarios here:
+//
+//	1a) cid = that of a non-com.habitat.encryptedRecord --> return that data as-is.
+//	1b) cid = that of a com.habitat.encryptedRecord --> return that data as-is, it will simply be encrypted. getRecord will not attempt to authn and decrypt.
+//	1c) cid = that of a private or public blob --> return that blob as-is.
+//
+// If no cid is provided, fallback to using collection + rkey as the lookup:
+//
+//	2a) collection + rkey = a com.habitat.encryptedRecord --> return that data as-is if exists, which contains a cid pointer to a blob. if no such record exists, return
+//	--) collection + rkey = a non-com.habitat.encryptedRecord:
+//	   2b) if a corresponding record is found, return that
+//	   2c) if no corresponding record is found, attempt to decrypt the record a com.habitat.encryptedRecord would point to for that collection + rkey
+//
+// Hacky: returning GetRecordResponse because returning *atproto.RepoGetRecord_Output which we should meant when we convert from blob -> record we need to create our own
+// *util.LexiconTypeDecoder for the Value field, which seemed too hard.
+func (c *Controller2) getRecord(ctx context.Context, cid string, collection string, repo string, rkey string) (GetRecordResponse, error) {
+	// Attempt to get a public record corresponding to the Collection + Repo + Rkey.
+	// If the given cid does not point to anything, the GetRecord endpoint returns an error.
+	// Record not found results in an error, as does any other non-200 response from the endpoint.
+	//
+	// Cases 1a - 1c are handled directly by this case.
+	output, err := atproto.RepoGetRecord(ctx, c.xrpc, cid, collection, repo, rkey)
+	// If this is a cid lookup (cases 1a-1c) or the record was found (2a + 2b), simply return ()
+	if err == nil {
+		return GetRecordResponse{
+			Cid:   output.Cid,
+			Uri:   output.Uri,
+			Value: output.Value,
+		}, nil
+	} else if cid != "" || collection == encryptedRecordNSID {
+		return GetRecordResponse{}, err
+	}
+
+	// If the record with the given collection + rkey identifier was not found (case 2c), attempt to get a private record with permissions look up.
+	if strings.Contains(err.Error(), "RecordNotFound") || strings.Contains(err.Error(), "Could not locate record") {
+		indirectRkey := encryptedRecordRKey(collection, rkey)
+		output, err := atproto.RepoGetRecord(ctx, c.xrpc, "", encryptedRecordNSID, repo, indirectRkey)
+		if err != nil {
+			return GetRecordResponse{}, err
+		}
+		// Run permissions before returning to the user
+		// if HasAccess(caller.DID, collection, rkey) {
+		// Unfortunate that we need to MarshalJSON to turn it back into bytes -- the RepoGetRecord function probably Unmarshals :/
+		bytes, err := output.Value.MarshalJSON()
+		if err != nil {
+			return GetRecordResponse{}, err
+		}
+		dec, err := c.e.Decrypt(rkey, bytes)
+		if err != nil {
+			return GetRecordResponse{}, err
+		}
+		return GetRecordResponse{
+			Cid:   output.Cid,
+			Uri:   output.Uri,
+			Value: dec, // TODO: should we validate this?
+		}, nil
+	}
+
+	// Otherwise the lookup failed in some other way, return the error
+	return GetRecordResponse{}, err
 }
