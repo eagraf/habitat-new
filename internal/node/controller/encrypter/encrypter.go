@@ -1,7 +1,9 @@
 package encrypter
 
 import (
+	"crypto/rand"
 	"crypto/sha256"
+	"encoding/hex"
 
 	"github.com/agl/gcmsiv"
 )
@@ -44,4 +46,17 @@ func (e *AesEncrypter) Decrypt(rkey string, ciphertext []byte) ([]byte, error) {
 	nonce := sha256.New().Sum([]byte(rkey))
 	nonce = nonce[:e.gcm.NonceSize()]
 	return e.gcm.Open(nil, nonce, ciphertext, nil)
+}
+
+func randomKey(numBytes int) string {
+	bytes := make([]byte, numBytes) //generate a random numBytes byte key
+	if _, err := rand.Read(bytes); err != nil {
+		panic(err.Error())
+	}
+
+	return hex.EncodeToString(bytes) //encode key in bytes to string and keep as secret, put in a vault
+}
+
+func TestOnlyNewRandomKey() string {
+	return randomKey(16)
 }
