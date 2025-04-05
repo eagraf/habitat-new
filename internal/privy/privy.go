@@ -40,6 +40,7 @@ var (
 	ErrPublicRecordExists               = fmt.Errorf("a public record exists with the same key")
 	ErrNoPutsOnEncryptedRecord          = fmt.Errorf("directly put-ting to this lexicon is not valid")
 	ErrNoEncryptedGetsOnEncryptedRecord = fmt.Errorf("calling getEncryptedRecord on a com.habitat.encryptedRecord is not supported")
+	ErrEncryptedRecordNilValue          = fmt.Errorf("a com.habitat.encryptedRecord record was found but it has a nil value")
 )
 
 // Returns true if err indicates the RecordNotFound error
@@ -127,15 +128,20 @@ func (p *store) getEncryptedRecord(ctx context.Context, xrpc *xrpc.Client, cid s
 		return nil, err
 	}
 
-	// Run permissions before returning to the user
-	// if HasAccess(did, collection, rkey) { .... }
-	var record encryptedRecord
-	// Unfortunate that we need to MarshalJSON to turn it back into bytes -- the RepoGetRecord function probably Unmarshals :/
+	// TODO: I'm not sure if this error makes sense or how this might happen
+	if output.Value == nil {
+		return nil, ErrEncryptedRecordNilValue
+	}
 	bytes, err := output.Value.MarshalJSON()
 	if err != nil {
 		return nil, err
 	}
+
+	// Run permissions before returning to the user
+	// if HasAccess(did, collection, rkey) { .... }
+	var record encryptedRecord
 	err = json.Unmarshal(bytes, &record)
+	// Unfortunate that we need to MarshalJSON to turn it back into bytes -- the RepoGetRecord function probably Unmarshals :/
 	if err != nil {
 		return nil, err
 	}
