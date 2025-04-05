@@ -1,4 +1,4 @@
-package encrypter
+package privy
 
 import (
 	"testing"

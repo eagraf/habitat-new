@@ -3,13 +3,8 @@ package controller
 import (
 	"context"
 	"encoding/json"
-	"fmt"
-	"io"
 	"net/http"
-	"net/url"
 
-	"github.com/bluesky-social/indigo/api/agnostic"
-	"github.com/bluesky-social/indigo/xrpc"
 	"github.com/eagraf/habitat-new/core/state/node"
 	"github.com/eagraf/habitat-new/internal/node/api"
 	"github.com/pkg/errors"
@@ -167,122 +162,13 @@ func (s *CtrlServer) GetNodeState(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-type PutRecordRequest struct {
-	Input   *agnostic.RepoPutRecord_Input
-	Encrypt bool `json:"encrypt"`
-}
-
-func (s *CtrlServer) PutRecord(cli *xrpc.Client) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		var req PutRecordRequest
-		slurp, err := io.ReadAll(r.Body)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-		err = json.Unmarshal(slurp, &req)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-
-		fmt.Println(req)
-
-		out, err := s.inner.putRecord(r.Context(), cli, req.Input, req.Encrypt)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		slurp, err = json.Marshal(out)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		if _, err := w.Write(slurp); err != nil {
-			log.Err(err).Msgf("error sending response for PutRecord request")
-		}
-	}
-}
-
-func (s *CtrlServer) GetRecord(cli *xrpc.Client) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		u, err := url.Parse(r.URL.String())
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-
-		cid := u.Query().Get("cid")
-		collection := u.Query().Get("collection")
-		did := u.Query().Get("did")
-		rkey := u.Query().Get("rkey")
-
-		out, err := s.inner.getRecord(r.Context(), cli, cid, collection, did, rkey)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		slurp, err := json.Marshal(out)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		if _, err := w.Write(slurp); err != nil {
-			log.Err(err).Msgf("error sending response for GetRecord request")
-		}
-	}
-}
-
-type route struct {
-	method  string
-	pattern string
-	fn      http.HandlerFunc
-}
-
-func newRoute(method, pattern string, fn http.HandlerFunc) *route {
-	return &route{
-		method, pattern, fn,
-	}
-}
-
-func (r *route) Method() string {
-	return r.method
-}
-
-func (r *route) Pattern() string {
-	return r.pattern
-}
-
-func (r *route) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	r.fn(w, req)
-}
-
-var _ api.Route = &route{}
-
-func (s *CtrlServer) pdsAuthMiddleware(next func(c *xrpc.Client) http.HandlerFunc) http.HandlerFunc {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		bearer := r.Header.Get("Authorization")[7:]
-		c := &xrpc.Client{
-			Host: fmt.Sprintf("http://%s", s.pdsHost),
-			Auth: &xrpc.AuthInfo{
-				AccessJwt: bearer,
-			},
-		}
-		next(c).ServeHTTP(w, r)
-	})
-}
-
 func (s *CtrlServer) GetRoutes() []api.Route {
 	return []api.Route{
-		newRoute(http.MethodGet, "/node/processes/list", s.ListProcesses),
-		newRoute(http.MethodPost, "/node/processes/start", s.StartProcess),
-		newRoute(http.MethodPost, "/node/processes/stop", s.StopProcess),
-		newRoute(http.MethodGet, "/node/state", s.GetNodeState),
-		newRoute(http.MethodPost, "/node/apps/{user_id}/install", s.InstallApp),
-		newRoute(http.MethodPost, "/node/apps/uninstall", s.UninstallApp),
-		newRoute(http.MethodPost, "/xrpc/com.habitat.putRecord", s.pdsAuthMiddleware(s.PutRecord)),
-		newRoute(http.MethodGet, "/xrpc/com.habitat.getRecord", s.pdsAuthMiddleware(s.GetRecord)),
+		api.NewBasicRoute(http.MethodGet, "/node/processes/list", s.ListProcesses),
+		api.NewBasicRoute(http.MethodPost, "/node/processes/start", s.StartProcess),
+		api.NewBasicRoute(http.MethodPost, "/node/processes/stop", s.StopProcess),
+		api.NewBasicRoute(http.MethodGet, "/node/state", s.GetNodeState),
+		api.NewBasicRoute(http.MethodPost, "/node/apps/{user_id}/install", s.InstallApp),
+		api.NewBasicRoute(http.MethodPost, "/node/apps/uninstall", s.UninstallApp),
 	}
 }

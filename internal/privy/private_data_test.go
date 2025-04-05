@@ -1,4 +1,4 @@
-package controller
+package privy
 
 import (
 	"context"
@@ -12,9 +12,6 @@ import (
 	"github.com/bluesky-social/indigo/api/atproto"
 	"github.com/bluesky-social/indigo/lex/util"
 	"github.com/bluesky-social/indigo/xrpc"
-	"github.com/eagraf/habitat-new/core/state/node"
-	"github.com/eagraf/habitat-new/internal/node/controller/encrypter"
-	"github.com/eagraf/habitat-new/internal/process"
 	"github.com/ipfs/go-cid"
 	"github.com/stretchr/testify/require"
 )
@@ -23,7 +20,7 @@ import (
 // This mocks out the PDS and uses a no-op encrypter
 func TestControllerPrivateDataPutGet(t *testing.T) {
 	ctx := context.Background()
-	encrypter, err := encrypter.NewFromKey([]byte(encrypter.TestOnlyNewRandomKey()))
+	encrypter, err := NewFromKey([]byte(TestOnlyNewRandomKey()))
 	require.NoError(t, err)
 
 	type req struct {
@@ -119,29 +116,16 @@ func TestControllerPrivateDataPutGet(t *testing.T) {
 	}))
 	defer mockPDS.Close()
 
-	mockDriver := newMockDriver(node.DriverTypeDocker)
-	pm := process.NewProcessManager([]process.Driver{mockDriver})
 	client := &xrpc.Client{
 		Host: mockPDS.URL,
 	}
 
-	ctrl, err := NewController2(
-		context.Background(),
-		pm,
-		nil,
-		&mockHDB{
-			schema:    state.Schema(),
-			jsonState: jsonStateFromNodeState(state),
-		},
-		nil, /* reverse proxy */
-		client,
-		encrypter,
-	)
+	p := &store{e: encrypter}
 	require.NoError(t, err)
 
 	// putRecord with encryption
 	coll := "my.fake.collection"
-	out, err := ctrl.putRecord(ctx, client, &agnostic.RepoPutRecord_Input{
+	out, err := p.putRecord(ctx, client, &agnostic.RepoPutRecord_Input{
 		Collection: coll,
 		Record:     val,
 		Repo:       "my-did",
@@ -151,7 +135,7 @@ func TestControllerPrivateDataPutGet(t *testing.T) {
 	require.Equal(t, encRecordCid, out.Cid)
 	require.Equal(t, testUri, out.Uri)
 
-	got, err := ctrl.getRecord(ctx, client, "", coll, "my-did", "my-rkey")
+	got, err := p.getRecord(ctx, client, "", coll, "my-did", "my-rkey")
 	require.NoError(t, err)
 	require.Equal(t, *got.Cid, encRecordCid)
 	require.Equal(t, got.Uri, testUri)
@@ -159,7 +143,7 @@ func TestControllerPrivateDataPutGet(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, bytes, marshalledVal)
 
-	_, err = ctrl.putRecord(ctx, client, &agnostic.RepoPutRecord_Input{
+	_, err = p.putRecord(ctx, client, &agnostic.RepoPutRecord_Input{
 		Collection: encryptedRecordNSID,
 		Record:     val,
 		Repo:       "my-did",
@@ -167,6 +151,6 @@ func TestControllerPrivateDataPutGet(t *testing.T) {
 	}, true)
 	require.ErrorIs(t, err, ErrNoPutsOnEncryptedRecord)
 
-	_, err = ctrl.getEncryptedRecord(ctx, client, "", encryptedRecordNSID, "my-did", "my-rkey")
+	_, err = p.getEncryptedRecord(ctx, client, "", encryptedRecordNSID, "my-did", "my-rkey")
 	require.ErrorIs(t, err, ErrNoEncryptedGetsOnEncryptedRecord)
 }

@@ -10,7 +10,6 @@ import (
 	"path/filepath"
 	"syscall"
 
-	"github.com/bluesky-social/indigo/xrpc"
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
@@ -21,13 +20,13 @@ import (
 	"github.com/eagraf/habitat-new/internal/node/config"
 	"github.com/eagraf/habitat-new/internal/node/constants"
 	"github.com/eagraf/habitat-new/internal/node/controller"
-	"github.com/eagraf/habitat-new/internal/node/controller/encrypter"
 	"github.com/eagraf/habitat-new/internal/node/hdb"
 	"github.com/eagraf/habitat-new/internal/node/hdb/hdbms"
 	"github.com/eagraf/habitat-new/internal/node/logging"
 	"github.com/eagraf/habitat-new/internal/node/reverse_proxy"
 	"github.com/eagraf/habitat-new/internal/node/server"
 	"github.com/eagraf/habitat-new/internal/package_manager"
+	"github.com/eagraf/habitat-new/internal/privy"
 	"github.com/eagraf/habitat-new/internal/process"
 	"github.com/eagraf/habitat-new/internal/pubsub"
 	"github.com/eagraf/habitat-new/internal/web"
@@ -155,15 +154,7 @@ func main() {
 		log.Fatal().Err(err).Msg("error getting default HDB client")
 	}
 
-	// TODO: this should not be a random key, but it should be a persisted key generated off of the pds or habitat key
-	aes, err := encrypter.NewFromKey([]byte(encrypter.TestOnlyNewRandomKey()))
-	if err != nil {
-		log.Fatal().Err(err).Msg("error creating aes encrypter")
-	}
-
-	ctrl2, err := controller.NewController2(ctx, pm, pkgManagers, dbClient, proxy, &xrpc.Client{
-		Host: fmt.Sprintf("%s:%s", nodeConfig.Domain(), constants.DefaultPortPDS),
-	}, aes)
+	ctrl2, err := controller.NewController2(ctx, pm, pkgManagers, dbClient, proxy)
 	if err != nil {
 		log.Fatal().Err(err).Msg("error creating node Controller2")
 	}
@@ -187,6 +178,9 @@ func main() {
 		// App store is unimplemented in production
 		routes = append(routes, appstore.NewAvailableAppsRoute(nodeConfig.HabitatPath()))
 	}
+
+	privyServer := privy.NewServer(constants.DefaultPDSHostname, &privy.NoopEncrypter{} /* TODO: use actual encryption */)
+	routes = append(routes, privyServer.GetRoutes()...)
 
 	authMiddleware := controller.NewAuthenticationMiddleware(
 		nodeCtrl,

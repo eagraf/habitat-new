@@ -1,4 +1,4 @@
-package encrypter
+package privy
 
 // NoopEncrypter implements Encrypter but it doesn't actually do encryption.
 type NoopEncrypter struct{}
