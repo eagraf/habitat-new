@@ -26,6 +26,7 @@ import (
 	"github.com/eagraf/habitat-new/internal/node/reverse_proxy"
 	"github.com/eagraf/habitat-new/internal/node/server"
 	"github.com/eagraf/habitat-new/internal/package_manager"
+	"github.com/eagraf/habitat-new/internal/privy"
 	"github.com/eagraf/habitat-new/internal/process"
 	"github.com/eagraf/habitat-new/internal/pubsub"
 	"github.com/eagraf/habitat-new/internal/web"
@@ -57,7 +58,7 @@ func main() {
 	}
 	pm := process.NewProcessManager([]process.Driver{docker.NewDriver(dockerClient), web.NewDriver()})
 
-	pdsClient := controller.NewPDSClient(nodeConfig.PDSAdminUsername(), nodeConfig.PDSAdminPassword())
+	pdsClient := controller.NewPDSClient(constants.DefaultPDSHostname, nodeConfig.PDSAdminUsername(), nodeConfig.PDSAdminPassword())
 	nodeCtrl, err := controller.NewNodeController(db.Manager, pdsClient)
 	if err != nil {
 		log.Fatal().Err(err).Msg("error creating node controller")
@@ -178,6 +179,9 @@ func main() {
 		routes = append(routes, appstore.NewAvailableAppsRoute(nodeConfig.HabitatPath()))
 	}
 
+	privyServer := privy.NewServer(constants.DefaultPDSHostname, &privy.NoopEncrypter{} /* TODO: use actual encryption */)
+	routes = append(routes, privyServer.GetRoutes()...)
+
 	authMiddleware := controller.NewAuthenticationMiddleware(
 		nodeCtrl,
 		nodeConfig.UseTLS(),
@@ -264,12 +268,12 @@ func generatePDSAppConfig(nodeConfig *config.NodeConfig) (*node.AppInstallation,
 							Target: "/pds",
 						},
 					},
-					"exposed_ports": []string{"5001"},
+					"exposed_ports": []string{constants.DefaultPortPDS},
 					"port_bindings": map[nat.Port][]nat.PortBinding{
 						"3000/tcp": {
 							{
 								HostIP:   "0.0.0.0",
-								HostPort: "5001",
+								HostPort: constants.DefaultPortPDS,
 							},
 						},
 					},
@@ -284,7 +288,7 @@ func generatePDSAppConfig(nodeConfig *config.NodeConfig) (*node.AppInstallation,
 			AppID:   appID,
 			Type:    "redirect",
 			Matcher: "/xrpc",
-			Target:  "https://host.docker.internal:5001/xrpc",
+			Target:  fmt.Sprintf("https://%s/xrpc", constants.DefaultPDSHostname),
 		}
 }
 
