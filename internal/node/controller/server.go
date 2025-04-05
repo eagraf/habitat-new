@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -262,7 +263,7 @@ func (s *CtrlServer) pdsAuthMiddleware(next func(c *xrpc.Client) http.HandlerFun
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		bearer := r.Header.Get("Authorization")
 		c := &xrpc.Client{
-			Host: s.pdsHost,
+			Host: fmt.Sprintf("http://%s", s.pdsHost),
 			Auth: &xrpc.AuthInfo{
 				AccessJwt: bearer,
 			},
