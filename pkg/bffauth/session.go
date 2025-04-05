@@ -47,7 +47,7 @@ func (p *InMemoryChallengeSessionPersister) DeleteSession(sessionID string) erro
 // have not yet been used, and to prevent replay attacks.
 type ChallengeSession struct {
 	SessionID string
-	Token     string
+	DID       string
 	Challenge string
 	ExpiresAt time.Time
 }

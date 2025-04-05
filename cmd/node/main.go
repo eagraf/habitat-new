@@ -29,6 +29,7 @@ import (
 	"github.com/eagraf/habitat-new/internal/process"
 	"github.com/eagraf/habitat-new/internal/pubsub"
 	"github.com/eagraf/habitat-new/internal/web"
+	"github.com/eagraf/habitat-new/pkg/bffauth"
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -177,6 +178,16 @@ func main() {
 		// App store is unimplemented in production
 		routes = append(routes, appstore.NewAvailableAppsRoute(nodeConfig.HabitatPath()))
 	}
+
+	// Add BFF auth routes
+	challengePersister := bffauth.NewInMemorySessionPersister()
+	friends := make(controller.FriendStore)
+	signingKey := []byte("temp_signing_key")
+	routes = append(routes, controller.GetBFFRoutes(
+		challengePersister,
+		friends,
+		signingKey,
+	)...)
 
 	authMiddleware := controller.NewAuthenticationMiddleware(
 		nodeCtrl,
