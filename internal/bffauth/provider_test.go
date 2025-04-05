@@ -75,7 +75,7 @@ func TestBffProvider(t *testing.T) {
 	handler.ServeHTTP(rec, req)
 	require.Equal(t, http.StatusOK, rec.Result().StatusCode)
 	respBytes, err = io.ReadAll(rec.Result().Body)
-
+	require.NoError(t, err)
 	var testResp map[string]string
 	err = json.Unmarshal(respBytes, &testResp)
 	require.NoError(t, err)

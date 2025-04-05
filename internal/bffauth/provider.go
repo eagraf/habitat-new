@@ -170,5 +170,9 @@ func (p *Provider) handleTest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusOK)
-	w.Write(bytes)
+	_, err = w.Write(bytes)
+	if err != nil {
+		log.Err(err).Msgf("error sending response in handleTest")
+	}
+
 }
