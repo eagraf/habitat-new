@@ -11,7 +11,6 @@ import (
 
 	"github.com/eagraf/habitat-new/core/state/node"
 	"github.com/eagraf/habitat-new/internal/node/api/test_helpers"
-	"github.com/eagraf/habitat-new/internal/node/controller/encrypter"
 	"github.com/eagraf/habitat-new/internal/package_manager"
 	"github.com/eagraf/habitat-new/internal/process"
 	"github.com/stretchr/testify/require"
@@ -54,8 +53,6 @@ func TestInstallAppController(t *testing.T) {
 			jsonState: jsonStateFromNodeState(state),
 		},
 		nil,
-		nil,
-		&encrypter.NoopEncrypter{},
 	)
 	require.NoError(t, err)
 	ctrlServer, err := NewCtrlServer(
