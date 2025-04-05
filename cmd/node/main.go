@@ -180,14 +180,13 @@ func main() {
 	}
 
 	// Add BFF auth routes
-	challengePersister := bffauth.NewInMemorySessionPersister()
-	friends := make(controller.FriendStore)
-	signingKey := []byte("temp_signing_key")
-	routes = append(routes, controller.GetBFFRoutes(
-		challengePersister,
-		friends,
-		signingKey,
-	)...)
+
+	bffProvider := controller.NewBFFProvider(
+		bffauth.NewInMemorySessionPersister(),
+		make(controller.FriendStore),
+		[]byte("temp_signing_key"), // TODO @eagraf - use a real signing key
+	)
+	routes = append(routes, bffProvider.GetRoutes()...)
 
 	authMiddleware := controller.NewAuthenticationMiddleware(
 		nodeCtrl,

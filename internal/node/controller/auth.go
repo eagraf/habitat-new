@@ -116,42 +116,49 @@ type BFFChallengeRequest struct {
 	DID string `json:"did"`
 }
 
-// BFFChallengeRoute returns a challenge string to the client, along with a challenge session ID.
-type BFFChallengeRoute struct {
+type FriendStore map[string]*Friend
+
+type Friend struct {
+	DID       string `json:"did"`
+	PublicKey crypto.PublicKey
+}
+
+type FriendRequest struct {
+	DID                string `json:"did"`
+	PublicKeyMultibase string `json:"public_key_multibase"`
+}
+
+type BFFProvider struct {
 	challengePersister bffauth.ChallengeSessionPersister
 	friends            FriendStore
+	signingKey         []byte
 }
 
-func NewBFFChallengeRoute(challengePersister bffauth.ChallengeSessionPersister, friends FriendStore) *BFFChallengeRoute {
-	return &BFFChallengeRoute{
+func NewBFFProvider(challengePersister bffauth.ChallengeSessionPersister, friends FriendStore, signingKey []byte) *BFFProvider {
+	return &BFFProvider{
 		challengePersister: challengePersister,
 		friends:            friends,
+		signingKey:         signingKey,
 	}
 }
 
-func (h *BFFChallengeRoute) Pattern() string {
-	return "/node/bff/challenge"
-}
-
-func (h *BFFChallengeRoute) Method() string {
-	return http.MethodPost
-}
-
-func (h *BFFChallengeRoute) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
+func (p *BFFProvider) GetRoutes() []api.Route {
+	return []api.Route{
+		newRoute(http.MethodPost, "/node/bff/challenge", p.handleChallenge),
+		newRoute(http.MethodPost, "/node/bff/auth", p.handleAuth),
+		newRoute(http.MethodPost, "/node/bff/add_friend", p.handleAddFriend),
+		newRoute(http.MethodGet, "/node/bff/test", p.handleTest),
 	}
+}
 
+func (p *BFFProvider) handleChallenge(w http.ResponseWriter, r *http.Request) {
 	var req BFFChallengeRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
 
-	// TODO @eagraf - validate DID's public key
-
-	_, ok := h.friends[req.DID]
+	_, ok := p.friends[req.DID]
 	if !ok {
 		http.Error(w, fmt.Sprintf("Friend with DID %s not found", req.DID), http.StatusNotFound)
 		return
@@ -171,7 +178,7 @@ func (h *BFFChallengeRoute) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		Challenge: challenge,
 		ExpiresAt: time.Now().Add(15 * time.Minute),
 	}
-	err = h.challengePersister.SaveSession(session)
+	err = p.challengePersister.SaveSession(session)
 	if err != nil {
 		http.Error(w, "Failed to save session", http.StatusInternalServerError)
 		return
@@ -186,38 +193,9 @@ func (h *BFFChallengeRoute) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
 		return
 	}
-
 }
 
-// BFFAuthRoute validates a proof of possession of a challenge string, and returns a JWT.
-type BFFAuthRoute struct {
-	challengePersister bffauth.ChallengeSessionPersister
-	friends            FriendStore
-	signingKey         []byte
-}
-
-func NewBFFAuthRoute(challengePersister bffauth.ChallengeSessionPersister, friends FriendStore, signingKey []byte) *BFFAuthRoute {
-	return &BFFAuthRoute{
-		challengePersister: challengePersister,
-		friends:            friends,
-		signingKey:         signingKey,
-	}
-}
-
-func (h *BFFAuthRoute) Pattern() string {
-	return "/node/bff/auth"
-}
-
-func (h *BFFAuthRoute) Method() string {
-	return http.MethodPost
-}
-
-func (h *BFFAuthRoute) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
+func (p *BFFProvider) handleAuth(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		SessionID string `json:"session_id"`
 		Proof     string `json:"proof"`
@@ -227,20 +205,19 @@ func (h *BFFAuthRoute) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	session, err := h.challengePersister.GetSession(req.SessionID)
+	session, err := p.challengePersister.GetSession(req.SessionID)
 	if err != nil {
 		http.Error(w, "Invalid session", http.StatusBadRequest)
 		return
 	}
 
-	err = h.challengePersister.DeleteSession(req.SessionID)
+	err = p.challengePersister.DeleteSession(req.SessionID)
 	if err != nil {
 		http.Error(w, "Failed to delete session", http.StatusInternalServerError)
 		return
 	}
 
-	// TODO @eagraf - get public key from the DNS / DID:plc
-	friend, ok := h.friends[session.DID]
+	friend, ok := p.friends[session.DID]
 	if !ok {
 		http.Error(w, fmt.Sprintf("Friend with DID %s not found", session.DID), http.StatusNotFound)
 		return
@@ -252,17 +229,16 @@ func (h *BFFAuthRoute) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid proof", http.StatusUnauthorized)
 		return
 	}
-	log.Info().Msgf("Signing key while signing: %s", h.signingKey)
 
 	// Generate JWT
-	token, err := bffauth.GenerateJWT(h.signingKey)
+	token, err := bffauth.GenerateJWT(p.signingKey)
 	if err != nil {
 		http.Error(w, "Failed to generate token", http.StatusInternalServerError)
 		return
 	}
 
 	// Sanity check by validating the token
-	_, err = bffauth.ValidateJWT(token, h.signingKey)
+	_, err = bffauth.ValidateJWT(token, p.signingKey)
 	if err != nil {
 		http.Error(w, "Failed to validate token", http.StatusInternalServerError)
 		return
@@ -276,38 +252,9 @@ func (h *BFFAuthRoute) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
 		return
 	}
-
 }
 
-type FriendStore map[string]*Friend
-
-type Friend struct {
-	DID       string `json:"did"`
-	PublicKey crypto.PublicKey
-}
-
-type BFFAddFriendRoute struct {
-	friends FriendStore
-}
-
-type FriendRequest struct {
-	DID                string `json:"did"`
-	PublicKeyMultibase string `json:"public_key_multibase"`
-}
-
-func NewBFFAddFriendRoute(friends FriendStore) *BFFAddFriendRoute {
-	return &BFFAddFriendRoute{friends: friends}
-}
-
-func (h *BFFAddFriendRoute) Pattern() string {
-	return "/node/bff/add_friend"
-}
-
-func (h *BFFAddFriendRoute) Method() string {
-	return http.MethodPost
-}
-
-func (h *BFFAddFriendRoute) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (p *BFFProvider) handleAddFriend(w http.ResponseWriter, r *http.Request) {
 	var req FriendRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
@@ -320,7 +267,7 @@ func (h *BFFAddFriendRoute) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.friends[req.DID] = &Friend{
+	p.friends[req.DID] = &Friend{
 		DID:       req.DID,
 		PublicKey: pubKey,
 	}
@@ -328,32 +275,8 @@ func (h *BFFAddFriendRoute) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 }
 
-type BFFTestRoute struct {
-	challengePersister bffauth.ChallengeSessionPersister
-	signingKey         []byte
-}
-
-func NewBFFTestRoute(challengePersister bffauth.ChallengeSessionPersister, signingKey []byte) *BFFTestRoute {
-	return &BFFTestRoute{
-		challengePersister: challengePersister,
-		signingKey:         signingKey,
-	}
-}
-
-func (h *BFFTestRoute) Pattern() string {
-	return "/node/bff/test"
-}
-
-func (h *BFFTestRoute) Method() string {
-	return http.MethodGet
-}
-
-func (h *BFFTestRoute) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	authHeader := r.Header.Get("Authorization")
-	log.Info().Msgf("Authorization header: %s", authHeader)
-	log.Info().Msgf("Signing key when validating: %s", h.signingKey)
-
-	err := bffauth.ValidateRequest(r, h.signingKey)
+func (p *BFFProvider) handleTest(w http.ResponseWriter, r *http.Request) {
+	err := bffauth.ValidateRequest(r, p.signingKey)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Unauthorized: %s", err), http.StatusUnauthorized)
 		return
@@ -368,17 +291,4 @@ func (h *BFFTestRoute) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
-}
-
-func GetBFFRoutes(
-	challengePersister bffauth.ChallengeSessionPersister,
-	friends FriendStore,
-	signingKey []byte,
-) []api.Route {
-	return []api.Route{
-		NewBFFChallengeRoute(challengePersister, friends),
-		NewBFFAuthRoute(challengePersister, friends, signingKey),
-		NewBFFAddFriendRoute(friends),
-		NewBFFTestRoute(challengePersister, signingKey),
-	}
 }
