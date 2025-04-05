@@ -161,7 +161,7 @@ func TestStartProcessHandler(t *testing.T) {
 	ctrl2, err := NewController2(context.Background(), process.NewProcessManager([]process.Driver{mockDriver}), nil, db, nil)
 	require.NoError(t, err)
 
-	s, err := NewCtrlServer(context.Background(), &BaseNodeController{}, "", ctrl2, state)
+	s, err := NewCtrlServer(context.Background(), &BaseNodeController{}, ctrl2, state)
 	require.NoError(t, err)
 
 	// No processes running

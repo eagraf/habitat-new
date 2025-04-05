@@ -159,7 +159,7 @@ func main() {
 	if err != nil {
 		log.Fatal().Err(err).Msg("error creating node Controller2")
 	}
-	ctrlServer, err := controller.NewCtrlServer(ctx, nodeCtrl, constants.DefaultPDSHostname, ctrl2, initState)
+	ctrlServer, err := controller.NewCtrlServer(ctx, nodeCtrl, ctrl2, initState)
 	if err != nil {
 		log.Fatal().Err(err).Msg("error creating node control server")
 	}

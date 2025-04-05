@@ -12,14 +12,12 @@ import (
 )
 
 type CtrlServer struct {
-	inner   *Controller2
-	pdsHost string
+	inner *Controller2
 }
 
 func NewCtrlServer(
 	ctx context.Context,
 	b *BaseNodeController,
-	pdsHost string,
 	inner *Controller2,
 	state *node.State,
 ) (*CtrlServer, error) {
@@ -30,8 +28,7 @@ func NewCtrlServer(
 	}
 
 	return &CtrlServer{
-		inner:   inner,
-		pdsHost: pdsHost,
+		inner: inner,
 	}, nil
 }
 

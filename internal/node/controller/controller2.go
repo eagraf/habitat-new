@@ -178,6 +178,7 @@ func (c *Controller2) restore(state *node.State) error {
 
 	// Restore reverse proxy rules to the desired state
 	for _, rule := range state.ReverseProxyRules {
+		log.Info().Msgf("Restoring rule %s, matcher: %s", rule.ID, rule.Matcher)
 		err := c.proxyServer.RuleSet.AddRule(rule)
 		if err != nil {
 			log.Error().Msgf("error restoring rule: %s", err)
