@@ -243,7 +243,6 @@ func main() {
 
 func generatePDSAppConfig(nodeConfig *config.NodeConfig) (*node.AppInstallation, *node.ReverseProxyRule) {
 	pdsMountDir := filepath.Join(nodeConfig.HabitatAppPath(), "pds")
-	fmt.Println("what is domain", nodeConfig.Domain())
 
 	// TODO @eagraf - unhardcode as much of this as possible
 	appID := "pds-default-app-ID"

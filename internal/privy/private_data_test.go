@@ -59,14 +59,23 @@ func TestControllerPrivateDataPutGet(t *testing.T) {
 	recordNotFoundResp, err := json.Marshal(xrpcErr)
 	require.NoError(t, err)
 
-	resp4 := []byte(fmt.Sprintf(`{
-		"cid": "%s", 
-		"uri": "%s", 
-		"value": {
-			"$type": "com.habitat.encryptedRecord",
-			"cid": "%s"
-		}
-	}`, encRecordCid, testUri, blobCid))
+	encRecord := encryptedRecord{
+		Data: util.BlobSchema{
+			Ref:      util.LexLink(cid.MustParse(blobCid)),
+			MimeType: "*/*",
+			Size:     59,
+		},
+	}
+	bytes, err := json.Marshal(encRecord)
+	require.NoError(t, err)
+	asJson := json.RawMessage(bytes)
+	getout := agnostic.RepoGetRecord_Output{
+		Cid:   &encRecordCid,
+		Uri:   testUri,
+		Value: &asJson,
+	}
+	resp4, err := json.Marshal(getout)
+	require.NoError(t, err)
 
 	marshalledVal, err := json.Marshal(val)
 	require.NoError(t, err)
@@ -139,7 +148,7 @@ func TestControllerPrivateDataPutGet(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, *got.Cid, encRecordCid)
 	require.Equal(t, got.Uri, testUri)
-	bytes, err := got.Value.MarshalJSON()
+	bytes, err = got.Value.MarshalJSON()
 	require.NoError(t, err)
 	require.Equal(t, bytes, marshalledVal)
 

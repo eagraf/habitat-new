@@ -45,8 +45,6 @@ func (s *Server) PutRecord(cli *xrpc.Client) http.HandlerFunc {
 			return
 		}
 
-		fmt.Println(req)
-
 		out, err := s.inner.putRecord(r.Context(), cli, req.Input, req.Encrypt)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
