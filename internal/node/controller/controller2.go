@@ -10,6 +10,7 @@ import (
 	"github.com/bluesky-social/indigo/api/agnostic"
 	"github.com/bluesky-social/indigo/api/atproto"
 	"github.com/bluesky-social/indigo/atproto/data"
+	"github.com/bluesky-social/indigo/lex/util"
 	"github.com/bluesky-social/indigo/xrpc"
 	"github.com/eagraf/habitat-new/core/state/node"
 	"github.com/eagraf/habitat-new/internal/node/controller/encrypter"
@@ -216,7 +217,9 @@ func encryptedRecordRKey(collection string, rkey string) string {
 	return fmt.Sprintf("enc:%s:%s", collection, rkey)
 }
 
-type encryptedRecord map[string]string
+type encryptedRecord struct {
+	Data util.BlobSchema `json:"data" cborgen:"data"`
+}
 
 var (
 	ErrPublicRecordExists               = fmt.Errorf("a public record exists with the same key")
@@ -323,7 +326,7 @@ func (c *Controller2) getEncryptedRecord(ctx context.Context, xrpc *xrpc.Client,
 	}
 
 	// blob contains the encrypted lexicon written by the user
-	blob, err := atproto.SyncGetBlob(ctx, xrpc, record["cid"], did)
+	blob, err := atproto.SyncGetBlob(ctx, xrpc, record.Data.Ref.String(), did)
 	if err != nil {
 		return nil, err
 	}
@@ -371,7 +374,7 @@ func (c *Controller2) putEncryptedRecord(ctx context.Context, xrpc *xrpc.Client,
 	}
 
 	// CID is returned on uploadBlob
-	cid := blobOut.Blob.Ref
+	blob := blobOut.Blob
 	encKey := encryptedRecordRKey(collection, rkey)
 	// It's our fault if this fails, but always attempt to validate the habitat encoded request
 	validateEnc := true
@@ -382,7 +385,7 @@ func (c *Controller2) putEncryptedRecord(ctx context.Context, xrpc *xrpc.Client,
 		Rkey:       encKey,
 		Validate:   &validateEnc,
 		Record: map[string]any{
-			"cid": cid.String(),
+			"data": blob,
 		},
 	}
 	return agnostic.RepoPutRecord(ctx, xrpc, encInput)
