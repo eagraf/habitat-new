@@ -192,10 +192,11 @@ type BFFAuthRoute struct {
 	signingKey         []byte
 }
 
-func NewBFFAuthRoute(challengePersister bffauth.ChallengeSessionPersister, friends FriendStore) *BFFAuthRoute {
+func NewBFFAuthRoute(challengePersister bffauth.ChallengeSessionPersister, friends FriendStore, signingKey []byte) *BFFAuthRoute {
 	return &BFFAuthRoute{
 		challengePersister: challengePersister,
 		friends:            friends,
+		signingKey:         signingKey,
 	}
 }
 
@@ -247,11 +248,19 @@ func (h *BFFAuthRoute) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid proof", http.StatusUnauthorized)
 		return
 	}
+	log.Info().Msgf("Signing key while signing: %s", h.signingKey)
 
 	// Generate JWT
 	token, err := bffauth.GenerateJWT(h.signingKey)
 	if err != nil {
 		http.Error(w, "Failed to generate token", http.StatusInternalServerError)
+		return
+	}
+
+	// Sanity check by validating the token
+	_, err = bffauth.ValidateJWT(token, h.signingKey)
+	if err != nil {
+		http.Error(w, "Failed to validate token", http.StatusInternalServerError)
 		return
 	}
 
@@ -332,12 +341,17 @@ func (h *BFFTestRoute) Method() string {
 }
 
 func (h *BFFTestRoute) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	// TODO @eagraf - implement
+	authHeader := r.Header.Get("Authorization")
+	log.Info().Msgf("Authorization header: %s", authHeader)
+	log.Info().Msgf("Signing key when validating: %s", h.signingKey)
+
 	err := bffauth.ValidateRequest(r, h.signingKey)
 	if err != nil {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		http.Error(w, fmt.Sprintf("Unauthorized: %s", err), http.StatusUnauthorized)
 		return
 	}
+
+	w.Write([]byte("{\"message\": \"Hello, world!\"}"))
 
 	w.WriteHeader(http.StatusOK)
 }
@@ -349,7 +363,7 @@ func GetBFFRoutes(
 ) []api.Route {
 	return []api.Route{
 		NewBFFChallengeRoute(challengePersister, friends),
-		NewBFFAuthRoute(challengePersister, friends),
+		NewBFFAuthRoute(challengePersister, friends, signingKey),
 		NewBFFAddFriendRoute(friends),
 		NewBFFTestRoute(challengePersister, signingKey),
 	}
