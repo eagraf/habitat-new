@@ -351,7 +351,13 @@ func (h *BFFTestRoute) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Write([]byte("{\"message\": \"Hello, world!\"}"))
+	err = json.NewEncoder(w).Encode(map[string]string{
+		"message": "Hello, world!",
+	})
+	if err != nil {
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+		return
+	}
 
 	w.WriteHeader(http.StatusOK)
 }

@@ -51,10 +51,14 @@ func (s *TestServer) challengeHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{
+	err = json.NewEncoder(w).Encode(map[string]string{
 		"challenge": challenge,
 		"session":   sessionID,
 	})
+	if err != nil {
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+		return
+	}
 }
 
 func (s *TestServer) authHandler(w http.ResponseWriter, r *http.Request) {
@@ -99,9 +103,13 @@ func (s *TestServer) authHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{
+	err = json.NewEncoder(w).Encode(map[string]string{
 		"token": token,
 	})
+	if err != nil {
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+		return
+	}
 }
 
 func (s *TestServer) HelloWorldAuthenticatedHandler(w http.ResponseWriter, r *http.Request) {
@@ -117,9 +125,13 @@ func (s *TestServer) HelloWorldAuthenticatedHandler(w http.ResponseWriter, r *ht
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{
+	err = json.NewEncoder(w).Encode(map[string]string{
 		"message": "Hello, world!",
 	})
+	if err != nil {
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+		return
+	}
 }
 
 func main() {
