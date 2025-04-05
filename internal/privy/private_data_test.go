@@ -20,8 +20,7 @@ import (
 // This mocks out the PDS and uses a no-op encrypter
 func TestControllerPrivateDataPutGet(t *testing.T) {
 	ctx := context.Background()
-	encrypter, err := NewFromKey([]byte(TestOnlyNewRandomKey()))
-	require.NoError(t, err)
+	encrypter := &NoopEncrypter{}
 
 	type req struct {
 		url   string

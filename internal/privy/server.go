@@ -97,7 +97,12 @@ func (s *Server) GetRecord(cli *xrpc.Client) http.HandlerFunc {
 // This would allow for requesting to any pds through these routes, not just the one tied to this habitat node.
 func (s *Server) pdsAuthMiddleware(next func(c *xrpc.Client) http.HandlerFunc) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		bearer := r.Header.Get("Authorization")[7:]
+		authHeader := r.Header.Get("Authorization")
+		if len(authHeader) < 7 {
+			http.Error(w, "Invalid Authorization header", http.StatusUnauthorized)
+			return
+		}
+		bearer := authHeader[7:]
 		c := &xrpc.Client{
 			Host: fmt.Sprintf("http://%s", s.pdsHost),
 			Auth: &xrpc.AuthInfo{

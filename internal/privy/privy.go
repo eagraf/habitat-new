@@ -14,7 +14,7 @@ import (
 	"github.com/bluesky-social/indigo/xrpc"
 )
 
-// Privy is an ATProto PDS Wrapper which allos for storing & getting private data.
+// Privy is an ATProto PDS Wrapper which allows for storing & getting private data.
 // It does this by encrypting data, then storing it in blob. A special lexicon for this purpose,
 // identified by com.habitat.encryptedRecord, points to the blob storing the actual data.
 //
@@ -39,8 +39,8 @@ type encryptedRecord struct {
 var (
 	ErrPublicRecordExists               = fmt.Errorf("a public record exists with the same key")
 	ErrNoPutsOnEncryptedRecord          = fmt.Errorf("directly put-ting to this lexicon is not valid")
-	ErrNoEncryptedGetsOnEncryptedRecord = fmt.Errorf("calling getEncryptedRecord on a com.habitat.encryptedRecord is not supported")
-	ErrEncryptedRecordNilValue          = fmt.Errorf("a com.habitat.encryptedRecord record was found but it has a nil value")
+	ErrNoEncryptedGetsOnEncryptedRecord = fmt.Errorf("calling getEncryptedRecord on a %s is not supported", encryptedRecordNSID)
+	ErrEncryptedRecordNilValue          = fmt.Errorf("a %s record was found but it has a nil value", encryptedRecordNSID)
 )
 
 // Returns true if err indicates the RecordNotFound error
@@ -98,6 +98,8 @@ type GetRecordResponse struct {
 //	--) collection + rkey = a non-com.habitat.encryptedRecord:
 //	   2b) if a corresponding record is found, return that
 //	   2c) if no corresponding record is found, attempt to decrypt the record a com.habitat.encryptedRecord would point to for that collection + rkey
+//
+// Keeping this API the same as com.atproto.getRecord
 func (p *store) getRecord(ctx context.Context, xrpc *xrpc.Client, cid string, collection string, did string, rkey string) (*agnostic.RepoGetRecord_Output, error) {
 	// Attempt to get a public record corresponding to the Collection + Repo + Rkey.
 	// If the given cid does not point to anything, the GetRecord endpoint returns an error.
@@ -118,6 +120,7 @@ func (p *store) getRecord(ctx context.Context, xrpc *xrpc.Client, cid string, co
 }
 
 // getEncryptedRecord assumes that the record given by the cid + collection + rkey + did has been encrypted via putRecord and fetches it
+// Keeping this API the same as com.atproto.getRecord
 func (p *store) getEncryptedRecord(ctx context.Context, xrpc *xrpc.Client, cid string, collection string, did string, rkey string) (*agnostic.RepoGetRecord_Output, error) {
 	if collection == encryptedRecordNSID {
 		return nil, ErrNoEncryptedGetsOnEncryptedRecord
