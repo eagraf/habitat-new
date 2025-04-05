@@ -40,3 +40,5 @@ exclude:
     - ^internal/privy/.*encrypt.* # This is is a noop thing.
     - ^internal/docker
     - ^internal/web
+    - ^internal/bffauth/cmd
+    - ^internal/bffauth/provider.go # File is too small :)

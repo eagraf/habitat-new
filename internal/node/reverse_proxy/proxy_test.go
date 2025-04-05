@@ -3,7 +3,6 @@ package reverse_proxy
 import (
 	"fmt"
 	"io"
-	"log"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -27,18 +26,14 @@ func TestProxy(t *testing.T) {
 	defer redirectedServer.Close()
 
 	redirectedServerURL, err := url.Parse(redirectedServer.URL)
-	if err != nil {
-		t.Fatal(err.Error())
-	}
+	require.NoError(t, err)
 
 	// Simulate a static file dir to be served
 	fileDir := t.TempDir()
 	defer os.RemoveAll(fileDir)
 
 	file, err := os.CreateTemp(fileDir, "file")
-	if err != nil {
-		log.Fatal(err.Error())
-	}
+	require.NoError(t, err)
 
 	_, _ = file.Write([]byte("Hello, World!"))
 	file.Close()

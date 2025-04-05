@@ -14,6 +14,7 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
 	"github.com/eagraf/habitat-new/core/state/node"
+	"github.com/eagraf/habitat-new/internal/bffauth"
 	"github.com/eagraf/habitat-new/internal/docker"
 	"github.com/eagraf/habitat-new/internal/node/api"
 	"github.com/eagraf/habitat-new/internal/node/appstore"
@@ -179,7 +180,18 @@ func main() {
 		routes = append(routes, appstore.NewAvailableAppsRoute(nodeConfig.HabitatPath()))
 	}
 
-	privyServer := privy.NewServer(constants.DefaultPDSHostname, &privy.NoopEncrypter{} /* TODO: use actual encryption */)
+	// Add BFF auth routes
+	bffProvider := bffauth.NewProvider(
+		bffauth.NewInMemorySessionPersister(),
+		[]byte("temp_signing_key"), // TODO @eagraf - use a real signing key
+	)
+	routes = append(routes, bffProvider.GetRoutes()...)
+
+	// Add privy routes
+	privyServer := privy.NewServer(
+		constants.DefaultPDSHostname,
+		&privy.NoopEncrypter{}, /* TODO: use actual encryption */
+	)
 	routes = append(routes, privyServer.GetRoutes()...)
 
 	authMiddleware := controller.NewAuthenticationMiddleware(
