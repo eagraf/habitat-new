@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/bluesky-social/indigo/atproto/crypto"
-	"github.com/eagraf/habitat-new/pkg/bffauth"
+	"github.com/eagraf/habitat-new/internal/bffauth"
 	"github.com/google/uuid"
 	"github.com/joho/godotenv"
 )

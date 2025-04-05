@@ -11,7 +11,7 @@ import (
 	"encoding/json"
 
 	"github.com/bluesky-social/indigo/atproto/crypto"
-	"github.com/eagraf/habitat-new/pkg/bffauth"
+	"github.com/eagraf/habitat-new/internal/bffauth"
 	"github.com/joho/godotenv"
 )
 

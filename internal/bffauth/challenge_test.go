@@ -4,38 +4,28 @@ import (
 	"testing"
 
 	"github.com/bluesky-social/indigo/atproto/crypto"
+	"github.com/stretchr/testify/require"
 )
 
 func TestChallengeProofFlow(t *testing.T) {
 	// Generate a test key pair
 	privateKey, err := crypto.GeneratePrivateKeyP256()
-	if err != nil {
-		t.Fatalf("Failed to generate key pair: %v", err)
-	}
+	require.NoError(t, err, "failed to generate key pair")
+
 	publicKey, err := privateKey.PublicKey()
-	if err != nil {
-		t.Fatalf("Failed to generate public key: %v", err)
-	}
+	require.NoError(t, err, "failed to generate public key")
 
 	// Generate a challenge
 	challenge, err := GenerateChallenge()
-	if err != nil {
-		t.Fatalf("Failed to generate challenge: %v", err)
-	}
+	require.NoError(t, err, "failed to generate challenge")
 
 	// Create proof with private key
 	proof, err := GenerateProof(challenge, privateKey)
-	if err != nil {
-		t.Fatalf("Failed to generate proof: %v", err)
-	}
+	require.NoError(t, err, "failed to generate proof")
 
 	// Verify proof with public key
 	valid, err := VerifyProof(challenge, proof, publicKey)
-	if err != nil {
-		t.Fatalf("Failed to verify proof: %v", err)
-	}
+	require.NoError(t, err, "failed to verify proof")
 
-	if !valid {
-		t.Error("Proof verification failed")
-	}
+	require.True(t, valid, "proof verification failed")
 }

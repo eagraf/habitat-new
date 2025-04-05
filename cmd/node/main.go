@@ -14,6 +14,7 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
 	"github.com/eagraf/habitat-new/core/state/node"
+	"github.com/eagraf/habitat-new/internal/bffauth"
 	"github.com/eagraf/habitat-new/internal/docker"
 	"github.com/eagraf/habitat-new/internal/node/api"
 	"github.com/eagraf/habitat-new/internal/node/appstore"
@@ -29,7 +30,6 @@ import (
 	"github.com/eagraf/habitat-new/internal/process"
 	"github.com/eagraf/habitat-new/internal/pubsub"
 	"github.com/eagraf/habitat-new/internal/web"
-	"github.com/eagraf/habitat-new/pkg/bffauth"
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -181,9 +181,8 @@ func main() {
 
 	// Add BFF auth routes
 
-	bffProvider := controller.NewBFFProvider(
+	bffProvider := bffauth.NewProvider(
 		bffauth.NewInMemorySessionPersister(),
-		make(controller.FriendStore),
 		[]byte("temp_signing_key"), // TODO @eagraf - use a real signing key
 	)
 	routes = append(routes, bffProvider.GetRoutes()...)
