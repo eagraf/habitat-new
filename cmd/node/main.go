@@ -156,7 +156,12 @@ func main() {
 		log.Fatal().Err(err).Msg("error getting default HDB client")
 	}
 
+	// TODO: this should not be a random key, but it should be a persisted key generated off of the pds or habitat key
 	aes, err := encrypter.NewFromKey([]byte(encrypter.TestOnlyNewRandomKey()))
+	if err != nil {
+		log.Fatal().Err(err).Msg("error creating aes encrypter")
+	}
+
 	ctrl2, err := controller.NewController2(ctx, pm, pkgManagers, dbClient, proxy, &xrpc.Client{
 		Host: fmt.Sprintf("%s:%s", nodeConfig.Domain(), constants.DefaultPortPDS),
 	}, aes)
