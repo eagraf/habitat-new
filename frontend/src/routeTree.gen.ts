@@ -16,6 +16,8 @@ import { Route as LoginImport } from './routes/login'
 import { Route as AppStoreImport } from './routes/app-store'
 import { Route as AddUserImport } from './routes/add-user'
 import { Route as IndexImport } from './routes/index'
+import { Route as PrivyDemoIndexImport } from './routes/privy-demo/index'
+import { Route as PrivyDemoViewImport } from './routes/privy-demo/view'
 
 // Create/Update Routes
 
@@ -46,6 +48,18 @@ const AddUserRoute = AddUserImport.update({
 const IndexRoute = IndexImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRoute,
+} as any)
+
+const PrivyDemoIndexRoute = PrivyDemoIndexImport.update({
+  id: '/privy-demo/',
+  path: '/privy-demo/',
+  getParentRoute: () => rootRoute,
+} as any)
+
+const PrivyDemoViewRoute = PrivyDemoViewImport.update({
+  id: '/privy-demo/view',
+  path: '/privy-demo/view',
   getParentRoute: () => rootRoute,
 } as any)
 
@@ -88,6 +102,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ServerImport
       parentRoute: typeof rootRoute
     }
+    '/privy-demo/view': {
+      id: '/privy-demo/view'
+      path: '/privy-demo/view'
+      fullPath: '/privy-demo/view'
+      preLoaderRoute: typeof PrivyDemoViewImport
+      parentRoute: typeof rootRoute
+    }
+    '/privy-demo/': {
+      id: '/privy-demo/'
+      path: '/privy-demo'
+      fullPath: '/privy-demo'
+      preLoaderRoute: typeof PrivyDemoIndexImport
+      parentRoute: typeof rootRoute
+    }
   }
 }
 
@@ -99,6 +127,8 @@ export interface FileRoutesByFullPath {
   '/app-store': typeof AppStoreRoute
   '/login': typeof LoginRoute
   '/server': typeof ServerRoute
+  '/privy-demo/view': typeof PrivyDemoViewRoute
+  '/privy-demo': typeof PrivyDemoIndexRoute
 }
 
 export interface FileRoutesByTo {
@@ -107,6 +137,8 @@ export interface FileRoutesByTo {
   '/app-store': typeof AppStoreRoute
   '/login': typeof LoginRoute
   '/server': typeof ServerRoute
+  '/privy-demo/view': typeof PrivyDemoViewRoute
+  '/privy-demo': typeof PrivyDemoIndexRoute
 }
 
 export interface FileRoutesById {
@@ -116,14 +148,38 @@ export interface FileRoutesById {
   '/app-store': typeof AppStoreRoute
   '/login': typeof LoginRoute
   '/server': typeof ServerRoute
+  '/privy-demo/view': typeof PrivyDemoViewRoute
+  '/privy-demo/': typeof PrivyDemoIndexRoute
 }
 
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/add-user' | '/app-store' | '/login' | '/server'
+  fullPaths:
+    | '/'
+    | '/add-user'
+    | '/app-store'
+    | '/login'
+    | '/server'
+    | '/privy-demo/view'
+    | '/privy-demo'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/add-user' | '/app-store' | '/login' | '/server'
-  id: '__root__' | '/' | '/add-user' | '/app-store' | '/login' | '/server'
+  to:
+    | '/'
+    | '/add-user'
+    | '/app-store'
+    | '/login'
+    | '/server'
+    | '/privy-demo/view'
+    | '/privy-demo'
+  id:
+    | '__root__'
+    | '/'
+    | '/add-user'
+    | '/app-store'
+    | '/login'
+    | '/server'
+    | '/privy-demo/view'
+    | '/privy-demo/'
   fileRoutesById: FileRoutesById
 }
 
@@ -133,6 +189,8 @@ export interface RootRouteChildren {
   AppStoreRoute: typeof AppStoreRoute
   LoginRoute: typeof LoginRoute
   ServerRoute: typeof ServerRoute
+  PrivyDemoViewRoute: typeof PrivyDemoViewRoute
+  PrivyDemoIndexRoute: typeof PrivyDemoIndexRoute
 }
 
 const rootRouteChildren: RootRouteChildren = {
@@ -141,6 +199,8 @@ const rootRouteChildren: RootRouteChildren = {
   AppStoreRoute: AppStoreRoute,
   LoginRoute: LoginRoute,
   ServerRoute: ServerRoute,
+  PrivyDemoViewRoute: PrivyDemoViewRoute,
+  PrivyDemoIndexRoute: PrivyDemoIndexRoute,
 }
 
 export const routeTree = rootRoute
@@ -157,7 +217,9 @@ export const routeTree = rootRoute
         "/add-user",
         "/app-store",
         "/login",
-        "/server"
+        "/server",
+        "/privy-demo/view",
+        "/privy-demo/"
       ]
     },
     "/": {
@@ -174,6 +236,12 @@ export const routeTree = rootRoute
     },
     "/server": {
       "filePath": "server.tsx"
+    },
+    "/privy-demo/view": {
+      "filePath": "privy-demo/view.tsx"
+    },
+    "/privy-demo/": {
+      "filePath": "privy-demo/index.tsx"
     }
   }
 }
