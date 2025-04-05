@@ -3,6 +3,7 @@ package bffauth
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -68,7 +69,16 @@ func TestBffProvider(t *testing.T) {
 	require.NoError(t, json.Unmarshal(respBytes, &authResp))
 
 	req := httptest.NewRequest(http.MethodGet, "/doesntmatter", nil)
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", authResp.Token))
+	rec = httptest.NewRecorder()
 	handler = http.HandlerFunc(p.handleTest)
 	handler.ServeHTTP(rec, req)
 	require.Equal(t, http.StatusOK, rec.Result().StatusCode)
+	respBytes, err = io.ReadAll(rec.Result().Body)
+
+	var testResp map[string]string
+	err = json.Unmarshal(respBytes, &testResp)
+	require.NoError(t, err)
+	require.Contains(t, testResp, "message")
+	require.Equal(t, testResp["message"], "Hello, world!")
 }

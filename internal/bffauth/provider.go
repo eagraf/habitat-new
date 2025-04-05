@@ -162,13 +162,13 @@ func (p *Provider) handleTest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = json.NewEncoder(w).Encode(map[string]string{
+	bytes, err := json.Marshal(map[string]string{
 		"message": "Hello, world!",
 	})
 	if err != nil {
 		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
 		return
 	}
-
 	w.WriteHeader(http.StatusOK)
+	w.Write(bytes)
 }
