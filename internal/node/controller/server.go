@@ -168,7 +168,7 @@ func (s *CtrlServer) GetNodeState(w http.ResponseWriter, r *http.Request) {
 }
 
 type PutRecordRequest struct {
-	input   *agnostic.RepoPutRecord_Input
+	Input   *agnostic.RepoPutRecord_Input
 	Encrypt bool `json:"encrypt"`
 }
 
@@ -186,7 +186,9 @@ func (s *CtrlServer) PutRecord(cli *xrpc.Client) http.HandlerFunc {
 			return
 		}
 
-		out, err := s.inner.putRecord(r.Context(), cli, req.input, req.Encrypt)
+		fmt.Println(req)
+
+		out, err := s.inner.putRecord(r.Context(), cli, req.Input, req.Encrypt)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
