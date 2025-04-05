@@ -263,7 +263,7 @@ var _ api.Route = &route{}
 
 func (s *CtrlServer) pdsAuthMiddleware(next func(c *xrpc.Client) http.HandlerFunc) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		bearer := r.Header.Get("Authorization")
+		bearer := r.Header.Get("Authorization")[7:]
 		c := &xrpc.Client{
 			Host: fmt.Sprintf("http://%s", s.pdsHost),
 			Auth: &xrpc.AuthInfo{
