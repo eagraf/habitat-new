@@ -25,6 +25,7 @@ type Server struct {
 
 func NewServer(pdsHost string, enc Encrypter) *Server {
 	return &Server{
+		pdsHost: pdsHost,
 		inner: &store{
 			e: enc,
 		},
