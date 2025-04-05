@@ -377,7 +377,7 @@ func (c *Controller2) putEncryptedRecord(ctx context.Context, xrpc *xrpc.Client,
 	blob := blobOut.Blob
 	encKey := encryptedRecordRKey(collection, rkey)
 	// It's our fault if this fails, but always attempt to validate the habitat encoded request
-	validateEnc := true
+	validateEnc := false
 	// TODO: let's make a helper function for this
 	encInput := &agnostic.RepoPutRecord_Input{
 		Collection: encryptedRecordNSID,
