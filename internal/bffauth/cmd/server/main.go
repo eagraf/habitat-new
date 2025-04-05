@@ -67,10 +67,7 @@ func (s *TestServer) authHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req struct {
-		SessionID string `json:"session_id"`
-		Proof     string `json:"proof"`
-	}
+	var req bffauth.AuthRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return

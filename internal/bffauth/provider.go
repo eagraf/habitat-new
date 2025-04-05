@@ -96,11 +96,13 @@ func (p *Provider) handleChallenge(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+type AuthRequest struct {
+	SessionID string `json:"session_id"`
+	Proof     string `json:"proof"`
+}
+
 func (p *Provider) handleAuth(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		SessionID string `json:"session_id"`
-		Proof     string `json:"proof"`
-	}
+	var req AuthRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
