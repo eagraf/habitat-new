@@ -9,6 +9,7 @@ import (
 	"github.com/bluesky-social/indigo/atproto/crypto"
 	"github.com/eagraf/habitat-new/internal/node/api"
 	"github.com/google/uuid"
+	"github.com/rs/zerolog/log"
 )
 
 // BFF Auth - Allow for Habitat node's to authenticate with each other.
@@ -87,7 +88,9 @@ func (p *Provider) handleChallenge(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to marshal response", http.StatusInternalServerError)
 		return
 	}
-	w.Write(resp)
+	if _, err := w.Write(resp); err != nil {
+		log.Err(err).Msgf("error sending response in handleChallenge")
+	}
 }
 
 type AuthRequest struct {
@@ -147,7 +150,9 @@ func (p *Provider) handleAuth(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to marshal response", http.StatusInternalServerError)
 		return
 	}
-	w.Write(resp)
+	if _, err := w.Write(resp); err != nil {
+		log.Err(err).Msgf("error sending response in handleAuth")
+	}
 }
 
 func (p *Provider) handleTest(w http.ResponseWriter, r *http.Request) {

@@ -28,6 +28,7 @@ func TestBffProvider(t *testing.T) {
 		DID:                "my-did",
 		PublicKeyMultibase: publicKey.Bytes(),
 	})
+	require.NoError(t, err)
 	rec := httptest.NewRecorder()
 	handler := http.HandlerFunc(p.handleChallenge)
 	handler.ServeHTTP(
@@ -52,6 +53,7 @@ func TestBffProvider(t *testing.T) {
 		SessionID: session,
 		Proof:     proof,
 	})
+	require.NoError(t, err)
 	rec = httptest.NewRecorder()
 	handler = http.HandlerFunc(p.handleAuth)
 	handler.ServeHTTP(
