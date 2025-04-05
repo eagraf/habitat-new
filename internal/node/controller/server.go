@@ -8,6 +8,7 @@ import (
 	"net/url"
 
 	"github.com/bluesky-social/indigo/api/agnostic"
+	"github.com/bluesky-social/indigo/xrpc"
 	"github.com/eagraf/habitat-new/core/state/node"
 	"github.com/eagraf/habitat-new/internal/node/api"
 	"github.com/pkg/errors"
@@ -15,12 +16,14 @@ import (
 )
 
 type CtrlServer struct {
-	inner *Controller2
+	inner   *Controller2
+	pdsHost string
 }
 
 func NewCtrlServer(
 	ctx context.Context,
 	b *BaseNodeController,
+	pdsHost string,
 	inner *Controller2,
 	state *node.State,
 ) (*CtrlServer, error) {
@@ -31,7 +34,8 @@ func NewCtrlServer(
 	}
 
 	return &CtrlServer{
-		inner: inner,
+		inner:   inner,
+		pdsHost: pdsHost,
 	}, nil
 }
 
@@ -167,60 +171,64 @@ type PutRecordRequest struct {
 	Encrypt bool `json:"encrypt"`
 }
 
-func (s *CtrlServer) PutRecord(w http.ResponseWriter, r *http.Request) {
-	var req PutRecordRequest
-	slurp, err := io.ReadAll(r.Body)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	err = json.Unmarshal(slurp, &req)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
+func (s *CtrlServer) PutRecord(cli *xrpc.Client) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req PutRecordRequest
+		slurp, err := io.ReadAll(r.Body)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		err = json.Unmarshal(slurp, &req)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 
-	out, err := s.inner.putRecord(r.Context(), req.input, req.Encrypt)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	slurp, err = json.Marshal(out)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
+		out, err := s.inner.putRecord(r.Context(), cli, req.input, req.Encrypt)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		slurp, err = json.Marshal(out)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 
-	if _, err := w.Write(slurp); err != nil {
-		log.Err(err).Msgf("error sending response for PutRecord request")
+		if _, err := w.Write(slurp); err != nil {
+			log.Err(err).Msgf("error sending response for PutRecord request")
+		}
 	}
 }
 
-func (s *CtrlServer) GetRecord(w http.ResponseWriter, r *http.Request) {
-	u, err := url.Parse(r.URL.String())
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
+func (s *CtrlServer) GetRecord(cli *xrpc.Client) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		u, err := url.Parse(r.URL.String())
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 
-	cid := u.Query().Get("cid")
-	collection := u.Query().Get("collection")
-	did := u.Query().Get("did")
-	rkey := u.Query().Get("rkey")
+		cid := u.Query().Get("cid")
+		collection := u.Query().Get("collection")
+		did := u.Query().Get("did")
+		rkey := u.Query().Get("rkey")
 
-	out, err := s.inner.getRecord(r.Context(), cid, collection, did, rkey)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
+		out, err := s.inner.getRecord(r.Context(), cli, cid, collection, did, rkey)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 
-	slurp, err := json.Marshal(out)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	if _, err := w.Write(slurp); err != nil {
-		log.Err(err).Msgf("error sending response for GetRecord request")
+		slurp, err := json.Marshal(out)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		if _, err := w.Write(slurp); err != nil {
+			log.Err(err).Msgf("error sending response for GetRecord request")
+		}
 	}
 }
 
@@ -250,6 +258,19 @@ func (r *route) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 var _ api.Route = &route{}
 
+func (s *CtrlServer) pdsAuthMiddleware(next func(c *xrpc.Client) http.HandlerFunc) http.HandlerFunc {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		bearer := r.Header.Get("Authorization")
+		c := &xrpc.Client{
+			Host: s.pdsHost,
+			Auth: &xrpc.AuthInfo{
+				AccessJwt: bearer,
+			},
+		}
+		next(c).ServeHTTP(w, r)
+	})
+}
+
 func (s *CtrlServer) GetRoutes() []api.Route {
 	return []api.Route{
 		newRoute(http.MethodGet, "/node/processes/list", s.ListProcesses),
@@ -258,7 +279,7 @@ func (s *CtrlServer) GetRoutes() []api.Route {
 		newRoute(http.MethodGet, "/node/state", s.GetNodeState),
 		newRoute(http.MethodPost, "/node/apps/{user_id}/install", s.InstallApp),
 		newRoute(http.MethodPost, "/node/apps/uninstall", s.UninstallApp),
-		newRoute(http.MethodPost, "/node/put-record", s.PutRecord),
-		newRoute(http.MethodGet, "/node/get-record", s.GetRecord),
+		newRoute(http.MethodPost, "/xrpc/com.habitat.putRecord", s.pdsAuthMiddleware(s.PutRecord)),
+		newRoute(http.MethodGet, "/xrpc/com.habitat.getRecord", s.pdsAuthMiddleware(s.GetRecord)),
 	}
 }
