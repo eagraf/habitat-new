@@ -330,6 +330,18 @@ func generateDefaultReverseProxyRules(frontendDev bool) ([]*node.ReverseProxyRul
 			Matcher: "/habitat/api",
 			Target:  apiURL.String(),
 		},
+		{
+			ID:      "habitat-put-record",
+			Type:    node.ProxyRuleRedirect,
+			Matcher: "/xrpc/com.habitat.putRecord",
+			Target:  apiURL.String() + "/xrpc/com.habitat.putRecord",
+		},
+		{
+			ID:      "habitat-get-record",
+			Type:    node.ProxyRuleRedirect,
+			Matcher: "/xrpc/com.habitat.getRecord",
+			Target:  apiURL.String() + "/xrpc/com.habitat.getRecord",
+		},
 		frontendRule,
 	}, nil
 }

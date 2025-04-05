@@ -2,16 +2,16 @@ package privy
 
 import (
 	"crypto/rand"
-	"crypto/sha256"
 	"encoding/hex"
-
-	"github.com/agl/gcmsiv"
 )
 
 type Encrypter interface {
 	Encrypt(rkey string, data []byte) ([]byte, error)
 	Decrypt(rkey string, encrypted []byte) ([]byte, error)
 }
+
+/*
+// TODO: comment back in when using real encryption
 
 type AesEncrypter struct {
 	gcm *gcmsiv.GCMSIV
@@ -47,6 +47,7 @@ func (e *AesEncrypter) Decrypt(rkey string, ciphertext []byte) ([]byte, error) {
 	nonce = nonce[:e.gcm.NonceSize()]
 	return e.gcm.Open(nil, nonce, ciphertext, nil)
 }
+*/
 
 func randomKey(numBytes int) string {
 	bytes := make([]byte, numBytes) //generate a random numBytes byte key
