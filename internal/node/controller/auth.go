@@ -178,10 +178,14 @@ func (h *BFFChallengeRoute) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{
+	err = json.NewEncoder(w).Encode(map[string]string{
 		"challenge": challenge,
 		"session":   sessionID,
 	})
+	if err != nil {
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+		return
+	}
 
 }
 
@@ -265,9 +269,13 @@ func (h *BFFAuthRoute) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{
+	err = json.NewEncoder(w).Encode(map[string]string{
 		"token": token,
 	})
+	if err != nil {
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+		return
+	}
 
 }
 

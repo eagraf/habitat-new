@@ -105,7 +105,7 @@ func TestProxy(t *testing.T) {
 
 	b, err = io.ReadAll(resp.Body)
 	if err != nil {
-		t.Errorf(err.Error())
+		t.Error(err.Error())
 	}
 
 	require.Equal(t, "Hello, World!", string(b))
@@ -113,7 +113,7 @@ func TestProxy(t *testing.T) {
 	// Check getting a file that doesn't exist
 	resp, err = http.Get(fmt.Sprintf("%s/fileserver/%s", url, "nonexistentfile"))
 	if err != nil {
-		t.Errorf(err.Error())
+		t.Error(err.Error())
 	}
 
 	require.Equal(t, http.StatusNotFound, resp.StatusCode)
