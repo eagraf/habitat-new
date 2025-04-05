@@ -54,7 +54,7 @@ func getRedirectHandler(rule *node.ReverseProxyRule) (http.Handler, error) {
 
 	return &httputil.ReverseProxy{
 		Director: func(req *http.Request) {
-			req.URL.Scheme = forwardURL.Scheme
+			req.URL.Scheme = "http" // forwardURL.Scheme
 			req.URL.Host = target
 
 			// TODO implement globs
@@ -80,7 +80,6 @@ func getRedirectHandler(rule *node.ReverseProxyRule) (http.Handler, error) {
 }
 
 func getFileServerHandler(rule *node.ReverseProxyRule, options ...Option) (http.Handler, error) {
-
 	opts := &FileServerOptions{}
 	for _, o := range options {
 		o(opts)
@@ -109,7 +108,6 @@ func (h *fileServerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		// This path is used when we serve from an embedded filesystem
 
 		http.FileServer(http.FS(h.options.EmbeddedFS)).ServeHTTP(w, r)
-
 	} else {
 		// Default path: serve files from a directory.
 
