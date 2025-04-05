@@ -164,7 +164,7 @@ func TestStartProcessHandler(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	s, err := NewCtrlServer(context.Background(), &BaseNodeController{}, ctrl2, state)
+	s, err := NewCtrlServer(context.Background(), &BaseNodeController{}, "", ctrl2, state)
 	require.NoError(t, err)
 
 	// No processes running

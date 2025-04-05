@@ -186,6 +186,7 @@ func TestGetNodeState(t *testing.T) {
 	ctrlServer, err := NewCtrlServer(
 		context.Background(),
 		&BaseNodeController{},
+		"",
 		ctrl2,
 		state,
 	)

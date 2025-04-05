@@ -27,7 +27,6 @@ type Controller2 struct {
 	processManager process.ProcessManager
 	pkgManagers    map[node.DriverType]package_manager.PackageManager
 	proxyServer    *reverse_proxy.ProxyServer
-	xrpc           *xrpc.Client
 
 	// use for encrypted record wrappers on top of pds
 	e encrypter.Encrypter
@@ -54,7 +53,6 @@ func NewController2(
 		pkgManagers:    pkgManagers,
 		db:             db,
 		proxyServer:    proxyServer,
-		xrpc:           xrpcClient,
 		e:              encrypter,
 	}
 
@@ -239,19 +237,19 @@ func errorIsNoRecordFound(err error) bool {
 // ONLY YOU CAN CALL PUT RECORD, NO ONE ELSE
 // Our security relies on this -- if this wasn't true then theoretically an attacker could call putRecord trying different rkey.
 // If they were unable to create with an rkey, that means that it exists privately.
-func (c *Controller2) putRecord(ctx context.Context, input *agnostic.RepoPutRecord_Input, encrypt bool) (*agnostic.RepoPutRecord_Output, error) {
+func (c *Controller2) putRecord(ctx context.Context, xrpc *xrpc.Client, input *agnostic.RepoPutRecord_Input, encrypt bool) (*agnostic.RepoPutRecord_Output, error) {
 	if input.Collection == encryptedRecordNSID {
 		return nil, ErrNoPutsOnEncryptedRecord
 	}
 
 	// Not encrypted -- blindly forward the request to PDS
 	if !encrypt {
-		return agnostic.RepoPutRecord(ctx, c.xrpc, input)
+		return agnostic.RepoPutRecord(ctx, xrpc, input)
 	}
 
 	// Check if a record under this collection already exists publicly with this rkey
 	// if so, return error (need a different rkey)
-	_, err := agnostic.RepoGetRecord(ctx, c.xrpc, "", input.Collection, input.Repo, input.Rkey)
+	_, err := agnostic.RepoGetRecord(ctx, xrpc, "", input.Collection, input.Repo, input.Rkey)
 	if err == nil {
 		return nil, fmt.Errorf("%w: %s", ErrPublicRecordExists, input.Rkey)
 	} else if !errorIsNoRecordFound(err) {
@@ -260,7 +258,7 @@ func (c *Controller2) putRecord(ctx context.Context, input *agnostic.RepoPutReco
 
 	// If we're here, then this record is to be encrypted and there is no existing public record with rkey
 	// Encrypted -- unpack the request and use special habitat encrypted record lexicon
-	return c.putEncryptedRecord(ctx, input.Collection, input.Repo, input.Record, input.Rkey, input.Validate)
+	return c.putEncryptedRecord(ctx, xrpc, input.Collection, input.Repo, input.Record, input.Rkey, input.Validate)
 }
 
 type GetRecordResponse struct {
@@ -281,12 +279,12 @@ type GetRecordResponse struct {
 //	--) collection + rkey = a non-com.habitat.encryptedRecord:
 //	   2b) if a corresponding record is found, return that
 //	   2c) if no corresponding record is found, attempt to decrypt the record a com.habitat.encryptedRecord would point to for that collection + rkey
-func (c *Controller2) getRecord(ctx context.Context, cid string, collection string, did string, rkey string) (*agnostic.RepoGetRecord_Output, error) {
+func (c *Controller2) getRecord(ctx context.Context, xrpc *xrpc.Client, cid string, collection string, did string, rkey string) (*agnostic.RepoGetRecord_Output, error) {
 	// Attempt to get a public record corresponding to the Collection + Repo + Rkey.
 	// If the given cid does not point to anything, the GetRecord endpoint returns an error.
 	// Record not found results in an error, as does any other non-200 response from the endpoint.
 	// Cases 1a - 1c are handled directly by this case.
-	output, err := agnostic.RepoGetRecord(ctx, c.xrpc, cid, collection, did, rkey)
+	output, err := agnostic.RepoGetRecord(ctx, xrpc, cid, collection, did, rkey)
 	// If this is a cid lookup (cases 1a-1c) or the record was found (2a + 2b), simply return ()
 	if err == nil {
 		return output, nil
@@ -294,19 +292,19 @@ func (c *Controller2) getRecord(ctx context.Context, cid string, collection stri
 
 	// If the record with the given collection + rkey identifier was not found (case 2c), attempt to get a private record with permissions look up.
 	if strings.Contains(err.Error(), "RecordNotFound") || strings.Contains(err.Error(), "Could not locate record") {
-		return c.getEncryptedRecord(ctx, cid, collection, did, rkey)
+		return c.getEncryptedRecord(ctx, xrpc, cid, collection, did, rkey)
 	}
 	// Otherwise the lookup failed in some other way, return the error
 	return nil, err
 }
 
 // getEncryptedRecord assumes that the record given by the cid + collection + rkey + did has been encrypted via putRecord and fetches it
-func (c *Controller2) getEncryptedRecord(ctx context.Context, cid string, collection string, did string, rkey string) (*agnostic.RepoGetRecord_Output, error) {
+func (c *Controller2) getEncryptedRecord(ctx context.Context, xrpc *xrpc.Client, cid string, collection string, did string, rkey string) (*agnostic.RepoGetRecord_Output, error) {
 	if collection == encryptedRecordNSID {
 		return nil, ErrNoEncryptedGetsOnEncryptedRecord
 	}
 	encKey := encryptedRecordRKey(collection, rkey)
-	output, err := agnostic.RepoGetRecord(ctx, c.xrpc, cid, encryptedRecordNSID, did, encKey)
+	output, err := agnostic.RepoGetRecord(ctx, xrpc, cid, encryptedRecordNSID, did, encKey)
 	if err != nil {
 		return nil, err
 	}
@@ -325,7 +323,7 @@ func (c *Controller2) getEncryptedRecord(ctx context.Context, cid string, collec
 	}
 
 	// blob contains the encrypted lexicon written by the user
-	blob, err := atproto.SyncGetBlob(ctx, c.xrpc, record["cid"], did)
+	blob, err := atproto.SyncGetBlob(ctx, xrpc, record["cid"], did)
 	if err != nil {
 		return nil, err
 	}
@@ -344,7 +342,7 @@ func (c *Controller2) getEncryptedRecord(ctx context.Context, cid string, collec
 }
 
 // puttEncryptedRecord encrypts the given record.
-func (c *Controller2) putEncryptedRecord(ctx context.Context, collection string, repo string, record map[string]any, rkey string, validate *bool) (*agnostic.RepoPutRecord_Output, error) {
+func (c *Controller2) putEncryptedRecord(ctx context.Context, xrpc *xrpc.Client, collection string, repo string, record map[string]any, rkey string, validate *bool) (*agnostic.RepoPutRecord_Output, error) {
 	if collection == encryptedRecordNSID {
 		return nil, ErrNoPutsOnEncryptedRecord
 	}
@@ -367,7 +365,7 @@ func (c *Controller2) putEncryptedRecord(ctx context.Context, collection string,
 		}
 	}
 
-	blobOut, err := atproto.RepoUploadBlob(ctx, c.xrpc, bytes.NewBuffer(enc))
+	blobOut, err := atproto.RepoUploadBlob(ctx, xrpc, bytes.NewBuffer(enc))
 	if err != nil {
 		return nil, err
 	}
@@ -387,5 +385,5 @@ func (c *Controller2) putEncryptedRecord(ctx context.Context, collection string,
 			"cid": cid.String(),
 		},
 	}
-	return agnostic.RepoPutRecord(ctx, c.xrpc, encInput)
+	return agnostic.RepoPutRecord(ctx, xrpc, encInput)
 }

@@ -121,6 +121,9 @@ func TestControllerPrivateDataPutGet(t *testing.T) {
 
 	mockDriver := newMockDriver(node.DriverTypeDocker)
 	pm := process.NewProcessManager([]process.Driver{mockDriver})
+	client := &xrpc.Client{
+		Host: mockPDS.URL,
+	}
 
 	ctrl, err := NewController2(
 		context.Background(),
@@ -131,16 +134,14 @@ func TestControllerPrivateDataPutGet(t *testing.T) {
 			jsonState: jsonStateFromNodeState(state),
 		},
 		nil, /* reverse proxy */
-		&xrpc.Client{
-			Host: mockPDS.URL,
-		},
+		client,
 		encrypter,
 	)
 	require.NoError(t, err)
 
 	// putRecord with encryption
 	coll := "my.fake.collection"
-	out, err := ctrl.putRecord(ctx, &agnostic.RepoPutRecord_Input{
+	out, err := ctrl.putRecord(ctx, client, &agnostic.RepoPutRecord_Input{
 		Collection: coll,
 		Record:     val,
 		Repo:       "my-did",
@@ -150,7 +151,7 @@ func TestControllerPrivateDataPutGet(t *testing.T) {
 	require.Equal(t, encRecordCid, out.Cid)
 	require.Equal(t, testUri, out.Uri)
 
-	got, err := ctrl.getRecord(ctx, "", coll, "my-did", "my-rkey")
+	got, err := ctrl.getRecord(ctx, client, "", coll, "my-did", "my-rkey")
 	require.NoError(t, err)
 	require.Equal(t, *got.Cid, encRecordCid)
 	require.Equal(t, got.Uri, testUri)
@@ -158,7 +159,7 @@ func TestControllerPrivateDataPutGet(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, bytes, marshalledVal)
 
-	_, err = ctrl.putRecord(ctx, &agnostic.RepoPutRecord_Input{
+	_, err = ctrl.putRecord(ctx, client, &agnostic.RepoPutRecord_Input{
 		Collection: encryptedRecordNSID,
 		Record:     val,
 		Repo:       "my-did",
@@ -166,6 +167,6 @@ func TestControllerPrivateDataPutGet(t *testing.T) {
 	}, true)
 	require.ErrorIs(t, err, ErrNoPutsOnEncryptedRecord)
 
-	_, err = ctrl.getEncryptedRecord(ctx, "", encryptedRecordNSID, "my-did", "my-rkey")
+	_, err = ctrl.getEncryptedRecord(ctx, client, "", encryptedRecordNSID, "my-did", "my-rkey")
 	require.ErrorIs(t, err, ErrNoEncryptedGetsOnEncryptedRecord)
 }
