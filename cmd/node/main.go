@@ -60,7 +60,7 @@ func main() {
 	}
 	pm := process.NewProcessManager([]process.Driver{docker.NewDriver(dockerClient), web.NewDriver()})
 
-	pdsClient := controller.NewPDSClient(nodeConfig.PDSAdminUsername(), nodeConfig.PDSAdminPassword())
+	pdsClient := controller.NewPDSClient(constants.DefaultPDSHostname, nodeConfig.PDSAdminUsername(), nodeConfig.PDSAdminPassword())
 	nodeCtrl, err := controller.NewNodeController(db.Manager, pdsClient)
 	if err != nil {
 		log.Fatal().Err(err).Msg("error creating node controller")
@@ -156,9 +156,10 @@ func main() {
 		log.Fatal().Err(err).Msg("error getting default HDB client")
 	}
 
+	aes, err := encrypter.NewFromKey([]byte(encrypter.TestOnlyNewRandomKey()))
 	ctrl2, err := controller.NewController2(ctx, pm, pkgManagers, dbClient, proxy, &xrpc.Client{
-		// TODO: fill in
-	}, &encrypter.NoopEncrypter{})
+		Host: fmt.Sprintf("%s:%s", nodeConfig.Domain(), constants.DefaultPortPDS),
+	}, aes)
 	if err != nil {
 		log.Fatal().Err(err).Msg("error creating node Controller2")
 	}
@@ -243,6 +244,7 @@ func main() {
 
 func generatePDSAppConfig(nodeConfig *config.NodeConfig) (*node.AppInstallation, *node.ReverseProxyRule) {
 	pdsMountDir := filepath.Join(nodeConfig.HabitatAppPath(), "pds")
+	fmt.Println("what is domain", nodeConfig.Domain())
 
 	// TODO @eagraf - unhardcode as much of this as possible
 	appID := "pds-default-app-ID"
@@ -277,12 +279,12 @@ func generatePDSAppConfig(nodeConfig *config.NodeConfig) (*node.AppInstallation,
 							Target: "/pds",
 						},
 					},
-					"exposed_ports": []string{"5001"},
+					"exposed_ports": []string{constants.DefaultPortPDS},
 					"port_bindings": map[nat.Port][]nat.PortBinding{
 						"3000/tcp": {
 							{
 								HostIP:   "0.0.0.0",
-								HostPort: "5001",
+								HostPort: constants.DefaultPortPDS,
 							},
 						},
 					},
@@ -297,7 +299,7 @@ func generatePDSAppConfig(nodeConfig *config.NodeConfig) (*node.AppInstallation,
 			AppID:   appID,
 			Type:    "redirect",
 			Matcher: "/xrpc",
-			Target:  "https://host.docker.internal:5001/xrpc",
+			Target:  fmt.Sprintf("https://%s/xrpc", constants.DefaultPDSHostname),
 		}
 }
 
