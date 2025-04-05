@@ -41,3 +41,4 @@ exclude:
     - ^internal/node/controller/auth.go
     - ^internal/docker
     - ^internal/web
+    - ^pkg/bffauth/cmd
