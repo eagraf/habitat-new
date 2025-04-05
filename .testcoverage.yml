@@ -40,6 +40,6 @@ exclude:
     - ^internal/node/controller/pds.go
     - ^internal/node/controller/auth.go
     - ^internal/node/controller/server.go # This is mostly just a pass through to controller2.
-    - ^internal/node/controller/encrypter/noop_encrypter.go # This is is a noop thing.
+    - ^internal/privy/noop_encrypter.go # This is is a noop thing.
     - ^internal/docker
     - ^internal/web
