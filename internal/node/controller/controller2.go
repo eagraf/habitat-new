@@ -221,7 +221,9 @@ func encryptedRecordRKey(collection string, rkey string) string {
 type encryptedRecord map[string]string
 
 var (
-	ErrPublicRecordExists = fmt.Errorf("a public record exists with the same key")
+	ErrPublicRecordExists               = fmt.Errorf("a public record exists with the same key")
+	ErrNoPutsOnEncryptedRecord          = fmt.Errorf("directly put-ting to this lexicon is not valid")
+	ErrNoEncryptedGetsOnEncryptedRecord = fmt.Errorf("calling getEncryptedRecord on a com.habitat.encryptedRecord is not supported")
 )
 
 // Returns true if err indicates the RecordNotFound error
@@ -238,6 +240,10 @@ func errorIsNoRecordFound(err error) bool {
 // Our security relies on this -- if this wasn't true then theoretically an attacker could call putRecord trying different rkey.
 // If they were unable to create with an rkey, that means that it exists privately.
 func (c *Controller2) putRecord(ctx context.Context, input *agnostic.RepoPutRecord_Input, encrypt bool) (*agnostic.RepoPutRecord_Output, error) {
+	if input.Collection == encryptedRecordNSID {
+		return nil, ErrNoPutsOnEncryptedRecord
+	}
+
 	// Not encrypted -- blindly forward the request to PDS
 	if !encrypt {
 		return agnostic.RepoPutRecord(ctx, c.xrpc, input)
@@ -254,44 +260,7 @@ func (c *Controller2) putRecord(ctx context.Context, input *agnostic.RepoPutReco
 
 	// If we're here, then this record is to be encrypted and there is no existing public record with rkey
 	// Encrypted -- unpack the request and use special habitat encrypted record lexicon
-	marshalled, err := json.Marshal(input.Record)
-	if err != nil {
-		return nil, err
-	}
-
-	enc, err := c.e.Encrypt(input.Rkey, marshalled)
-	if err != nil {
-		return nil, err
-	}
-
-	if input.Validate != nil && *input.Validate {
-		err = data.Validate(input.Record)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	blobOut, err := atproto.RepoUploadBlob(ctx, c.xrpc, bytes.NewBuffer(enc))
-	if err != nil {
-		return nil, err
-	}
-
-	// CID is returned on uploadBlob
-	cid := blobOut.Blob.Ref
-	rkey := encryptedRecordRKey(input.Collection, input.Rkey)
-	// It's our fault if this fails, but always attempt to validate the habitat encoded request
-	validate := true
-	// TODO: let's make a helper function for this
-	encInput := &agnostic.RepoPutRecord_Input{
-		Collection: encryptedRecordNSID,
-		Repo:       input.Repo,
-		Rkey:       rkey,
-		Validate:   &validate,
-		Record: map[string]any{
-			"cid": cid.String(),
-		},
-	}
-	return agnostic.RepoPutRecord(ctx, c.xrpc, encInput)
+	return c.putEncryptedRecord(ctx, input.Collection, input.Repo, input.Record, input.Rkey, input.Validate)
 }
 
 type GetRecordResponse struct {
@@ -325,43 +294,98 @@ func (c *Controller2) getRecord(ctx context.Context, cid string, collection stri
 
 	// If the record with the given collection + rkey identifier was not found (case 2c), attempt to get a private record with permissions look up.
 	if strings.Contains(err.Error(), "RecordNotFound") || strings.Contains(err.Error(), "Could not locate record") {
-		indirectRkey := encryptedRecordRKey(collection, rkey)
-		output, err := agnostic.RepoGetRecord(ctx, c.xrpc, cid, encryptedRecordNSID, did, indirectRkey)
-		if err != nil {
-			return nil, err
-		}
-
-		// Run permissions before returning to the user
-		// if HasAccess(did, collection, rkey) { .... }
-		var record encryptedRecord
-		// Unfortunate that we need to MarshalJSON to turn it back into bytes -- the RepoGetRecord function probably Unmarshals :/
-		bytes, err := output.Value.MarshalJSON()
-		if err != nil {
-			return nil, err
-		}
-		err = json.Unmarshal(bytes, &record)
-		if err != nil {
-			return nil, err
-		}
-
-		// blob contains the encrypted lexicon written by the user
-		blob, err := atproto.SyncGetBlob(ctx, c.xrpc, record["cid"], did)
-		if err != nil {
-			return nil, err
-		}
-
-		dec, err := c.e.Decrypt(rkey, blob)
-		if err != nil {
-			return nil, err
-		}
-
-		asJson := json.RawMessage(dec)
-		return &agnostic.RepoGetRecord_Output{
-			Cid:   output.Cid,
-			Uri:   output.Uri,
-			Value: &asJson,
-		}, nil
+		return c.getEncryptedRecord(ctx, cid, collection, did, rkey)
 	}
 	// Otherwise the lookup failed in some other way, return the error
 	return nil, err
+}
+
+// getEncryptedRecord assumes that the record given by the cid + collection + rkey + did has been encrypted via putRecord and fetches it
+func (c *Controller2) getEncryptedRecord(ctx context.Context, cid string, collection string, did string, rkey string) (*agnostic.RepoGetRecord_Output, error) {
+	if collection == encryptedRecordNSID {
+		return nil, ErrNoEncryptedGetsOnEncryptedRecord
+	}
+	encKey := encryptedRecordRKey(collection, rkey)
+	output, err := agnostic.RepoGetRecord(ctx, c.xrpc, cid, encryptedRecordNSID, did, encKey)
+	if err != nil {
+		return nil, err
+	}
+
+	// Run permissions before returning to the user
+	// if HasAccess(did, collection, rkey) { .... }
+	var record encryptedRecord
+	// Unfortunate that we need to MarshalJSON to turn it back into bytes -- the RepoGetRecord function probably Unmarshals :/
+	bytes, err := output.Value.MarshalJSON()
+	if err != nil {
+		return nil, err
+	}
+	err = json.Unmarshal(bytes, &record)
+	if err != nil {
+		return nil, err
+	}
+
+	// blob contains the encrypted lexicon written by the user
+	blob, err := atproto.SyncGetBlob(ctx, c.xrpc, record["cid"], did)
+	if err != nil {
+		return nil, err
+	}
+
+	dec, err := c.e.Decrypt(rkey, blob)
+	if err != nil {
+		return nil, err
+	}
+
+	asJson := json.RawMessage(dec)
+	return &agnostic.RepoGetRecord_Output{
+		Cid:   output.Cid,
+		Uri:   output.Uri,
+		Value: &asJson,
+	}, nil
+}
+
+// puttEncryptedRecord encrypts the given record.
+func (c *Controller2) putEncryptedRecord(ctx context.Context, collection string, repo string, record map[string]any, rkey string, validate *bool) (*agnostic.RepoPutRecord_Output, error) {
+	if collection == encryptedRecordNSID {
+		return nil, ErrNoPutsOnEncryptedRecord
+	}
+	// If we're here, then this record is to be encrypted and there is no existing public record with rkey
+	// Encrypted -- unpack the request and use special habitat encrypted record lexicon
+	marshalled, err := json.Marshal(record)
+	if err != nil {
+		return nil, err
+	}
+
+	enc, err := c.e.Encrypt(rkey, marshalled)
+	if err != nil {
+		return nil, err
+	}
+
+	if validate != nil && *validate {
+		err = data.Validate(record)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	blobOut, err := atproto.RepoUploadBlob(ctx, c.xrpc, bytes.NewBuffer(enc))
+	if err != nil {
+		return nil, err
+	}
+
+	// CID is returned on uploadBlob
+	cid := blobOut.Blob.Ref
+	encKey := encryptedRecordRKey(collection, rkey)
+	// It's our fault if this fails, but always attempt to validate the habitat encoded request
+	validateEnc := true
+	// TODO: let's make a helper function for this
+	encInput := &agnostic.RepoPutRecord_Input{
+		Collection: encryptedRecordNSID,
+		Repo:       repo,
+		Rkey:       encKey,
+		Validate:   &validateEnc,
+		Record: map[string]any{
+			"cid": cid.String(),
+		},
+	}
+	return agnostic.RepoPutRecord(ctx, c.xrpc, encInput)
 }

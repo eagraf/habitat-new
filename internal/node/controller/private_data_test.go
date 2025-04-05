@@ -157,4 +157,15 @@ func TestControllerPrivateDataPutGet(t *testing.T) {
 	bytes, err := got.Value.MarshalJSON()
 	require.NoError(t, err)
 	require.Equal(t, bytes, marshalledVal)
+
+	_, err = ctrl.putRecord(ctx, &agnostic.RepoPutRecord_Input{
+		Collection: encryptedRecordNSID,
+		Record:     val,
+		Repo:       "my-did",
+		Rkey:       "my-rkey",
+	}, true)
+	require.ErrorIs(t, err, ErrNoPutsOnEncryptedRecord)
+
+	_, err = ctrl.getEncryptedRecord(ctx, "", encryptedRecordNSID, "my-did", "my-rkey")
+	require.ErrorIs(t, err, ErrNoEncryptedGetsOnEncryptedRecord)
 }
