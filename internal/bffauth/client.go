@@ -14,7 +14,7 @@ type Client struct {
 	tempFriendStore map[string]*ExternalHabitatUser
 }
 
-func (c *Client) GetToken(remoteHabitatUser *ExternalHabitatUser) (string, error) {
+func (c *Client) GetToken(did string) (string, error) {
 	// Stub - not implemented
 	return "", nil
 }

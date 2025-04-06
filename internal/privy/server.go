@@ -12,8 +12,8 @@ import (
 	"github.com/bluesky-social/indigo/atproto/syntax"
 	"github.com/bluesky-social/indigo/xrpc"
 
+	"github.com/eagraf/habitat-new/internal/bffauth"
 	"github.com/eagraf/habitat-new/internal/node/api"
-	"github.com/eagraf/habitat-new/internal/types"
 	"github.com/rs/zerolog/log"
 )
 
@@ -25,11 +25,13 @@ type PutRecordRequest struct {
 type Server struct {
 	inner *store
 	// Used to figure out where to route requests given a DID
-	habitatResolver types.HabitatResolver
+	habitatResolver func(string) string
 	// Used for resolving handles -> did, did -> PDS
 	dir identity.Directory
 	// The local pds host this server is tied to
 	localPDSHost string
+	//
+	bffClient bffauth.Client
 }
 
 // makeXrpcClient returns an xrpc.Client that can make requests to the PDS at the given did
@@ -45,12 +47,14 @@ func (s *Server) makeXrpcClient(authInfo *xrpc.AuthInfo, did string) *xrpc.Clien
 	return nil
 }
 
-func NewServer(habitatResolver types.HabitatResolver, enc Encrypter) *Server {
+func NewServer(localPDSHost string, habitatResolver func(string) string, enc Encrypter) *Server {
 	return &Server{
 		pdsHost: pdsHost,
 		inner: &store{
 			e: enc,
 		},
+		habitatResolver: habitatResolver,
+		localPDSHost:    localPDSHost,
 	}
 }
 
@@ -141,8 +145,18 @@ func (s *Server) GetRecord(authInfo *xrpc.AuthInfo) http.HandlerFunc {
 		// If trying to get data from a PDS not managed by habitat
 		if id.PDSEndpoint() != s.localPDSHost {
 			// get bff token
+			token, err := s.bffClient.GetToken(string(id.DID))
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			// Wack -- we're overloading AccessJwt to also pass around habitat managed tokens
+			// Do this for ease for now so i can re-use xrpc client with PDS notions of auth but with Habitat notions of auth
+			cli.Auth = &xrpc.AuthInfo{
+				AccessJwt: token,
+			}
 			// set header
-			cli.Host = string(s.habitatResolver(id.DID))
+			cli.Host = s.habitatResolver(string(id.DID))
 			out, err = agnostic.RepoGetRecord(r.Context(), cli, cid, collection, string(id.DID), rkey)
 		} else {
 			// Local: call inner.getRecord
