@@ -47,7 +47,12 @@ func main() {
 	zerolog.SetGlobalLevel(nodeConfig.LogLevel())
 
 	hdbPublisher := pubsub.NewSimplePublisher[hdb.StateUpdate]()
-	db, dbClose, err := hdbms.NewHabitatDB(context.Background(), logger, hdbPublisher, nodeConfig.HDBPath())
+	db, dbClose, err := hdbms.NewHabitatDB(
+		context.Background(),
+		logger,
+		hdbPublisher,
+		nodeConfig.HDBPath(),
+	)
 	if err != nil {
 		log.Fatal().Err(err).Msg("error creating habitat db")
 	}
@@ -57,9 +62,15 @@ func main() {
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to create docker client")
 	}
-	pm := process.NewProcessManager([]process.Driver{docker.NewDriver(dockerClient), web.NewDriver()})
+	pm := process.NewProcessManager(
+		[]process.Driver{docker.NewDriver(dockerClient), web.NewDriver()},
+	)
 
-	pdsClient := controller.NewPDSClient(constants.DefaultPDSHostname, nodeConfig.PDSAdminUsername(), nodeConfig.PDSAdminPassword())
+	pdsClient := controller.NewPDSClient(
+		constants.DefaultPDSHostname,
+		nodeConfig.PDSAdminUsername(),
+		nodeConfig.PDSAdminPassword(),
+	)
 	nodeCtrl, err := controller.NewNodeController(db.Manager, pdsClient)
 	if err != nil {
 		log.Fatal().Err(err).Msg("error creating node controller")
@@ -244,7 +255,9 @@ func main() {
 	log.Info().Msg("Finished!")
 }
 
-func generatePDSAppConfig(nodeConfig *config.NodeConfig) (*node.AppInstallation, *node.ReverseProxyRule) {
+func generatePDSAppConfig(
+	nodeConfig *config.NodeConfig,
+) (*node.AppInstallation, *node.ReverseProxyRule) {
 	pdsMountDir := filepath.Join(nodeConfig.HabitatAppPath(), "pds")
 
 	// TODO @eagraf - unhardcode as much of this as possible
@@ -349,7 +362,11 @@ func generateDefaultReverseProxyRules(frontendDev bool) ([]*node.ReverseProxyRul
 	}, nil
 }
 
-func initialState(rootUserCert string, startApps []*node.AppInstallation, proxyRules []*node.ReverseProxyRule) (*node.State, []hdb.Transition, error) {
+func initialState(
+	rootUserCert string,
+	startApps []*node.AppInstallation,
+	proxyRules []*node.ReverseProxyRule,
+) (*node.State, []hdb.Transition, error) {
 	state, err := node.NewStateForLatestVersion()
 	if err != nil {
 		log.Fatal().Err(err).Msg("unable to generate initial node state")
