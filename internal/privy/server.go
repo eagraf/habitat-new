@@ -8,8 +8,12 @@ import (
 	"net/url"
 
 	"github.com/bluesky-social/indigo/api/agnostic"
+	"github.com/bluesky-social/indigo/atproto/identity"
+	"github.com/bluesky-social/indigo/atproto/syntax"
 	"github.com/bluesky-social/indigo/xrpc"
+
 	"github.com/eagraf/habitat-new/internal/node/api"
+	"github.com/eagraf/habitat-new/internal/types"
 	"github.com/rs/zerolog/log"
 )
 
@@ -19,11 +23,29 @@ type PutRecordRequest struct {
 }
 
 type Server struct {
-	inner   *store
-	pdsHost string
+	inner *store
+	// Used to figure out where to route requests given a DID
+	habitatResolver types.HabitatResolver
+	// Used for resolving handles -> did, did -> PDS
+	dir identity.Directory
+	// The local pds host this server is tied to
+	localPDSHost string
 }
 
-func NewServer(pdsHost string, enc Encrypter) *Server {
+// makeXrpcClient returns an xrpc.Client that can make requests to the PDS at the given did
+// It takes in authInfo because that is
+func (s *Server) makeXrpcClient(authInfo *xrpc.AuthInfo, did string) *xrpc.Client {
+	// If th
+	if authInfo.Did == did {
+		return &xrpc.Client{
+			Auth: authInfo,
+		}
+	}
+
+	return nil
+}
+
+func NewServer(habitatResolver types.HabitatResolver, enc Encrypter) *Server {
 	return &Server{
 		pdsHost: pdsHost,
 		inner: &store{
@@ -32,7 +54,8 @@ func NewServer(pdsHost string, enc Encrypter) *Server {
 	}
 }
 
-func (s *Server) PutRecord(cli *xrpc.Client) http.HandlerFunc {
+// PutRecord puts a potentially encrypted record (see s.inner.putRecord)
+func (s *Server) PutRecord(authInfo *xrpc.AuthInfo) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req PutRecordRequest
 		slurp, err := io.ReadAll(r.Body)
@@ -46,7 +69,11 @@ func (s *Server) PutRecord(cli *xrpc.Client) http.HandlerFunc {
 			return
 		}
 
-		out, err := s.inner.putRecord(r.Context(), cli, req.Input, req.Encrypt)
+		xrpcClient := &xrpc.Client{
+			Host: s.localPDSHost,
+			Auth: authInfo,
+		}
+		out, err := s.inner.putRecord(r.Context(), xrpcClient, req.Input, req.Encrypt)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -63,7 +90,26 @@ func (s *Server) PutRecord(cli *xrpc.Client) http.HandlerFunc {
 	}
 }
 
-func (s *Server) GetRecord(cli *xrpc.Client) http.HandlerFunc {
+func getRecordParamsFromURL(u *url.URL) (cid, collection, repo, rkey string, err error) {
+	params, err := url.Parse(u.String())
+	if err != nil {
+		return "", "", "", "", nil
+	}
+	cid = params.Query().Get("cid")
+	collection = params.Query().Get("collection")
+	repo = params.Query().Get("repo")
+	rkey = params.Query().Get("rkey")
+	return
+}
+
+// Find desired did
+// if other did, forward request there
+// if our own did,
+// --> if authInfo matches then fulfill the request
+// --> otherwise verify requester's token via bff auth --> if they have permissions via permission store --> fulfill request
+
+// GetRecord gets a potentially encrypted record (see s.inner.getRecord)
+func (s *Server) GetRecord(authInfo *xrpc.AuthInfo) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		u, err := url.Parse(r.URL.String())
 		if err != nil {
@@ -73,10 +119,35 @@ func (s *Server) GetRecord(cli *xrpc.Client) http.HandlerFunc {
 
 		cid := u.Query().Get("cid")
 		collection := u.Query().Get("collection")
-		did := u.Query().Get("did")
+		repo := u.Query().Get("repo")
 		rkey := u.Query().Get("rkey")
 
-		out, err := s.inner.getRecord(r.Context(), cli, cid, collection, did, rkey)
+		// Try handling both handles and dids
+		id, err := s.dir.LookupHandle(r.Context(), syntax.Handle(repo))
+		if err != nil {
+			id, err = s.dir.LookupDID(r.Context(), syntax.DID(repo))
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+		}
+
+		cli := &xrpc.Client{
+			Auth: authInfo,
+			Host: s.localPDSHost,
+		}
+
+		var out *agnostic.RepoGetRecord_Output
+		// If trying to get data from a PDS not managed by habitat
+		if id.PDSEndpoint() != s.localPDSHost {
+			// get bff token
+			// set header
+			cli.Host = string(s.habitatResolver(id.DID))
+			out, err = agnostic.RepoGetRecord(r.Context(), cli, cid, collection, string(id.DID), rkey)
+		} else {
+			// Local: call inner.getRecord
+			out, err = s.inner.getRecord(r.Context(), cli, cid, collection, string(id.DID), rkey)
+		}
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -96,20 +167,18 @@ func (s *Server) GetRecord(cli *xrpc.Client) http.HandlerFunc {
 // This creates the xrpc.Client to use in the inner privy requests
 // TODO: this should actually pull out the requested did from the url param or input and re-direct there. (Potentially move this lower into the fns themselves).
 // This would allow for requesting to any pds through these routes, not just the one tied to this habitat node.
-func (s *Server) pdsAuthMiddleware(next func(c *xrpc.Client) http.HandlerFunc) http.HandlerFunc {
+func (s *Server) pdsAuthMiddleware(next func(authInfo *xrpc.AuthInfo) http.HandlerFunc) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		accessJwt, err := getAccessJwt(r)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusForbidden)
 			return
 		}
-		c := &xrpc.Client{
-			Host: fmt.Sprintf("http://%s", s.pdsHost),
-			Auth: &xrpc.AuthInfo{
-				AccessJwt: accessJwt,
-			},
+		bearer := authHeader[7:]
+		auth := &xrpc.AuthInfo{
+			AccessJwt: bearer,
 		}
-		next(c).ServeHTTP(w, r)
+		next(auth).ServeHTTP(w, r)
 	})
 }
 

@@ -41,6 +41,7 @@ var (
 	ErrNoPutsOnEncryptedRecord          = fmt.Errorf("directly put-ting to this lexicon is not valid")
 	ErrNoEncryptedGetsOnEncryptedRecord = fmt.Errorf("calling getEncryptedRecord on a %s is not supported", encryptedRecordNSID)
 	ErrEncryptedRecordNilValue          = fmt.Errorf("a %s record was found but it has a nil value", encryptedRecordNSID)
+	ErrNotLocalRepo                     = fmt.Errorf("the desired did does not live on this repo")
 )
 
 // Returns true if err indicates the RecordNotFound error
@@ -108,6 +109,7 @@ func (p *store) getRecord(ctx context.Context, xrpc *xrpc.Client, cid string, co
 	output, err := agnostic.RepoGetRecord(ctx, xrpc, cid, collection, did, rkey)
 	// If this is a cid lookup (cases 1a-1c) or the record was found (2a + 2b), simply return ()
 	if err == nil {
+		// If fails because the did does not exist return special err
 		return output, nil
 	}
 
