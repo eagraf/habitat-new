@@ -1,7 +1,6 @@
 'use client';
 
 import { FormEvent } from 'react';
-import './privy-demo.css';
 
 import { useMutation } from '@tanstack/react-query'
 import { useAuth } from '@/components/authContext';
@@ -9,7 +8,7 @@ import Cookies from 'js-cookie';
 
 export default function PrivyDemo() {
     const { handle } = useAuth()
-    const { mutate: handleSubmit } = useMutation({
+    const { mutate: handleSubmit, isPending } = useMutation({
         mutationFn: async (e: FormEvent<HTMLFormElement>) => {
             e.preventDefault()
             if (!handle) {
@@ -54,7 +53,7 @@ export default function PrivyDemo() {
         <form onSubmit={handleSubmit}>
             <input name="name" type="text" placeholder="Name" required />
             <textarea name='message' placeholder="Message" required />
-            <button type="submit">Save and copy link</button>
+            <button type="submit" aria-busy={isPending}>Save and copy link</button>
         </form>
     )
 }

@@ -8,7 +8,7 @@ export default function View() {
     const did = searchParams.get('did')
     const rkey = searchParams.get('rkey')
     const enabled = !!did && !!rkey
-    const { data: message, isLoading } = useQuery({
+    const { data: message, isLoading, error } = useQuery({
         queryKey: ['message', did, rkey],
         queryFn: async () => {
             const params = new URLSearchParams(searchParams)
@@ -24,11 +24,11 @@ export default function View() {
     if (!enabled) {
         return <p>Invalid url</p>
     }
-    if (isLoading) {
-        return <p>Loading...</p>
+    if (error) {
+        return <p>Error: {error.message}</p>
     }
 
-    return <div className="border rounded p-4">
-        <p>{message}</p>
-    </div>
+    return <article aria-busy={isLoading}>
+        {message}
+    </article>
 }
