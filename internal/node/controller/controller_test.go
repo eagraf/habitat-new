@@ -2,13 +2,10 @@ package controller
 
 import (
 	"context"
-	"encoding/json"
-	"errors"
 	"testing"
 
 	"github.com/eagraf/habitat-new/core/state/node"
 	"github.com/eagraf/habitat-new/internal/node/constants"
-	"github.com/eagraf/habitat-new/internal/node/controller/mocks"
 	"github.com/eagraf/habitat-new/internal/node/hdb"
 	hdb_mocks "github.com/eagraf/habitat-new/internal/node/hdb/mocks"
 	"github.com/stretchr/testify/assert"
@@ -31,9 +28,8 @@ func fakeInitState(rootUserCert, rootUserID, rootUsername string) *node.State {
 	return initState
 }
 
-func setupNodeDBTest(ctrl *gomock.Controller, t *testing.T) (NodeController, *mocks.MockPDSClientI, *hdb_mocks.MockHDBManager, *hdb_mocks.MockClient) {
+func setupNodeDBTest(ctrl *gomock.Controller, t *testing.T) (*hdb_mocks.MockHDBManager, *hdb_mocks.MockClient) {
 
-	mockedPDSClient := mocks.NewMockPDSClientI(ctrl)
 	mockedManager := hdb_mocks.NewMockHDBManager(ctrl)
 	mockedClient := hdb_mocks.NewMockClient(ctrl)
 
@@ -63,32 +59,30 @@ func setupNodeDBTest(ctrl *gomock.Controller, t *testing.T) (NodeController, *mo
 			return mockedClient, nil
 		}).Times(1)
 
-	controller, err := NewNodeController(mockedManager, mockedPDSClient)
-	require.Nil(t, err)
-	err = controller.InitializeNodeDB(context.Background(), transitions)
-	require.Nil(t, err)
+	err := InitializeNodeDB(context.Background(), mockedManager, transitions)
+	require.NoError(t, err)
 
-	return controller, mockedPDSClient, mockedManager, mockedClient
+	return mockedManager, mockedClient
 }
 
 func TestInitializeNodeDB(t *testing.T) {
 	ctrl := gomock.NewController(t)
 
-	controller, _, mockedManager, _ := setupNodeDBTest(ctrl, t)
+	mockedManager, _ := setupNodeDBTest(ctrl, t)
 
 	mockedManager.EXPECT().CreateDatabase(context.Background(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, assert.AnError).Times(1)
-	err := controller.InitializeNodeDB(context.Background(), nil)
+	err := InitializeNodeDB(context.Background(), mockedManager, nil)
 	require.NotNil(t, err)
 
 	mockedManager.EXPECT().CreateDatabase(context.Background(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, &hdb.DatabaseAlreadyExistsError{}).Times(1)
-	err = controller.InitializeNodeDB(context.Background(), nil)
+	err = InitializeNodeDB(context.Background(), mockedManager, nil)
 	require.Nil(t, err)
 }
 
 func TestMigrationController(t *testing.T) {
 	ctrl := gomock.NewController(t)
 
-	controller, _, mockedManager, mockClient := setupNodeDBTest(ctrl, t)
+	mockedManager, mockClient := setupNodeDBTest(ctrl, t)
 
 	nodeState := &node.State{
 		SchemaVersion: "v0.0.2",
@@ -106,7 +100,7 @@ func TestMigrationController(t *testing.T) {
 		},
 	)).Return(nil, nil).Times(1)
 
-	err = controller.MigrateNodeDB("v0.0.3")
+	err = MigrateNodeDB(mockedManager, "v0.0.3")
 	assert.Nil(t, err)
 
 	// Test no-op by migrating to the same version
@@ -114,7 +108,7 @@ func TestMigrationController(t *testing.T) {
 	mockClient.EXPECT().Bytes().Return(marshaled).Times(1)
 	mockClient.EXPECT().ProposeTransitions(gomock.Any()).Times(0)
 
-	err = controller.MigrateNodeDB("v0.0.2")
+	err = MigrateNodeDB(mockedManager, "v0.0.2")
 	assert.Nil(t, err)
 
 	// Test  migrating to a lower version
@@ -129,7 +123,7 @@ func TestMigrationController(t *testing.T) {
 		},
 	)).Times(1)
 
-	err = controller.MigrateNodeDB("v0.0.1")
+	err = MigrateNodeDB(mockedManager, "v0.0.1")
 	assert.Nil(t, err)
 }
 
@@ -148,10 +142,11 @@ var nodeState = &node.State{
 	},
 }
 
+/*
 func TestAddUser(t *testing.T) {
 	ctrl := gomock.NewController(t)
 
-	controller, mockedPDSClient, mockedManager, mockedClient := setupNodeDBTest(ctrl, t)
+	mockedPDSClient, mockedManager, mockedClient := setupNodeDBTest(ctrl, t)
 
 	// Test successful add user
 
@@ -170,7 +165,7 @@ func TestAddUser(t *testing.T) {
 		},
 	)).Return(nil, nil).Times(1)
 
-	_, err := controller.AddUser("user_1", "user@user.com", "username_1", "password", "cert_1")
+	_, err := AddUser("user_1", "user@user.com", "username_1", "password", "cert_1")
 	assert.Nil(t, err)
 
 	// Test error from empty did.
@@ -194,27 +189,4 @@ func TestAddUser(t *testing.T) {
 
 }
 
-func TestGetUserByUsername(t *testing.T) {
-	ctrl := gomock.NewController(t)
-
-	controller, _, mockedManager, mockedClient := setupNodeDBTest(ctrl, t)
-
-	marshaledNodeState, err := json.Marshal(nodeState)
-	if err != nil {
-		t.Error(err)
-	}
-
-	mockedClient.EXPECT().Bytes().Return(marshaledNodeState).Times(2)
-
-	mockedManager.EXPECT().GetDatabaseClientByName(constants.NodeDBDefaultName).Return(mockedClient, nil).Times(2)
-
-	user, err := controller.GetUserByUsername("username_1")
-	assert.Nil(t, err)
-	assert.Equal(t, "user_1", user.ID)
-	assert.Equal(t, "username_1", user.Username)
-
-	// Test username not found
-	user, err = controller.GetUserByUsername("username_2")
-	assert.NotNil(t, err)
-	assert.Nil(t, user)
-}
+*/

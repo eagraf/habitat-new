@@ -47,6 +47,7 @@ func (s *ProxyServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	fmt.Println("matched ", bestMatch.Target)
 	// No rules matched
 	if bestMatch == nil {
 		w.WriteHeader(http.StatusNotFound)

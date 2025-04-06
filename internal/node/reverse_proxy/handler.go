@@ -54,7 +54,7 @@ func getRedirectHandler(rule *node.ReverseProxyRule) (http.Handler, error) {
 
 	return &httputil.ReverseProxy{
 		Director: func(req *http.Request) {
-			req.URL.Scheme = forwardURL.Scheme
+			req.URL.Scheme = "http" // forwardURL.Scheme
 			req.URL.Host = target
 
 			// TODO implement globs
@@ -62,6 +62,7 @@ func getRedirectHandler(rule *node.ReverseProxyRule) (http.Handler, error) {
 				forwardURL.Path,
 				strings.TrimPrefix(req.URL.Path, rule.Matcher),
 			)
+			fmt.Println("forwarding to ", req.URL.Path)
 		},
 		Transport: &http.Transport{
 			Dial: (&net.Dialer{
@@ -73,8 +74,8 @@ func getRedirectHandler(rule *node.ReverseProxyRule) (http.Handler, error) {
 		},
 		ErrorHandler: func(rw http.ResponseWriter, r *http.Request, err error) {
 			log.Error().Err(err).Msg("reverse proxy request forwarding error")
-			_, _ = rw.Write([]byte(err.Error()))
 			rw.WriteHeader(http.StatusInternalServerError)
+			_, _ = rw.Write([]byte(err.Error()))
 		},
 	}, nil
 }

@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 	"crypto/x509"
+	"encoding/json"
 	"encoding/pem"
 	"errors"
 	"fmt"
@@ -10,21 +11,38 @@ import (
 
 	"github.com/eagraf/habitat-new/core/state/node"
 	"github.com/eagraf/habitat-new/internal/node/constants"
+	"github.com/eagraf/habitat-new/internal/node/hdb"
 	"github.com/rs/zerolog/log"
 )
 
 type AuthenticationMiddleware struct {
-	nodeController NodeController
-	useTLS         bool
-	rootUserCert   *x509.Certificate
+	dbClient     hdb.Client
+	useTLS       bool
+	rootUserCert *x509.Certificate
 }
 
-func NewAuthenticationMiddleware(ctrl NodeController, useTLS bool, rootUserCert *x509.Certificate) *AuthenticationMiddleware {
+func NewAuthenticationMiddleware(dbClient hdb.Client, useTLS bool, rootUserCert *x509.Certificate) *AuthenticationMiddleware {
 	return &AuthenticationMiddleware{
-		nodeController: ctrl,
-		useTLS:         useTLS,
-		rootUserCert:   rootUserCert,
+		dbClient:     dbClient,
+		useTLS:       useTLS,
+		rootUserCert: rootUserCert,
 	}
+}
+
+func (amw *AuthenticationMiddleware) getUserByUsername(username string) (*node.User, error) {
+	var nodeState node.State
+	err := json.Unmarshal(amw.dbClient.Bytes(), &nodeState)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, user := range nodeState.Users {
+		if user.Username == username {
+			return user, err
+		}
+	}
+
+	return nil, fmt.Errorf("user with username %s not found", username)
 }
 
 func (amw *AuthenticationMiddleware) Middleware(next http.Handler) http.Handler {
@@ -51,7 +69,7 @@ func (amw *AuthenticationMiddleware) Middleware(next http.Handler) http.Handler 
 				username = constants.RootUsername
 				userID = constants.RootUserID
 			} else {
-				userCert, user, err := getUserCertAndInfo(amw.nodeController, username)
+				userCert, user, err := amw.getUserCertAndInfo(username)
 				if err != nil {
 					http.Error(w, fmt.Sprintf("Error getting user certificate: %s", err), http.StatusInternalServerError)
 					return
@@ -80,9 +98,9 @@ func (amw *AuthenticationMiddleware) Middleware(next http.Handler) http.Handler 
 	})
 }
 
-func getUserCertAndInfo(controller NodeController, username string) (*x509.Certificate, *node.User, error) {
+func (amw *AuthenticationMiddleware) getUserCertAndInfo(username string) (*x509.Certificate, *node.User, error) {
 	// Look up the user in the node's user list
-	user, err := controller.GetUserByUsername(username)
+	user, err := amw.getUserByUsername(username)
 	if err != nil {
 		return nil, nil, fmt.Errorf("error getting user: %s", err)
 	}

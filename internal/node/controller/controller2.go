@@ -5,13 +5,17 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/bluesky-social/indigo/api/atproto"
+	"github.com/bluesky-social/indigo/xrpc"
 	"github.com/eagraf/habitat-new/core/state/node"
+	"github.com/eagraf/habitat-new/internal/node/constants"
 	"github.com/eagraf/habitat-new/internal/node/hdb"
 	"github.com/eagraf/habitat-new/internal/node/reverse_proxy"
 	"github.com/eagraf/habitat-new/internal/package_manager"
 	"github.com/eagraf/habitat-new/internal/process"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
+	"golang.org/x/mod/semver"
 )
 
 type Controller2 struct {
@@ -164,6 +168,49 @@ func (c *Controller2) uninstallApp(appID string) error {
 		},
 	})
 
+	return err
+}
+
+func (c *Controller2) addUser(ctx context.Context, input *atproto.ServerCreateAccount_Input) (*atproto.ServerCreateAccount_Output, error) {
+	output, err := atproto.ServerCreateAccount(
+		ctx,
+		&xrpc.Client{
+			Host: fmt.Sprintf("http://%s", constants.DefaultPDSHostname),
+		},
+		input,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = c.db.ProposeTransitions([]hdb.Transition{
+		&node.AddUserTransition{
+			Username:   output.Handle,
+			AtprotoDID: output.Did,
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+	return output, nil
+}
+
+func (c *Controller2) migrateDB(targetVersion string) error {
+	var nodeState node.State
+	err := json.Unmarshal(c.db.Bytes(), &nodeState)
+	if err != nil {
+		return nil
+	}
+	// No-op if version is already the target
+	if semver.Compare(nodeState.SchemaVersion, targetVersion) == 0 {
+		return nil
+	}
+
+	_, err = c.db.ProposeTransitions([]hdb.Transition{
+		&node.MigrationTransition{
+			TargetVersion: targetVersion,
+		},
+	})
 	return err
 }
 

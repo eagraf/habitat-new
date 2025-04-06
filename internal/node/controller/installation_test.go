@@ -55,7 +55,6 @@ func TestInstallAppController(t *testing.T) {
 	require.NoError(t, err)
 	ctrlServer, err := NewCtrlServer(
 		context.Background(),
-		&BaseNodeController{},
 		ctrl2,
 		state,
 	)
