@@ -27,7 +27,7 @@ func TestBffProvider(t *testing.T) {
 	// The caller requests a challenge
 	b, err := json.Marshal(ChallengeRequest{
 		DID:                "my-did",
-		PublicKeyMultibase: publicKey.Bytes(),
+		PublicKeyMultibase: publicKey.Multibase(),
 	})
 	require.NoError(t, err)
 	rec := httptest.NewRecorder()

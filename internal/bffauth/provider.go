@@ -3,6 +3,7 @@ package bffauth
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"time"
 
@@ -30,19 +31,20 @@ func (p *Provider) GetRoutes() []api.Route {
 		api.NewBasicRoute(http.MethodPost, "/node/bff/challenge", p.handleChallenge),
 		api.NewBasicRoute(http.MethodPost, "/node/bff/auth", p.handleAuth),
 		api.NewBasicRoute(http.MethodGet, "/node/bff/test", p.handleTest),
+		api.NewBasicRoute(http.MethodPost, "/node/bff/test-client", p.handleTestClient),
 	}
 }
 
 // p.handleChallenge takes the following http request
 type ChallengeRequest struct {
 	DID                string `json:"did"`
-	PublicKeyMultibase []byte `json:"public_key_bytes"`
+	PublicKeyMultibase string `json:"public_key_multibase"`
 }
 
 // p.handleChallenge responds with the following response
 type ChallengeResponse struct {
 	Challenge string `json:"challenge"`
-	Session   string `jsno:"session"`
+	Session   string `json:"session"`
 }
 
 func (p *Provider) handleChallenge(w http.ResponseWriter, r *http.Request) {
@@ -58,7 +60,7 @@ func (p *Provider) handleChallenge(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	key, err := crypto.ParsePublicBytesP256([]byte(req.PublicKeyMultibase))
+	key, err := crypto.ParsePublicMultibase(req.PublicKeyMultibase)
 	if err != nil {
 		http.Error(w, "Failed to parse public key", http.StatusInternalServerError)
 		return
@@ -175,4 +177,52 @@ func (p *Provider) handleTest(w http.ResponseWriter, r *http.Request) {
 		log.Err(err).Msgf("error sending response in handleTest")
 	}
 
+}
+
+type TestClientRequest struct {
+	ClientDID string `json:"client_did"`
+	TargetDID string `json:"target_did"`
+}
+
+type TestClientResponse struct {
+	Token string `json:"token"`
+}
+
+func (p *Provider) handleTestClient(w http.ResponseWriter, r *http.Request) {
+	reqBytes, err := io.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to read request body: %s", err), http.StatusInternalServerError)
+		return
+	}
+
+	var reqBody TestClientRequest
+	err = json.Unmarshal(reqBytes, &reqBody)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to unmarshal request body: %s", err), http.StatusInternalServerError)
+		return
+	}
+
+	client, err := NewClient(reqBody.ClientDID)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to create client: %s", err), http.StatusInternalServerError)
+		return
+	}
+
+	token, err := client.GetToken(reqBody.TargetDID)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to get token: %s", err), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	resp, err := json.Marshal(TestClientResponse{
+		Token: token,
+	})
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to marshal response: %s", err), http.StatusInternalServerError)
+		return
+	}
+	if _, err := w.Write(resp); err != nil {
+		log.Err(err).Msgf("error sending response in handleTestClient")
+	}
 }
