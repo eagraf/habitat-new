@@ -143,7 +143,7 @@ func TestControllerPrivateDataPutGet(t *testing.T) {
 	require.Equal(t, encRecordCid, out.Cid)
 	require.Equal(t, testUri, out.Uri)
 
-	got, err := p.getRecord(ctx, client, "", coll, "my-did", "my-rkey")
+	got, err := p.getRecord(ctx, client, "", coll, "my-did", "my-rkey", "")
 	require.NoError(t, err)
 	require.Equal(t, *got.Cid, encRecordCid)
 	require.Equal(t, got.Uri, testUri)
@@ -159,6 +159,6 @@ func TestControllerPrivateDataPutGet(t *testing.T) {
 	}, true)
 	require.ErrorIs(t, err, ErrNoPutsOnEncryptedRecord)
 
-	_, err = p.getEncryptedRecord(ctx, client, "", encryptedRecordNSID, "my-did", "my-rkey")
+	_, err = p.getEncryptedRecord(ctx, client, "", encryptedRecordNSID, "my-did", "my-rkey", "")
 	require.ErrorIs(t, err, ErrNoEncryptedGetsOnEncryptedRecord)
 }

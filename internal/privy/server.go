@@ -2,6 +2,7 @@ package privy
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -34,20 +35,18 @@ type Server struct {
 	// for habitat server-to-server communication
 	bffClient bffauth.Client
 	bffServer bffauth.Server
-	// For authorization of data
-	permStore permissions.Store
 }
 
 func NewServer(localPDSHost string, habitatResolver func(string) string, enc Encrypter, bffClient bffauth.Client, bffServer bffauth.Server, permStore permissions.Store) *Server {
 	return &Server{
 		inner: &store{
-			e: enc,
+			e:           enc,
+			permissions: permStore,
 		},
 		habitatResolver: habitatResolver,
 		localPDSHost:    localPDSHost,
 		bffClient:       bffClient,
 		bffServer:       bffServer,
-		permStore:       permStore,
 	}
 }
 
@@ -134,12 +133,13 @@ func (s *Server) GetRecord(authInfo *xrpc.AuthInfo) http.HandlerFunc {
 			Host: s.localPDSHost,
 		}
 
-		did := id.DID.String()
+		targetDID := id.DID.String()
+		callerDID := "" /* unpopulated when unknown */
 		var out *agnostic.RepoGetRecord_Output
 		// If trying to get data from a PDS not managed by habitat
 		if id.PDSEndpoint() != s.localPDSHost {
 			// get bff token
-			token, err := s.bffClient.GetToken(did)
+			token, err := s.bffClient.GetToken(targetDID)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
@@ -150,31 +150,25 @@ func (s *Server) GetRecord(authInfo *xrpc.AuthInfo) http.HandlerFunc {
 				AccessJwt: token,
 			}
 			// set header
-			cli.Host = s.habitatResolver(did)
-			out, err = agnostic.RepoGetRecord(r.Context(), cli, cid, collection, did, rkey)
+			cli.Host = s.habitatResolver(targetDID)
+			out, err = agnostic.RepoGetRecord(r.Context(), cli, cid, collection, targetDID, rkey)
 		} else {
 			// Wack -- whenever we are serving a request from another habitat node, only authInfo.accessJwt is populated
 			// So in this case we validate the token.
 			// If the request is coming from a requesting did served by this pds, then simply pass through to getRecord
 			if authInfo.Did == "" || authInfo.Did != id.DID.String() {
-				did, err := s.bffServer.ValidateToken(authInfo.AccessJwt)
+				callerDID, err = s.bffServer.ValidateToken(authInfo.AccessJwt)
 				if err != nil {
 					http.Error(w, err.Error(), http.StatusInternalServerError)
-					return
-				}
-				authz, err := s.permStore.HasPermission(did, collection, rkey, false)
-				if err != nil {
-					http.Error(w, err.Error(), http.StatusInternalServerError)
-					return
-				} else if !authz {
-					http.Error(w, "Unauthorized", http.StatusForbidden)
 					return
 				}
 			}
 			// Local: call inner.getRecord
-			out, err = s.inner.getRecord(r.Context(), cli, cid, collection, string(id.DID), rkey)
+			out, err = s.inner.getRecord(r.Context(), cli, cid, collection, targetDID, rkey, callerDID)
 		}
-		if err != nil {
+		if errors.Is(err, ErrUnauthorized) {
+			http.Error(w, ErrUnauthorized.Error(), http.StatusForbidden)
+		} else if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
