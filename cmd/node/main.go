@@ -37,6 +37,12 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
+type permissionsHardCoded struct{}
+
+func (p *permissionsHardCoded) HasPermission(didstr string, nsid string, rkey string, write bool) (bool, error) {
+	panic("unimplemented")
+}
+
 func main() {
 	nodeConfig, err := config.NewNodeConfig()
 	if err != nil {
@@ -187,16 +193,21 @@ func main() {
 	)
 	routes = append(routes, bffProvider.GetRoutes()...)
 
-	// Add privy routes
+	// TODO: eventually we need a way given a did to resolve the habitat server host.
+	// This likely can go into the DID document services
+	// For now, hardcode it. This is used by the privyServer.
 	habitatResolver := func(did string) string {
 		panic("unimplemented")
 	}
+
+	// Add privy routes
 	privyServer := privy.NewServer(
 		constants.DefaultPDSHostname,
 		habitatResolver,
 		&privy.NoopEncrypter{}, /* TODO: use actual encryption */
 		bffauth.NewClient(),
 		bffProvider,
+		&permissionsHardCoded{},
 	)
 	routes = append(routes, privyServer.GetRoutes()...)
 

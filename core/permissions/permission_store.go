@@ -8,7 +8,7 @@ import (
 	"github.com/casbin/casbin/v2/persist"
 )
 
-type PermissionStore interface {
+type Store interface {
 	HasPermission(
 		didstr string,
 		nsid string,
@@ -24,7 +24,7 @@ type permisionStoreImpl struct {
 //go:embed model.conf
 var modelStr string
 
-func NewPermissionStore(adapter persist.Adapter) (PermissionStore, error) {
+func NewStore(adapter persist.Adapter) (Store, error) {
 	m, err := model.NewModelFromString(modelStr)
 	if err != nil {
 		return nil, err

@@ -12,6 +12,7 @@ import (
 	"github.com/bluesky-social/indigo/atproto/syntax"
 	"github.com/bluesky-social/indigo/xrpc"
 
+	"github.com/eagraf/habitat-new/core/permissions"
 	"github.com/eagraf/habitat-new/internal/bffauth"
 	"github.com/eagraf/habitat-new/internal/node/api"
 	"github.com/rs/zerolog/log"
@@ -33,9 +34,11 @@ type Server struct {
 	// for habitat server-to-server communication
 	bffClient bffauth.Client
 	bffServer bffauth.Server
+	// For authorization of data
+	permStore permissions.Store
 }
 
-func NewServer(localPDSHost string, habitatResolver func(string) string, enc Encrypter, bffClient bffauth.Client, bffServer bffauth.Server) *Server {
+func NewServer(localPDSHost string, habitatResolver func(string) string, enc Encrypter, bffClient bffauth.Client, bffServer bffauth.Server, permStore permissions.Store) *Server {
 	return &Server{
 		inner: &store{
 			e: enc,
@@ -44,6 +47,7 @@ func NewServer(localPDSHost string, habitatResolver func(string) string, enc Enc
 		localPDSHost:    localPDSHost,
 		bffClient:       bffClient,
 		bffServer:       bffServer,
+		permStore:       permStore,
 	}
 }
 
@@ -153,12 +157,19 @@ func (s *Server) GetRecord(authInfo *xrpc.AuthInfo) http.HandlerFunc {
 			// So in this case we validate the token.
 			// If the request is coming from a requesting did served by this pds, then simply pass through to getRecord
 			if authInfo.Did == "" || authInfo.Did != id.DID.String() {
-				_, err := s.bffServer.ValidateToken(authInfo.AccessJwt)
+				did, err := s.bffServer.ValidateToken(authInfo.AccessJwt)
 				if err != nil {
 					http.Error(w, err.Error(), http.StatusInternalServerError)
 					return
 				}
-				// TODO: un permissions on the DID with did from ValidateToken
+				authz, err := s.permStore.HasPermission(did, collection, rkey, false)
+				if err != nil {
+					http.Error(w, err.Error(), http.StatusInternalServerError)
+					return
+				} else if !authz {
+					http.Error(w, "Unauthorized", http.StatusForbidden)
+					return
+				}
 			}
 			// Local: call inner.getRecord
 			out, err = s.inner.getRecord(r.Context(), cli, cid, collection, string(id.DID), rkey)
