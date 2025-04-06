@@ -34,6 +34,7 @@ const Register: React.FC = () => {
 
             // Set the access token in a cookie
             Cookies.set('access_token', access_token, { expires: 7 });
+            Cookies.set('handle', handle, { expires: 7 });
 
             console.log('Registration successful, token set in cookie');
         } catch (error) {
