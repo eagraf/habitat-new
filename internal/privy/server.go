@@ -139,7 +139,7 @@ func (s *Server) GetRecord(authInfo *xrpc.AuthInfo) http.HandlerFunc {
 			}
 			// set header
 			cli.Host = s.habitatResolver(targetDID)
-			out, err = agnostic.RepoGetRecord(r.Context(), cli, cid, collection, targetDID, rkey)
+			out, err = agnostic.RepoGetRecord(r.Context(), cli, cid, collection, targetDID, rkey) // nolint:staticcheck)
 		} else {
 			// Wack -- whenever we are serving a request from another habitat node, only authInfo.accessJwt is populated
 			// So in this case we validate the token.

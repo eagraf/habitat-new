@@ -15,7 +15,7 @@ type Client interface {
 type client struct {
 	// This is the store of temporary friends that are added to the BFF.
 	// Helps us avoid implementing full public key resolution from DIDs with TailScale / localhost  setups
-	tempFriendStore map[string]*ExternalHabitatUser
+	// tempFriendStore map[string]*ExternalHabitatUser
 }
 
 func NewClient() Client {
