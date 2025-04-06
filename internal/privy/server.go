@@ -3,7 +3,6 @@ package privy
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -179,29 +178,34 @@ func (s *Server) GetRecord(authInfo *xrpc.AuthInfo) http.HandlerFunc {
 // This would allow for requesting to any pds through these routes, not just the one tied to this habitat node.
 func (s *Server) pdsAuthMiddleware(next func(authInfo *xrpc.AuthInfo) http.HandlerFunc) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		accessJwt, err := getAccessJwt(r)
+		auth, err := getAuthInfo(r)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusForbidden)
 			return
-		}
-		auth := &xrpc.AuthInfo{
-			AccessJwt: accessJwt,
 		}
 		next(auth).ServeHTTP(w, r)
 	})
 }
 
-func getAccessJwt(r *http.Request) (string, error) {
+// HACK: trust did
+func getAuthInfo(r *http.Request) (*xrpc.AuthInfo, error) {
+	accessJwt := ""
 	authHeader := r.Header.Get("Authorization")
 	if len(authHeader) > 7 {
-		return authHeader[7:], nil
+		accessJwt = authHeader[7:]
 	}
+	did := ""
 	for _, cookie := range r.Cookies() {
 		if cookie.Name == "access_token" {
-			return cookie.Value, nil
+			accessJwt = cookie.Value
+		} else if cookie.Name == "did" {
+			did = cookie.Value
 		}
 	}
-	return "", fmt.Errorf("missing auth info")
+	return &xrpc.AuthInfo{
+		AccessJwt: accessJwt,
+		Did:       did,
+	}, nil
 }
 
 func (s *Server) GetRoutes() []api.Route {
