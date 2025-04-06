@@ -13,6 +13,7 @@ import (
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
+	"github.com/eagraf/habitat-new/core/permissions"
 	"github.com/eagraf/habitat-new/core/state/node"
 	"github.com/eagraf/habitat-new/internal/bffauth"
 	"github.com/eagraf/habitat-new/internal/docker"
@@ -36,12 +37,6 @@ import (
 	"github.com/rs/zerolog/log"
 	"golang.org/x/sync/errgroup"
 )
-
-type permissionsHardCoded struct{}
-
-func (p *permissionsHardCoded) HasPermission(didstr string, nsid string, rkey string, write bool) (bool, error) {
-	panic("unimplemented")
-}
 
 func main() {
 	nodeConfig, err := config.NewNodeConfig()
@@ -207,7 +202,7 @@ func main() {
 		&privy.NoopEncrypter{}, /* TODO: use actual encryption */
 		bffauth.NewClient(),
 		bffProvider,
-		&permissionsHardCoded{},
+		permissions.NewDummyStore(),
 	)
 	routes = append(routes, privyServer.GetRoutes()...)
 

@@ -146,8 +146,7 @@ func (p *store) getEncryptedRecord(ctx context.Context, xrpc *xrpc.Client, cid s
 	}
 
 	// Run permissions before returning to the user
-	// if HasAccess(did, collection, rkey) { .... }
-	authz, err := p.permissions.HasPermission(did, collection, rkey, false)
+	authz, err := p.permissions.HasPermission(callerDID, collection, rkey, false)
 	if err != nil {
 		return nil, err
 	} else if !authz {

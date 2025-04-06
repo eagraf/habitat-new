@@ -44,6 +44,7 @@ func NewServer(localPDSHost string, habitatResolver func(string) string, enc Enc
 			permissions: permStore,
 		},
 		habitatResolver: habitatResolver,
+		dir:             identity.DefaultDirectory(),
 		localPDSHost:    localPDSHost,
 		bffClient:       bffClient,
 		bffServer:       bffServer,
@@ -116,11 +117,6 @@ func (s *Server) GetRecord(authInfo *xrpc.AuthInfo) http.HandlerFunc {
 			}
 		}
 
-		cli := &xrpc.Client{
-			Auth: authInfo,
-			Host: s.localPDSHost,
-		}
-
 		targetDID := id.DID.String()
 		callerDID := "" /* unpopulated when unknown */
 		var out *agnostic.RepoGetRecord_Output
@@ -134,12 +130,14 @@ func (s *Server) GetRecord(authInfo *xrpc.AuthInfo) http.HandlerFunc {
 			}
 			// Wack -- we're overloading AccessJwt to also pass around habitat managed tokens
 			// Do this for ease for now so i can re-use xrpc client with PDS notions of auth but with Habitat notions of auth
-			cli.Auth = &xrpc.AuthInfo{
-				AccessJwt: token,
+			cli := &xrpc.Client{
+				Auth: &xrpc.AuthInfo{
+					AccessJwt: token,
+				},
+				Host: s.habitatResolver(targetDID),
 			}
-			// set header
-			cli.Host = s.habitatResolver(targetDID)
-			out, err = agnostic.RepoGetRecord(r.Context(), cli, cid, collection, targetDID, rkey) // nolint:staticcheck)
+			// TODO: do i need to set an explicit header
+			out, err = agnostic.RepoGetRecord(r.Context(), cli, cid, collection, targetDID, rkey) // nolint:staticcheck
 		} else {
 			// Wack -- whenever we are serving a request from another habitat node, only authInfo.accessJwt is populated
 			// So in this case we validate the token.
@@ -151,8 +149,12 @@ func (s *Server) GetRecord(authInfo *xrpc.AuthInfo) http.HandlerFunc {
 					return
 				}
 			}
+			cli := &xrpc.Client{
+				Auth: authInfo,
+				Host: s.localPDSHost,
+			}
 			// Local: call inner.getRecord
-			out, err = s.inner.getRecord(r.Context(), cli, cid, collection, targetDID, rkey, callerDID) // nolint:staticcheck)
+			out, err = s.inner.getRecord(r.Context(), cli, cid, collection, targetDID, rkey, callerDID) // nolint:staticcheck
 		}
 		if errors.Is(err, ErrUnauthorized) {
 			http.Error(w, ErrUnauthorized.Error(), http.StatusForbidden)
