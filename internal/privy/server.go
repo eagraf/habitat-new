@@ -30,31 +30,20 @@ type Server struct {
 	dir identity.Directory
 	// The local pds host this server is tied to
 	localPDSHost string
-	//
+	// for habitat server-to-server communication
 	bffClient bffauth.Client
+	bffServer bffauth.Server
 }
 
-// makeXrpcClient returns an xrpc.Client that can make requests to the PDS at the given did
-// It takes in authInfo because that is
-func (s *Server) makeXrpcClient(authInfo *xrpc.AuthInfo, did string) *xrpc.Client {
-	// If th
-	if authInfo.Did == did {
-		return &xrpc.Client{
-			Auth: authInfo,
-		}
-	}
-
-	return nil
-}
-
-func NewServer(localPDSHost string, habitatResolver func(string) string, enc Encrypter) *Server {
+func NewServer(localPDSHost string, habitatResolver func(string) string, enc Encrypter, bffClient bffauth.Client, bffServer bffauth.Server) *Server {
 	return &Server{
-		pdsHost: pdsHost,
 		inner: &store{
 			e: enc,
 		},
 		habitatResolver: habitatResolver,
 		localPDSHost:    localPDSHost,
+		bffClient:       bffClient,
+		bffServer:       bffServer,
 	}
 }
 
@@ -160,11 +149,16 @@ func (s *Server) GetRecord(authInfo *xrpc.AuthInfo) http.HandlerFunc {
 			cli.Host = s.habitatResolver(did)
 			out, err = agnostic.RepoGetRecord(r.Context(), cli, cid, collection, did, rkey)
 		} else {
-			// Request is getting records for a did managed by this habitat node
-			// But the user is not the same did
+			// Wack -- whenever we are serving a request from another habitat node, only authInfo.accessJwt is populated
+			// So in this case we validate the token.
+			// If the request is coming from a requesting did served by this pds, then simply pass through to getRecord
 			if authInfo.Did == "" || authInfo.Did != id.DID.String() {
-				// ValidateToken() == Authn
-				// if not valid return error
+				_, err := s.bffServer.ValidateToken(authInfo.AccessJwt)
+				if err != nil {
+					http.Error(w, err.Error(), http.StatusInternalServerError)
+					return
+				}
+				// TODO: un permissions on the DID with did from ValidateToken
 			}
 			// Local: call inner.getRecord
 			out, err = s.inner.getRecord(r.Context(), cli, cid, collection, string(id.DID), rkey)
@@ -195,9 +189,8 @@ func (s *Server) pdsAuthMiddleware(next func(authInfo *xrpc.AuthInfo) http.Handl
 			http.Error(w, err.Error(), http.StatusForbidden)
 			return
 		}
-		bearer := authHeader[7:]
 		auth := &xrpc.AuthInfo{
-			AccessJwt: bearer,
+			AccessJwt: accessJwt,
 		}
 		next(auth).ServeHTTP(w, r)
 	})

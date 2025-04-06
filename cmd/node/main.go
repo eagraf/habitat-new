@@ -191,7 +191,13 @@ func main() {
 	habitatResolver := func(did string) string {
 		panic("unimplemented")
 	}
-	privyServer := privy.NewServer(constants.DefaultPDSHostname, habitatResolver, &privy.NoopEncrypter{} /* TODO: use actual encryption */)
+	privyServer := privy.NewServer(
+		constants.DefaultPDSHostname,
+		habitatResolver,
+		&privy.NoopEncrypter{}, /* TODO: use actual encryption */
+		bffauth.NewClient(),
+		bffProvider,
+	)
 	routes = append(routes, privyServer.GetRoutes()...)
 
 	authMiddleware := controller.NewAuthenticationMiddleware(
