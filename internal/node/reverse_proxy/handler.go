@@ -62,7 +62,6 @@ func getRedirectHandler(rule *node.ReverseProxyRule) (http.Handler, error) {
 				forwardURL.Path,
 				strings.TrimPrefix(req.URL.Path, rule.Matcher),
 			)
-			fmt.Println("forwarding to ", req.URL.Path)
 		},
 		Transport: &http.Transport{
 			Dial: (&net.Dialer{

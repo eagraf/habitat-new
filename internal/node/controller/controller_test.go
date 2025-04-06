@@ -125,6 +125,7 @@ func TestMigrationController(t *testing.T) {
 	assert.Nil(t, err)
 }
 
+/*
 var nodeState = &node.State{
 	Users: map[string]*node.User{
 		"user_1": {
@@ -140,7 +141,6 @@ var nodeState = &node.State{
 	},
 }
 
-/*
 func TestAddUser(t *testing.T) {
 	ctrl := gomock.NewController(t)
 

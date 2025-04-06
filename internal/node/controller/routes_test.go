@@ -9,7 +9,6 @@ import (
 
 	"github.com/eagraf/habitat-new/core/state/node"
 	"github.com/eagraf/habitat-new/internal/package_manager"
-	"github.com/eagraf/habitat-new/internal/process"
 	"github.com/stretchr/testify/require"
 )
 
@@ -138,8 +137,7 @@ func TestAddUserHandler(t *testing.T) {
 */
 
 func TestGetNodeState(t *testing.T) {
-	mockDriver := newMockDriver(node.DriverTypeDocker)
-	ctrl2, err := NewController2(context.Background(), process.NewProcessManager([]process.Driver{mockDriver}),
+	ctrl2, err := NewController2(context.Background(), fakeProcessManager(),
 		map[node.DriverType]package_manager.PackageManager{
 			node.DriverTypeDocker: &mockPkgManager{
 				installs: make(map[*node.Package]struct{}),
