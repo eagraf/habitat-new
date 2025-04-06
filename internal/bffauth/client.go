@@ -9,6 +9,8 @@ import (
 	"net/url"
 
 	"github.com/bluesky-social/indigo/atproto/crypto"
+	"github.com/eagraf/habitat-new/internal/resolvers"
+	"github.com/pkg/errors"
 )
 
 type ExternalHabitatUser struct {
@@ -42,51 +44,46 @@ func getTempStores() (map[string]crypto.PrivateKey, map[string]*ExternalHabitatU
 
 }
 
-type Client struct {
-	// This is the store of temporary friends that are added to the BFF.
-	// Helps us avoid implementing full public key resolution from DIDs with TailScale / localhost  setups
-	tempFriendStore map[string]*ExternalHabitatUser
+type Client interface {
+	GetToken(targetDID string) (string, error)
+}
 
+type client struct {
 	clientDID string
 
 	privateKey crypto.PrivateKey
 
 	activeTokens map[string]string
+
+	// HTTP or HTTPS
+	scheme string
+
+	habitatHostResolver resolvers.HabitatHostResolver
+	publicKeyResolver   resolvers.PublicKeyResolver
 }
 
-func NewClient(clientDID string) (*Client, error) {
-	privKeyStore, friendStore, err := getTempStores()
-	if err != nil {
-		return nil, err
+func NewClient(clientDID string, privateKey crypto.PrivateKey) Client {
+	return &client{
+		privateKey:   privateKey,
+		activeTokens: make(map[string]string),
 	}
-
-	privateKey, ok := privKeyStore[clientDID]
-	if !ok {
-		return nil, fmt.Errorf("no private key found for client: %s", clientDID)
-	}
-
-	return &Client{
-		privateKey:      privateKey,
-		tempFriendStore: friendStore,
-		activeTokens:    make(map[string]string),
-	}, nil
 }
 
 // GetToken returns a token for the remote Habitat user
 // If the token is already in the cache, it returns the cached token
 // Otherwise, it queries the remote Habitat user's bff/auth endpoint and caches the token
-func (c *Client) GetToken(targetDID string) (string, error) {
+func (c *client) GetToken(targetDID string) (string, error) {
 	token, ok := c.activeTokens[targetDID]
 	if ok {
 		return token, nil
 	}
 
-	friend, ok := c.tempFriendStore[targetDID]
-	if !ok {
-		return "", fmt.Errorf("no friend entry found for target: %s", targetDID)
+	targetUser, err := c.resolveTargetUser(targetDID)
+	if err != nil {
+		return "", err
 	}
 
-	token, err := c.getToken(friend)
+	token, err = c.getToken(targetUser)
 	if err != nil {
 		return "", err
 	}
@@ -95,9 +92,27 @@ func (c *Client) GetToken(targetDID string) (string, error) {
 	return token, nil
 }
 
+func (c *client) resolveTargetUser(targetDID string) (*ExternalHabitatUser, error) {
+	habitatHost, err := c.habitatHostResolver(targetDID)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to resolve habitat host")
+	}
+
+	publicKey, err := c.publicKeyResolver(targetDID)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to resolve public key")
+	}
+
+	return &ExternalHabitatUser{
+		DID:       targetDID,
+		PublicKey: publicKey,
+		Host:      habitatHost,
+	}, nil
+}
+
 // getChallenge queries the remote Habitat user's bff/challenge endpoint
-func (c *Client) getChallenge(remoteHabitatUser *ExternalHabitatUser) (string, string, error) {
-	endpoint := constructRemoteHabitatEndpoint(remoteHabitatUser, "/habitat/api/node/bff/challenge")
+func (c *client) getChallenge(remoteHabitatUser *ExternalHabitatUser) (string, string, error) {
+	endpoint := c.constructRemoteHabitatEndpoint(remoteHabitatUser, "/habitat/api/node/bff/challenge")
 
 	pubKeyMultibase := remoteHabitatUser.PublicKey.Multibase()
 
@@ -136,8 +151,8 @@ func (c *Client) getChallenge(remoteHabitatUser *ExternalHabitatUser) (string, s
 }
 
 // queryAuthEndpoint queries the remote Habitat user's bff/auth endpoint
-func (c *Client) queryAuthEndpoint(remoteHabitatUser *ExternalHabitatUser, sessionID string, proof string) (string, error) {
-	endpoint := constructRemoteHabitatEndpoint(remoteHabitatUser, "/habitat/api/node/bff/auth")
+func (c *client) queryAuthEndpoint(remoteHabitatUser *ExternalHabitatUser, sessionID string, proof string) (string, error) {
+	endpoint := c.constructRemoteHabitatEndpoint(remoteHabitatUser, "/habitat/api/node/bff/auth")
 
 	reqBody := AuthRequest{
 		SessionID: sessionID,
@@ -173,9 +188,9 @@ func (c *Client) queryAuthEndpoint(remoteHabitatUser *ExternalHabitatUser, sessi
 	return respBody.Token, nil
 }
 
-func (c *Client) getToken(remoteHabitatUser *ExternalHabitatUser) (string, error) {
+func (c *client) getToken(targetUser *ExternalHabitatUser) (string, error) {
 
-	challenge, sessionID, err := c.getChallenge(remoteHabitatUser)
+	challenge, sessionID, err := c.getChallenge(targetUser)
 	if err != nil {
 		return "", err
 	}
@@ -185,7 +200,7 @@ func (c *Client) getToken(remoteHabitatUser *ExternalHabitatUser) (string, error
 		return "", err
 	}
 
-	token, err := c.queryAuthEndpoint(remoteHabitatUser, sessionID, proof)
+	token, err := c.queryAuthEndpoint(targetUser, sessionID, proof)
 	if err != nil {
 		return "", err
 	}
@@ -193,9 +208,9 @@ func (c *Client) getToken(remoteHabitatUser *ExternalHabitatUser) (string, error
 	return token, nil
 }
 
-func constructRemoteHabitatEndpoint(remoteHabitatUser *ExternalHabitatUser, path string) *url.URL {
+func (c *client) constructRemoteHabitatEndpoint(remoteHabitatUser *ExternalHabitatUser, path string) *url.URL {
 	return &url.URL{
-		Scheme: "https",
+		Scheme: c.scheme,
 		Host:   remoteHabitatUser.Host,
 		Path:   path,
 	}

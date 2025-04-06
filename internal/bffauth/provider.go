@@ -3,7 +3,6 @@ package bffauth
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"time"
 
@@ -31,7 +30,7 @@ func (p *Provider) GetRoutes() []api.Route {
 		api.NewBasicRoute(http.MethodPost, "/node/bff/challenge", p.handleChallenge),
 		api.NewBasicRoute(http.MethodPost, "/node/bff/auth", p.handleAuth),
 		api.NewBasicRoute(http.MethodGet, "/node/bff/test", p.handleTest),
-		api.NewBasicRoute(http.MethodPost, "/node/bff/test-client", p.handleTestClient),
+		//		api.NewBasicRoute(http.MethodPost, "/node/bff/test-client", p.handleTestClient),
 	}
 }
 
@@ -179,7 +178,7 @@ func (p *Provider) handleTest(w http.ResponseWriter, r *http.Request) {
 
 }
 
-type TestClientRequest struct {
+/*type TestClientRequest struct {
 	ClientDID string `json:"client_did"`
 	TargetDID string `json:"target_did"`
 }
@@ -225,4 +224,4 @@ func (p *Provider) handleTestClient(w http.ResponseWriter, r *http.Request) {
 	if _, err := w.Write(resp); err != nil {
 		log.Err(err).Msgf("error sending response in handleTestClient")
 	}
-}
+}*/
