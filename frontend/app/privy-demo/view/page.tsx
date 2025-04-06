@@ -29,6 +29,6 @@ export default function View() {
     }
 
     return <article aria-busy={isLoading}>
-        {message}
+        <p>{message}</p>
     </article>
 }
