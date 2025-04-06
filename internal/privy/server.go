@@ -86,18 +86,6 @@ func (s *Server) PutRecord(authInfo *xrpc.AuthInfo) http.HandlerFunc {
 	}
 }
 
-func getRecordParamsFromURL(u *url.URL) (cid, collection, repo, rkey string, err error) {
-	params, err := url.Parse(u.String())
-	if err != nil {
-		return "", "", "", "", nil
-	}
-	cid = params.Query().Get("cid")
-	collection = params.Query().Get("collection")
-	repo = params.Query().Get("repo")
-	rkey = params.Query().Get("rkey")
-	return
-}
-
 // Find desired did
 // if other did, forward request there
 // if our own did,
@@ -164,7 +152,7 @@ func (s *Server) GetRecord(authInfo *xrpc.AuthInfo) http.HandlerFunc {
 				}
 			}
 			// Local: call inner.getRecord
-			out, err = s.inner.getRecord(r.Context(), cli, cid, collection, targetDID, rkey, callerDID)
+			out, err = s.inner.getRecord(r.Context(), cli, cid, collection, targetDID, rkey, callerDID) // nolint:staticcheck)
 		}
 		if errors.Is(err, ErrUnauthorized) {
 			http.Error(w, ErrUnauthorized.Error(), http.StatusForbidden)
