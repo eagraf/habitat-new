@@ -184,10 +184,7 @@ func (c *Controller2) addUser(ctx context.Context, input *atproto.ServerCreateAc
 	}
 
 	_, err = c.db.ProposeTransitions([]hdb.Transition{
-		&node.AddUserTransition{
-			Username:   output.Handle,
-			AtprotoDID: output.Did,
-		},
+		node.GenAddUserTransition(output.Handle, output.Did),
 	})
 	if err != nil {
 		return nil, err

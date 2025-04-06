@@ -51,10 +51,9 @@ func NewStateForLatestVersion() (*State, error) {
 }
 
 type User struct {
-	ID          string `json:"id"`
-	Username    string `json:"username"`
-	Certificate string `json:"certificate"` // TODO turn this into b64
-	AtprotoDID  string `json:"atproto_did,omitempty"`
+	ID       string `json:"id"`
+	Username string `json:"username"`
+	DID      string `json:"atproto_did,omitempty"`
 }
 
 func (s *State) Schema() hdb.Schema {
@@ -124,9 +123,8 @@ func (s *State) SetRootUserCert(rootUserCert string) {
 	// TODO this is basically a placeholder until we actually have a way of generating
 	// the certificate for the node.
 	s.Users[constants.RootUserID] = &User{
-		ID:          constants.RootUserID,
-		Username:    constants.RootUsername,
-		Certificate: rootUserCert,
+		ID:       constants.RootUserID,
+		Username: constants.RootUsername,
 	}
 }
 

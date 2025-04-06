@@ -196,12 +196,7 @@ func main() {
 	)
 	routes = append(routes, privyServer.GetRoutes()...)
 
-	authMiddleware := controller.NewAuthenticationMiddleware(
-		dbClient,
-		nodeConfig.UseTLS(),
-		nodeConfig.RootUserCert,
-	)
-	router := api.NewRouter(routes, logger, authMiddleware.Middleware)
+	router := api.NewRouter(routes, logger)
 	apiServer := &http.Server{
 		Addr:    fmt.Sprintf(":%s", constants.DefaultPortHabitatAPI),
 		Handler: router,

@@ -20,9 +20,8 @@ func fakeInitState(rootUserCert, rootUserID, rootUsername string) *node.State {
 	}
 
 	initState.Users[rootUserID] = &node.User{
-		ID:          rootUserID,
-		Username:    rootUsername,
-		Certificate: rootUserCert,
+		ID:       rootUserID,
+		Username: rootUsername,
 	}
 
 	return initState
@@ -54,7 +53,6 @@ func setupNodeDBTest(ctrl *gomock.Controller, t *testing.T) (*hdb_mocks.MockHDBM
 			assert.Equal(t, 1, len(state.Users))
 			assert.Equal(t, "fake_username", state.Users["fake_user_id"].Username)
 			assert.Equal(t, "fake_user_id", state.Users["fake_user_id"].ID)
-			assert.Equal(t, "fake_cert", state.Users["fake_user_id"].Certificate)
 
 			return mockedClient, nil
 		}).Times(1)
