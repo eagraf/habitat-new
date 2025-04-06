@@ -8,7 +8,6 @@ import (
 	"github.com/bluesky-social/indigo/api/atproto"
 	"github.com/bluesky-social/indigo/xrpc"
 	"github.com/eagraf/habitat-new/core/state/node"
-	"github.com/eagraf/habitat-new/internal/node/constants"
 	"github.com/eagraf/habitat-new/internal/node/hdb"
 	"github.com/eagraf/habitat-new/internal/node/reverse_proxy"
 	"github.com/eagraf/habitat-new/internal/package_manager"
@@ -24,6 +23,7 @@ type Controller2 struct {
 	processManager process.ProcessManager
 	pkgManagers    map[node.DriverType]package_manager.PackageManager
 	proxyServer    *reverse_proxy.ProxyServer
+	pdsHost        string
 }
 
 func NewController2(
@@ -32,6 +32,7 @@ func NewController2(
 	pkgManagers map[node.DriverType]package_manager.PackageManager,
 	db hdb.Client,
 	proxyServer *reverse_proxy.ProxyServer,
+	pdsHost string,
 ) (*Controller2, error) {
 	// Validate types of all input components
 	_, ok := processManager.(node.Component[process.RestoreInfo])
@@ -45,6 +46,7 @@ func NewController2(
 		pkgManagers:    pkgManagers,
 		db:             db,
 		proxyServer:    proxyServer,
+		pdsHost:        pdsHost,
 	}
 
 	return ctrl, nil
@@ -175,7 +177,7 @@ func (c *Controller2) addUser(ctx context.Context, input *atproto.ServerCreateAc
 	output, err := atproto.ServerCreateAccount(
 		ctx,
 		&xrpc.Client{
-			Host: fmt.Sprintf("http://%s", constants.DefaultPDSHostname),
+			Host: c.pdsHost,
 		},
 		input,
 	)

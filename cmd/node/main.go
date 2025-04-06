@@ -150,7 +150,7 @@ func main() {
 		log.Fatal().Err(err).Msg("error getting default HDB client")
 	}
 
-	ctrl2, err := controller.NewController2(ctx, pm, pkgManagers, dbClient, proxy)
+	ctrl2, err := controller.NewController2(ctx, pm, pkgManagers, dbClient, proxy, constants.DefaultPDSHostname)
 	if err != nil {
 		log.Fatal().Err(err).Msg("error creating node Controller2")
 	}
