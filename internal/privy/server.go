@@ -141,11 +141,12 @@ func (s *Server) GetRecord(authInfo *xrpc.AuthInfo) http.HandlerFunc {
 			Host: s.localPDSHost,
 		}
 
+		did := id.DID.String()
 		var out *agnostic.RepoGetRecord_Output
 		// If trying to get data from a PDS not managed by habitat
 		if id.PDSEndpoint() != s.localPDSHost {
 			// get bff token
-			token, err := s.bffClient.GetToken(string(id.DID))
+			token, err := s.bffClient.GetToken(did)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
@@ -156,9 +157,15 @@ func (s *Server) GetRecord(authInfo *xrpc.AuthInfo) http.HandlerFunc {
 				AccessJwt: token,
 			}
 			// set header
-			cli.Host = s.habitatResolver(string(id.DID))
-			out, err = agnostic.RepoGetRecord(r.Context(), cli, cid, collection, string(id.DID), rkey)
+			cli.Host = s.habitatResolver(did)
+			out, err = agnostic.RepoGetRecord(r.Context(), cli, cid, collection, did, rkey)
 		} else {
+			// Request is getting records for a did managed by this habitat node
+			// But the user is not the same did
+			if authInfo.Did == "" || authInfo.Did != id.DID.String() {
+				// ValidateToken() == Authn
+				// if not valid return error
+			}
 			// Local: call inner.getRecord
 			out, err = s.inner.getRecord(r.Context(), cli, cid, collection, string(id.DID), rkey)
 		}
