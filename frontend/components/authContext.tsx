@@ -54,7 +54,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             }
 
             const fullHandle = parentDomain == "localhost" ? `${identifier}` : `${identifier}.${window.location.hostname}`;
-            const response = await axios.post(`${window.location.origin}/habitat/api/node/login`, {
+            const response = await axios.post(`${window.location.origin}/xrpc/com.atproto.server.createSession`, {
                 password: password,
                 identifier: fullHandle,
             }, {

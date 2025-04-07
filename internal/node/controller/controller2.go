@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/bluesky-social/indigo/api/atproto"
+	"github.com/bluesky-social/indigo/xrpc"
 	"github.com/eagraf/habitat-new/core/state/node"
 	"github.com/eagraf/habitat-new/internal/node/hdb"
 	"github.com/eagraf/habitat-new/internal/node/reverse_proxy"
@@ -12,6 +14,7 @@ import (
 	"github.com/eagraf/habitat-new/internal/process"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
+	"golang.org/x/mod/semver"
 )
 
 type Controller2 struct {
@@ -20,6 +23,7 @@ type Controller2 struct {
 	processManager process.ProcessManager
 	pkgManagers    map[node.DriverType]package_manager.PackageManager
 	proxyServer    *reverse_proxy.ProxyServer
+	pdsHost        string
 }
 
 func NewController2(
@@ -28,6 +32,7 @@ func NewController2(
 	pkgManagers map[node.DriverType]package_manager.PackageManager,
 	db hdb.Client,
 	proxyServer *reverse_proxy.ProxyServer,
+	pdsHost string,
 ) (*Controller2, error) {
 	// Validate types of all input components
 	_, ok := processManager.(node.Component[process.RestoreInfo])
@@ -41,6 +46,7 @@ func NewController2(
 		pkgManagers:    pkgManagers,
 		db:             db,
 		proxyServer:    proxyServer,
+		pdsHost:        pdsHost,
 	}
 
 	return ctrl, nil
@@ -164,6 +170,46 @@ func (c *Controller2) uninstallApp(appID string) error {
 		},
 	})
 
+	return err
+}
+
+func (c *Controller2) addUser(ctx context.Context, input *atproto.ServerCreateAccount_Input) (*atproto.ServerCreateAccount_Output, error) {
+	output, err := atproto.ServerCreateAccount(
+		ctx,
+		&xrpc.Client{
+			Host: c.pdsHost,
+		},
+		input,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = c.db.ProposeTransitions([]hdb.Transition{
+		node.GenAddUserTransition(output.Handle, output.Did),
+	})
+	if err != nil {
+		return nil, err
+	}
+	return output, nil
+}
+
+func (c *Controller2) migrateDB(targetVersion string) error {
+	var nodeState node.State
+	err := json.Unmarshal(c.db.Bytes(), &nodeState)
+	if err != nil {
+		return nil
+	}
+	// No-op if version is already the target
+	if semver.Compare(nodeState.SchemaVersion, targetVersion) == 0 {
+		return nil
+	}
+
+	_, err = c.db.ProposeTransitions([]hdb.Transition{
+		&node.MigrationTransition{
+			TargetVersion: targetVersion,
+		},
+	})
 	return err
 }
 
