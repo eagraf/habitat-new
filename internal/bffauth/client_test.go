@@ -12,7 +12,7 @@ import (
 )
 
 func FakeHabitatHostResolver(habitatHost string) resolvers.HabitatHostResolver {
-	return func(did string) (string, error) {
+	return func(did string) (string, string, error) {
 		// Map of test DIDs to habitat hosts
 		testHosts := map[string]string{
 			"did:test:123": habitatHost,
@@ -22,9 +22,9 @@ func FakeHabitatHostResolver(habitatHost string) resolvers.HabitatHostResolver {
 
 		host, ok := testHosts[did]
 		if !ok {
-			return "", fmt.Errorf("no habitat host found for did: %s", did)
+			return "", "", fmt.Errorf("no habitat host found for did: %s", did)
 		}
-		return host, nil
+		return host, "http", nil
 	}
 }
 
@@ -72,22 +72,16 @@ func TestClient(t *testing.T) {
 	require.NoError(t, err)
 
 	testUser := &ExternalHabitatUser{
-		DID:       "did:test:123",
-		PublicKey: testPubKey,
-		Host:      server.URL[7:], // Strip http:// prefix
+		did:       "did:test:123",
+		publicKey: testPubKey,
+		host:      server.URL[7:], // Strip http:// prefix
 	}
 
 	// Create client with test data
-	c := &client{
-		privateKey:          testKey,
-		activeTokens:        make(map[string]string),
-		scheme:              "http",
-		habitatHostResolver: FakeHabitatHostResolver(server.URL[7:]),
-		publicKeyResolver:   FakePublicKeyResolver(testPubKey),
-	}
+	c := NewClient(testUser.did, testKey, FakeHabitatHostResolver(server.URL[7:]), FakePublicKeyResolver(testPubKey))
 
 	// Test getting token
-	token, err := c.GetToken(testUser.DID)
+	token, err := c.GetToken(testUser.did)
 	require.NoError(t, err)
 	require.NotEmpty(t, token)
 
@@ -101,7 +95,7 @@ func TestClient(t *testing.T) {
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 
 	// Test token caching
-	cachedToken, err := c.GetToken(testUser.DID)
+	cachedToken, err := c.GetToken(testUser.did)
 	require.NoError(t, err)
 	require.Equal(t, token, cachedToken)
 

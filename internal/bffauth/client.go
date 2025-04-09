@@ -14,34 +14,10 @@ import (
 )
 
 type ExternalHabitatUser struct {
-	DID       string
-	PublicKey crypto.PublicKey
-	Host      string
-}
-
-func getTempStores() (map[string]crypto.PrivateKey, map[string]*ExternalHabitatUser, error) {
-	testKey, err := crypto.GeneratePrivateKeyP256()
-	if err != nil {
-		return nil, nil, err
-	}
-
-	testPubKey, err := testKey.PublicKey()
-	if err != nil {
-		return nil, nil, err
-	}
-
-	testUser := &ExternalHabitatUser{
-		DID:       "did:plc:avkzrsj7u4kmoq33gx6v4lh4",
-		PublicKey: testPubKey,
-		Host:      "beacon-dev.tail07d32.ts.net",
-	}
-
-	return map[string]crypto.PrivateKey{
-			"did:plc:avkzrsj7u4kmoq33gx6v4lh4": testKey,
-		}, map[string]*ExternalHabitatUser{
-			"did:plc:avkzrsj7u4kmoq33gx6v4lh4": testUser,
-		}, nil
-
+	did             string
+	publicKey       crypto.PublicKey
+	host            string
+	bffEndpointBase string
 }
 
 type Client interface {
@@ -49,23 +25,24 @@ type Client interface {
 }
 
 type client struct {
-	clientDID string
+	did string
 
 	privateKey crypto.PrivateKey
 
 	activeTokens map[string]string
 
-	// HTTP or HTTPS
-	scheme string
-
 	habitatHostResolver resolvers.HabitatHostResolver
 	publicKeyResolver   resolvers.PublicKeyResolver
+	scheme              string
 }
 
-func NewClient(clientDID string, privateKey crypto.PrivateKey) Client {
+func NewClient(clientDID string, privateKey crypto.PrivateKey, habitatHostResolver resolvers.HabitatHostResolver, publicKeyResolver resolvers.PublicKeyResolver) Client {
 	return &client{
-		privateKey:   privateKey,
-		activeTokens: make(map[string]string),
+		did:                 clientDID,
+		privateKey:          privateKey,
+		activeTokens:        make(map[string]string),
+		habitatHostResolver: habitatHostResolver,
+		publicKeyResolver:   publicKeyResolver,
 	}
 }
 
@@ -93,9 +70,15 @@ func (c *client) GetToken(targetDID string) (string, error) {
 }
 
 func (c *client) resolveTargetUser(targetDID string) (*ExternalHabitatUser, error) {
-	habitatHost, err := c.habitatHostResolver(targetDID)
+	habitatHost, scheme, err := c.habitatHostResolver(targetDID)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to resolve habitat host")
+	}
+
+	endpoint := &url.URL{
+		Scheme: scheme,
+		Host:   habitatHost,
+		Path:   "/habitat/api/node/bff",
 	}
 
 	publicKey, err := c.publicKeyResolver(targetDID)
@@ -104,20 +87,21 @@ func (c *client) resolveTargetUser(targetDID string) (*ExternalHabitatUser, erro
 	}
 
 	return &ExternalHabitatUser{
-		DID:       targetDID,
-		PublicKey: publicKey,
-		Host:      habitatHost,
+		did:             targetDID,
+		publicKey:       publicKey,
+		host:            habitatHost,
+		bffEndpointBase: endpoint.String(),
 	}, nil
 }
 
 // getChallenge queries the remote Habitat user's bff/challenge endpoint
 func (c *client) getChallenge(remoteHabitatUser *ExternalHabitatUser) (string, string, error) {
-	endpoint := c.constructRemoteHabitatEndpoint(remoteHabitatUser, "/habitat/api/node/bff/challenge")
+	endpoint := remoteHabitatUser.bffEndpointBase + "/challenge"
 
-	pubKeyMultibase := remoteHabitatUser.PublicKey.Multibase()
+	pubKeyMultibase := remoteHabitatUser.publicKey.Multibase()
 
 	reqBody := ChallengeRequest{
-		DID:                remoteHabitatUser.DID,
+		DID:                remoteHabitatUser.did,
 		PublicKeyMultibase: pubKeyMultibase,
 	}
 
@@ -127,7 +111,7 @@ func (c *client) getChallenge(remoteHabitatUser *ExternalHabitatUser) (string, s
 	}
 
 	httpClient := &http.Client{}
-	resp, err := httpClient.Post(endpoint.String(), "application/json", bytes.NewBuffer(reqBytes))
+	resp, err := httpClient.Post(endpoint, "application/json", bytes.NewBuffer(reqBytes))
 	if err != nil {
 		return "", "", err
 	}
@@ -152,7 +136,7 @@ func (c *client) getChallenge(remoteHabitatUser *ExternalHabitatUser) (string, s
 
 // queryAuthEndpoint queries the remote Habitat user's bff/auth endpoint
 func (c *client) queryAuthEndpoint(remoteHabitatUser *ExternalHabitatUser, sessionID string, proof string) (string, error) {
-	endpoint := c.constructRemoteHabitatEndpoint(remoteHabitatUser, "/habitat/api/node/bff/auth")
+	endpoint := remoteHabitatUser.bffEndpointBase + "/auth"
 
 	reqBody := AuthRequest{
 		SessionID: sessionID,
@@ -165,7 +149,7 @@ func (c *client) queryAuthEndpoint(remoteHabitatUser *ExternalHabitatUser, sessi
 	}
 	httpClient := &http.Client{}
 
-	resp, err := httpClient.Post(endpoint.String(), "application/json", bytes.NewBuffer(reqBytes))
+	resp, err := httpClient.Post(endpoint, "application/json", bytes.NewBuffer(reqBytes))
 	if err != nil {
 		return "", err
 	}
@@ -210,8 +194,8 @@ func (c *client) getToken(targetUser *ExternalHabitatUser) (string, error) {
 
 func (c *client) constructRemoteHabitatEndpoint(remoteHabitatUser *ExternalHabitatUser, path string) *url.URL {
 	return &url.URL{
-		Scheme: c.scheme,
-		Host:   remoteHabitatUser.Host,
+		Scheme: "http",
+		Host:   remoteHabitatUser.host,
 		Path:   path,
 	}
 }
