@@ -72,7 +72,7 @@ func (s *serviceAuthServer) ValidateToken(token string) (string, error) {
 		return "", errors.Join(fmt.Errorf("failed to parse payload"), err)
 	}
 
-	if time.Now().Unix() > payload.exp {
+	if time.Now().Unix() > payload.Exp {
 		return "", errors.New("token expired")
 	}
 
@@ -82,7 +82,7 @@ func (s *serviceAuthServer) ValidateToken(token string) (string, error) {
 	// 	return "", errors.New("invalid audience")
 	// }
 
-	if payload.lxm != "com.habitat.getRecord" {
+	if payload.Lxm != "com.habitat.getRecord" {
 		return "", errors.New("unsupported lexicon method")
 	}
 
@@ -92,17 +92,20 @@ func (s *serviceAuthServer) ValidateToken(token string) (string, error) {
 		return "", errors.Join(errors.New("failed to decode signature"), err)
 	}
 
-	id, err := s.dir.LookupDID(ctx, syntax.DID(payload.iss))
+	id, err := s.dir.LookupDID(ctx, syntax.DID(payload.Iss))
+	if err != nil {
+		return "", errors.Join(errors.New("failed to lookup identity"), err)
+	}
 	publicKey, err := id.PublicKey()
 	if err != nil {
 		return "", errors.Join(errors.New("failed to get public key"), err)
 	}
 
-	if header.alg == "ES256K" {
+	if header.Alg == "ES256K" {
 		if _, ok := publicKey.(*crypto.PublicKeyK256); !ok {
 			return "", errors.New("invalid key type")
 		}
-	} else if header.alg == "ES256" {
+	} else if header.Alg == "ES256" {
 		if _, ok := publicKey.(*crypto.PublicKeyP256); !ok {
 			return "", errors.New("invalid key type")
 		}
@@ -115,11 +118,11 @@ func (s *serviceAuthServer) ValidateToken(token string) (string, error) {
 		return "", errors.Join(errors.New("failed to verify signature"), err)
 	}
 
-	return payload.iss, nil
+	return payload.Iss, nil
 }
 
 type serviceJwtHeader struct {
-	alg string
+	Alg string `json:"alg"`
 }
 
 func parseHeader(header string) (*serviceJwtHeader, error) {
@@ -133,11 +136,10 @@ func parseHeader(header string) (*serviceJwtHeader, error) {
 }
 
 type serviceJwtPayload struct {
-	iss string
-	aud string
-	exp int64
-	lxm string
-	jti string
+	Iss string `json:"iss"`
+	Aud string `json:"aud"`
+	Exp int64  `json:"exp"`
+	Lxm string `json:"lxm"`
 }
 
 func parsePayload(payload string) (*serviceJwtPayload, error) {
