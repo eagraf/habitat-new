@@ -16,8 +16,8 @@ RUN pnpm install
 # Copy the rest of your application's code
 COPY ./frontend/ .
 
-# Your app binds to port 3000, make sure the container does too
-EXPOSE 8000
+# Your app binds to port 5173, make sure the container does too
+EXPOSE 5173
 
 # Command to run your app using pnpm
-CMD [ "pnpm", "dev"]
+CMD ["pnpm", "start"]
