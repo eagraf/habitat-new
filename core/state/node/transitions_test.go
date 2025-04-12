@@ -36,12 +36,7 @@ func testTransitions(oldState *State, transitions []hdb.Transition) (*State, err
 			return nil, fmt.Errorf("transition type is empty")
 		}
 
-		err := t.Enrich(oldJSONState.Bytes())
-		if err != nil {
-			return nil, fmt.Errorf("transition enrichment failed: %s", err)
-		}
-
-		err = t.Validate(oldJSONState.Bytes())
+		err := t.Validate(oldJSONState.Bytes())
 		if err != nil {
 			return nil, fmt.Errorf("transition validation failed: %s", err)
 		}
@@ -150,10 +145,7 @@ func TestAddingUsers(t *testing.T) {
 				SchemaVersion: CurrentVersion,
 			},
 		},
-		&AddUserTransition{
-			Username:    "eagraf",
-			Certificate: "placeholder",
-		},
+		GenAddUserTransition("eagraf", "fake-did"),
 	}
 
 	newState, err := testTransitions(nil, transitions)
@@ -165,10 +157,7 @@ func TestAddingUsers(t *testing.T) {
 	assert.Equal(t, 1, len(newState.Users))
 
 	testSecondUserConflictOnUsername := []hdb.Transition{
-		&AddUserTransition{
-			Username:    "eagraf",
-			Certificate: "placeholder",
-		},
+		GenAddUserTransition("eagraf", "fake-did"),
 	}
 
 	_, err = testTransitionsOnCopy(newState, testSecondUserConflictOnUsername)
@@ -184,9 +173,8 @@ func TestAppLifecycle(t *testing.T) {
 				SchemaVersion: LatestVersion,
 				Users: map[string]*User{
 					"123": {
-						ID:          "123",
-						Username:    "eagraf",
-						Certificate: "placeholder",
+						ID:       "123",
+						Username: "eagraf",
 					},
 				},
 			},
@@ -312,8 +300,7 @@ func TestAppInstallReverseProxyRules(t *testing.T) {
 				SchemaVersion: LatestVersion,
 				Users: map[string]*User{
 					"123": &User{
-						Username:    "eagraf",
-						Certificate: "placeholder",
+						Username: "eagraf",
 					},
 				},
 				ReverseProxyRules: proxyRules,
@@ -359,9 +346,8 @@ func TestProcesses(t *testing.T) {
 				SchemaVersion: LatestVersion,
 				Users: map[string]*User{
 					"123": {
-						ID:          "123",
-						Username:    "eagraf",
-						Certificate: "placeholder",
+						ID:       "123",
+						Username: "eagraf",
 					},
 				},
 				AppInstallations: map[string]*AppInstallation{
@@ -485,9 +471,8 @@ func TestMigrationsTransition(t *testing.T) {
 				SchemaVersion: "v0.0.1",
 				Users: map[string]*User{
 					"123": {
-						ID:          "123",
-						Username:    "eagraf",
-						Certificate: "placeholder",
+						ID:       "123",
+						Username: "eagraf",
 					},
 				},
 			},

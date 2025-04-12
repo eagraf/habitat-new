@@ -12,6 +12,7 @@ export const Route = createFileRoute('/add-user')({
         const handle = formData.get('handle') as string
         const password = formData.get('password') as string
 
+        // TODO: this should just pass through to the PDS xrpc endpoint -- unfortunately there's a bit more node setup that happens.
         return fetch('/habitat/api/node/users', {
           method: 'POST',
           headers: {
