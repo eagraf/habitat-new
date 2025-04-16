@@ -7,11 +7,18 @@ import { routeTree } from './routeTree.gen'
 
 import reportWebVitals from './reportWebVitals.ts'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { oauthClient } from './lib/oauthClient.ts'
+
+const queryClient = new QueryClient();
 
 // Create a new router instance
 const router = createRouter({
   routeTree,
-  context: {},
+  context: {
+    queryClient,
+    oauthClient,
+    authSession: undefined
+  },
   defaultPreload: 'intent',
   scrollRestoration: true,
   defaultStructuralSharing: true,
@@ -25,7 +32,6 @@ declare module '@tanstack/react-router' {
   }
 }
 
-const queryClient = new QueryClient();
 
 // Render the app
 const rootElement = document.getElementById('app')
