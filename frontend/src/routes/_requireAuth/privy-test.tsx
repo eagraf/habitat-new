@@ -6,7 +6,6 @@ export const Route = createFileRoute('/_requireAuth/privy-test')({
     const { authSession } = Route.useRouteContext()
     const { mutate } = useMutation({
       async mutationFn() {
-        console.log(await authSession?.server.buildClientAuth('token'))
         const response = await authSession?.fetchHandler('/xrpc/com.habitat.putRecord', {
           method: 'POST',
           body: JSON.stringify({
