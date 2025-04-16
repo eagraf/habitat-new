@@ -20,9 +20,9 @@ const (
 	ContextKeyUserID HabitatContextKey = "user_id"
 
 	// Default port values
-	DefaultPortHabitatAPI   = "3000"
+	DefaultPortHabitatAPI   = "5001"
 	DefaultPortReverseProxy = "3001"
-	DefaultPortPDS          = "5001"
+	DefaultPortPDS          = "3000"
 
 	PortReverseProxyTSFunnel = "443"
 
@@ -30,6 +30,4 @@ const (
 	TSNetHostnameDev     = "habitat-dev"
 )
 
-var (
-	DefaultPDSHostname = fmt.Sprintf("host.docker.internal:%s", DefaultPortPDS)
-)
+var DefaultPDSHostname = fmt.Sprintf("host.docker.internal:%s", DefaultPortPDS)

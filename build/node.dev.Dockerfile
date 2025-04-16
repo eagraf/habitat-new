@@ -25,7 +25,7 @@ RUN mkdir -p /go/src/github.com/eagraf/habitat-new/pkg
 # But we can document in the Dockerfile what ports
 # the application is going to listen on by default.
 # https://docs.docker.com/engine/reference/builder/#expose
-EXPOSE 3000
+EXPOSE 5001
 EXPOSE 3001
 EXPOSE 4000
 EXPOSE 80
