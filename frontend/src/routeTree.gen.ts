@@ -15,7 +15,9 @@ import { Route as ServerImport } from './routes/server'
 import { Route as LoginImport } from './routes/login'
 import { Route as AppStoreImport } from './routes/app-store'
 import { Route as AddUserImport } from './routes/add-user'
+import { Route as RequireAuthImport } from './routes/_requireAuth'
 import { Route as IndexImport } from './routes/index'
+import { Route as RequireAuthPrivyTestImport } from './routes/_requireAuth/privy-test'
 
 // Create/Update Routes
 
@@ -43,10 +45,21 @@ const AddUserRoute = AddUserImport.update({
   getParentRoute: () => rootRoute,
 } as any)
 
+const RequireAuthRoute = RequireAuthImport.update({
+  id: '/_requireAuth',
+  getParentRoute: () => rootRoute,
+} as any)
+
 const IndexRoute = IndexImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRoute,
+} as any)
+
+const RequireAuthPrivyTestRoute = RequireAuthPrivyTestImport.update({
+  id: '/privy-test',
+  path: '/privy-test',
+  getParentRoute: () => RequireAuthRoute,
 } as any)
 
 // Populate the FileRoutesByPath interface
@@ -58,6 +71,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexImport
+      parentRoute: typeof rootRoute
+    }
+    '/_requireAuth': {
+      id: '/_requireAuth'
+      path: ''
+      fullPath: ''
+      preLoaderRoute: typeof RequireAuthImport
       parentRoute: typeof rootRoute
     }
     '/add-user': {
@@ -88,47 +108,95 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ServerImport
       parentRoute: typeof rootRoute
     }
+    '/_requireAuth/privy-test': {
+      id: '/_requireAuth/privy-test'
+      path: '/privy-test'
+      fullPath: '/privy-test'
+      preLoaderRoute: typeof RequireAuthPrivyTestImport
+      parentRoute: typeof RequireAuthImport
+    }
   }
 }
 
 // Create and export the route tree
 
+interface RequireAuthRouteChildren {
+  RequireAuthPrivyTestRoute: typeof RequireAuthPrivyTestRoute
+}
+
+const RequireAuthRouteChildren: RequireAuthRouteChildren = {
+  RequireAuthPrivyTestRoute: RequireAuthPrivyTestRoute,
+}
+
+const RequireAuthRouteWithChildren = RequireAuthRoute._addFileChildren(
+  RequireAuthRouteChildren,
+)
+
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '': typeof RequireAuthRouteWithChildren
   '/add-user': typeof AddUserRoute
   '/app-store': typeof AppStoreRoute
   '/login': typeof LoginRoute
   '/server': typeof ServerRoute
+  '/privy-test': typeof RequireAuthPrivyTestRoute
 }
 
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '': typeof RequireAuthRouteWithChildren
   '/add-user': typeof AddUserRoute
   '/app-store': typeof AppStoreRoute
   '/login': typeof LoginRoute
   '/server': typeof ServerRoute
+  '/privy-test': typeof RequireAuthPrivyTestRoute
 }
 
 export interface FileRoutesById {
   __root__: typeof rootRoute
   '/': typeof IndexRoute
+  '/_requireAuth': typeof RequireAuthRouteWithChildren
   '/add-user': typeof AddUserRoute
   '/app-store': typeof AppStoreRoute
   '/login': typeof LoginRoute
   '/server': typeof ServerRoute
+  '/_requireAuth/privy-test': typeof RequireAuthPrivyTestRoute
 }
 
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/add-user' | '/app-store' | '/login' | '/server'
+  fullPaths:
+    | '/'
+    | ''
+    | '/add-user'
+    | '/app-store'
+    | '/login'
+    | '/server'
+    | '/privy-test'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/add-user' | '/app-store' | '/login' | '/server'
-  id: '__root__' | '/' | '/add-user' | '/app-store' | '/login' | '/server'
+  to:
+    | '/'
+    | ''
+    | '/add-user'
+    | '/app-store'
+    | '/login'
+    | '/server'
+    | '/privy-test'
+  id:
+    | '__root__'
+    | '/'
+    | '/_requireAuth'
+    | '/add-user'
+    | '/app-store'
+    | '/login'
+    | '/server'
+    | '/_requireAuth/privy-test'
   fileRoutesById: FileRoutesById
 }
 
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  RequireAuthRoute: typeof RequireAuthRouteWithChildren
   AddUserRoute: typeof AddUserRoute
   AppStoreRoute: typeof AppStoreRoute
   LoginRoute: typeof LoginRoute
@@ -137,6 +205,7 @@ export interface RootRouteChildren {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  RequireAuthRoute: RequireAuthRouteWithChildren,
   AddUserRoute: AddUserRoute,
   AppStoreRoute: AppStoreRoute,
   LoginRoute: LoginRoute,
@@ -154,6 +223,7 @@ export const routeTree = rootRoute
       "filePath": "__root.tsx",
       "children": [
         "/",
+        "/_requireAuth",
         "/add-user",
         "/app-store",
         "/login",
@@ -162,6 +232,12 @@ export const routeTree = rootRoute
     },
     "/": {
       "filePath": "index.tsx"
+    },
+    "/_requireAuth": {
+      "filePath": "_requireAuth.tsx",
+      "children": [
+        "/_requireAuth/privy-test"
+      ]
     },
     "/add-user": {
       "filePath": "add-user.tsx"
@@ -174,6 +250,10 @@ export const routeTree = rootRoute
     },
     "/server": {
       "filePath": "server.tsx"
+    },
+    "/_requireAuth/privy-test": {
+      "filePath": "_requireAuth/privy-test.tsx",
+      "parent": "/_requireAuth"
     }
   }
 }
