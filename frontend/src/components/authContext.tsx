@@ -2,7 +2,6 @@
 
 import React, { createContext, useContext, useState, type ReactNode, useEffect } from 'react';
 import Cookies from 'js-cookie';
-import axios from 'axios';
 import { useRouter } from '@tanstack/react-router';
 
 interface AuthContextType {
