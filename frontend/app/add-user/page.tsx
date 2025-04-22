@@ -32,7 +32,6 @@ const Register: React.FC = () => {
                     'Content-Type': 'application/json',
                 }
             })
-            console.log("resp", response)
 
             const { access_token } = await response.json();
 

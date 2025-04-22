@@ -12,7 +12,7 @@ type Schema interface {
 	Name() string
 	EmptyState() (State, error)
 	Type() reflect.Type
-	InitializationTransition(initState []byte) (Transition, error)
+	Initialize(initState []byte) (Transition, error)
 	ValidateState(state []byte) error
 }
 

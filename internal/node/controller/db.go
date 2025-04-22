@@ -42,9 +42,7 @@ func MigrateNodeDB(databaseManager hdb.HDBManager, targetVersion string) error {
 	}
 
 	_, err = dbClient.ProposeTransitions([]hdb.Transition{
-		&node.MigrationTransition{
-			TargetVersion: targetVersion,
-		},
+		node.CreateMigrationTransition(targetVersion),
 	})
 	return err
 }

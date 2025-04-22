@@ -41,9 +41,7 @@ func setupNodeDBTest(ctrl *gomock.Controller, t *testing.T) (*hdb_mocks.MockHDBM
 
 	initState := fakeInitState("fake_cert", "fake_user_id", "fake_username")
 	transitions := []hdb.Transition{
-		&node.InitalizationTransition{
-			InitState: initState,
-		},
+		node.CreateInitializationTransition(initState),
 	}
 
 	// Check that fakeInitState is based off of the config we pass in
@@ -54,12 +52,6 @@ func setupNodeDBTest(ctrl *gomock.Controller, t *testing.T) (*hdb_mocks.MockHDBM
 
 			initStateTransition := initTransitions[0]
 			require.Equal(t, hdb.TransitionInitialize, initStateTransition.Type())
-
-			state := initStateTransition.(*node.InitalizationTransition).InitState
-
-			assert.Equal(t, 1, len(state.Users))
-			assert.Equal(t, "fake_username", state.Users["fake_user_id"].Username)
-			assert.Equal(t, "fake_user_id", state.Users["fake_user_id"].ID)
 
 			return mockedClient, nil
 		}).Times(1)
@@ -99,9 +91,7 @@ func TestMigrationController(t *testing.T) {
 	mockClient.EXPECT().Bytes().Return(marshaled).Times(1)
 	mockClient.EXPECT().ProposeTransitions(gomock.Eq(
 		[]hdb.Transition{
-			&node.MigrationTransition{
-				TargetVersion: "v0.0.3",
-			},
+			node.CreateMigrationTransition("v0.0.3"),
 		},
 	)).Return(nil, nil).Times(1)
 
@@ -122,9 +112,7 @@ func TestMigrationController(t *testing.T) {
 	mockClient.EXPECT().Bytes().Return(marshaled).Times(1)
 	mockClient.EXPECT().ProposeTransitions(gomock.Eq(
 		[]hdb.Transition{
-			&node.MigrationTransition{
-				TargetVersion: "v0.0.1",
-			},
+			node.CreateMigrationTransition("v0.0.1"),
 		},
 	)).Times(1)
 

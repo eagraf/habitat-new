@@ -72,7 +72,7 @@ func (c *Controller2) startProcess(installationID string) error {
 		return fmt.Errorf("app with ID %s not found", installationID)
 	}
 
-	transition, err := node.GenProcessStartTransition(installationID, state)
+	transition, id, err := node.CreateProcessStartTransition(installationID, state)
 	if err != nil {
 		return errors.Wrap(err, "error creating transition")
 	}
@@ -88,20 +88,18 @@ func (c *Controller2) startProcess(installationID string) error {
 		return errors.Wrap(err, "error getting new state")
 	}
 
-	err = c.processManager.StartProcess(c.ctx, transition.Process.ID, app)
+	err = c.processManager.StartProcess(c.ctx, id, app)
 	if err != nil {
 		// Rollback the state change if the process start failed
 		_, err = c.db.ProposeTransitions([]hdb.Transition{
-			&node.ProcessStopTransition{
-				ProcessID: transition.Process.ID,
-			},
+			node.CreateProcessStopTransition(id),
 		})
 		return errors.Wrap(err, "error starting process")
 	}
 
 	// Register with reverse proxy server
 	for _, rule := range newState.ReverseProxyRules {
-		if rule.AppID == transition.Process.AppID {
+		if rule.AppID == app.ID {
 			if c.proxyServer.RuleSet.AddRule(rule) != nil {
 				return errors.Wrap(err, "error adding reverse proxy rule")
 			}
@@ -123,9 +121,7 @@ func (c *Controller2) stopProcess(processID node.ProcessID) error {
 
 	// Only propose transitions if the process exists in state
 	_, err := c.db.ProposeTransitions([]hdb.Transition{
-		&node.ProcessStopTransition{
-			ProcessID: processID,
-		},
+		node.CreateProcessStopTransition(processID),
 	})
 	return err
 }
@@ -136,7 +132,7 @@ func (c *Controller2) installApp(userID string, pkg *node.Package, version strin
 		return fmt.Errorf("No driver %s found for app installation [name: %s, version: %s, package: %v]", pkg.Driver, name, version, pkg)
 	}
 
-	transition := node.GenStartInstallationTransition(userID, pkg, version, name, proxyRules)
+	transition, id := node.CreateStartInstallationTransition(userID, pkg, version, name, proxyRules)
 	_, err := c.db.ProposeTransitions([]hdb.Transition{
 		transition,
 	})
@@ -149,27 +145,22 @@ func (c *Controller2) installApp(userID string, pkg *node.Package, version strin
 		return err
 	}
 	_, err = c.db.ProposeTransitions([]hdb.Transition{
-		&node.FinishInstallationTransition{
-			AppID: transition.ID,
-		},
+		node.CreateFinishInstallationTransition(id),
 	})
 	if err != nil {
 		return err
 	}
 
 	if start {
-		return c.startProcess(transition.ID)
+		return c.startProcess(id)
 	}
 	return nil
 }
 
 func (c *Controller2) uninstallApp(appID string) error {
 	_, err := c.db.ProposeTransitions([]hdb.Transition{
-		&node.UninstallTransition{
-			AppID: appID,
-		},
+		node.CreateUninstallAppTransition(appID),
 	})
-
 	return err
 }
 
@@ -186,7 +177,7 @@ func (c *Controller2) addUser(ctx context.Context, input *atproto.ServerCreateAc
 	}
 
 	_, err = c.db.ProposeTransitions([]hdb.Transition{
-		node.GenAddUserTransition(output.Handle, output.Did),
+		node.CreateAddUserTransition(output.Handle, output.Did),
 	})
 	if err != nil {
 		return nil, err
@@ -206,9 +197,7 @@ func (c *Controller2) migrateDB(targetVersion string) error {
 	}
 
 	_, err = c.db.ProposeTransitions([]hdb.Transition{
-		&node.MigrationTransition{
-			TargetVersion: targetVersion,
-		},
+		node.CreateMigrationTransition(targetVersion),
 	})
 	return err
 }

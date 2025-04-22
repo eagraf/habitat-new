@@ -54,17 +54,18 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             }
 
             const fullHandle = parentDomain == "localhost" ? `${identifier}` : `${identifier}.${window.location.hostname}`;
-            const response = await axios.post(`${window.location.origin}/xrpc/com.atproto.server.createSession`, {
-                password: password,
-                identifier: fullHandle,
-            }, {
+            const response = await fetch(`${window.location.origin}/habitat/api/node/users`, {
+                method: 'POST',
+                body: JSON.stringify({
+                    password: password,
+                    identifier: fullHandle,
+                }),
                 headers: {
                     'Content-Type': 'application/json',
-                },
-            });
-            console.log(response.data);
+                }
+            })
 
-            const { accessJwt, refreshJwt, did, handle } = response.data;
+            const { accessJwt, refreshJwt, did, handle } = await response.json();
 
 
             // Set the access token in a cookie
