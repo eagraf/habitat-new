@@ -28,7 +28,7 @@ import (
 	"github.com/eagraf/habitat-new/internal/node/reverse_proxy"
 	"github.com/eagraf/habitat-new/internal/node/server"
 	"github.com/eagraf/habitat-new/internal/package_manager"
-	"github.com/eagraf/habitat-new/internal/privy"
+	"github.com/eagraf/habitat-new/internal/privi"
 	"github.com/eagraf/habitat-new/internal/process"
 	"github.com/eagraf/habitat-new/internal/pubsub"
 	"github.com/eagraf/habitat-new/internal/web"
@@ -200,10 +200,10 @@ func main() {
 	}
 
 	// Add privy routes
-	privyServer := privy.NewServer(
+	privyServer := privi.NewServer(
 		constants.DefaultPDSHostname,
 		habitatResolver,
-		&privy.NoopEncrypter{}, /* TODO: use actual encryption */
+		&privi.NoopEncrypter{}, /* TODO: use actual encryption */
 		bffauth.NewClient(),
 		bffProvider,
 		permissions.NewDummyStore(),
