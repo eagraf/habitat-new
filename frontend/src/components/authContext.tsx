@@ -65,7 +65,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
             // TODO: handle 401 Unauthorized
             const respBody = await response.json();
-            console.log(respBody)
 
             if (response.status != 200) {
                 throw new Error(respBody)
