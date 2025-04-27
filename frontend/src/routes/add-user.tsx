@@ -24,7 +24,7 @@ export const Route = createFileRoute('/add-user')({
           }),
         })
         if (!response.ok) {
-          throw new Error('Registration failed')
+          throw new Error(await response.text())
         }
       },
       onSuccess() {
