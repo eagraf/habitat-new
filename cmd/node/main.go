@@ -194,13 +194,13 @@ func main() {
 
 	// TODO: eventually we need a way given a did to resolve the habitat server host.
 	// This likely can go into the DID document services
-	// For now, hardcode it. This is used by the privyServer.
+	// For now, hardcode it. This is used by the priviServer.
 	habitatResolver := func(did string) string {
 		panic("unimplemented")
 	}
 
-	// Add privy routes
-	privyServer := privi.NewServer(
+	// Add privi routes
+	priviServer := privi.NewServer(
 		constants.DefaultPDSHostname,
 		habitatResolver,
 		&privi.NoopEncrypter{}, /* TODO: use actual encryption */
@@ -208,7 +208,7 @@ func main() {
 		bffProvider,
 		permissions.NewDummyStore(),
 	)
-	routes = append(routes, privyServer.GetRoutes()...)
+	routes = append(routes, priviServer.GetRoutes()...)
 
 	router := api.NewRouter(routes, logger)
 	apiServer := &http.Server{
