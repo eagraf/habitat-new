@@ -7,10 +7,10 @@ export const Route = createFileRoute('/privy-demo/view')({
             rkey: search.rkey as string,
         }
     },
-    async loader() {
-        const { did, rkey } = Route.useSearch()
+    loaderDeps: ({ search }) => (search),
+    async loader({ deps: { did, rkey } }) {
         const params = new URLSearchParams()
-        params.set('did', did)
+        params.set('repo', did)
         params.set('rkey', rkey)
         params.set('collection', 'com.habitat.privyDemo.messages')
         const response = await fetch(`/habitat/api/xrpc/com.habitat.getRecord?${params.toString()}`);
