@@ -15,7 +15,6 @@ import (
 	"github.com/docker/go-connections/nat"
 	"github.com/eagraf/habitat-new/core/permissions"
 	"github.com/eagraf/habitat-new/core/state/node"
-	"github.com/eagraf/habitat-new/internal/bffauth"
 	"github.com/eagraf/habitat-new/internal/docker"
 	"github.com/eagraf/habitat-new/internal/node/api"
 	"github.com/eagraf/habitat-new/internal/node/appstore"
@@ -185,13 +184,6 @@ func main() {
 		routes = append(routes, appstore.NewAvailableAppsRoute(nodeConfig.HabitatPath()))
 	}
 
-	// Add BFF auth routes
-	bffProvider := bffauth.NewProvider(
-		bffauth.NewInMemorySessionPersister(),
-		[]byte("temp_signing_key"), // TODO @eagraf - use a real signing key
-	)
-	routes = append(routes, bffProvider.GetRoutes()...)
-
 	// TODO: eventually we need a way given a did to resolve the habitat server host.
 	// This likely can go into the DID document services
 	// For now, hardcode it. This is used by the priviServer.
@@ -199,6 +191,14 @@ func main() {
 		panic("unimplemented")
 	}
 
+	// TODO: this is a hack. the privy server should have a way to register users with a did.
+	did := ""
+	for _, u := range initState.Users {
+		did = u.DID
+	}
+	if did == "" {
+		log.Fatal().Msg("no did found amongst users")
+	}
 	// Add privy routes
 	priviServer := privi.NewServer(
 		"todo-did-fill-me-in",
