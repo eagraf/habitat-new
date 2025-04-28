@@ -180,16 +180,14 @@ func (s *NodeSchema) Type() reflect.Type {
 	return reflect.TypeOf(&State{})
 }
 
-func (s *NodeSchema) InitializationTransition(initState []byte) (hdb.Transition, error) {
+func (s *NodeSchema) Initialize(initState []byte) (hdb.Transition, error) {
 	var is *State
 	err := json.Unmarshal(initState, &is)
 	if err != nil {
 		return nil, err
 	}
 	is.SchemaVersion = CurrentVersion
-	return &InitalizationTransition{
-		InitState: is,
-	}, nil
+	return CreateInitializationTransition(is), nil
 }
 
 func (s *NodeSchema) JSONSchemaForVersion(version string) (*jsonschema.Schema, error) {

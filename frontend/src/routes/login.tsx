@@ -21,7 +21,7 @@ export const Route = createFileRoute('/login')({
       <form onSubmit={handleSubmit}>
         <input name="handle" type="text" placeholder="Handle" required />
         <button aria-busy={isPending} type="submit">Login</button>
-      </form>
-    </article>
+      </form >
+    </article >
   }
 })

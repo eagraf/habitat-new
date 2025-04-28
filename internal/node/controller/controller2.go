@@ -23,7 +23,7 @@ type Controller2 struct {
 	processManager process.ProcessManager
 	pkgManagers    map[node.DriverType]package_manager.PackageManager
 	proxyServer    *reverse_proxy.ProxyServer
-	pdsHost        string
+	pdsURL         string
 }
 
 func NewController2(
@@ -37,7 +37,10 @@ func NewController2(
 	// Validate types of all input components
 	_, ok := processManager.(node.Component[process.RestoreInfo])
 	if !ok {
-		return nil, fmt.Errorf("Process manager of type %T does not implement Component[*node.Process]", processManager)
+		return nil, fmt.Errorf(
+			"Process manager of type %T does not implement Component[*node.Process]",
+			processManager,
+		)
 	}
 
 	ctrl := &Controller2{
@@ -46,7 +49,7 @@ func NewController2(
 		pkgManagers:    pkgManagers,
 		db:             db,
 		proxyServer:    proxyServer,
-		pdsHost:        pdsHost,
+		pdsURL:         "http://" + pdsHost, // PDS expects http requests for now.
 	}
 
 	return ctrl, nil
@@ -72,7 +75,7 @@ func (c *Controller2) startProcess(installationID string) error {
 		return fmt.Errorf("app with ID %s not found", installationID)
 	}
 
-	transition, err := node.GenProcessStartTransition(installationID, state)
+	transition, id, err := node.CreateProcessStartTransition(installationID, state)
 	if err != nil {
 		return errors.Wrap(err, "error creating transition")
 	}
@@ -88,20 +91,18 @@ func (c *Controller2) startProcess(installationID string) error {
 		return errors.Wrap(err, "error getting new state")
 	}
 
-	err = c.processManager.StartProcess(c.ctx, transition.Process.ID, app)
+	err = c.processManager.StartProcess(c.ctx, id, app)
 	if err != nil {
 		// Rollback the state change if the process start failed
 		_, err = c.db.ProposeTransitions([]hdb.Transition{
-			&node.ProcessStopTransition{
-				ProcessID: transition.Process.ID,
-			},
+			node.CreateProcessStopTransition(id),
 		})
 		return errors.Wrap(err, "error starting process")
 	}
 
 	// Register with reverse proxy server
 	for _, rule := range newState.ReverseProxyRules {
-		if rule.AppID == transition.Process.AppID {
+		if rule.AppID == app.ID {
 			if c.proxyServer.RuleSet.AddRule(rule) != nil {
 				return errors.Wrap(err, "error adding reverse proxy rule")
 			}
@@ -123,20 +124,31 @@ func (c *Controller2) stopProcess(processID node.ProcessID) error {
 
 	// Only propose transitions if the process exists in state
 	_, err := c.db.ProposeTransitions([]hdb.Transition{
-		&node.ProcessStopTransition{
-			ProcessID: processID,
-		},
+		node.CreateProcessStopTransition(processID),
 	})
 	return err
 }
 
-func (c *Controller2) installApp(userID string, pkg *node.Package, version string, name string, proxyRules []*node.ReverseProxyRule, start bool) error {
+func (c *Controller2) installApp(
+	userID string,
+	pkg *node.Package,
+	version string,
+	name string,
+	proxyRules []*node.ReverseProxyRule,
+	start bool,
+) error {
 	installer, ok := c.pkgManagers[pkg.Driver]
 	if !ok {
-		return fmt.Errorf("No driver %s found for app installation [name: %s, version: %s, package: %v]", pkg.Driver, name, version, pkg)
+		return fmt.Errorf(
+			"No driver %s found for app installation [name: %s, version: %s, package: %v]",
+			pkg.Driver,
+			name,
+			version,
+			pkg,
+		)
 	}
 
-	transition := node.GenStartInstallationTransition(userID, pkg, version, name, proxyRules)
+	transition, id := node.CreateStartInstallationTransition(userID, pkg, version, name, proxyRules)
 	_, err := c.db.ProposeTransitions([]hdb.Transition{
 		transition,
 	})
@@ -149,31 +161,70 @@ func (c *Controller2) installApp(userID string, pkg *node.Package, version strin
 		return err
 	}
 	_, err = c.db.ProposeTransitions([]hdb.Transition{
-		&node.FinishInstallationTransition{
-			AppID: transition.ID,
-		},
+		node.CreateFinishInstallationTransition(id),
 	})
 	if err != nil {
 		return err
 	}
 
 	if start {
-		return c.startProcess(transition.ID)
+		return c.startProcess(id)
 	}
 	return nil
 }
 
 func (c *Controller2) uninstallApp(appID string) error {
 	_, err := c.db.ProposeTransitions([]hdb.Transition{
-		&node.UninstallTransition{
-			AppID: appID,
-		},
+		node.CreateUninstallAppTransition(appID),
 	})
-
 	return err
 }
 
-func (c *Controller2) addUser(ctx context.Context, input *atproto.ServerCreateAccount_Input) (*atproto.ServerCreateAccount_Output, error) {
+func (c *Controller2) addUser(
+	ctx context.Context,
+	input *atproto.ServerCreateAccount_Input,
+) (*atproto.ServerCreateAccount_Output, error) {
+	output, err := atproto.ServerCreateAccount(
+		ctx,
+		&xrpc.Client{
+			Host: c.pdsURL, // xrpc.Client Host param expects url
+		},
+		input,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = c.db.ProposeTransitions([]hdb.Transition{
+		node.CreateAddUserTransition(output.Handle, output.Did),
+	})
+	if err != nil {
+		return nil, err
+	}
+	return output, nil
+}
+
+func (c *Controller2) migrateDB(targetVersion string) error {
+	var nodeState node.State
+	err := json.Unmarshal(c.db.Bytes(), &nodeState)
+	if err != nil {
+		return nil
+	}
+	// No-op if version is already the target
+	if semver.Compare(nodeState.SchemaVersion, targetVersion) == 0 {
+		return nil
+	}
+
+	_, err = c.db.ProposeTransitions([]hdb.Transition{
+		node.CreateMigrationTransition(targetVersion),
+	})
+	return err
+}
+
+func (c *Controller2) addUser(
+	ctx context.Context,
+	input *atproto.ServerCreateAccount_Input,
+) (*atproto.ServerCreateAccount_Output, error) {
 	output, err := atproto.ServerCreateAccount(
 		ctx,
 		&xrpc.Client{
@@ -236,7 +287,11 @@ func (c *Controller2) restore(state *node.State) error {
 	for _, proc := range state.Processes {
 		app, ok := state.AppInstallations[proc.AppID]
 		if !ok {
-			return fmt.Errorf("no app installation found for desired process: ID=%s appID=%s", proc.ID, proc.AppID)
+			return fmt.Errorf(
+				"no app installation found for desired process: ID=%s appID=%s",
+				proc.ID,
+				proc.AppID,
+			)
 		}
 		info[proc.ID] = app
 	}

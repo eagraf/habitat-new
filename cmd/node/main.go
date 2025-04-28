@@ -382,10 +382,9 @@ func initialState(
 	}
 
 	// A list of transitions to apply when the node starts up for the first time.
+	init := node.CreateInitializationTransition(state)
 	transitions := []hdb.Transition{
-		&node.InitalizationTransition{
-			InitState: state,
-		},
+		init,
 	}
 	return state, transitions, nil
 }

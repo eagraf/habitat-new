@@ -50,11 +50,11 @@ export const Route = createFileRoute('/')({
               <tr key={id}>
                 <td>
                   <Link to={link}>{icon} {name}</Link>
-                </td>
+                </td >
                 <td>{description}</td>
-              </tr>))}
-          </tbody>
-        </table>
+              </tr >))}
+          </tbody >
+        </table >
       </>
     )
   },

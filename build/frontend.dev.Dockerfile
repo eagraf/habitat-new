@@ -4,6 +4,8 @@ FROM node:20-slim
 # Set the working directory in the container
 WORKDIR /app
 
+ENV PATH ./node_modules/.bin:$PATH
+
 # Install pnpm
 RUN npm install -g pnpm
 
