@@ -199,13 +199,11 @@ func main() {
 		panic("unimplemented")
 	}
 
-	// Add privi routes
+	// Add privy routes
 	priviServer := privi.NewServer(
-		constants.DefaultPDSHostname,
+		"todo-did-fill-me-in",
 		habitatResolver,
 		&privi.NoopEncrypter{}, /* TODO: use actual encryption */
-		bffauth.NewClient(),
-		bffProvider,
 		permissions.NewDummyStore(),
 	)
 	routes = append(routes, priviServer.GetRoutes()...)

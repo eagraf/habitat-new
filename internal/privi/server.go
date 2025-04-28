@@ -3,6 +3,7 @@ package privi
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -13,7 +14,6 @@ import (
 	"github.com/bluesky-social/indigo/xrpc"
 
 	"github.com/eagraf/habitat-new/core/permissions"
-	"github.com/eagraf/habitat-new/internal/bffauth"
 	"github.com/eagraf/habitat-new/internal/node/api"
 	"github.com/rs/zerolog/log"
 )
@@ -24,29 +24,24 @@ type PutRecordRequest struct {
 }
 
 type Server struct {
+	// TODO: allow privy server to serve many stores, not just one user
 	inner *store
 	// Used to figure out where to route requests given a DID
 	habitatResolver func(string) string
 	// Used for resolving handles -> did, did -> PDS
 	dir identity.Directory
-	// The local pds host this server is tied to
-	localPDSHost string
-	// for habitat server-to-server communication
-	bffClient bffauth.Client
-	bffServer bffauth.Server
 }
 
-func NewServer(localPDSHost string, habitatResolver func(string) string, enc Encrypter, bffClient bffauth.Client, bffServer bffauth.Server, permStore permissions.Store) *Server {
+// NewServer returns a privi server.
+func NewServer(did string, habitatResolver func(string) string, enc Encrypter, permStore permissions.Store) *Server {
 	return &Server{
 		inner: &store{
+			did:         syntax.DID(did),
 			e:           enc,
 			permissions: permStore,
 		},
 		habitatResolver: habitatResolver,
 		dir:             identity.DefaultDirectory(),
-		localPDSHost:    localPDSHost,
-		bffClient:       bffClient,
-		bffServer:       bffServer,
 	}
 }
 
@@ -65,8 +60,22 @@ func (s *Server) PutRecord(authInfo *xrpc.AuthInfo) http.HandlerFunc {
 			return
 		}
 
+		// Get the PDS endpoint for the caller's DID
+		// If the caller does not have write access, the write will fail (assume privi is read-only premissions for now)
+		did := authInfo.Did
+		atid, err := syntax.ParseAtIdentifier(did)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		id, err := s.dir.Lookup(r.Context(), *atid)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
 		xrpcClient := &xrpc.Client{
-			Host: s.localPDSHost,
+			Host: id.PDSEndpoint(),
 			Auth: authInfo,
 		}
 		out, err := s.inner.putRecord(r.Context(), xrpcClient, req.Input, req.Encrypt)
@@ -85,6 +94,14 @@ func (s *Server) PutRecord(authInfo *xrpc.AuthInfo) http.HandlerFunc {
 		}
 	}
 }
+
+func (s *Server) servedByMe(did syntax.DID) bool {
+	return s.inner.did == did
+}
+
+var (
+	errWrongServer = fmt.Errorf("did is not served by this privi instance:")
+)
 
 // Find desired did
 // if other did, forward request there
@@ -109,54 +126,31 @@ func (s *Server) GetRecord(authInfo *xrpc.AuthInfo) http.HandlerFunc {
 		// Try handling both handles and dids
 		atid, err := syntax.ParseAtIdentifier(repo)
 		if err != nil {
+			// TODO: write helpful message
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 		id, err := s.dir.Lookup(r.Context(), *atid)
 		if err != nil {
+			// TODO: write helpful message
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
-		targetDID := id.DID.String()
-		callerDID := "" /* unpopulated when unknown */
-		var out *agnostic.RepoGetRecord_Output
-		// If trying to get data from a PDS not managed by habitat
-		if id.PDSEndpoint() != s.localPDSHost {
-			// get bff token
-			token, err := s.bffClient.GetToken(targetDID)
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
-			}
-			// Wack -- we're overloading AccessJwt to also pass around habitat managed tokens
-			// Do this for ease for now so i can re-use xrpc client with PDS notions of auth but with Habitat notions of auth
-			cli := &xrpc.Client{
-				Auth: &xrpc.AuthInfo{
-					AccessJwt: token,
-				},
-				Host: s.habitatResolver(targetDID),
-			}
-			// TODO: do i need to set an explicit header
-			out, err = agnostic.RepoGetRecord(r.Context(), cli, cid, collection, targetDID, rkey) // nolint:staticcheck
-		} else {
-			// Wack -- whenever we are serving a request from another habitat node, only authInfo.accessJwt is populated
-			// So in this case we validate the token.
-			// If the request is coming from a requesting did served by this pds, then simply pass through to getRecord
-			if authInfo.Did == "" || authInfo.Did != id.DID.String() {
-				callerDID, err = s.bffServer.ValidateToken(authInfo.AccessJwt)
-				if err != nil {
-					http.Error(w, err.Error(), http.StatusInternalServerError)
-					return
-				}
-			}
-			cli := &xrpc.Client{
-				Auth: authInfo,
-				Host: s.localPDSHost,
-			}
-			// Local: call inner.getRecord
-			out, err = s.inner.getRecord(r.Context(), cli, cid, collection, targetDID, rkey, callerDID) // nolint:staticcheck
+		targetDID := id.DID
+		if !s.servedByMe(targetDID) {
+			// TODO: write helpful message
+			http.Error(w, fmt.Sprintf("%s: did %s", errWrongServer.Error(), id.DID.String()), http.StatusBadRequest)
+			return
 		}
+
+		// Call getRecord()
+		cli := &xrpc.Client{
+			Auth: authInfo,
+			Host: id.PDSEndpoint(),
+		}
+		out, err := s.inner.getRecord(r.Context(), cli, cid, collection, targetDID, rkey, syntax.DID(authInfo.Did))
+
 		if errors.Is(err, ErrUnauthorized) {
 			http.Error(w, ErrUnauthorized.Error(), http.StatusForbidden)
 		} else if err != nil {
