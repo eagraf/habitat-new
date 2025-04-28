@@ -12,17 +12,8 @@ import (
 )
 
 // InitializeNodeDB tries initializing the database; it is a noop if a database with the same name already exists
-func InitializeNodeDB(
-	ctx context.Context,
-	databaseManager hdb.HDBManager,
-	transitions []hdb.Transition,
-) error {
-	_, err := databaseManager.CreateDatabase(
-		ctx,
-		constants.NodeDBDefaultName,
-		node.SchemaName,
-		transitions,
-	)
+func InitializeNodeDB(ctx context.Context, databaseManager hdb.HDBManager, transitions []hdb.Transition) error {
+	_, err := databaseManager.CreateDatabase(ctx, constants.NodeDBDefaultName, node.SchemaName, transitions)
 	if err != nil {
 		if _, ok := err.(*hdb.DatabaseAlreadyExistsError); ok {
 			log.Info().Msg("Node database already exists, doing nothing.")

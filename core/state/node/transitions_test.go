@@ -163,7 +163,6 @@ func TestAddingUsers(t *testing.T) {
 	_, err = testTransitionsOnCopy(newState, testSecondUserConflictOnUsername)
 	assert.NotNil(t, err)
 }
-
 func TestAppLifecycle(t *testing.T) {
 	createTransition, _ := CreateStartInstallationTransition(
 		"123",
@@ -303,7 +302,7 @@ func TestAppInstallReverseProxyRules(t *testing.T) {
 				Name:          "New Node",
 				SchemaVersion: LatestVersion,
 				Users: map[string]*User{
-					"123": {
+					"123": &User{
 						Username: "eagraf",
 					},
 				},

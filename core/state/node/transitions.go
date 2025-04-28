@@ -138,6 +138,7 @@ func (t *addUserTransition) Type() hdb.TransitionType {
 }
 
 func (t *addUserTransition) Patch(oldState hdb.SerializedState) (hdb.SerializedState, error) {
+
 	user, err := json.Marshal(t.User)
 	if err != nil {
 		return nil, err
@@ -151,6 +152,7 @@ func (t *addUserTransition) Patch(oldState hdb.SerializedState) (hdb.SerializedS
 }
 
 func (t *addUserTransition) Validate(oldState hdb.SerializedState) error {
+
 	var oldNode State
 	err := json.Unmarshal(oldState, &oldNode)
 	if err != nil {
@@ -291,7 +293,6 @@ func CreateFinishInstallationTransition(appID string) hdb.Transition {
 func (t *finishInstallationTransition) Type() hdb.TransitionType {
 	return hdb.TransitionFinishInstallation
 }
-
 func (t *finishInstallationTransition) Patch(oldState hdb.SerializedState) (hdb.SerializedState, error) {
 	var oldNode State
 	err := json.Unmarshal(oldState, &oldNode)
@@ -337,7 +338,6 @@ func CreateUninstallAppTransition(appID string) hdb.Transition {
 func (t *uninstallTransition) Type() hdb.TransitionType {
 	return hdb.TransitionStartUninstallation
 }
-
 func (t *uninstallTransition) Patch(oldState hdb.SerializedState) (hdb.SerializedState, error) {
 	return []byte(fmt.Sprintf(`[{
 		"op": "remove",
@@ -405,6 +405,7 @@ func (t *processStartTransition) Patch(oldState hdb.SerializedState) (hdb.Serial
 }
 
 func (t *processStartTransition) Validate(oldState hdb.SerializedState) error {
+
 	var oldNode State
 	err := json.Unmarshal(oldState, &oldNode)
 	if err != nil {
@@ -458,7 +459,9 @@ func (t *processStopTransition) Type() hdb.TransitionType {
 	return hdb.TransitionStopProcess
 }
 
-var ErrNoProcFound = errors.New("process with id not found")
+var (
+	ErrNoProcFound = errors.New("process with id not found")
+)
 
 func (t *processStopTransition) Patch(oldState hdb.SerializedState) (hdb.SerializedState, error) {
 	var oldNode State

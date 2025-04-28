@@ -37,10 +37,7 @@ func NewController2(
 	// Validate types of all input components
 	_, ok := processManager.(node.Component[process.RestoreInfo])
 	if !ok {
-		return nil, fmt.Errorf(
-			"Process manager of type %T does not implement Component[*node.Process]",
-			processManager,
-		)
+		return nil, fmt.Errorf("Process manager of type %T does not implement Component[*node.Process]", processManager)
 	}
 
 	ctrl := &Controller2{
@@ -129,23 +126,10 @@ func (c *Controller2) stopProcess(processID node.ProcessID) error {
 	return err
 }
 
-func (c *Controller2) installApp(
-	userID string,
-	pkg *node.Package,
-	version string,
-	name string,
-	proxyRules []*node.ReverseProxyRule,
-	start bool,
-) error {
+func (c *Controller2) installApp(userID string, pkg *node.Package, version string, name string, proxyRules []*node.ReverseProxyRule, start bool) error {
 	installer, ok := c.pkgManagers[pkg.Driver]
 	if !ok {
-		return fmt.Errorf(
-			"No driver %s found for app installation [name: %s, version: %s, package: %v]",
-			pkg.Driver,
-			name,
-			version,
-			pkg,
-		)
+		return fmt.Errorf("No driver %s found for app installation [name: %s, version: %s, package: %v]", pkg.Driver, name, version, pkg)
 	}
 
 	transition, id := node.CreateStartInstallationTransition(userID, pkg, version, name, proxyRules)
@@ -180,10 +164,7 @@ func (c *Controller2) uninstallApp(appID string) error {
 	return err
 }
 
-func (c *Controller2) addUser(
-	ctx context.Context,
-	input *atproto.ServerCreateAccount_Input,
-) (*atproto.ServerCreateAccount_Output, error) {
+func (c *Controller2) addUser(ctx context.Context, input *atproto.ServerCreateAccount_Input) (*atproto.ServerCreateAccount_Output, error) {
 	output, err := atproto.ServerCreateAccount(
 		ctx,
 		&xrpc.Client{
@@ -221,49 +202,6 @@ func (c *Controller2) migrateDB(targetVersion string) error {
 	return err
 }
 
-func (c *Controller2) addUser(
-	ctx context.Context,
-	input *atproto.ServerCreateAccount_Input,
-) (*atproto.ServerCreateAccount_Output, error) {
-	output, err := atproto.ServerCreateAccount(
-		ctx,
-		&xrpc.Client{
-			Host: c.pdsHost,
-		},
-		input,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	_, err = c.db.ProposeTransitions([]hdb.Transition{
-		node.GenAddUserTransition(output.Handle, output.Did),
-	})
-	if err != nil {
-		return nil, err
-	}
-	return output, nil
-}
-
-func (c *Controller2) migrateDB(targetVersion string) error {
-	var nodeState node.State
-	err := json.Unmarshal(c.db.Bytes(), &nodeState)
-	if err != nil {
-		return nil
-	}
-	// No-op if version is already the target
-	if semver.Compare(nodeState.SchemaVersion, targetVersion) == 0 {
-		return nil
-	}
-
-	_, err = c.db.ProposeTransitions([]hdb.Transition{
-		&node.MigrationTransition{
-			TargetVersion: targetVersion,
-		},
-	})
-	return err
-}
-
 func (c *Controller2) restore(state *node.State) error {
 	// Restore app installations to desired state
 	for _, pkgManager := range c.pkgManagers {
@@ -287,11 +225,7 @@ func (c *Controller2) restore(state *node.State) error {
 	for _, proc := range state.Processes {
 		app, ok := state.AppInstallations[proc.AppID]
 		if !ok {
-			return fmt.Errorf(
-				"no app installation found for desired process: ID=%s appID=%s",
-				proc.ID,
-				proc.AppID,
-			)
+			return fmt.Errorf("no app installation found for desired process: ID=%s appID=%s", proc.ID, proc.AppID)
 		}
 		info[proc.ID] = app
 	}

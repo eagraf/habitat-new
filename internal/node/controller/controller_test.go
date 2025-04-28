@@ -35,6 +35,7 @@ func fakeInitState(rootUserCert, rootUserID, rootUsername string) *node.State {
 }
 
 func setupNodeDBTest(ctrl *gomock.Controller, t *testing.T) (*hdb_mocks.MockHDBManager, *hdb_mocks.MockClient) {
+
 	mockedManager := hdb_mocks.NewMockHDBManager(ctrl)
 	mockedClient := hdb_mocks.NewMockClient(ctrl)
 
