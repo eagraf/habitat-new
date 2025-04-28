@@ -25,24 +25,40 @@ type PutRecordRequest struct {
 
 type Server struct {
 	// TODO: allow privy server to serve many stores, not just one user
-	inner *store
-	// Used to figure out where to route requests given a DID
-	habitatResolver func(string) string
+	stores map[syntax.DID]*store
 	// Used for resolving handles -> did, did -> PDS
 	dir identity.Directory
 }
 
+func defaultEncrypter() Encrypter {
+	return &NoopEncrypter{}
+}
+
 // NewServer returns a privi server.
-func NewServer(did string, habitatResolver func(string) string, enc Encrypter, permStore permissions.Store) *Server {
-	return &Server{
-		inner: &store{
-			did:         syntax.DID(did),
-			e:           enc,
-			permissions: permStore,
-		},
-		habitatResolver: habitatResolver,
-		dir:             identity.DefaultDirectory(),
+func NewServer(didToStores map[syntax.DID]permissions.Store) *Server {
+	server := &Server{
+		stores: make(map[syntax.DID]*store),
+		dir:    identity.DefaultDirectory(),
 	}
+	for did, perms := range didToStores {
+		server.Register(did, perms)
+	}
+	return server
+}
+
+func (s *Server) Register(did syntax.DID, perms permissions.Store) error {
+	_, ok := s.stores[did]
+	if ok {
+		return fmt.Errorf("existing privi store for this did: %s", did.String())
+	}
+
+	s.stores[did] = &store{
+		// TODO: use real encryption
+		e:           defaultEncrypter(),
+		permissions: perms,
+		did:         did,
+	}
+	return nil
 }
 
 // PutRecord puts a potentially encrypted record (see s.inner.putRecord)
@@ -78,7 +94,14 @@ func (s *Server) PutRecord(authInfo *xrpc.AuthInfo) http.HandlerFunc {
 			Host: id.PDSEndpoint(),
 			Auth: authInfo,
 		}
-		out, err := s.inner.putRecord(r.Context(), xrpcClient, req.Input, req.Encrypt)
+		inner, ok := s.servedByMe(id.DID)
+		if !ok {
+			// TODO: write helpful message
+			http.Error(w, fmt.Sprintf("%s: did %s", errWrongServer.Error(), id.DID.String()), http.StatusBadRequest)
+			return
+		}
+
+		out, err := inner.putRecord(r.Context(), xrpcClient, req.Input, req.Encrypt)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -95,8 +118,9 @@ func (s *Server) PutRecord(authInfo *xrpc.AuthInfo) http.HandlerFunc {
 	}
 }
 
-func (s *Server) servedByMe(did syntax.DID) bool {
-	return s.inner.did == did
+func (s *Server) servedByMe(did syntax.DID) (*store, bool) {
+	store, ok := s.stores[did]
+	return store, ok
 }
 
 var (
@@ -138,7 +162,8 @@ func (s *Server) GetRecord(authInfo *xrpc.AuthInfo) http.HandlerFunc {
 		}
 
 		targetDID := id.DID
-		if !s.servedByMe(targetDID) {
+		inner, ok := s.servedByMe(targetDID)
+		if !ok {
 			// TODO: write helpful message
 			http.Error(w, fmt.Sprintf("%s: did %s", errWrongServer.Error(), id.DID.String()), http.StatusBadRequest)
 			return
@@ -149,7 +174,7 @@ func (s *Server) GetRecord(authInfo *xrpc.AuthInfo) http.HandlerFunc {
 			Auth: authInfo,
 			Host: id.PDSEndpoint(),
 		}
-		out, err := s.inner.getRecord(r.Context(), cli, cid, collection, targetDID, rkey, syntax.DID(authInfo.Did))
+		out, err := inner.getRecord(r.Context(), cli, cid, collection, targetDID, rkey, syntax.DID(authInfo.Did))
 
 		if errors.Is(err, ErrUnauthorized) {
 			http.Error(w, ErrUnauthorized.Error(), http.StatusForbidden)

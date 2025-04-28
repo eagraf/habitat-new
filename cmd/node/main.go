@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"syscall"
 
+	"github.com/bluesky-social/indigo/atproto/syntax"
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
@@ -184,27 +185,14 @@ func main() {
 		routes = append(routes, appstore.NewAvailableAppsRoute(nodeConfig.HabitatPath()))
 	}
 
-	// TODO: eventually we need a way given a did to resolve the habitat server host.
-	// This likely can go into the DID document services
-	// For now, hardcode it. This is used by the priviServer.
-	habitatResolver := func(did string) string {
-		panic("unimplemented")
-	}
-
-	// TODO: this is a hack. the privy server should have a way to register users with a did.
-	did := ""
+	// TODO: read from persisted state about permissions.
+	perms := make(map[syntax.DID]permissions.Store)
 	for _, u := range initState.Users {
-		did = u.DID
-	}
-	if did == "" {
-		log.Fatal().Msg("no did found amongst users")
+		perms[syntax.DID(u.DID)] = permissions.NewDummyStore()
 	}
 	// Add privy routes
 	priviServer := privi.NewServer(
-		"todo-did-fill-me-in",
-		habitatResolver,
-		&privi.NoopEncrypter{}, /* TODO: use actual encryption */
-		permissions.NewDummyStore(),
+		perms,
 	)
 	routes = append(routes, priviServer.GetRoutes()...)
 
