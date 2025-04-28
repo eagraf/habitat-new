@@ -41,7 +41,10 @@ func NewServer(didToStores map[syntax.DID]permissions.Store) *Server {
 		dir:    identity.DefaultDirectory(),
 	}
 	for did, perms := range didToStores {
-		server.Register(did, perms)
+		err := server.Register(did, perms)
+		if err != nil {
+			log.Err(err)
+		}
 	}
 	return server
 }
