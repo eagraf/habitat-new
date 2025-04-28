@@ -1,9 +1,5 @@
 import { getWebApps } from '@/api/node';
-<<<<<<< HEAD
 import { createFileRoute, Link } from '@tanstack/react-router'
-=======
-import { createFileRoute } from '@tanstack/react-router'
->>>>>>> origin/master
 
 export const Route = createFileRoute('/')({
   async loader() {

@@ -1,7 +1,4 @@
 import { Link } from '@tanstack/react-router';
-<<<<<<< HEAD
-=======
-import { useAuth } from './authContext';
 
 function formatHandle(handle: string | null) {
   if (!handle) return '';
