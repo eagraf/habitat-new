@@ -10,6 +10,7 @@ import (
 	"github.com/bluesky-social/indigo/api/agnostic"
 	"github.com/bluesky-social/indigo/api/atproto"
 	"github.com/bluesky-social/indigo/atproto/data"
+	"github.com/bluesky-social/indigo/atproto/syntax"
 	"github.com/bluesky-social/indigo/lex/util"
 	"github.com/bluesky-social/indigo/xrpc"
 	"github.com/eagraf/habitat-new/core/permissions"
@@ -24,6 +25,7 @@ import (
 //
 // TODO: formally define the com.habitat.encryptedRecord and change it to a domain we actually own :)
 type store struct {
+	did         syntax.DID
 	e           Encrypter
 	permissions permissions.Store
 }
@@ -104,12 +106,12 @@ type GetRecordResponse struct {
 //	   2c) if no corresponding record is found, attempt to decrypt the record a com.habitat.encryptedRecord would point to for that collection + rkey
 //
 // Keeping this API the same as com.atproto.getRecord
-func (p *store) getRecord(ctx context.Context, xrpc *xrpc.Client, cid string, collection string, did string, rkey string, callerDID string) (*agnostic.RepoGetRecord_Output, error) {
+func (p *store) getRecord(ctx context.Context, xrpc *xrpc.Client, cid string, collection string, did syntax.DID, rkey string, callerDID syntax.DID) (*agnostic.RepoGetRecord_Output, error) {
 	// Attempt to get a public record corresponding to the Collection + Repo + Rkey.
 	// If the given cid does not point to anything, the GetRecord endpoint returns an error.
 	// Record not found results in an error, as does any other non-200 response from the endpoint.
 	// Cases 1a - 1c are handled directly by this case.
-	output, err := agnostic.RepoGetRecord(ctx, xrpc, cid, collection, did, rkey)
+	output, err := agnostic.RepoGetRecord(ctx, xrpc, cid, collection, did.String(), rkey)
 	// If this is a cid lookup (cases 1a-1c) or the record was found (2a + 2b), simply return ()
 	if err == nil {
 		// If fails because the did does not exist return special err
@@ -126,12 +128,12 @@ func (p *store) getRecord(ctx context.Context, xrpc *xrpc.Client, cid string, co
 
 // getEncryptedRecord assumes that the record given by the cid + collection + rkey + did has been encrypted via putRecord and fetches it
 // Keeping this API the same as com.atproto.getRecord
-func (p *store) getEncryptedRecord(ctx context.Context, xrpc *xrpc.Client, cid string, collection string, did string, rkey string, callerDID string) (*agnostic.RepoGetRecord_Output, error) {
+func (p *store) getEncryptedRecord(ctx context.Context, xrpc *xrpc.Client, cid string, collection string, did syntax.DID, rkey string, callerDID syntax.DID) (*agnostic.RepoGetRecord_Output, error) {
 	if collection == encryptedRecordNSID {
 		return nil, ErrNoEncryptedGetsOnEncryptedRecord
 	}
 	encKey := encryptedRecordRKey(collection, rkey)
-	output, err := agnostic.RepoGetRecord(ctx, xrpc, cid, encryptedRecordNSID, did, encKey)
+	output, err := agnostic.RepoGetRecord(ctx, xrpc, cid, encryptedRecordNSID, did.String(), encKey)
 	if err != nil {
 		return nil, err
 	}
@@ -146,7 +148,7 @@ func (p *store) getEncryptedRecord(ctx context.Context, xrpc *xrpc.Client, cid s
 	}
 
 	// Run permissions before returning to the user
-	authz, err := p.permissions.HasPermission(callerDID, collection, rkey, false)
+	authz, err := p.permissions.HasPermission(callerDID.String(), collection, rkey, false)
 	if err != nil {
 		return nil, err
 	} else if !authz {
@@ -161,7 +163,7 @@ func (p *store) getEncryptedRecord(ctx context.Context, xrpc *xrpc.Client, cid s
 	}
 
 	// blob contains the encrypted lexicon written by the user
-	blob, err := atproto.SyncGetBlob(ctx, xrpc, record.Data.Ref.String(), did)
+	blob, err := atproto.SyncGetBlob(ctx, xrpc, record.Data.Ref.String(), did.String())
 	if err != nil {
 		return nil, err
 	}
