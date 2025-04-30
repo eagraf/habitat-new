@@ -285,6 +285,7 @@ func generatePDSAppConfig(
 						"PDS_REPORT_SERVICE_DID=did:plc:ar7c4by46qjdydhdevvrndac",
 						"PDS_CRAWLERS=https://bsky.network",
 						"DEBUG=true",
+						"LOG_ENABLED=true",
 					},
 					"mounts": []mount.Mount{
 						{

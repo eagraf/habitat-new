@@ -36,7 +36,14 @@ type Server struct {
 	bffServer bffauth.Server
 }
 
-func NewServer(localPDSHost string, habitatResolver func(string) string, enc Encrypter, bffClient bffauth.Client, bffServer bffauth.Server, permStore permissions.Store) *Server {
+func NewServer(
+	localPDSHost string,
+	habitatResolver func(string) string,
+	enc Encrypter,
+	bffClient bffauth.Client,
+	bffServer bffauth.Server,
+	permStore permissions.Store,
+) *Server {
 	return &Server{
 		inner: &store{
 			e:           enc,
@@ -66,16 +73,18 @@ func (s *Server) PutRecord(authInfo *xrpc.AuthInfo) http.HandlerFunc {
 		}
 
 		xrpcClient := &xrpc.Client{
-			Host: s.localPDSHost,
+			Host: "http://" + s.localPDSHost,
 			Auth: authInfo,
 		}
 		out, err := s.inner.putRecord(r.Context(), xrpcClient, req.Input, req.Encrypt)
 		if err != nil {
+			log.Err(err).Msg("error putting record")
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 		slurp, err = json.Marshal(out)
 		if err != nil {
+			log.Err(err).Msg("error marshalling response")
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -138,7 +147,14 @@ func (s *Server) GetRecord(authInfo *xrpc.AuthInfo) http.HandlerFunc {
 				Host: s.habitatResolver(targetDID),
 			}
 			// TODO: do i need to set an explicit header
-			out, err = agnostic.RepoGetRecord(r.Context(), cli, cid, collection, targetDID, rkey) // nolint:staticcheck
+			out, err = agnostic.RepoGetRecord(
+				r.Context(),
+				cli,
+				cid,
+				collection,
+				targetDID,
+				rkey,
+			) // nolint:staticcheck
 		} else {
 			// Wack -- whenever we are serving a request from another habitat node, only authInfo.accessJwt is populated
 			// So in this case we validate the token.
@@ -178,7 +194,9 @@ func (s *Server) GetRecord(authInfo *xrpc.AuthInfo) http.HandlerFunc {
 // This creates the xrpc.Client to use in the inner privy requests
 // TODO: this should actually pull out the requested did from the url param or input and re-direct there. (Potentially move this lower into the fns themselves).
 // This would allow for requesting to any pds through these routes, not just the one tied to this habitat node.
-func (s *Server) pdsAuthMiddleware(next func(authInfo *xrpc.AuthInfo) http.HandlerFunc) http.HandlerFunc {
+func (s *Server) pdsAuthMiddleware(
+	next func(authInfo *xrpc.AuthInfo) http.HandlerFunc,
+) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		auth, err := getAuthInfo(r)
 		if err != nil {

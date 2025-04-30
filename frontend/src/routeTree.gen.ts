@@ -17,7 +17,10 @@ import { Route as AppStoreImport } from './routes/app-store'
 import { Route as AddUserImport } from './routes/add-user'
 import { Route as RequireAuthImport } from './routes/_requireAuth'
 import { Route as IndexImport } from './routes/index'
+import { Route as PrivyDemoIndexImport } from './routes/privy-demo/index'
+import { Route as PrivyDemoViewImport } from './routes/privy-demo/view'
 import { Route as RequireAuthPrivyTestImport } from './routes/_requireAuth/privy-test'
+import { Route as RequireAuthPlcOperationImport } from './routes/_requireAuth/plc-operation'
 
 // Create/Update Routes
 
@@ -56,9 +59,27 @@ const IndexRoute = IndexImport.update({
   getParentRoute: () => rootRoute,
 } as any)
 
+const PrivyDemoIndexRoute = PrivyDemoIndexImport.update({
+  id: '/privy-demo/',
+  path: '/privy-demo/',
+  getParentRoute: () => rootRoute,
+} as any)
+
+const PrivyDemoViewRoute = PrivyDemoViewImport.update({
+  id: '/privy-demo/view',
+  path: '/privy-demo/view',
+  getParentRoute: () => rootRoute,
+} as any)
+
 const RequireAuthPrivyTestRoute = RequireAuthPrivyTestImport.update({
   id: '/privy-test',
   path: '/privy-test',
+  getParentRoute: () => RequireAuthRoute,
+} as any)
+
+const RequireAuthPlcOperationRoute = RequireAuthPlcOperationImport.update({
+  id: '/plc-operation',
+  path: '/plc-operation',
   getParentRoute: () => RequireAuthRoute,
 } as any)
 
@@ -108,6 +129,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ServerImport
       parentRoute: typeof rootRoute
     }
+    '/_requireAuth/plc-operation': {
+      id: '/_requireAuth/plc-operation'
+      path: '/plc-operation'
+      fullPath: '/plc-operation'
+      preLoaderRoute: typeof RequireAuthPlcOperationImport
+      parentRoute: typeof RequireAuthImport
+    }
     '/_requireAuth/privy-test': {
       id: '/_requireAuth/privy-test'
       path: '/privy-test'
@@ -115,16 +143,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RequireAuthPrivyTestImport
       parentRoute: typeof RequireAuthImport
     }
+    '/privy-demo/view': {
+      id: '/privy-demo/view'
+      path: '/privy-demo/view'
+      fullPath: '/privy-demo/view'
+      preLoaderRoute: typeof PrivyDemoViewImport
+      parentRoute: typeof rootRoute
+    }
+    '/privy-demo/': {
+      id: '/privy-demo/'
+      path: '/privy-demo'
+      fullPath: '/privy-demo'
+      preLoaderRoute: typeof PrivyDemoIndexImport
+      parentRoute: typeof rootRoute
+    }
   }
 }
 
 // Create and export the route tree
 
 interface RequireAuthRouteChildren {
+  RequireAuthPlcOperationRoute: typeof RequireAuthPlcOperationRoute
   RequireAuthPrivyTestRoute: typeof RequireAuthPrivyTestRoute
 }
 
 const RequireAuthRouteChildren: RequireAuthRouteChildren = {
+  RequireAuthPlcOperationRoute: RequireAuthPlcOperationRoute,
   RequireAuthPrivyTestRoute: RequireAuthPrivyTestRoute,
 }
 
@@ -139,7 +183,10 @@ export interface FileRoutesByFullPath {
   '/app-store': typeof AppStoreRoute
   '/login': typeof LoginRoute
   '/server': typeof ServerRoute
+  '/plc-operation': typeof RequireAuthPlcOperationRoute
   '/privy-test': typeof RequireAuthPrivyTestRoute
+  '/privy-demo/view': typeof PrivyDemoViewRoute
+  '/privy-demo': typeof PrivyDemoIndexRoute
 }
 
 export interface FileRoutesByTo {
@@ -149,7 +196,10 @@ export interface FileRoutesByTo {
   '/app-store': typeof AppStoreRoute
   '/login': typeof LoginRoute
   '/server': typeof ServerRoute
+  '/plc-operation': typeof RequireAuthPlcOperationRoute
   '/privy-test': typeof RequireAuthPrivyTestRoute
+  '/privy-demo/view': typeof PrivyDemoViewRoute
+  '/privy-demo': typeof PrivyDemoIndexRoute
 }
 
 export interface FileRoutesById {
@@ -160,7 +210,10 @@ export interface FileRoutesById {
   '/app-store': typeof AppStoreRoute
   '/login': typeof LoginRoute
   '/server': typeof ServerRoute
+  '/_requireAuth/plc-operation': typeof RequireAuthPlcOperationRoute
   '/_requireAuth/privy-test': typeof RequireAuthPrivyTestRoute
+  '/privy-demo/view': typeof PrivyDemoViewRoute
+  '/privy-demo/': typeof PrivyDemoIndexRoute
 }
 
 export interface FileRouteTypes {
@@ -172,7 +225,10 @@ export interface FileRouteTypes {
     | '/app-store'
     | '/login'
     | '/server'
+    | '/plc-operation'
     | '/privy-test'
+    | '/privy-demo/view'
+    | '/privy-demo'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -181,7 +237,10 @@ export interface FileRouteTypes {
     | '/app-store'
     | '/login'
     | '/server'
+    | '/plc-operation'
     | '/privy-test'
+    | '/privy-demo/view'
+    | '/privy-demo'
   id:
     | '__root__'
     | '/'
@@ -190,7 +249,10 @@ export interface FileRouteTypes {
     | '/app-store'
     | '/login'
     | '/server'
+    | '/_requireAuth/plc-operation'
     | '/_requireAuth/privy-test'
+    | '/privy-demo/view'
+    | '/privy-demo/'
   fileRoutesById: FileRoutesById
 }
 
@@ -201,6 +263,8 @@ export interface RootRouteChildren {
   AppStoreRoute: typeof AppStoreRoute
   LoginRoute: typeof LoginRoute
   ServerRoute: typeof ServerRoute
+  PrivyDemoViewRoute: typeof PrivyDemoViewRoute
+  PrivyDemoIndexRoute: typeof PrivyDemoIndexRoute
 }
 
 const rootRouteChildren: RootRouteChildren = {
@@ -210,6 +274,8 @@ const rootRouteChildren: RootRouteChildren = {
   AppStoreRoute: AppStoreRoute,
   LoginRoute: LoginRoute,
   ServerRoute: ServerRoute,
+  PrivyDemoViewRoute: PrivyDemoViewRoute,
+  PrivyDemoIndexRoute: PrivyDemoIndexRoute,
 }
 
 export const routeTree = rootRoute
@@ -227,7 +293,9 @@ export const routeTree = rootRoute
         "/add-user",
         "/app-store",
         "/login",
-        "/server"
+        "/server",
+        "/privy-demo/view",
+        "/privy-demo/"
       ]
     },
     "/": {
@@ -236,6 +304,7 @@ export const routeTree = rootRoute
     "/_requireAuth": {
       "filePath": "_requireAuth.tsx",
       "children": [
+        "/_requireAuth/plc-operation",
         "/_requireAuth/privy-test"
       ]
     },
@@ -251,9 +320,19 @@ export const routeTree = rootRoute
     "/server": {
       "filePath": "server.tsx"
     },
+    "/_requireAuth/plc-operation": {
+      "filePath": "_requireAuth/plc-operation.tsx",
+      "parent": "/_requireAuth"
+    },
     "/_requireAuth/privy-test": {
       "filePath": "_requireAuth/privy-test.tsx",
       "parent": "/_requireAuth"
+    },
+    "/privy-demo/view": {
+      "filePath": "privy-demo/view.tsx"
+    },
+    "/privy-demo/": {
+      "filePath": "privy-demo/index.tsx"
     }
   }
 }
