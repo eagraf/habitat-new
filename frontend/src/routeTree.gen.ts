@@ -12,6 +12,7 @@
 
 import { Route as rootRoute } from './routes/__root'
 import { Route as ServerImport } from './routes/server'
+import { Route as OauthloginImport } from './routes/oauth_login'
 import { Route as LoginImport } from './routes/login'
 import { Route as AppStoreImport } from './routes/app-store'
 import { Route as AddUserImport } from './routes/add-user'
@@ -22,6 +23,12 @@ import { Route as IndexImport } from './routes/index'
 const ServerRoute = ServerImport.update({
   id: '/server',
   path: '/server',
+  getParentRoute: () => rootRoute,
+} as any)
+
+const OauthloginRoute = OauthloginImport.update({
+  id: '/oauth_login',
+  path: '/oauth_login',
   getParentRoute: () => rootRoute,
 } as any)
 
@@ -81,6 +88,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginImport
       parentRoute: typeof rootRoute
     }
+    '/oauth_login': {
+      id: '/oauth_login'
+      path: '/oauth_login'
+      fullPath: '/oauth_login'
+      preLoaderRoute: typeof OauthloginImport
+      parentRoute: typeof rootRoute
+    }
     '/server': {
       id: '/server'
       path: '/server'
@@ -98,6 +112,7 @@ export interface FileRoutesByFullPath {
   '/add-user': typeof AddUserRoute
   '/app-store': typeof AppStoreRoute
   '/login': typeof LoginRoute
+  '/oauth_login': typeof OauthloginRoute
   '/server': typeof ServerRoute
 }
 
@@ -106,6 +121,7 @@ export interface FileRoutesByTo {
   '/add-user': typeof AddUserRoute
   '/app-store': typeof AppStoreRoute
   '/login': typeof LoginRoute
+  '/oauth_login': typeof OauthloginRoute
   '/server': typeof ServerRoute
 }
 
@@ -115,15 +131,29 @@ export interface FileRoutesById {
   '/add-user': typeof AddUserRoute
   '/app-store': typeof AppStoreRoute
   '/login': typeof LoginRoute
+  '/oauth_login': typeof OauthloginRoute
   '/server': typeof ServerRoute
 }
 
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/add-user' | '/app-store' | '/login' | '/server'
+  fullPaths:
+    | '/'
+    | '/add-user'
+    | '/app-store'
+    | '/login'
+    | '/oauth_login'
+    | '/server'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/add-user' | '/app-store' | '/login' | '/server'
-  id: '__root__' | '/' | '/add-user' | '/app-store' | '/login' | '/server'
+  to: '/' | '/add-user' | '/app-store' | '/login' | '/oauth_login' | '/server'
+  id:
+    | '__root__'
+    | '/'
+    | '/add-user'
+    | '/app-store'
+    | '/login'
+    | '/oauth_login'
+    | '/server'
   fileRoutesById: FileRoutesById
 }
 
@@ -132,6 +162,7 @@ export interface RootRouteChildren {
   AddUserRoute: typeof AddUserRoute
   AppStoreRoute: typeof AppStoreRoute
   LoginRoute: typeof LoginRoute
+  OauthloginRoute: typeof OauthloginRoute
   ServerRoute: typeof ServerRoute
 }
 
@@ -140,6 +171,7 @@ const rootRouteChildren: RootRouteChildren = {
   AddUserRoute: AddUserRoute,
   AppStoreRoute: AppStoreRoute,
   LoginRoute: LoginRoute,
+  OauthloginRoute: OauthloginRoute,
   ServerRoute: ServerRoute,
 }
 
@@ -157,6 +189,7 @@ export const routeTree = rootRoute
         "/add-user",
         "/app-store",
         "/login",
+        "/oauth_login",
         "/server"
       ]
     },
@@ -171,6 +204,9 @@ export const routeTree = rootRoute
     },
     "/login": {
       "filePath": "login.tsx"
+    },
+    "/oauth_login": {
+      "filePath": "oauth_login.tsx"
     },
     "/server": {
       "filePath": "server.tsx"
