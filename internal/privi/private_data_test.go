@@ -9,6 +9,7 @@ import (
 
 	"github.com/bluesky-social/indigo/api/agnostic"
 	"github.com/bluesky-social/indigo/api/atproto"
+	"github.com/bluesky-social/indigo/atproto/syntax"
 	"github.com/bluesky-social/indigo/lex/util"
 	"github.com/bluesky-social/indigo/xrpc"
 	"github.com/eagraf/habitat-new/core/permissions"
@@ -123,10 +124,8 @@ func TestControllerPrivateDataPutGet(t *testing.T) {
 	}))
 	defer mockPDS.Close()
 
-	p := &store{
-		e:           encrypter,
-		permissions: permissions.NewDummyStore(),
-	}
+	dummy := permissions.NewDummyStore()
+	p := newStore(syntax.DID("my-did"), dummy)
 	require.NoError(t, err)
 
 	// putRecord with encryption
@@ -139,7 +138,20 @@ func TestControllerPrivateDataPutGet(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	got, err := p.getRecord(coll, "my-did", "my-rkey", "")
+	got, err := p.getRecord(coll, "my-rkey", "another-did")
+	require.Error(t, ErrUnauthorized)
+
+	dummy.AddPermission(coll, "another-did")
+
+	got, err = p.getRecord(coll, "my-rkey", "another-did")
 	require.NoError(t, err)
-	require.Equal(t, got, marshalledVal)
+	require.Equal(t, []byte(got), marshalledVal)
+
+	err = p.putRecord(&agnostic.RepoPutRecord_Input{
+		Collection: coll,
+		Record:     val,
+		Repo:       "my-did",
+		Rkey:       "my-rkey",
+	})
+	require.NoError(t, err)
 }

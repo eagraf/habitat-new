@@ -64,8 +64,9 @@ func (r inMemoryRepo) getRecord(collection string, rkey string) (record, bool) {
 //
 // TODO: formally define the com.habitat.encryptedRecord and change it to a domain we actually own :)
 type store struct {
-	did         syntax.DID
-	e           Encrypter
+	did syntax.DID
+	// TODO: consider encrypting at rest. probably not, and construct a wholly separate MST for private data.
+	// e           Encrypter
 	permissions permissions.Store
 
 	// TODO: this should be a portable MST the same as stored in the PDS. For ease/demo purposes, just use an
@@ -99,6 +100,15 @@ func errorIsNoRecordFound(err error) bool {
 	return strings.Contains(err.Error(), "RecordNotFound") || strings.Contains(err.Error(), "Could not locate record")
 }
 
+// TODO: take in a carfile/sqlite where user's did is persisted
+func newStore(did syntax.DID, perms permissions.Store) *store {
+	return &store{
+		did:         did,
+		permissions: perms,
+		repo:        make(inMemoryRepo),
+	}
+}
+
 // type encryptedRecord map[string]any
 // the shape of the lexicon is { "cid": <cid pointing to the encrypted blob> }
 
@@ -118,7 +128,7 @@ type GetRecordResponse struct {
 }
 
 // TODO: getRecord via cid -- depends on MST implementation
-func (p *store) getRecord(collection string, did syntax.DID, rkey string, callerDID syntax.DID) (json.RawMessage, error) {
+func (p *store) getRecord(collection string, rkey string, callerDID syntax.DID) (json.RawMessage, error) {
 	// Run permissions before returning to the user
 	authz, err := p.permissions.HasPermission(callerDID.String(), collection, rkey, false)
 	if err != nil {
