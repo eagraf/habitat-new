@@ -55,12 +55,7 @@ func (s *Server) Register(did syntax.DID, perms permissions.Store) error {
 		return fmt.Errorf("existing privi store for this did: %s", did.String())
 	}
 
-	s.stores[did] = &store{
-		// TODO: use real encryption
-		e:           defaultEncrypter(),
-		permissions: perms,
-		did:         did,
-	}
+	s.stores[did] = newStore(did, perms)
 	return nil
 }
 
@@ -163,7 +158,7 @@ func (s *Server) GetRecord(authInfo *xrpc.AuthInfo) http.HandlerFunc {
 			return
 		}
 
-		out, err := inner.getRecord(collection, targetDID, rkey, syntax.DID(authInfo.Did))
+		out, err := inner.getRecord(collection, rkey, syntax.DID(authInfo.Did))
 
 		if errors.Is(err, ErrUnauthorized) {
 			http.Error(w, ErrUnauthorized.Error(), http.StatusForbidden)
