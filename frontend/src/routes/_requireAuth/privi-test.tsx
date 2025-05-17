@@ -1,7 +1,7 @@
 import { useMutation } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 
-export const Route = createFileRoute('/_requireAuth/privy-test')({
+export const Route = createFileRoute('/_requireAuth/privi-test')({
   component() {
     const { authSession } = Route.useRouteContext()
     const { mutate } = useMutation({
@@ -16,7 +16,10 @@ export const Route = createFileRoute('/_requireAuth/privy-test')({
               },
               repo: authSession.did,
             }
-          })
+          }),
+          headers: {
+            'atproto-proxy': 'CENTRAL_PRIVI_DID_GOES_HERE#privi'
+          }
         })
         console.log(response)
       },
@@ -25,7 +28,7 @@ export const Route = createFileRoute('/_requireAuth/privy-test')({
       }
     })
     return (<article>
-      <h1> Privy Test</h1 >
+      <h1>Privi Test</h1 >
       <button onClick={() => mutate()}>Test</button>
     </article >)
   }

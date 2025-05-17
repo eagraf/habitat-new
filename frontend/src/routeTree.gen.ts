@@ -17,7 +17,7 @@ import { Route as AppStoreImport } from './routes/app-store'
 import { Route as AddUserImport } from './routes/add-user'
 import { Route as RequireAuthImport } from './routes/_requireAuth'
 import { Route as IndexImport } from './routes/index'
-import { Route as RequireAuthPrivyTestImport } from './routes/_requireAuth/privy-test'
+import { Route as RequireAuthPriviTestImport } from './routes/_requireAuth/privi-test'
 
 // Create/Update Routes
 
@@ -56,9 +56,9 @@ const IndexRoute = IndexImport.update({
   getParentRoute: () => rootRoute,
 } as any)
 
-const RequireAuthPrivyTestRoute = RequireAuthPrivyTestImport.update({
-  id: '/privy-test',
-  path: '/privy-test',
+const RequireAuthPriviTestRoute = RequireAuthPriviTestImport.update({
+  id: '/privi-test',
+  path: '/privi-test',
   getParentRoute: () => RequireAuthRoute,
 } as any)
 
@@ -108,11 +108,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ServerImport
       parentRoute: typeof rootRoute
     }
-    '/_requireAuth/privy-test': {
-      id: '/_requireAuth/privy-test'
-      path: '/privy-test'
-      fullPath: '/privy-test'
-      preLoaderRoute: typeof RequireAuthPrivyTestImport
+    '/_requireAuth/privi-test': {
+      id: '/_requireAuth/privi-test'
+      path: '/privi-test'
+      fullPath: '/privi-test'
+      preLoaderRoute: typeof RequireAuthPriviTestImport
       parentRoute: typeof RequireAuthImport
     }
   }
@@ -121,11 +121,11 @@ declare module '@tanstack/react-router' {
 // Create and export the route tree
 
 interface RequireAuthRouteChildren {
-  RequireAuthPrivyTestRoute: typeof RequireAuthPrivyTestRoute
+  RequireAuthPriviTestRoute: typeof RequireAuthPriviTestRoute
 }
 
 const RequireAuthRouteChildren: RequireAuthRouteChildren = {
-  RequireAuthPrivyTestRoute: RequireAuthPrivyTestRoute,
+  RequireAuthPriviTestRoute: RequireAuthPriviTestRoute,
 }
 
 const RequireAuthRouteWithChildren = RequireAuthRoute._addFileChildren(
@@ -139,7 +139,7 @@ export interface FileRoutesByFullPath {
   '/app-store': typeof AppStoreRoute
   '/login': typeof LoginRoute
   '/server': typeof ServerRoute
-  '/privy-test': typeof RequireAuthPrivyTestRoute
+  '/privi-test': typeof RequireAuthPriviTestRoute
 }
 
 export interface FileRoutesByTo {
@@ -149,7 +149,7 @@ export interface FileRoutesByTo {
   '/app-store': typeof AppStoreRoute
   '/login': typeof LoginRoute
   '/server': typeof ServerRoute
-  '/privy-test': typeof RequireAuthPrivyTestRoute
+  '/privi-test': typeof RequireAuthPriviTestRoute
 }
 
 export interface FileRoutesById {
@@ -160,7 +160,7 @@ export interface FileRoutesById {
   '/app-store': typeof AppStoreRoute
   '/login': typeof LoginRoute
   '/server': typeof ServerRoute
-  '/_requireAuth/privy-test': typeof RequireAuthPrivyTestRoute
+  '/_requireAuth/privi-test': typeof RequireAuthPriviTestRoute
 }
 
 export interface FileRouteTypes {
@@ -172,7 +172,7 @@ export interface FileRouteTypes {
     | '/app-store'
     | '/login'
     | '/server'
-    | '/privy-test'
+    | '/privi-test'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -181,7 +181,7 @@ export interface FileRouteTypes {
     | '/app-store'
     | '/login'
     | '/server'
-    | '/privy-test'
+    | '/privi-test'
   id:
     | '__root__'
     | '/'
@@ -190,7 +190,7 @@ export interface FileRouteTypes {
     | '/app-store'
     | '/login'
     | '/server'
-    | '/_requireAuth/privy-test'
+    | '/_requireAuth/privi-test'
   fileRoutesById: FileRoutesById
 }
 
@@ -236,7 +236,7 @@ export const routeTree = rootRoute
     "/_requireAuth": {
       "filePath": "_requireAuth.tsx",
       "children": [
-        "/_requireAuth/privy-test"
+        "/_requireAuth/privi-test"
       ]
     },
     "/add-user": {
@@ -251,8 +251,8 @@ export const routeTree = rootRoute
     "/server": {
       "filePath": "server.tsx"
     },
-    "/_requireAuth/privy-test": {
-      "filePath": "_requireAuth/privy-test.tsx",
+    "/_requireAuth/privi-test": {
+      "filePath": "_requireAuth/privi-test.tsx",
       "parent": "/_requireAuth"
     }
   }
