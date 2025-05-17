@@ -7,24 +7,21 @@ import { TanStackRouterDevtools } from '@tanstack/react-router-devtools'
 interface RouterContext {
   queryClient: QueryClient
   oauthClient: BrowserOAuthClient
-  authSession: OAuthSession | undefined
+  authSession?: OAuthSession
 }
 
 export const Route = createRootRouteWithContext<RouterContext>()({
   async beforeLoad({ context }) {
     const result = await context.oauthClient.init()
     return {
-      authSession: result?.session
+      authSession: result?.session,
     }
   },
   async loader({ context }) {
     if (!context.authSession) {
       return {}
     }
-    const identityReq = new URL('/xrpc/com.atproto.repo.describeRepo', window.location.origin)
-    identityReq.searchParams.set('repo', context.authSession.did)
-
-    const response = await context.authSession.fetchHandler(identityReq.toString())
+    const response = await context.authSession.fetchHandler(`/xrpc/com.atproto.repo.describeRepo?repo=${context.authSession.did}`)
     const details = await response.json() as { handle: string }
     return {
       handle: details.handle,

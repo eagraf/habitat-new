@@ -1,10 +1,10 @@
-import { oauthClient } from "@/lib/oauthClient";
 import { useMutation } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import type { FormEvent } from "react";
 
 export const Route = createFileRoute('/login')({
   component() {
+    const { oauthClient } = Route.useRouteContext()
     const { mutate: handleSubmit, isPending } = useMutation({
       async mutationFn(e: FormEvent<HTMLFormElement>) {
         e.preventDefault();

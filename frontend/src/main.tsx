@@ -29,7 +29,6 @@ const router = createRouter({
   context: {
     queryClient,
     oauthClient,
-    authSession: undefined
   },
   defaultPreload: 'intent',
   scrollRestoration: true,
