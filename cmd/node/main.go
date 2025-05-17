@@ -15,6 +15,7 @@ import (
 	"github.com/docker/go-connections/nat"
 	"github.com/eagraf/habitat-new/core/permissions"
 	"github.com/eagraf/habitat-new/core/state/node"
+	"github.com/eagraf/habitat-new/internal/auth"
 	"github.com/eagraf/habitat-new/internal/bffauth"
 	"github.com/eagraf/habitat-new/internal/docker"
 	"github.com/eagraf/habitat-new/internal/node/api"
@@ -172,12 +173,18 @@ func main() {
 	if err != nil {
 		log.Fatal().Err(err).Msg("error creating node control server")
 	}
+
+	loginRoute, metadataRoute, callbackRoute := auth.NewLoginHandler(nodeConfig)
+
 	// Set up the main API server
 	// TODO: create a less tedious way to register all the routes in the future. It might be as simple
 	// as having a dedicated file to list these, instead of putting them all in main.
 	routes := []api.Route{
 		// Node routes
 		api.NewVersionHandler(),
+		loginRoute,
+		metadataRoute,
+		callbackRoute,
 	}
 	routes = append(routes, ctrlServer.GetRoutes()...)
 	if nodeConfig.Environment() == constants.EnvironmentDev {

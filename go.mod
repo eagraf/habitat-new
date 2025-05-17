@@ -10,6 +10,7 @@ require (
 	github.com/docker/docker v25.0.5+incompatible
 	github.com/docker/go-connections v0.5.0
 	github.com/evanphx/json-patch/v5 v5.9.0
+	github.com/go-jose/go-jose/v3 v3.0.4
 	github.com/golang-jwt/jwt/v5 v5.2.2
 	github.com/google/uuid v1.5.0
 	github.com/hashicorp/raft v1.6.0
@@ -20,10 +21,11 @@ require (
 	github.com/qri-io/jsonschema v0.2.1
 	github.com/rs/zerolog v1.31.0
 	github.com/spf13/viper v1.18.2
-	github.com/stretchr/testify v1.9.0
+	github.com/stretchr/testify v1.10.0
 	github.com/wI2L/jsondiff v0.5.1
 	go.uber.org/mock v0.4.0
 	golang.org/x/mod v0.17.0
+	golang.org/x/oauth2 v0.16.0
 	golang.org/x/sync v0.10.0
 	gopkg.in/yaml.v3 v3.0.1
 	tailscale.com v1.66.4
@@ -36,6 +38,8 @@ require (
 	github.com/casbin/govaluate v1.3.0 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.5 // indirect
+	github.com/golang/protobuf v1.5.3 // indirect
+	github.com/gorilla/sessions v1.4.0 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
 	github.com/hashicorp/go-retryablehttp v0.7.5 // indirect
 	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
@@ -74,6 +78,7 @@ require (
 	go.uber.org/atomic v1.11.0 // indirect
 	go.uber.org/zap v1.26.0 // indirect
 	golang.org/x/xerrors v0.0.0-20231012003039-104605ab7028 // indirect
+	google.golang.org/appengine v1.6.8 // indirect
 	google.golang.org/protobuf v1.33.0 // indirect
 	lukechampine.com/blake3 v1.2.1 // indirect
 )
@@ -121,7 +126,7 @@ require (
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/google/btree v1.1.2 // indirect
-	github.com/google/go-cmp v0.6.0 // indirect
+	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/google/nftables v0.2.1-0.20240414091927-5e242ec57806 // indirect
 	github.com/gorilla/csrf v1.7.2 // indirect
 	github.com/gorilla/securecookie v1.1.2 // indirect
