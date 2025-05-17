@@ -1,5 +1,5 @@
 import { getWebApps } from '@/api/node';
-import { createFileRoute, Link } from '@tanstack/react-router'
+import { createFileRoute } from '@tanstack/react-router'
 
 export const Route = createFileRoute('/')({
   async loader() {
@@ -49,7 +49,7 @@ export const Route = createFileRoute('/')({
             {data.map(({ id, name, description, icon, link }: any) => (
               <tr key={id}>
                 <td>
-                  <Link to={link}>{icon} {name}</Link>
+                  <a href={link}>{icon} {name}</a>
                 </td>
                 <td>{description}</td>
               </tr>))}
