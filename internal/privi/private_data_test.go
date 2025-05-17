@@ -1,7 +1,6 @@
 package privi
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -20,7 +19,6 @@ import (
 // TODO: An integration test with PDS running + real encryption
 // This mocks out the PDS and uses a no-op encrypter
 func TestControllerPrivateDataPutGet(t *testing.T) {
-	ctx := context.Background()
 	encrypter := &NoopEncrypter{}
 
 	type req struct {
@@ -125,10 +123,6 @@ func TestControllerPrivateDataPutGet(t *testing.T) {
 	}))
 	defer mockPDS.Close()
 
-	client := &xrpc.Client{
-		Host: mockPDS.URL,
-	}
-
 	p := &store{
 		e:           encrypter,
 		permissions: permissions.NewDummyStore(),
@@ -137,32 +131,15 @@ func TestControllerPrivateDataPutGet(t *testing.T) {
 
 	// putRecord with encryption
 	coll := "my.fake.collection"
-	out, err := p.putRecord(ctx, client, &agnostic.RepoPutRecord_Input{
+	err = p.putRecord(&agnostic.RepoPutRecord_Input{
 		Collection: coll,
 		Record:     val,
 		Repo:       "my-did",
 		Rkey:       "my-rkey",
-	}, true)
+	})
 	require.NoError(t, err)
-	require.Equal(t, encRecordCid, out.Cid)
-	require.Equal(t, testUri, out.Uri)
 
-	got, err := p.getRecord(ctx, client, "", coll, "my-did", "my-rkey", "")
+	got, err := p.getRecord(coll, "my-did", "my-rkey", "")
 	require.NoError(t, err)
-	require.Equal(t, *got.Cid, encRecordCid)
-	require.Equal(t, got.Uri, testUri)
-	bytes, err = got.Value.MarshalJSON()
-	require.NoError(t, err)
-	require.Equal(t, bytes, marshalledVal)
-
-	_, err = p.putRecord(ctx, client, &agnostic.RepoPutRecord_Input{
-		Collection: encryptedRecordNSID,
-		Record:     val,
-		Repo:       "my-did",
-		Rkey:       "my-rkey",
-	}, true)
-	require.ErrorIs(t, err, ErrNoPutsOnEncryptedRecord)
-
-	_, err = p.getEncryptedRecord(ctx, client, "", encryptedRecordNSID, "my-did", "my-rkey", "")
-	require.ErrorIs(t, err, ErrNoEncryptedGetsOnEncryptedRecord)
+	require.Equal(t, got, marshalledVal)
 }

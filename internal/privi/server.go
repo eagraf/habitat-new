@@ -93,10 +93,6 @@ func (s *Server) PutRecord(authInfo *xrpc.AuthInfo) http.HandlerFunc {
 			return
 		}
 
-		xrpcClient := &xrpc.Client{
-			Host: id.PDSEndpoint(),
-			Auth: authInfo,
-		}
 		inner, ok := s.servedByMe(id.DID)
 		if !ok {
 			// TODO: write helpful message
@@ -104,18 +100,13 @@ func (s *Server) PutRecord(authInfo *xrpc.AuthInfo) http.HandlerFunc {
 			return
 		}
 
-		out, err := inner.putRecord(r.Context(), xrpcClient, req.Input, req.Encrypt)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		slurp, err = json.Marshal(out)
+		err = inner.putRecord(req.Input)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
-		if _, err := w.Write(slurp); err != nil {
+		if _, err := w.Write([]byte("OK")); err != nil {
 			log.Err(err).Msgf("error sending response for PutRecord request")
 		}
 	}
@@ -145,7 +136,7 @@ func (s *Server) GetRecord(authInfo *xrpc.AuthInfo) http.HandlerFunc {
 			return
 		}
 
-		cid := u.Query().Get("cid")
+		// cid := u.Query().Get("cid") -- TODO: enable get by this
 		collection := u.Query().Get("collection")
 		repo := u.Query().Get("repo")
 		rkey := u.Query().Get("rkey")
@@ -172,12 +163,7 @@ func (s *Server) GetRecord(authInfo *xrpc.AuthInfo) http.HandlerFunc {
 			return
 		}
 
-		// Call getRecord()
-		cli := &xrpc.Client{
-			Auth: authInfo,
-			Host: id.PDSEndpoint(),
-		}
-		out, err := inner.getRecord(r.Context(), cli, cid, collection, targetDID, rkey, syntax.DID(authInfo.Did))
+		out, err := inner.getRecord(collection, targetDID, rkey, syntax.DID(authInfo.Did))
 
 		if errors.Is(err, ErrUnauthorized) {
 			http.Error(w, ErrUnauthorized.Error(), http.StatusForbidden)
@@ -186,12 +172,7 @@ func (s *Server) GetRecord(authInfo *xrpc.AuthInfo) http.HandlerFunc {
 			return
 		}
 
-		slurp, err := json.Marshal(out)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		if _, err := w.Write(slurp); err != nil {
+		if _, err := w.Write(out); err != nil {
 			log.Err(err).Msgf("error sending response for GetRecord request")
 		}
 	}
