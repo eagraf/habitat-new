@@ -10,15 +10,16 @@ export const Route = createFileRoute('/_requireAuth/privi-test/view')({
   loaderDeps: ({ search }) => (search),
   async loader({ deps: { did, rkey }, context }) {
     const params = new URLSearchParams()
-    params.set('repo', did)
-    params.set('rkey', rkey)
-    params.set('collection', 'com.habitat.privyDemo.messages')
-    const response = await context.authSession?.fetchHandler(`/habitat/api/xrpc/com.habitat.getRecord?${params.toString()}`, {
+    params.set('repo', did || 'did:plc:v3amhno5wvyfams6aioqqj66')
+    params.set('rkey', rkey || 'testRecord')
+    params.set('collection', 'com.habitat.test')
+    const response = await context.authSession?.fetchHandler(`/xrpc/com.habitat.getRecord?${params.toString()}`, {
       headers: {
-        'atproto-proxy': 'CENTRAL_PRIVI_DID_GOES_HERE#privi'
+        'atproto-proxy': 'did:web:localhost-0.taile529e.ts.net#privi'
       }
     });
-    return response?.json()
+    const json = await response?.json()
+    return json.foo
   },
   component() {
     const message = Route.useLoaderData()

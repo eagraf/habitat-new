@@ -9,16 +9,15 @@ export const Route = createFileRoute('/_requireAuth/privi-test/')({
         const response = await authSession?.fetchHandler('/xrpc/com.habitat.putRecord', {
           method: 'POST',
           body: JSON.stringify({
-            input: {
-              collection: 'com.habitat.test',
-              record: {
-                foo: 'bar'
-              },
-              repo: authSession.did,
-            }
+            collection: 'com.habitat.test',
+            record: {
+              foo: 'bar'
+            },
+            repo: authSession.did,
+            rkey: 'testRecord'
           }),
           headers: {
-            'atproto-proxy': 'CENTRAL_PRIVI_DID_GOES_HERE#privi'
+            'atproto-proxy': 'did:web:localhost-0.taile529e.ts.net#privi'
           }
         })
         console.log(response)
