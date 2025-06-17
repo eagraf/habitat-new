@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/bluesky-social/indigo/api/agnostic"
 	"github.com/bluesky-social/indigo/atproto/data"
 	"github.com/bluesky-social/indigo/atproto/syntax"
 	"github.com/bluesky-social/indigo/lex/util"
@@ -116,9 +115,9 @@ func newStore(did syntax.DID, perms permissions.Store) *store {
 // ONLY YOU CAN CALL PUT RECORD, NO ONE ELSE
 // Our security relies on this -- if this wasn't true then theoretically an attacker could call putRecord trying different rkey.
 // If they were unable to create with an rkey, that means that it exists privately.
-func (p *store) putRecord(input *agnostic.RepoPutRecord_Input) error {
+func (p *store) putRecord(collection string, record map[string]any, rkey string, validate *bool) error {
 	// It is assumed right now that if this endpoint is called, the caller wants to put a private record into privi.
-	return p.repo.putRecord(input.Collection, input.Record, input.Rkey, input.Validate)
+	return p.repo.putRecord(collection, record, rkey, validate)
 }
 
 type GetRecordResponse struct {
@@ -136,6 +135,7 @@ func (p *store) getRecord(collection string, rkey string, callerDID syntax.DID) 
 	}
 
 	if !authz {
+		fmt.Println("caller", callerDID, "is not authorized to ", p.did, "collection", collection)
 		return nil, ErrUnauthorized
 	}
 

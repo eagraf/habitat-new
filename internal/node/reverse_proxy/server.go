@@ -32,6 +32,7 @@ func NewProxyServer(logger *zerolog.Logger, defaultServePath string) *ProxyServe
 }
 
 func (s *ProxyServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("ProxyServer.ServeHTTP", r.URL)
 	var bestMatch *node.ReverseProxyRule = nil
 	// Find the matching rule with the highest "rank", aka the most slashes '/' in the URL path.
 	highestRank := -1
@@ -53,6 +54,7 @@ func (s *ProxyServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	fmt.Println("Got a rule match ", bestMatch, r.Host, r.URL)
 	// Get the handler for the best matching rule
 	handler, err := getHandlerFromRule(bestMatch, s.defaultServePath)
 	if err != nil {
@@ -68,6 +70,7 @@ func (s *ProxyServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	fmt.Println("Serving something", s.defaultServePath, bestMatch)
 	// Serve the rule handler.
 	handler.ServeHTTP(w, r)
 }

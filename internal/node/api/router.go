@@ -46,12 +46,14 @@ func NewRouter(
 		router.Handle(route.Pattern(), processRoute(route))
 	}
 
-	var routerWithMiddleWare http.Handler = router
-	for _, mw := range middlewares {
-		routerWithMiddleWare = mw(routerWithMiddleWare)
-	}
+	/*
+		var routerWithMiddleWare http.Handler = router
+		for _, mw := range middlewares {
+			routerWithMiddleWare = mw(routerWithMiddleWare)
+		}
+	*/
 
-	return routerWithMiddleWare
+	return router
 }
 
 // Helper package to easily return structured routes given basic info.

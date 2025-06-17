@@ -190,6 +190,12 @@ func main() {
 	for _, u := range initState.Users {
 		perms[syntax.DID(u.DID)] = permissions.NewDummyStore()
 	}
+
+	sashankDID := "did:plc:v3amhno5wvyfams6aioqqj66"
+	sashankPerms := permissions.NewDummyStore()
+	sashankPerms.AddPermission("com.habitat.test", sashankDID)
+	perms[syntax.DID(sashankDID)] = sashankPerms
+
 	// Add privy routes
 	priviServer := privi.NewServer(
 		perms,
