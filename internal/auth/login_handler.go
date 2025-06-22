@@ -8,8 +8,10 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/bluesky-social/indigo/api/atproto"
 	"github.com/bluesky-social/indigo/atproto/identity"
 	"github.com/bluesky-social/indigo/atproto/syntax"
+	"github.com/bluesky-social/indigo/xrpc"
 	"github.com/eagraf/habitat-new/internal/node/api"
 	"github.com/eagraf/habitat-new/internal/node/config"
 	jose "github.com/go-jose/go-jose/v3"
@@ -20,6 +22,10 @@ import (
 type loginHandler struct {
 	oauthClient  OAuthClient
 	sessionStore sessions.Store
+
+	// Optional. If set, the DID will be resolved by calling
+	// com.atproto.identity.resolveHandle on the PDS at this URL.
+	pdsURL string
 }
 
 type metadataHandler struct {
@@ -69,6 +75,7 @@ func NewLoginHandler(
 	return &loginHandler{
 			oauthClient:  oauthClient,
 			sessionStore: sessionStore,
+			pdsURL:       nodeConfig.InternalPDSURL(),
 		}, &metadataHandler{
 			oauthClient: oauthClient,
 		}, &callbackHandler{
@@ -103,11 +110,40 @@ func (l *loginHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	id, err := identity.DefaultDirectory().Lookup(r.Context(), *atid)
-	if err != nil {
-		log.Warn().Err(err).Str("identifier", identifier).Msg("error looking up identifier")
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
+	var id *identity.Identity
+	if l.pdsURL != "" {
+		client := &xrpc.Client{
+			Host: l.pdsURL,
+		}
+		handle := atid.String()
+		resp, err := atproto.IdentityResolveHandle(r.Context(), client, handle)
+		if err != nil {
+			log.Warn().Err(err).Str("identifier", identifier).Msg("error resolving handle")
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		did, err := syntax.ParseDID(resp.Did)
+		if err != nil {
+			log.Warn().Err(err).Str("did", resp.Did).Msg("error parsing did")
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		id = &identity.Identity{
+			DID:    did,
+			Handle: syntax.Handle(handle),
+			Services: map[string]identity.Service{
+				"atproto_pds": {
+					URL: l.pdsURL,
+				},
+			},
+		}
+	} else {
+		id, err = identity.DefaultDirectory().Lookup(r.Context(), *atid)
+		if err != nil {
+			log.Warn().Err(err).Str("identifier", identifier).Msg("error looking up identifier")
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 	}
 
 	dpopSession, _ := l.sessionStore.New(r, "dpop-session")
