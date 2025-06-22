@@ -108,9 +108,6 @@ func newStore(did syntax.DID, perms permissions.Store) *store {
 	}
 }
 
-// type encryptedRecord map[string]any
-// the shape of the lexicon is { "cid": <cid pointing to the encrypted blob> }
-
 // putRecord puts the given record on the repo connected to this store (currently an in-memory repo that is a KV store)
 // It does not do any encryption, permissions, auth, etc. It is assumed that only the owner of the store can call this and that
 // is gated by some higher up level. This should be re-written in the future to not give any incorrect impression.
