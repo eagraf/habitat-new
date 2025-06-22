@@ -6,7 +6,6 @@ import (
 
 	"github.com/bluesky-social/indigo/atproto/data"
 	"github.com/bluesky-social/indigo/atproto/syntax"
-	"github.com/bluesky-social/indigo/lex/util"
 	"github.com/eagraf/habitat-new/core/permissions"
 )
 
@@ -68,10 +67,6 @@ type store struct {
 	// TODO: this should be a portable MST the same as stored in the PDS. For ease/demo purposes, just use an
 	// in-memory store.
 	repo inMemoryRepo
-}
-
-type encryptedRecord struct {
-	Data util.BlobSchema `json:"data" cborgen:"data"`
 }
 
 var (
