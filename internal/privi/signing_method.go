@@ -1,3 +1,5 @@
+// Copied from https://github.com/ureeves/jwt-go-secp256k1/blob/v0.2.0/secp256k1.go
+//
 // Package secp256k1 implements a jwt.SigningMethod for secp256k1 signatures.
 //
 // Two different algorithms are implemented: ES256K and ES256K-R. The former
@@ -5,8 +7,6 @@
 // in R || S || V. V is the recovery byte, making it possible to recover public
 // keys from signatures.
 package privi
-
-// Copied from https://github.com/ureeves/jwt-go-secp256k1/blob/v0.2.0/secp256k1.go
 
 import (
 	"crypto"

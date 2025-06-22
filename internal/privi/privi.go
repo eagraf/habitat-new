@@ -22,6 +22,7 @@ type recordKey string
 // TODO: the internal store should be an MST for portability / compatiblity with conventional atproto  methods.
 type inMemoryRepo map[syntax.NSID]map[recordKey]record
 
+// putRecord puts a record for the given rkey into the repo no matter what; if a record always exists, it is overwritten.
 func (r inMemoryRepo) putRecord(collection string, rec record, rkey string, validate *bool) error {
 	if validate != nil && *validate {
 		err := data.Validate(rec)
@@ -36,10 +37,7 @@ func (r inMemoryRepo) putRecord(collection string, rec record, rkey string, vali
 		r[syntax.NSID(collection)] = coll
 	}
 
-	if _, exists := coll[recordKey(rkey)]; exists {
-		// TODO; are all puts legal?
-	}
-
+	// Always put (even if something exists).
 	coll[recordKey(rkey)] = rec
 	return nil
 }
