@@ -98,7 +98,7 @@ func main() {
 	})
 
 	// Generate the list of default proxy rules to have available when the node first comes up
-	proxyRules, err := generateDefaultReverseProxyRules(nodeConfig.FrontendDev())
+	proxyRules, err := generateDefaultReverseProxyRules(nodeConfig, nodeConfig.FrontendDev())
 	if err != nil {
 		log.Fatal().Err(err).Msg("unable to generate proxy rules")
 	}
@@ -355,11 +355,7 @@ func generatePDSAppConfig(
 		}
 }
 
-func generateDefaultReverseProxyRules(frontendDev bool) ([]*node.ReverseProxyRule, error) {
-	apiURL, err := url.Parse(fmt.Sprintf("http://localhost:%s", constants.DefaultPortHabitatAPI))
-	if err != nil {
-		return nil, err
-	}
+func generateDefaultReverseProxyRules(nodeConfig *config.NodeConfig, frontendDev bool) ([]*node.ReverseProxyRule, error) {
 
 	frontendRule := &node.ReverseProxyRule{
 		ID:      "default-rule-frontend",
@@ -377,7 +373,12 @@ func generateDefaultReverseProxyRules(frontendDev bool) ([]*node.ReverseProxyRul
 		frontendRule.Type = node.ProxyRuleEmbeddedFrontend
 	}
 
-	return []*node.ReverseProxyRule{
+	apiURL, err := url.Parse(fmt.Sprintf("http://localhost:%s", constants.DefaultPortHabitatAPI))
+	if err != nil {
+		return nil, err
+	}
+
+	res := []*node.ReverseProxyRule{
 		{
 			ID:      "default-rule-api",
 			Type:    node.ProxyRuleRedirect,
@@ -397,7 +398,19 @@ func generateDefaultReverseProxyRules(frontendDev bool) ([]*node.ReverseProxyRul
 			Target:  apiURL.String() + "/xrpc/com.habitat.getRecord",
 		},
 		frontendRule,
-	}, nil
+	}
+
+	// Add any additional reverse proxy rules from the config file
+	configRules, err := nodeConfig.ReverseProxyRules()
+	if err != nil {
+		return nil, err
+	}
+
+	for _, rule := range configRules {
+		res = append(res, rule)
+	}
+
+	return res, nil
 }
 
 func initialState(

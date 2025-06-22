@@ -386,6 +386,21 @@ func (n *NodeConfig) DefaultApps() ([]*node.AppInstallation, []*node.ReverseProx
 	return apps, rules, nil
 }
 
+func (n *NodeConfig) ReverseProxyRules() ([]*node.ReverseProxyRule, error) {
+	var rules []*node.ReverseProxyRule
+	err := n.viper.UnmarshalKey("reverse_proxy_rules", &rules, viper.DecoderConfigOption(
+		func(decoderConfig *mapstructure.DecoderConfig) {
+			decoderConfig.TagName = "yaml"
+			decoderConfig.Squash = true
+		},
+	))
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to unmarshal default reverse proxy rules")
+		return nil, err
+	}
+	return rules, nil
+}
+
 // Helper functions
 
 func homedir() (string, error) {

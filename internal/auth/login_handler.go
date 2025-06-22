@@ -268,6 +268,26 @@ func (c *callbackHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	dpopClient.SetAccessTokenHash(token.AccessToken)
 
+	http.SetCookie(w, &http.Cookie{
+		Name:  "access_token",
+		Value: token.AccessToken,
+		Path:  "/",
+		//		HttpOnly: true,
+		//Secure:   true,
+		SameSite: http.SameSiteLaxMode,
+	})
+
+	if token.RefreshToken != "" {
+		http.SetCookie(w, &http.Cookie{
+			Name:  "refresh_token",
+			Value: token.RefreshToken,
+			Path:  "/",
+			//HttpOnly: true,
+			//Secure:   true,
+			SameSite: http.SameSiteLaxMode,
+		})
+	}
+
 	http.Redirect(
 		w,
 		r,
