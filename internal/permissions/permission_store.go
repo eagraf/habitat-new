@@ -17,7 +17,7 @@ type Store interface {
 	) (bool, error)
 }
 
-type permisionStoreImpl struct {
+type store struct {
 	enforcer *casbin.Enforcer
 }
 
@@ -33,13 +33,13 @@ func NewStore(adapter persist.Adapter) (Store, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &permisionStoreImpl{
+	return &store{
 		enforcer: enforcer,
 	}, nil
 }
 
 // HasPermission implements PermissionStore.
-func (p *permisionStoreImpl) HasPermission(
+func (p *store) HasPermission(
 	didstr string,
 	nsid string,
 	rkey string,
