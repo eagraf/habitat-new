@@ -22,20 +22,20 @@ func TestControllerPrivateDataPutGet(t *testing.T) {
 	dummy := permissions.NewDummyStore()
 	p := newStore(syntax.DID("my-did"), dummy)
 
-	// putRecord with encryption
+	// putRecord
 	coll := "my.fake.collection"
 	rkey := "my-rkey"
 	validate := true
 	err = p.putRecord(coll, val, rkey, &validate)
 	require.NoError(t, err)
 
-	got, err := p.getRecord(coll, "my-rkey", "another-did")
-	require.Equal(t, []byte(got), marshalledVal)
+	_, err = p.getRecord(coll, "my-rkey", "another-did")
+	require.Nil(t, err)
 	require.Error(t, ErrUnauthorized)
 
 	dummy.AddPermission(coll, "another-did")
 
-	got, err = p.getRecord(coll, "my-rkey", "another-did")
+	got, err := p.getRecord(coll, "my-rkey", "another-did")
 	require.NoError(t, err)
 	require.Equal(t, []byte(got), marshalledVal)
 
