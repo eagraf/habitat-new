@@ -135,7 +135,6 @@ func (p *store) getRecord(collection string, rkey string, callerDID syntax.DID) 
 	}
 
 	if !authz {
-		fmt.Println("caller", callerDID, "is not authorized to ", p.did, "collection", collection)
 		return nil, ErrUnauthorized
 	}
 

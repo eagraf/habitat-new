@@ -68,7 +68,6 @@ func (s *Server) Register(did syntax.DID, perms permissions.Store) error {
 
 // PutRecord puts a potentially encrypted record (see s.inner.putRecord)
 func (s *Server) PutRecord(syntax.DID) http.HandlerFunc {
-	fmt.Println("PriviServer PutRecord")
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req PutRecordRequest
 		slurp, err := io.ReadAll(r.Body)
@@ -77,20 +76,17 @@ func (s *Server) PutRecord(syntax.DID) http.HandlerFunc {
 			return
 		}
 
-		fmt.Println("here", string(slurp))
 		err = json.Unmarshal(slurp, &req)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		fmt.Println("here1")
 
 		// Get the PDS endpoint for the caller's DID
 		// If the caller does not have write access, the write will fail (assume privi is read-only premissions for now)
 
 		did := req.Repo
 		atid, err := syntax.ParseAtIdentifier(did)
-		fmt.Println("parseatidentifier", atid, err)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
@@ -101,8 +97,6 @@ func (s *Server) PutRecord(syntax.DID) http.HandlerFunc {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-
-		fmt.Println("Got PutRecord request", did, req)
 
 		inner, ok := s.servedByMe(id.DID)
 		if !ok {
@@ -141,7 +135,6 @@ var (
 
 // GetRecord gets a potentially encrypted record (see s.inner.getRecord)
 func (s *Server) GetRecord(callerDID syntax.DID) http.HandlerFunc {
-	fmt.Println("PriviServer GetRecord")
 	return func(w http.ResponseWriter, r *http.Request) {
 		u, err := url.Parse(r.URL.String())
 		if err != nil {
@@ -154,8 +147,6 @@ func (s *Server) GetRecord(callerDID syntax.DID) http.HandlerFunc {
 		repo := u.Query().Get("repo")
 		rkey := u.Query().Get("rkey")
 
-		fmt.Println("here")
-
 		// Try handling both handles and dids
 		atid, err := syntax.ParseAtIdentifier(repo)
 		if err != nil {
@@ -164,16 +155,12 @@ func (s *Server) GetRecord(callerDID syntax.DID) http.HandlerFunc {
 			return
 		}
 
-		fmt.Println("here1")
-
 		id, err := s.dir.Lookup(r.Context(), *atid)
 		if err != nil {
 			// TODO: write helpful message
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-
-		fmt.Println("here2")
 
 		targetDID := id.DID
 		inner, ok := s.servedByMe(targetDID)
@@ -182,11 +169,8 @@ func (s *Server) GetRecord(callerDID syntax.DID) http.HandlerFunc {
 			http.Error(w, fmt.Sprintf("%s: did %s", errWrongServer.Error(), id.DID.String()), http.StatusBadRequest)
 			return
 		}
-		fmt.Println("here3")
 
 		out, err := inner.getRecord(collection, rkey, callerDID)
-
-		fmt.Println("out, err", string(out), err)
 
 		if errors.Is(err, ErrUnauthorized) {
 			http.Error(w, ErrUnauthorized.Error(), http.StatusForbidden)
@@ -211,7 +195,6 @@ func (s *Server) GetRecord(callerDID syntax.DID) http.HandlerFunc {
 func (s *Server) pdsAuthMiddleware(next func(syntax.DID) http.HandlerFunc) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		did, err := s.getCaller(r)
-		fmt.Println("getCaller err", err)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusForbidden)
 			return
@@ -318,10 +301,8 @@ func (s *Server) validateBearerToken(ctx context.Context, token string) (string,
 
 // HACK: trust did
 func (s *Server) getCaller(r *http.Request) (syntax.DID, error) {
-	fmt.Println(r.Header)
 	authHeader := r.Header.Get("Authorization")
 	token := strings.Split(authHeader, "Bearer ")[1]
-	fmt.Println("token from header", token)
 	jwt.RegisterSigningMethod("ES256K", func() jwt.SigningMethod {
 		return &SigningMethodSecp256k1{
 			alg:      "ES256K",
@@ -352,7 +333,6 @@ func (s *Server) getCaller(r *http.Request) (syntax.DID, error) {
 	if err != nil {
 		return "", err
 	}
-	fmt.Println("issuer, err", did, err)
 	return syntax.DID(did), err
 }
 

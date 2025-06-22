@@ -11,7 +11,6 @@ package privi
 import (
 	"crypto"
 	"errors"
-	"fmt"
 
 	atprotocrypto "github.com/bluesky-social/indigo/atproto/crypto"
 )
@@ -43,14 +42,11 @@ var (
 // Verify it is a secp256k1 key before passing, otherwise it will validate with
 // that type of key instead. This can be done using ethereum's crypto package.
 func (sm *SigningMethodSecp256k1) Verify(signingString string, signature []byte, key interface{}) error {
-	fmt.Println("sm Verify")
-	fmt.Printf("%T", key)
 	pub, ok := key.(*atprotocrypto.PublicKeyK256)
 	if !ok {
 		return ErrWrongKeyFormat
 	}
 
-	fmt.Println("Got past wrong key format")
 	if !sm.hash.Available() {
 		return ErrHashUnavailable
 	}
