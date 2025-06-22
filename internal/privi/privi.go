@@ -3,7 +3,6 @@ package privi
 import (
 	"encoding/json"
 	"fmt"
-	"strings"
 
 	"github.com/bluesky-social/indigo/atproto/data"
 	"github.com/bluesky-social/indigo/atproto/syntax"
@@ -71,31 +70,17 @@ type store struct {
 	repo inMemoryRepo
 }
 
-const encryptedRecordNSID = "com.habitat.encryptedRecord"
-
-func encryptedRecordRKey(collection string, rkey string) string {
-	return fmt.Sprintf("enc:%s:%s", collection, rkey)
-}
-
 type encryptedRecord struct {
 	Data util.BlobSchema `json:"data" cborgen:"data"`
 }
 
 var (
-	ErrPublicRecordExists               = fmt.Errorf("a public record exists with the same key")
-	ErrNoPutsOnEncryptedRecord          = fmt.Errorf("directly put-ting to this lexicon is not valid")
-	ErrNoEncryptedGetsOnEncryptedRecord = fmt.Errorf("calling getEncryptedRecord on a %s is not supported", encryptedRecordNSID)
-	ErrEncryptedRecordNilValue          = fmt.Errorf("a %s record was found but it has a nil value", encryptedRecordNSID)
-	ErrNotLocalRepo                     = fmt.Errorf("the desired did does not live on this repo")
-	ErrUnauthorized                     = fmt.Errorf("unauthorized request")
-	ErrRecordNotFound                   = fmt.Errorf("record not found")
+	ErrPublicRecordExists      = fmt.Errorf("a public record exists with the same key")
+	ErrNoPutsOnEncryptedRecord = fmt.Errorf("directly put-ting to this lexicon is not valid")
+	ErrNotLocalRepo            = fmt.Errorf("the desired did does not live on this repo")
+	ErrUnauthorized            = fmt.Errorf("unauthorized request")
+	ErrRecordNotFound          = fmt.Errorf("record not found")
 )
-
-// Returns true if err indicates the RecordNotFound error
-func errorIsNoRecordFound(err error) bool {
-	// TODO: Not sure if the atproto lib has an error to directly use with errors.Is()
-	return strings.Contains(err.Error(), "RecordNotFound") || strings.Contains(err.Error(), "Could not locate record")
-}
 
 // TODO: take in a carfile/sqlite where user's did is persisted
 func newStore(did syntax.DID, perms permissions.Store) *store {

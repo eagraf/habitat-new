@@ -1,9 +1,7 @@
 package privi
 
 import (
-	"context"
 	"crypto"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -11,9 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"time"
 
-	atprotocrypto "github.com/bluesky-social/indigo/atproto/crypto"
 	"github.com/bluesky-social/indigo/atproto/identity"
 	"github.com/bluesky-social/indigo/atproto/syntax"
 	"github.com/golang-jwt/jwt/v5"
@@ -35,10 +31,6 @@ type Server struct {
 	stores map[syntax.DID]*store
 	// Used for resolving handles -> did, did -> PDS
 	dir identity.Directory
-}
-
-func defaultEncrypter() Encrypter {
-	return &NoopEncrypter{}
 }
 
 // NewServer returns a privi server.
@@ -200,102 +192,6 @@ func (s *Server) pdsAuthMiddleware(next func(syntax.DID) http.HandlerFunc) http.
 		}
 		next(did).ServeHTTP(w, r)
 	})
-}
-
-type serviceJwtHeader struct {
-	Alg string `json:"alg"`
-}
-
-func parseHeader(header string) (*serviceJwtHeader, error) {
-	bytes, err := base64.URLEncoding.DecodeString(header)
-	if err != nil {
-		return nil, err
-	}
-	var v serviceJwtHeader
-	err = json.Unmarshal(bytes, &v)
-	return &v, err
-}
-
-type serviceJwtPayload struct {
-	Iss string `json:"iss"`
-	Aud string `json:"aud"`
-	Exp int64  `json:"exp"`
-	Lxm string `json:"lxm"`
-}
-
-func parsePayload(payload string) (*serviceJwtPayload, error) {
-	bytes, err := base64.URLEncoding.DecodeString(payload)
-	if err != nil {
-		return nil, err
-	}
-	var v serviceJwtPayload
-	err = json.Unmarshal(bytes, &v)
-	return &v, err
-}
-
-func (s *Server) validateBearerToken(ctx context.Context, token string) (string, error) {
-	parts := strings.Split(token, ".")
-	if len(parts) != 3 {
-		return "", errors.New("poorly formatted jwt")
-	}
-
-	header, err := parseHeader(parts[0]) // header
-	if err != nil {
-		return "", errors.Join(fmt.Errorf("failed to parse header"), err)
-	}
-
-	payload, err := parsePayload(parts[1])
-	if err != nil {
-		return "", errors.Join(fmt.Errorf("failed to parse payload"), err)
-	}
-
-	if time.Now().Unix() > payload.Exp {
-		return "", errors.New("token expired")
-	}
-
-	// TODO: we should probably vaildate that this is the intended did but it
-	// technically doesn't matter for now
-	// if ownDid != payload.aud {
-	// 	return "", errors.New("invalid audience")
-	// }
-
-	if payload.Lxm != "com.habitat.getRecord" {
-		return "", errors.New("unsupported lexicon method")
-	}
-
-	msg := []byte(strings.Join(parts[0:2], "."))
-	sig, err := base64.URLEncoding.DecodeString(parts[2])
-	if err != nil {
-		return "", errors.Join(errors.New("failed to decode signature"), err)
-	}
-
-	id, err := s.dir.LookupDID(ctx, syntax.DID(payload.Iss))
-	if err != nil {
-		return "", errors.Join(errors.New("failed to lookup identity"), err)
-	}
-	publicKey, err := id.PublicKey()
-	if err != nil {
-		return "", errors.Join(errors.New("failed to get public key"), err)
-	}
-
-	if header.Alg == "ES256K" {
-		if _, ok := publicKey.(*atprotocrypto.PublicKeyK256); !ok {
-			return "", errors.New("invalid key type")
-		}
-	} else if header.Alg == "ES256" {
-		if _, ok := publicKey.(*atprotocrypto.PublicKeyP256); !ok {
-			return "", errors.New("invalid key type")
-		}
-	} else {
-		return "", errors.New("unsupported algorithm")
-	}
-
-	err = publicKey.HashAndVerify(msg, sig)
-	if err != nil {
-		return "", errors.Join(errors.New("failed to verify signature"), err)
-	}
-
-	return payload.Iss, nil
 }
 
 // HACK: trust did

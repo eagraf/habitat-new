@@ -69,7 +69,3 @@ func (sm *SigningMethodSecp256k1) Alg() string {
 func toES256K(sig []byte) []byte {
 	return sig[:64]
 }
-
-func toES256KR(sig []byte) []byte {
-	return sig[:65]
-}
