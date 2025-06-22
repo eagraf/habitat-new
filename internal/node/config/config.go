@@ -347,6 +347,10 @@ func (n *NodeConfig) TailScaleFunnelEnabled() bool {
 	}
 }
 
+func (n *NodeConfig) InternalPDSURL() string {
+	return "http://host.docker.internal:5001"
+}
+
 // TODO @eagraf we probably will eventually need a better secret management system.
 func (n *NodeConfig) PDSAdminUsername() string {
 	return "admin"

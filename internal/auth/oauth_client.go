@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"bytes"
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
@@ -20,7 +21,9 @@ import (
 )
 
 type ClientMetadata struct {
+	ClientName              string              `json:"client_name"`
 	ClientId                string              `json:"client_id"`
+	ClientUri               string              `json:"client_uri"`
 	ApplicationType         string              `json:"application_type"`
 	GrantTypes              []string            `json:"grant_types"`
 	Scope                   string              `json:"scope"`
@@ -40,7 +43,7 @@ type OAuthClient interface {
 		code string,
 		issuer string,
 		state *AuthorizeState,
-	) (string, error)
+	) (*TokenResponse, error)
 }
 
 type oauthClientImpl struct {
@@ -56,6 +59,7 @@ func NewOAuthClient(clientId string, redirectUri string, secretJwk []byte) (OAut
 		return nil, err
 	}
 	return &oauthClientImpl{
+		clientId:    clientId,
 		redirectUri: redirectUri,
 		secretJwk:   secret,
 	}, nil
@@ -65,6 +69,8 @@ func NewOAuthClient(clientId string, redirectUri string, secretJwk []byte) (OAut
 func (o *oauthClientImpl) ClientMetadata() *ClientMetadata {
 	publicJwk := o.secretJwk.Public()
 	return &ClientMetadata{
+		ClientName:              "Habitat",
+		ClientUri:               "https://beacon-dev.tail07d32.ts.net",
 		ClientId:                o.clientId,
 		ApplicationType:         "web",
 		GrantTypes:              []string{"authorization_code", "refresh_token"},
@@ -132,19 +138,27 @@ func (o *oauthClientImpl) Authorize(
 	}, nil
 }
 
+type TokenResponse struct {
+	AccessToken  string `json:"access_token"`
+	RefreshToken string `json:"refresh_token"`
+	Scope        string `json:"scope"`
+	TokenType    string `json:"token_type"`
+	ExpiresIn    int    `json:"expires_in"`
+}
+
 // ExchangeCode implements OAuthClient.
 func (o *oauthClientImpl) ExchangeCode(
 	dpopClient *DpopHttpClient,
 	code string,
 	issuer string,
 	state *AuthorizeState,
-) (string, error) {
+) (*TokenResponse, error) {
 	clientAssertion, err := o.getClientAssertion(issuer)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	log.Info().Msgf("toekn endpoint: %s", state.TokenEndpoint)
+	log.Info().Msgf("token endpoint: %s", state.TokenEndpoint)
 	req, err := http.NewRequest(
 		http.MethodPost,
 		state.TokenEndpoint,
@@ -160,25 +174,31 @@ func (o *oauthClientImpl) ExchangeCode(
 		}.Encode()),
 	)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
 	resp, err := dpopClient.Do(req)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		var errMsg json.RawMessage
 		json.NewDecoder(resp.Body).Decode(&errMsg)
-		return "", fmt.Errorf("failed to exchange code: %s", resp.Status, string(errMsg))
+		return nil, fmt.Errorf("failed to exchange code: %s", resp.Status, string(errMsg))
 	}
 
-	token, err := io.ReadAll(resp.Body)
+	rawTokenResp, err := io.ReadAll(resp.Body)
 
-	return string(token), nil
+	var tokenResp TokenResponse
+	err = json.NewDecoder(bytes.NewReader(rawTokenResp)).Decode(&tokenResp)
+	if err != nil {
+		return nil, err
+	}
+
+	return &tokenResp, nil
 }
 
 type oauthProtectedResource struct {
@@ -232,10 +252,11 @@ func fetchOauthAuthorizationServer(
 		return nil, err
 	}
 	if url.Host == "localhost:3000" {
-		url.Host = "host.docker.internal:3000"
+		url.Host = "host.docker.internal:5001"
 	}
+	url.Path = "/.well-known/oauth-authorization-server"
 	resp, err := http.DefaultClient.Get(
-		url.JoinPath("/.well-known/oauth-authorization-server").String(),
+		url.String(),
 	)
 	if err != nil {
 		return nil, err
@@ -249,7 +270,10 @@ func fetchOauthAuthorizationServer(
 	}
 
 	var as oauthAuthorizationServer
-	json.NewDecoder(resp.Body).Decode(&as)
+	err = json.NewDecoder(resp.Body).Decode(&as)
+	if err != nil {
+		return nil, err
+	}
 
 	return &as, nil
 }
@@ -261,7 +285,11 @@ type parResponse struct {
 func (o *oauthClientImpl) getClientAssertion(audience string) (string, error) {
 	signer, err := jose.NewSigner(
 		jose.SigningKey{Algorithm: jose.ES256, Key: o.secretJwk},
-		nil,
+		&jose.SignerOptions{
+			ExtraHeaders: map[jose.HeaderKey]interface{}{
+				"kid": o.secretJwk.KeyID,
+			},
+		},
 	)
 	if err != nil {
 		return "", err
@@ -295,7 +323,7 @@ func (o *oauthClientImpl) makePushedAuthorizationRequest(
 		return "", err
 	}
 	if parUrl.Host == "localhost:3000" {
-		parUrl.Host = "host.docker.internal:3000"
+		parUrl.Host = "host.docker.internal:5001"
 	}
 
 	req, err := http.NewRequest(
@@ -328,6 +356,7 @@ func (o *oauthClientImpl) makePushedAuthorizationRequest(
 		Str("login hint", loginHint).
 		Str("state", state).
 		Str("verifier", verifier).
+		Str("redirect uri", o.redirectUri).
 		Msg("making par request")
 
 	resp, err := dpopClient.Do(req)

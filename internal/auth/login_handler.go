@@ -59,8 +59,8 @@ func NewLoginHandler(
 		panic(err)
 	}
 	oauthClient, err := NewOAuthClient(
-		"https://"+nodeConfig.Domain()+"/habitat/api/client-metadata.json", /*clientId*/
-		"https://"+nodeConfig.Domain()+"/habitat/api/auth-callback",        /*redirectUri*/
+		"https://beacon-dev.tail07d32.ts.net/habitat/api/client-metadata.json", /*clientId*/
+		"https://beacon-dev.tail07d32.ts.net/habitat/api/auth-callback",        /*redirectUri*/
 		jwk, /*secretJwk*/
 	)
 	if err != nil {

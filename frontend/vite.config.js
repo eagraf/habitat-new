@@ -17,5 +17,6 @@ export default defineConfig({
   },
   server: {
     host: true,
+    allowedHosts: ["beacon-dev.tail07d32.ts.net"]
   },
 });
