@@ -64,7 +64,7 @@ func (r inMemoryRepo) getRecord(collection string, rkey string) (record, bool) {
 // TODO: formally define the com.habitat.encryptedRecord and change it to a domain we actually own :)
 type store struct {
 	did syntax.DID
-	// TODO: consider encrypting at rest. probably not, and construct a wholly separate MST for private data.
+	// TODO: consider encrypting at rest. We probably do not want to do this but do want to construct a wholly separate MST for private data.
 	// e           Encrypter
 	permissions permissions.Store
 

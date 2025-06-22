@@ -84,7 +84,6 @@ func (s *Server) PutRecord(syntax.DID) http.HandlerFunc {
 
 		// Get the PDS endpoint for the caller's DID
 		// If the caller does not have write access, the write will fail (assume privi is read-only premissions for now)
-
 		did := req.Repo
 		atid, err := syntax.ParseAtIdentifier(did)
 		if err != nil {

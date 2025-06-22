@@ -191,6 +191,7 @@ func main() {
 		perms[syntax.DID(u.DID)] = permissions.NewDummyStore()
 	}
 
+  // FOR DEMO PURPOSES ONLY
 	sashankDID := "did:plc:v3amhno5wvyfams6aioqqj66"
 	sashankPerms := permissions.NewDummyStore()
 	sashankPerms.AddPermission("com.habitat.test", sashankDID)
