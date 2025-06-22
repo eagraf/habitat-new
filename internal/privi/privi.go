@@ -6,7 +6,7 @@ import (
 
 	"github.com/bluesky-social/indigo/atproto/data"
 	"github.com/bluesky-social/indigo/atproto/syntax"
-	"github.com/eagraf/habitat-new/core/permissions"
+	"github.com/eagraf/habitat-new/internal/permissions"
 )
 
 type record map[string]any

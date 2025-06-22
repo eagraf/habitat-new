@@ -14,8 +14,8 @@ import (
 	"github.com/bluesky-social/indigo/atproto/syntax"
 	"github.com/golang-jwt/jwt/v5"
 
-	"github.com/eagraf/habitat-new/core/permissions"
 	"github.com/eagraf/habitat-new/internal/node/api"
+	"github.com/eagraf/habitat-new/internal/permissions"
 	"github.com/rs/zerolog/log"
 )
 

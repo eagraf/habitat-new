@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/bluesky-social/indigo/atproto/syntax"
-	"github.com/eagraf/habitat-new/core/permissions"
+	"github.com/eagraf/habitat-new/internal/permissions"
 	"github.com/stretchr/testify/require"
 )
 
