@@ -38,6 +38,13 @@ type Store interface {
 		didstr string,
 		nsid string,
 	) error
+	RemoveLexiconReadPermission(
+		didstr string,
+		nsid string,
+	) error
+	ListPermissionsForLexicon(
+		nsid string,
+	) ([]string, error)
 }
 
 type store struct {

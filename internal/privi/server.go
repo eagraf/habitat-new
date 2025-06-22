@@ -91,7 +91,11 @@ func (s *Server) PutRecord(w http.ResponseWriter, r *http.Request) {
 	inner, ok := s.servedByMe(id.DID)
 	if !ok {
 		// TODO: write helpful message
-		http.Error(w, fmt.Sprintf("%s: did %s", errWrongServer.Error(), id.DID.String()), http.StatusBadRequest)
+		http.Error(
+			w,
+			fmt.Sprintf("%s: did %s", errWrongServer.Error(), id.DID.String()),
+			http.StatusBadRequest,
+		)
 		return
 	}
 
@@ -112,9 +116,7 @@ func (s *Server) servedByMe(did syntax.DID) (*store, bool) {
 	return store, ok
 }
 
-var (
-	errWrongServer = fmt.Errorf("did is not served by this privi instance:")
-)
+var errWrongServer = fmt.Errorf("did is not served by this privi instance:")
 
 // Find desired did
 // if other did, forward request there
@@ -155,7 +157,11 @@ func (s *Server) GetRecord(callerDID syntax.DID) http.HandlerFunc {
 		inner, ok := s.servedByMe(targetDID)
 		if !ok {
 			// TODO: write helpful message
-			http.Error(w, fmt.Sprintf("%s: did %s", errWrongServer.Error(), id.DID.String()), http.StatusBadRequest)
+			http.Error(
+				w,
+				fmt.Sprintf("%s: did %s", errWrongServer.Error(), id.DID.String()),
+				http.StatusBadRequest,
+			)
 			return
 		}
 
@@ -236,7 +242,6 @@ func (s *Server) getCaller(r *http.Request) (syntax.DID, error) {
 		}
 		return id.PublicKey()
 	}, jwt.WithValidMethods([]string{"ES256K"}), jwt.WithoutClaimsValidation())
-
 	if err != nil {
 		return "", err
 	}
@@ -251,34 +256,86 @@ func (s *Server) getCaller(r *http.Request) (syntax.DID, error) {
 }
 
 type listPermissionRequest struct {
-	OwnerDID string `json:"owner"`
-	Lexicon  string `json:"lexicon"`
+	Lexicon string `json:"lexicon"`
 }
 
 func (s *Server) ListPermissions(w http.ResponseWriter, r *http.Request) {
-	slurp, err := io.ReadAll(r.Body)
-	if err != nil {
-		http.Error(w, "invalid request body", http.StatusBadRequest)
-		return
-	}
-
 	var req listPermissionRequest
-	err = json.Unmarshal(slurp, &req)
+	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		http.Error(w, "failed to unmarshal request body", http.StatusBadRequest)
 		return
 	}
+
+	callerDID, err := s.getCaller(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusForbidden)
+		return
+	}
+
+	store := s.stores[callerDID]
+
+	permissions, err := store.permissions.ListPermissionsForLexicon(req.Lexicon)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	resp, err := json.Marshal(permissions)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if _, err := w.Write(resp); err != nil {
+		log.Err(err).Msgf("error sending response for ListPermissions request")
+	}
 }
 
 type editPermissionRequest struct {
-	OwnerDID string `json:"owner"`
-	ActorDID string `json:"addDID"`
-	Lexicon  string `json:"lexicon"`
+	DID     string `json:"did"`
+	Lexicon string `json:"lexicon"`
 }
 
-func (s *Server) AddPermission(w http.ResponseWriter, r *http.Request) {}
+func (s *Server) AddPermission(w http.ResponseWriter, r *http.Request) {
+	req := &editPermissionRequest{}
+	err := json.NewDecoder(r.Body).Decode(req)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	callerDID, err := s.getCaller(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusForbidden)
+		return
+	}
 
-func (s *Server) RemovePermission(w http.ResponseWriter, r *http.Request) {}
+	store := s.stores[callerDID]
+	err = store.permissions.AddLexiconReadPermission(req.DID, req.Lexicon)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
+
+func (s *Server) RemovePermission(w http.ResponseWriter, r *http.Request) {
+	req := &editPermissionRequest{}
+	err := json.NewDecoder(r.Body).Decode(req)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	callerDID, err := s.getCaller(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusForbidden)
+		return
+	}
+
+	store := s.stores[callerDID]
+	err = store.permissions.RemoveLexiconReadPermission(req.DID, req.Lexicon)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
 
 func (s *Server) GetRoutes() []api.Route {
 	return []api.Route{
@@ -293,7 +350,11 @@ func (s *Server) GetRoutes() []api.Route {
 			s.pdsAuthMiddleware(s.GetRecord),
 		),
 		api.NewBasicRoute(http.MethodPost, "/xrpc/com.habitat.addPermission", s.AddPermission),
-		api.NewBasicRoute(http.MethodPost, "/xrpc/com.habitat.removePermission", s.RemovePermission),
+		api.NewBasicRoute(
+			http.MethodPost,
+			"/xrpc/com.habitat.removePermission",
+			s.RemovePermission,
+		),
 		api.NewBasicRoute(http.MethodGet, "/xrpc/com.habitat.listPermissions", s.ListPermissions),
 	}
 }
