@@ -2,15 +2,19 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
 	"net/url"
+	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"syscall"
 
 	"github.com/bluesky-social/indigo/atproto/syntax"
+	fileadapter "github.com/casbin/casbin/v2/persist/file-adapter"
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
@@ -186,16 +190,45 @@ func main() {
 	}
 
 	// TODO: read from persisted state about permissions.
-	perms := make(map[syntax.DID]permissions.Store)
-	for _, u := range initState.Users {
-		perms[syntax.DID(u.DID)] = permissions.NewDummyStore()
+	policiesDirPath := nodeConfig.PermissionPolicyFilesDir()
+	policiesDir, err := os.ReadDir(policiesDirPath)
+	if errors.Is(err, os.ErrNotExist) {
+		log.Info().Msgf("Creating a policies dir path at %s", policiesDirPath)
+		err := os.Mkdir(policiesDirPath, 0700)
+		if err != nil {
+			log.Fatal().Err(err).Msgf("error creating permission policies dir at %s", policiesDirPath)
+		}
+	} else if err != nil {
+		log.Fatal().Err(err).Msg("error reading from permission policies dir")
+	} else {
+		fmt.Println("There is a policies dir at", policiesDirPath)
 	}
 
-  // FOR DEMO PURPOSES ONLY
+	perms := make(map[syntax.DID]permissions.Store, len(policiesDir))
+
+	for _, file := range policiesDir {
+		// Convention is to store policies for a given did in a file called <did>_policies.csv
+		name := file.Name()
+		spl := strings.Split(file.Name(), "_")
+		if len(spl) < 2 {
+			log.Fatal().Err(err).Msgf("invalid naming for permission policy file: found %s, expected %s", file.Name(), "<did>_policies.csv")
+		}
+		did := spl[0]
+		adapter := fileadapter.NewAdapter(filepath.Join(policiesDirPath, name))
+		store, err := permissions.NewStore(adapter)
+		if err != nil {
+			log.Fatal().Err(err).Msgf("unable to initialize permissions store for user %s", did)
+		}
+		perms[syntax.DID(did)] = store
+	}
+
+	// FOR DEMO PURPOSES ONLY
 	sashankDID := "did:plc:v3amhno5wvyfams6aioqqj66"
-	sashankPerms := permissions.NewDummyStore()
-	sashankPerms.AddPermission("com.habitat.test", sashankDID)
-	perms[syntax.DID(sashankDID)] = sashankPerms
+	_, ok := perms[syntax.DID(sashankDID)]
+	if !ok {
+		perms[syntax.DID(sashankDID)] = permissions.NewDummyStore()
+	}
+	perms[syntax.DID(sashankDID)].AddLexiconReadPermission(sashankDID, "com.habitat.test")
 
 	// Add privy routes
 	priviServer := privi.NewServer(
