@@ -37,7 +37,7 @@ type ClientMetadata struct {
 
 type OAuthClient interface {
 	ClientMetadata() *ClientMetadata
-	Authorize(dpopClient *DpopHttpClient, i *identity.Identity) (string, *AuthorizeState, error)
+	Authorize(dpopClient *DpopHttpClient, i *identity.Identity, handle *string) (string, *AuthorizeState, error)
 	ExchangeCode(
 		dpopClient *DpopHttpClient,
 		code string,
@@ -94,6 +94,7 @@ type AuthorizeState struct {
 func (o *oauthClientImpl) Authorize(
 	dpopClient *DpopHttpClient,
 	i *identity.Identity,
+	loginHint *string,
 ) (string, *AuthorizeState, error) {
 	pr, err := fetchOAuthProtectedResource(i)
 	if err != nil {
@@ -116,7 +117,7 @@ func (o *oauthClientImpl) Authorize(
 
 	requestUri, err := o.makePushedAuthorizationRequest(
 		dpopClient,
-		i.DID.Identifier(),
+		loginHint,
 		serverMetadata,
 		state,
 		verifier,
@@ -307,7 +308,7 @@ func (o *oauthClientImpl) getClientAssertion(audience string) (string, error) {
 
 func (o *oauthClientImpl) makePushedAuthorizationRequest(
 	dpopClient *DpopHttpClient,
-	loginHint string,
+	loginHint *string,
 	as *oauthAuthorizationServer,
 	state string,
 	verifier string,
@@ -326,23 +327,29 @@ func (o *oauthClientImpl) makePushedAuthorizationRequest(
 		parUrl.Host = "host.docker.internal:5001"
 	}
 
+	params := url.Values{
+		"client_id":             {o.clientId},
+		"redirect_uri":          {o.redirectUri},
+		"code_challenge":        {oauth2.S256ChallengeFromVerifier(verifier)},
+		"code_challenge_method": {"S256"},
+		"state":                 {state},
+		"respose_mode":          {"query"},
+		"response_type":         {"code"},
+		"scope":                 {"atproto transition:generic"},
+		//"login_hint":            {*loginHint},
+
+		"client_assertion_type": {"urn:ietf:params:oauth:client-assertion-type:jwt-bearer"},
+		"client_assertion":      {clientAssertion},
+	}
+
+	if loginHint != nil {
+		params.Add("login_hint", *loginHint)
+	}
+
 	req, err := http.NewRequest(
 		http.MethodPost,
 		parUrl.String(),
-		strings.NewReader(url.Values{
-			"client_id":             {o.clientId},
-			"redirect_uri":          {o.redirectUri},
-			"code_challenge":        {oauth2.S256ChallengeFromVerifier(verifier)},
-			"code_challenge_method": {"S256"},
-			"state":                 {state},
-			"respose_mode":          {"query"},
-			"response_type":         {"code"},
-			"scope":                 {"atproto transition:generic"},
-			"login_hint":            {loginHint},
-
-			"client_assertion_type": {"urn:ietf:params:oauth:client-assertion-type:jwt-bearer"},
-			"client_assertion":      {clientAssertion},
-		}.Encode()),
+		strings.NewReader(params.Encode()),
 	)
 	if err != nil {
 		return "", err
@@ -353,7 +360,7 @@ func (o *oauthClientImpl) makePushedAuthorizationRequest(
 		Str("client assertion", clientAssertion).
 		Str("issuer", as.Issuer).
 		Str("par url", parUrl.String()).
-		Str("login hint", loginHint).
+		Str("login hint", *loginHint).
 		Str("state", state).
 		Str("verifier", verifier).
 		Str("redirect uri", o.redirectUri).

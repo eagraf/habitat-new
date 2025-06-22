@@ -110,12 +110,14 @@ func (l *loginHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var loginHint *string
 	var id *identity.Identity
 	if l.pdsURL != "" {
 		client := &xrpc.Client{
 			Host: l.pdsURL,
 		}
 		handle := atid.String()
+		loginHint = &handle
 		resp, err := atproto.IdentityResolveHandle(r.Context(), client, handle)
 		if err != nil {
 			log.Warn().Err(err).Str("identifier", identifier).Msg("error resolving handle")
@@ -138,6 +140,7 @@ func (l *loginHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			},
 		}
 	} else {
+		loginHint = nil
 		id, err = identity.DefaultDirectory().Lookup(r.Context(), *atid)
 		if err != nil {
 			log.Warn().Err(err).Str("identifier", identifier).Msg("error looking up identifier")
@@ -155,7 +158,7 @@ func (l *loginHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	dpopClient.SetKey(dpopKey)
 
-	redirect, state, err := l.oauthClient.Authorize(dpopClient, id)
+	redirect, state, err := l.oauthClient.Authorize(dpopClient, id, loginHint)
 	if err != nil {
 		log.Error().Err(err).Str("identifier", identifier).Msg("error authorizing user")
 		http.Error(w, err.Error(), http.StatusInternalServerError)
