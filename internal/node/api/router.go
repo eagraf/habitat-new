@@ -50,7 +50,7 @@ func NewRouter(
 	for _, mw := range middlewares {
 		routerWithMiddleWare = mw(routerWithMiddleWare)
 	}
-	return router
+	return routerWithMiddleWare
 }
 
 // Helper package to easily return structured routes given basic info.
