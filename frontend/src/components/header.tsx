@@ -34,7 +34,7 @@ const Header = ({ isAuthenticated: isOauthAuthenticated, handle: oauthHandle, on
           </ul>
         ) : (
           <ul>
-            <li><Link to="/login"><button>OAuth Login</button></Link></li>
+            <li><Link to="/oauth-login"><button>OAuth Login</button></Link></li>
           </ul>
         )}
         {isAuthenticated && (
