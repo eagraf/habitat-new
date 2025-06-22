@@ -130,12 +130,9 @@ func TestControllerPrivateDataPutGet(t *testing.T) {
 
 	// putRecord with encryption
 	coll := "my.fake.collection"
-	err = p.putRecord(&agnostic.RepoPutRecord_Input{
-		Collection: coll,
-		Record:     val,
-		Repo:       "my-did",
-		Rkey:       "my-rkey",
-	})
+	rkey := "my-rkey"
+	validate := true
+	err = p.putRecord(coll, val, rkey, &validate)
 	require.NoError(t, err)
 
 	got, err := p.getRecord(coll, "my-rkey", "another-did")
@@ -147,11 +144,6 @@ func TestControllerPrivateDataPutGet(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, []byte(got), marshalledVal)
 
-	err = p.putRecord(&agnostic.RepoPutRecord_Input{
-		Collection: coll,
-		Record:     val,
-		Repo:       "my-did",
-		Rkey:       "my-rkey",
-	})
+	err = p.putRecord(coll, val, rkey, &validate)
 	require.NoError(t, err)
 }

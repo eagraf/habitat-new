@@ -111,10 +111,9 @@ func newStore(did syntax.DID, perms permissions.Store) *store {
 // type encryptedRecord map[string]any
 // the shape of the lexicon is { "cid": <cid pointing to the encrypted blob> }
 
-// putRecord with encryption wrapper around this
-// ONLY YOU CAN CALL PUT RECORD, NO ONE ELSE
-// Our security relies on this -- if this wasn't true then theoretically an attacker could call putRecord trying different rkey.
-// If they were unable to create with an rkey, that means that it exists privately.
+// putRecord puts the given record on the repo connected to this store (currently an in-memory repo that is a KV store)
+// It does not do any encryption, permissions, auth, etc. It is assumed that only the owner of the store can call this and that
+// is gated by some higher up level. This should be re-written in the future to not give any incorrect impression.
 func (p *store) putRecord(collection string, record map[string]any, rkey string, validate *bool) error {
 	// It is assumed right now that if this endpoint is called, the caller wants to put a private record into privi.
 	return p.repo.putRecord(collection, record, rkey, validate)
@@ -126,7 +125,7 @@ type GetRecordResponse struct {
 	Value any     `json:"value"`
 }
 
-// TODO: getRecord via cid -- depends on MST implementation
+// getRecord checks permissions on callerDID and then passes through to `repo.getRecord`.
 func (p *store) getRecord(collection string, rkey string, callerDID syntax.DID) (json.RawMessage, error) {
 	// Run permissions before returning to the user
 	authz, err := p.permissions.HasPermission(callerDID.String(), collection, rkey, false)
