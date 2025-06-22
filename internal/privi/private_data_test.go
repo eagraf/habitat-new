@@ -29,13 +29,13 @@ func TestControllerPrivateDataPutGet(t *testing.T) {
 	err = p.putRecord(coll, val, rkey, &validate)
 	require.NoError(t, err)
 
-	_, err = p.getRecord(coll, "my-rkey", "another-did")
-	require.Nil(t, err)
-	require.Error(t, ErrUnauthorized)
+	got, err := p.getRecord(coll, "my-rkey", "another-did")
+	require.Nil(t, got)
+	require.ErrorIs(t, ErrUnauthorized, err)
 
 	dummy.AddPermission(coll, "another-did")
 
-	got, err := p.getRecord(coll, "my-rkey", "another-did")
+	got, err = p.getRecord(coll, "my-rkey", "another-did")
 	require.NoError(t, err)
 	require.Equal(t, []byte(got), marshalledVal)
 
