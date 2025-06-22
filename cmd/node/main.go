@@ -104,14 +104,14 @@ func main() {
 	}
 
 	// Generate the list of apps to have installed and started when the node first comes up
-	pdsApp, pdsAppProxyRule := generatePDSAppConfig(nodeConfig)
+	pdsApp, pdsAppProxyRules := generatePDSAppConfig(nodeConfig)
 	defaultApps, defaultProxyRules, err := nodeConfig.DefaultApps()
 	if err != nil {
 		log.Fatal().Err(err).Msg("unable to generate proxy rules")
 	}
 
 	apps := append(defaultApps, pdsApp)
-	rules := append(append(defaultProxyRules, pdsAppProxyRule), proxyRules...)
+	rules := append(append(defaultProxyRules, pdsAppProxyRules...), proxyRules...)
 
 	initState, initialTransitions, err := initialState(nodeConfig.RootUserCertB64(), apps, rules)
 	if err != nil {
@@ -265,7 +265,7 @@ func main() {
 
 func generatePDSAppConfig(
 	nodeConfig *config.NodeConfig,
-) (*node.AppInstallation, *node.ReverseProxyRule) {
+) (*node.AppInstallation, []*node.ReverseProxyRule) {
 	pdsMountDir := filepath.Join(nodeConfig.HabitatAppPath(), "pds")
 
 	arch := runtime.GOARCH
@@ -326,12 +326,32 @@ func generatePDSAppConfig(
 				RegistryPackageTag: pdsTag,
 			},
 		},
-		&node.ReverseProxyRule{
-			ID:      "pds-app-reverse-proxy-rule",
-			AppID:   appID,
-			Type:    "redirect",
-			Matcher: "/xrpc",
-			Target:  fmt.Sprintf("https://%s/xrpc", constants.DefaultPDSHostname),
+		[]*node.ReverseProxyRule{
+			{
+				ID:      "pds-app-reverse-proxy-rule",
+				AppID:   appID,
+				Type:    "redirect",
+				Matcher: "/xrpc",
+				Target:  fmt.Sprintf("https://%s/xrpc", constants.DefaultPDSHostname),
+			},
+			{
+				ID:      "default-rule-oauth-well-known",
+				Type:    "redirect",
+				Matcher: "/.well-known",
+				Target:  "http://host.docker.internal:5001/.well-known/",
+			},
+			{
+				ID:      "default-rule-oauth-login",
+				Type:    "redirect",
+				Matcher: "/oauth",
+				Target:  "http://host.docker.internal:5001/oauth/",
+			},
+			{
+				ID:      "default-rule-atproto",
+				Type:    "redirect",
+				Matcher: "/@atproto",
+				Target:  "http://host.docker.internal:5001/@atproto/",
+			},
 		}
 }
 
