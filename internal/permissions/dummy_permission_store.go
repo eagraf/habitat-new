@@ -33,6 +33,16 @@ func (d *dummy) AddLexiconReadPermission(nsid string, didstr string) error {
 	return nil
 }
 
+func (d *dummy) RemoveLexiconReadPermission(
+	didstr string,
+	nsid string,
+) error {
+	return errors.ErrUnsupported
+}
+func (d *dummy) ListPermissionsForLexicon(nsid string) ([]string, error) {
+	return nil, errors.ErrUnsupported
+}
+
 // NewDummyStore returns a permissions store that always returns true
 func NewDummyStore() *dummy {
 	return &dummy{

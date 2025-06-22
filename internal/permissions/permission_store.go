@@ -3,7 +3,10 @@ package permissions
 import (
 	_ "embed"
 	"errors"
+	"maps"
+	"slices"
 
+	"github.com/bradenaw/juniper/xmaps"
 	"github.com/casbin/casbin/v2"
 	"github.com/casbin/casbin/v2/model"
 	"github.com/casbin/casbin/v2/persist"
@@ -54,7 +57,7 @@ type store struct {
 //go:embed model.conf
 var modelStr string
 
-func NewStore(adapter persist.Adapter) (Store, error) {
+func NewStore(adapter persist.Adapter, autoSave bool) (Store, error) {
 	m, err := model.NewModelFromString(modelStr)
 	if err != nil {
 		return nil, err
@@ -63,6 +66,9 @@ func NewStore(adapter persist.Adapter) (Store, error) {
 	if err != nil {
 		return nil, err
 	}
+	// Auto-Save allows for single policy updates to take effect dynamically.
+	// https://casbin.org/docs/adapters/#autosave
+	enforcer.EnableAutoSave(autoSave)
 	return &store{
 		enforcer: enforcer,
 	}, nil
@@ -82,21 +88,31 @@ func (p *store) AddLexiconReadPermission(
 	didstr string,
 	nsid string,
 ) error {
-	// TODO: probably wrong
-	p.enforcer.AddRolesForUser(didstr, []string{"read"}, nsid)
-	return errors.ErrUnsupported
+	_, err := p.enforcer.AddPermissionForUser(didstr, getObject(nsid, "*"), Read.String())
+	return err
 }
 
 func (p *store) RemoveLexiconReadPermission(
 	didstr string,
 	nsid string,
 ) error {
-	// TODO: fill me in
-	return errors.ErrUnsupported
+	_, err := p.enforcer.DeletePermissionForUser(didstr, nsid, Read.String())
+	return err
 }
 
 func (p *store) ListPermissionsForLexicon(nsid string) ([]string, error) {
-	return nil, errors.ErrUnsupported
+	perms, err := p.enforcer.GetImplicitUsersForResource(nsid)
+	if err != nil {
+		return nil, err
+	}
+	users := make(xmaps.Set[string], 0)
+	for _, perm := range perms {
+		// Format of perms is [[bob data2 write] [alice data2 read] [alice data2 write]]
+		if perm[2] == Read.String() {
+			users.Add(perm[0])
+		}
+	}
+	return slices.Collect(maps.Keys(users)), errors.ErrUnsupported
 }
 
 func getObject(nsid string, rkey string) string {
