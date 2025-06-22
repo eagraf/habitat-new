@@ -147,7 +147,6 @@ func (l *loginHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	dpopSession, _ := l.sessionStore.New(r, "dpop-session")
-	defer dpopSession.Save(r, w)
 	dpopClient := NewDpopHttpClient(dpopSession)
 	dpopKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
@@ -162,6 +161,14 @@ func (l *loginHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	err = dpopSession.Save(r, w)
+	if err != nil {
+		log.Error().Err(err).Msg("error saving dpop session")
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
 	stateJson, err := json.Marshal(state)
 	if err != nil {
 		log.Error().Err(err).Str("identifier", identifier).Msg("error marshalling state")
@@ -214,7 +221,7 @@ func (c *callbackHandler) Pattern() string {
 // ServeHTTP implements api.Route.
 func (c *callbackHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	log.Info().Msgf("query: %s", r.Cookies())
-	session, err := c.sessionStore.Get(r, "authorize-session")
+	session, err := c.sessionStore.Get(r, "auth-session")
 	if err != nil {
 		log.Error().Err(err).Msg("error getting session")
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -256,7 +263,7 @@ func (c *callbackHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	dpopClient.SetAccessTokenHash(token)
+	dpopClient.SetAccessTokenHash(token.AccessToken)
 
 	http.Redirect(
 		w,
