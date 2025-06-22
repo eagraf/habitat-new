@@ -3,6 +3,8 @@ package auth
 import (
 	"bytes"
 	"crypto/ecdsa"
+	"crypto/sha256"
+	"crypto/x509"
 	"encoding/json"
 	"errors"
 	"io"
@@ -47,36 +49,55 @@ func NewDpopHttpClient(session *sessions.Session) *DpopHttpClient {
 }
 
 func (s *DpopHttpClient) Do(req *http.Request) (*http.Response, error) {
-	s.sign(req)
+	err := s.sign(req)
+	if err != nil {
+		return nil, err
+	}
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
 
-	if resp.Header.Get("DPoP-Nonce") != "" {
-		s.session.Values[cNonceSessionKey] = resp.Header.Get("DPoP-Nonce")
-	}
 	if !isUseDPopNonceError(resp) {
 		return resp, nil
 	}
+
+	if resp.Header.Get("DPoP-Nonce") != "" {
+		s.session.Values[cNonceSessionKey] = resp.Header.Get("DPoP-Nonce")
+	}
 	log.Info().Msgf("retrying with new nonce: %s", resp.Header.Get("DPoP-Nonce"))
 	// retry with new nonce
-	s.sign(req)
+	err = s.sign(req)
+	if err != nil {
+		return nil, err
+	}
 	return http.DefaultClient.Do(req)
 }
 
 func (s *DpopHttpClient) SetKey(key *ecdsa.PrivateKey) {
-	s.session.Values[cKeySessionKey] = key
+	keyBytes, err := x509.MarshalECPrivateKey(key)
+	if err != nil {
+		log.Error().Err(err).Msg("error marshalling private key")
+		return
+	}
+	s.session.Values[cKeySessionKey] = keyBytes
 }
 
 func (s *DpopHttpClient) SetAccessTokenHash(ath string) {
-	s.session.Values[cAccessTokenHashSessionKey] = ath
+	h := sha256.New()
+	h.Write([]byte(ath))
+	hash := h.Sum(nil)
+	s.session.Values[cAccessTokenHashSessionKey] = string(hash)
 }
 
 func (s *DpopHttpClient) sign(req *http.Request) error {
-	key, ok := s.session.Values[cKeySessionKey].(*ecdsa.PrivateKey)
+	keyBytes, ok := s.session.Values[cKeySessionKey]
 	if !ok {
 		return errors.New("invalid/missing key in session")
+	}
+	key, err := x509.ParseECPrivateKey(keyBytes.([]byte))
+	if err != nil {
+		return err
 	}
 	signer, err := jose.NewSigner(
 		jose.SigningKey{Algorithm: jose.ES256, Key: key},
@@ -131,11 +152,10 @@ func isUseDPopNonceError(resp *http.Response) bool {
 
 	// Authorization server
 	if resp.StatusCode == 400 {
-		var buf [1024]byte
-		_, err := resp.Body.Read(buf[:])
+		body, err := io.ReadAll(resp.Body)
 		if err == nil {
 			var respBody map[string]any
-			err := json.NewDecoder(bytes.NewReader(buf[:])).Decode(&respBody)
+			err := json.NewDecoder(bytes.NewReader(body)).Decode(&respBody)
 			if err == nil {
 				if respBody["error"] == "use_dpop_nonce" {
 					return true
@@ -143,7 +163,7 @@ func isUseDPopNonceError(resp *http.Response) bool {
 			}
 			log.Error().Err(err).Msg("error decoding response body")
 		}
-		resp.Body = io.NopCloser(io.MultiReader(bytes.NewReader(buf[:]), resp.Body))
+		resp.Body = io.NopCloser(bytes.NewReader(body))
 	}
 	return false
 }
