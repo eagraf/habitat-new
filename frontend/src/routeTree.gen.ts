@@ -12,6 +12,7 @@
 
 import { Route as rootRoute } from './routes/__root'
 import { Route as ServerImport } from './routes/server'
+import { Route as OauthLoginImport } from './routes/oauth-login'
 import { Route as LoginImport } from './routes/login'
 import { Route as AppStoreImport } from './routes/app-store'
 import { Route as AddUserImport } from './routes/add-user'
@@ -25,6 +26,12 @@ import { Route as RequireAuthPriviTestViewImport } from './routes/_requireAuth/p
 const ServerRoute = ServerImport.update({
   id: '/server',
   path: '/server',
+  getParentRoute: () => rootRoute,
+} as any)
+
+const OauthLoginRoute = OauthLoginImport.update({
+  id: '/oauth-login',
+  path: '/oauth-login',
   getParentRoute: () => rootRoute,
 } as any)
 
@@ -108,6 +115,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginImport
       parentRoute: typeof rootRoute
     }
+    '/oauth-login': {
+      id: '/oauth-login'
+      path: '/oauth-login'
+      fullPath: '/oauth-login'
+      preLoaderRoute: typeof OauthLoginImport
+      parentRoute: typeof rootRoute
+    }
     '/server': {
       id: '/server'
       path: '/server'
@@ -154,6 +168,7 @@ export interface FileRoutesByFullPath {
   '/add-user': typeof AddUserRoute
   '/app-store': typeof AppStoreRoute
   '/login': typeof LoginRoute
+  '/oauth-login': typeof OauthLoginRoute
   '/server': typeof ServerRoute
   '/privi-test/view': typeof RequireAuthPriviTestViewRoute
   '/privi-test': typeof RequireAuthPriviTestIndexRoute
@@ -165,6 +180,7 @@ export interface FileRoutesByTo {
   '/add-user': typeof AddUserRoute
   '/app-store': typeof AppStoreRoute
   '/login': typeof LoginRoute
+  '/oauth-login': typeof OauthLoginRoute
   '/server': typeof ServerRoute
   '/privi-test/view': typeof RequireAuthPriviTestViewRoute
   '/privi-test': typeof RequireAuthPriviTestIndexRoute
@@ -177,6 +193,7 @@ export interface FileRoutesById {
   '/add-user': typeof AddUserRoute
   '/app-store': typeof AppStoreRoute
   '/login': typeof LoginRoute
+  '/oauth-login': typeof OauthLoginRoute
   '/server': typeof ServerRoute
   '/_requireAuth/privi-test/view': typeof RequireAuthPriviTestViewRoute
   '/_requireAuth/privi-test/': typeof RequireAuthPriviTestIndexRoute
@@ -190,6 +207,7 @@ export interface FileRouteTypes {
     | '/add-user'
     | '/app-store'
     | '/login'
+    | '/oauth-login'
     | '/server'
     | '/privi-test/view'
     | '/privi-test'
@@ -200,6 +218,7 @@ export interface FileRouteTypes {
     | '/add-user'
     | '/app-store'
     | '/login'
+    | '/oauth-login'
     | '/server'
     | '/privi-test/view'
     | '/privi-test'
@@ -210,6 +229,7 @@ export interface FileRouteTypes {
     | '/add-user'
     | '/app-store'
     | '/login'
+    | '/oauth-login'
     | '/server'
     | '/_requireAuth/privi-test/view'
     | '/_requireAuth/privi-test/'
@@ -222,6 +242,7 @@ export interface RootRouteChildren {
   AddUserRoute: typeof AddUserRoute
   AppStoreRoute: typeof AppStoreRoute
   LoginRoute: typeof LoginRoute
+  OauthLoginRoute: typeof OauthLoginRoute
   ServerRoute: typeof ServerRoute
 }
 
@@ -231,6 +252,7 @@ const rootRouteChildren: RootRouteChildren = {
   AddUserRoute: AddUserRoute,
   AppStoreRoute: AppStoreRoute,
   LoginRoute: LoginRoute,
+  OauthLoginRoute: OauthLoginRoute,
   ServerRoute: ServerRoute,
 }
 
@@ -249,6 +271,7 @@ export const routeTree = rootRoute
         "/add-user",
         "/app-store",
         "/login",
+        "/oauth-login",
         "/server"
       ]
     },
@@ -270,6 +293,9 @@ export const routeTree = rootRoute
     },
     "/login": {
       "filePath": "login.tsx"
+    },
+    "/oauth-login": {
+      "filePath": "oauth-login.tsx"
     },
     "/server": {
       "filePath": "server.tsx"
