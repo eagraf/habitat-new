@@ -3,6 +3,7 @@ package permissions
 import (
 	_ "embed"
 	"errors"
+	"fmt"
 	"maps"
 	"slices"
 
@@ -45,13 +46,12 @@ type Store interface {
 		didstr string,
 		nsid string,
 	) error
-	ListPermissionsForLexicon(
-		nsid string,
-	) ([]string, error)
+	ListPermissionsForLexicon(nsid string) (map[string][]string, error)
 }
 
 type store struct {
 	enforcer *casbin.Enforcer
+	adapter  persist.Adapter
 }
 
 //go:embed model.conf
@@ -71,6 +71,7 @@ func NewStore(adapter persist.Adapter, autoSave bool) (Store, error) {
 	enforcer.EnableAutoSave(autoSave)
 	return &store{
 		enforcer: enforcer,
+		adapter:  adapter,
 	}, nil
 }
 
@@ -81,6 +82,8 @@ func (p *store) HasPermission(
 	rkey string,
 	act Action,
 ) (bool, error) {
+	fmt.Println(didstr, getObject(nsid, rkey), act.String())
+	fmt.Println(p.enforcer.GetPolicy())
 	return p.enforcer.Enforce(didstr, getObject(nsid, rkey), act.String())
 }
 
@@ -88,31 +91,47 @@ func (p *store) AddLexiconReadPermission(
 	didstr string,
 	nsid string,
 ) error {
-	_, err := p.enforcer.AddPermissionForUser(didstr, getObject(nsid, "*"), Read.String())
-	return err
+	_, err := p.enforcer.AddPolicy(didstr, getObject(nsid, "*"), Read.String(), "allow")
+	if err != nil {
+		return err
+	}
+	return p.adapter.SavePolicy(p.enforcer.GetModel())
 }
 
 func (p *store) RemoveLexiconReadPermission(
 	didstr string,
 	nsid string,
 ) error {
-	_, err := p.enforcer.DeletePermissionForUser(didstr, nsid, Read.String())
-	return err
+	_, err := p.enforcer.RemovePolicy(didstr, nsid, Read.String(), "allow")
+	if err != nil {
+		return err
+	}
+	return p.adapter.SavePolicy(p.enforcer.GetModel())
 }
 
-func (p *store) ListPermissionsForLexicon(nsid string) ([]string, error) {
-	perms, err := p.enforcer.GetImplicitUsersForResource(nsid)
+func (p *store) ListPermissionsForLexicon(nsid string) (map[string][]string, error) {
+	objs, err := p.enforcer.GetAllObjects()
 	if err != nil {
 		return nil, err
 	}
-	users := make(xmaps.Set[string], 0)
-	for _, perm := range perms {
-		// Format of perms is [[bob data2 write] [alice data2 read] [alice data2 write]]
-		if perm[2] == Read.String() {
-			users.Add(perm[0])
+
+	res := make(map[string][]string)
+	for _, obj := range objs {
+		perms, err := p.enforcer.GetImplicitUsersForResource(nsid)
+		if err != nil {
+			return nil, err
 		}
+		users := make(xmaps.Set[string], 0)
+		for _, perm := range perms {
+			// Format of perms is [[bob data2 write] [alice data2 read] [alice data2 write]]
+			if perm[2] == Read.String() {
+				users.Add(perm[0])
+			}
+		}
+		res[obj] = slices.Collect(maps.Keys(users))
 	}
-	return slices.Collect(maps.Keys(users)), errors.ErrUnsupported
+
+	return res, errors.ErrUnsupported
 }
 
 func getObject(nsid string, rkey string) string {
