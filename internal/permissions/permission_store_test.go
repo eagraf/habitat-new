@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestPermissionStore_TestPolicy1(t *testing.T) {
+func TestBasicPolicy1(t *testing.T) {
 	a := fileadapter.NewAdapter("test_policies/test_policy_1.csv")
 	ps, err := NewStore(a, false)
 	require.NoError(t, err)
@@ -43,7 +43,7 @@ func TestPermissionStore_TestPolicy1(t *testing.T) {
 	require.False(t, ok)
 }
 
-func TestPermissionStoreAddRemovePolicies(t *testing.T) {
+func TestAddRemovePolicies(t *testing.T) {
 	inner, err := os.ReadFile("test_policies/test_add_remove_policies.csv")
 	require.NoError(t, err)
 	tmp, err := os.CreateTemp("test_policies", "test-tmp")
@@ -111,4 +111,25 @@ func TestPermissionStoreAddRemovePolicies(t *testing.T) {
 	ok, err = ps.HasPermission("did:1", "app.bsky.likes", "myoldlike", Read)
 	require.NoError(t, err)
 	require.False(t, ok)
+}
+
+func TestList(t *testing.T) {
+	a := fileadapter.NewAdapter("test_policies/test_policy_1.csv")
+	ps, err := NewStore(a, false)
+	require.NoError(t, err)
+
+	perms, err := ps.ListReadPermissionsByLexicon()
+	require.NoError(t, err)
+
+	exp := map[string][]string{
+		"app.bsky.*":           []string{"did:2"},
+		"app.bsky.likes.*":     []string{"did:1"},
+		"app.bsky.posts":       []string{"did:2"},
+		"app.bsky.posts.post1": []string{},
+	}
+
+	for lex, perm := range perms {
+		require.Contains(t, exp, lex)
+		require.ElementsMatch(t, exp[lex], perm)
+	}
 }

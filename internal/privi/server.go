@@ -275,7 +275,7 @@ func (s *Server) ListPermissions(w http.ResponseWriter, r *http.Request) {
 
 	store := s.stores[callerDID]
 
-	permissions, err := store.permissions.ListPermissionsForLexicon(req.Lexicon)
+	permissions, err := store.permissions.ListReadPermissionsByLexicon()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

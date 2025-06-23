@@ -2,8 +2,6 @@ package permissions
 
 import (
 	_ "embed"
-	"errors"
-	"fmt"
 	"maps"
 	"slices"
 
@@ -46,7 +44,7 @@ type Store interface {
 		didstr string,
 		nsid string,
 	) error
-	ListPermissionsForLexicon(nsid string) (map[string][]string, error)
+	ListReadPermissionsByLexicon() (map[string][]string, error)
 }
 
 type store struct {
@@ -82,8 +80,6 @@ func (p *store) HasPermission(
 	rkey string,
 	act Action,
 ) (bool, error) {
-	fmt.Println(didstr, getObject(nsid, rkey), act.String())
-	fmt.Println(p.enforcer.GetPolicy())
 	return p.enforcer.Enforce(didstr, getObject(nsid, rkey), act.String())
 }
 
@@ -110,7 +106,7 @@ func (p *store) RemoveLexiconReadPermission(
 	return p.adapter.SavePolicy(p.enforcer.GetModel())
 }
 
-func (p *store) ListPermissionsForLexicon(nsid string) (map[string][]string, error) {
+func (p *store) ListReadPermissionsByLexicon() (map[string][]string, error) {
 	objs, err := p.enforcer.GetAllObjects()
 	if err != nil {
 		return nil, err
@@ -118,7 +114,7 @@ func (p *store) ListPermissionsForLexicon(nsid string) (map[string][]string, err
 
 	res := make(map[string][]string)
 	for _, obj := range objs {
-		perms, err := p.enforcer.GetImplicitUsersForResource(nsid)
+		perms, err := p.enforcer.GetImplicitUsersForResource(obj)
 		if err != nil {
 			return nil, err
 		}
@@ -132,7 +128,7 @@ func (p *store) ListPermissionsForLexicon(nsid string) (map[string][]string, err
 		res[obj] = slices.Collect(maps.Keys(users))
 	}
 
-	return res, errors.ErrUnsupported
+	return res, nil
 }
 
 func getObject(nsid string, rkey string) string {

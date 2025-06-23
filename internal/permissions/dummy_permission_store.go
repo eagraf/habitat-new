@@ -39,7 +39,7 @@ func (d *dummy) RemoveLexiconReadPermission(
 ) error {
 	return errors.ErrUnsupported
 }
-func (d *dummy) ListPermissionsForLexicon(nsid string) (map[string][]string, error) {
+func (d *dummy) ListReadPermissionsByLexicon() (map[string][]string, error) {
 	return nil, errors.ErrUnsupported
 }
 
