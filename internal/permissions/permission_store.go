@@ -102,7 +102,8 @@ func (p *store) RemoveLexiconReadPermission(
 	didstr string,
 	nsid string,
 ) error {
-	_, err := p.enforcer.RemovePolicy(didstr, nsid, Read.String(), "allow")
+	// TODO: should we actually be adding a deny here instead of just removing allow?
+	_, err := p.enforcer.RemovePolicy(didstr, getObject(nsid, "*"), Read.String(), "allow")
 	if err != nil {
 		return err
 	}

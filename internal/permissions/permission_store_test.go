@@ -61,8 +61,11 @@ func TestPermissionStoreAddRemovePolicies(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, ok)
 
+	// Save the prev file
 	prev, err := os.ReadFile(tmp.Name())
 	require.NoError(t, err)
+
+	// Add read permission
 	err = ps.AddLexiconReadPermission("did:1", "app.bsky.likes-new")
 	require.NoError(t, err)
 
@@ -74,4 +77,38 @@ func TestPermissionStoreAddRemovePolicies(t *testing.T) {
 	ok, err = ps.HasPermission("did:1", "app.bsky.likes-new", "mynewlike", Read)
 	require.NoError(t, err)
 	require.True(t, ok)
+
+	// Save the prev file
+	prev, err = os.ReadFile(tmp.Name())
+	require.NoError(t, err)
+	// Remove read permission
+	err = ps.RemoveLexiconReadPermission("did:1", "app.bsky.likes-new")
+	require.NoError(t, err)
+
+	// TODO: check exact change -- check that policy was persisted
+	next, err = os.ReadFile(tmp.Name())
+	require.NoError(t, err)
+	require.NotEqual(t, prev, next)
+
+	ok, err = ps.HasPermission("did:1", "app.bsky.likes-new", "mynewlike", Read)
+	require.NoError(t, err)
+	require.False(t, ok)
+
+	// Remove a policy that we didn't just add -- it was in file before
+
+	// Save the prev file
+	prev, err = os.ReadFile(tmp.Name())
+	require.NoError(t, err)
+	// Remove read permission
+	err = ps.RemoveLexiconReadPermission("did:1", "app.bsky.likes")
+	require.NoError(t, err)
+
+	// TODO: check exact change -- check that policy was persisted
+	next, err = os.ReadFile(tmp.Name())
+	require.NoError(t, err)
+	require.NotEqual(t, prev, next)
+
+	ok, err = ps.HasPermission("did:1", "app.bsky.likes", "myoldlike", Read)
+	require.NoError(t, err)
+	require.False(t, ok)
 }
