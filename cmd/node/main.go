@@ -330,7 +330,7 @@ func generatePDSAppConfig(
 			{
 				ID:      "pds-app-reverse-proxy-rule",
 				AppID:   appID,
-				Type:    "redirect",
+				Type:    node.ProxyRulePDS,
 				Matcher: "/xrpc",
 				Target:  fmt.Sprintf("https://%s/xrpc", constants.DefaultPDSHostname),
 			},
