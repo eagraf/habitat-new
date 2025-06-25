@@ -22,4 +22,5 @@ const (
 	ProxyRuleFileServer       ReverseProxyRuleType = "file"
 	ProxyRuleRedirect         ReverseProxyRuleType = "redirect"
 	ProxyRuleEmbeddedFrontend ReverseProxyRuleType = "embedded_frontend"
+	ProxyRulePDS              ReverseProxyRuleType = "pds"
 )

@@ -14,8 +14,8 @@ import (
 )
 
 const SchemaName = "node"
-const CurrentVersion = "v0.0.8"
-const LatestVersion = "v0.0.8"
+const CurrentVersion = "v0.0.9"
+const LatestVersion = "v0.0.9"
 
 // This paackage contains core structs for the node state. These are intended to be embedable in other structs
 // throughout the application. That way, it's easy to modify the core struct, while having
