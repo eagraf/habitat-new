@@ -37,10 +37,10 @@ type callbackHandler struct {
 	sessionStore sessions.Store
 }
 
-func NewLoginHandler(
+func GetRoutes(
 	nodeConfig *config.NodeConfig,
 	sessionStore sessions.Store,
-) (login api.Route, metadata api.Route, callback api.Route) {
+) []api.Route {
 	key, err := ecdsa.GenerateKey(
 		elliptic.P256(),
 		bytes.NewReader(bytes.Repeat([]byte("hello world"), 1024)),
@@ -69,7 +69,8 @@ func NewLoginHandler(
 		panic(err)
 	}
 
-	return &loginHandler{
+	return []api.Route{
+		&loginHandler{
 			oauthClient:  oauthClient,
 			sessionStore: sessionStore,
 			pdsURL:       nodeConfig.InternalPDSURL(),
@@ -78,7 +79,8 @@ func NewLoginHandler(
 		}, &callbackHandler{
 			oauthClient:  oauthClient,
 			sessionStore: sessionStore,
-		}
+		},
+	}
 }
 
 // Method implements api.Route.

@@ -188,18 +188,14 @@ func main() {
 		log.Fatal().Err(err).Msg("error creating node control server")
 	}
 
-	loginRoute, metadataRoute, callbackRoute := auth.NewLoginHandler(nodeConfig, sessionStore)
-
 	// Set up the main API server
 	// TODO: create a less tedious way to register all the routes in the future. It might be as simple
 	// as having a dedicated file to list these, instead of putting them all in main.
 	routes := []api.Route{
 		// Node routes
 		api.NewVersionHandler(),
-		loginRoute,
-		metadataRoute,
-		callbackRoute,
 	}
+	routes = append(routes, auth.GetRoutes(nodeConfig, sessionStore)...)
 	routes = append(routes, ctrlServer.GetRoutes()...)
 	if nodeConfig.Environment() == constants.EnvironmentDev {
 		// App store is unimplemented in production
