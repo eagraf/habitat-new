@@ -39,6 +39,7 @@ type callbackHandler struct {
 
 func NewLoginHandler(
 	nodeConfig *config.NodeConfig,
+	sessionStore sessions.Store,
 ) (login api.Route, metadata api.Route, callback api.Route) {
 	key, err := ecdsa.GenerateKey(
 		elliptic.P256(),
@@ -67,10 +68,6 @@ func NewLoginHandler(
 		log.Error().Err(err).Msg("error creating oauth client")
 		panic(err)
 	}
-
-	sessionStoreKey := make([]byte, 32)
-	rand.Read(sessionStoreKey)
-	sessionStore := sessions.NewCookieStore(sessionStoreKey)
 
 	return &loginHandler{
 			oauthClient:  oauthClient,

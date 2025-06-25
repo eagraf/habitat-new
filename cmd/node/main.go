@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
 	"fmt"
 	"net"
 	"net/http"
@@ -34,6 +35,7 @@ import (
 	"github.com/eagraf/habitat-new/internal/process"
 	"github.com/eagraf/habitat-new/internal/pubsub"
 	"github.com/eagraf/habitat-new/internal/web"
+	"github.com/gorilla/sessions"
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -130,7 +132,18 @@ func main() {
 	}
 	addr := fmt.Sprintf(":%s", nodeConfig.ReverseProxyPort())
 
-	proxy := reverse_proxy.NewProxyServer(logger, nodeConfig.WebBundlePath())
+	// Gorilla sessions persisted in the browser's cookies.
+	// TODO These need to actually be persisted somewhere
+	sessionStoreKey := make([]byte, 32)
+	rand.Read(sessionStoreKey)
+	if nodeConfig.Environment() == constants.EnvironmentDev {
+		// Keep the key consistent in dev mode so that the same session is used across restarts.
+		sessionStoreKey = []byte("FaKe_DeV-SeSsIoN-KeY")
+	}
+
+	sessionStore := sessions.NewCookieStore(sessionStoreKey)
+
+	proxy := reverse_proxy.NewProxyServer(logger, nodeConfig.WebBundlePath(), sessionStore)
 	proxyServer := &http.Server{
 		Addr:    addr,
 		Handler: proxy,
@@ -175,7 +188,7 @@ func main() {
 		log.Fatal().Err(err).Msg("error creating node control server")
 	}
 
-	loginRoute, metadataRoute, callbackRoute := auth.NewLoginHandler(nodeConfig)
+	loginRoute, metadataRoute, callbackRoute := auth.NewLoginHandler(nodeConfig, sessionStore)
 
 	// Set up the main API server
 	// TODO: create a less tedious way to register all the routes in the future. It might be as simple
