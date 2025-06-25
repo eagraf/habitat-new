@@ -126,6 +126,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         Cookies.remove('chrome_extension_refresh_token');
         Cookies.remove('handle');
 
+        // Oauth sessions
+        Cookies.remove('auth-session');
+        Cookies.remove('dpop-session');
+
         setIsAuthenticated(false);
         router.navigate({ to: '/login' });
     };
