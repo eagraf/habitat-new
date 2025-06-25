@@ -154,6 +154,8 @@ func (l *loginHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	dpopClient.SetKey(dpopKey)
+	dpopClient.SetIdentity(id)
+	dpopClient.SetPDSURL(l.pdsURL)
 
 	redirect, state, err := l.oauthClient.Authorize(dpopClient, id, loginHint)
 	if err != nil {
@@ -255,29 +257,40 @@ func (c *callbackHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	defer dpopSession.Save(r, w)
 	dpopClient := NewDpopHttpClient(dpopSession)
-	token, err := c.oauthClient.ExchangeCode(dpopClient, code, issuer, &state)
+	tokenResp, err := c.oauthClient.ExchangeCode(dpopClient, code, issuer, &state)
 	if err != nil {
 		log.Error().Err(err).Str("code", code).Str("issuer", issuer).Msg("error exchanging code")
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	dpopClient.SetAccessTokenHash(token.AccessToken)
 
+	dpopClient.SetAccessTokenHash(tokenResp.AccessToken)
+	dpopClient.SetAccessToken(tokenResp.AccessToken)
+	dpopClient.SetRefreshToken(tokenResp.RefreshToken)
+	dpopClient.SetIssuer(issuer)
+
+	err = dpopSession.Save(r, w)
+	if err != nil {
+		log.Error().Err(err).Msg("error saving dpop session")
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// This is temporary to make it work with the frontend
 	http.SetCookie(w, &http.Cookie{
 		Name:  "access_token",
-		Value: token.AccessToken,
+		Value: tokenResp.AccessToken,
 		Path:  "/",
 		//		HttpOnly: true,
 		//Secure:   true,
 		SameSite: http.SameSiteLaxMode,
 	})
 
-	if token.RefreshToken != "" {
+	if tokenResp.RefreshToken != "" {
 		http.SetCookie(w, &http.Cookie{
 			Name:  "refresh_token",
-			Value: token.RefreshToken,
+			Value: tokenResp.RefreshToken,
 			Path:  "/",
 			//HttpOnly: true,
 			//Secure:   true,
