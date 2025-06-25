@@ -57,7 +57,7 @@ func NewDpopHttpClient(session *sessions.Session) *DpopHttpClient {
 }
 
 func (s *DpopHttpClient) Do(req *http.Request) (*http.Response, error) {
-	err := s.sign(req)
+	err := s.Sign(req, req.URL.String())
 	if err != nil {
 		return nil, err
 	}
@@ -190,7 +190,7 @@ func (s *DpopHttpClient) Sign(req *http.Request, htu string) error {
 			IssuedAt: jwt.NewNumericDate(time.Now()),
 		},
 		Method:          req.Method,
-		URL:             req.URL.String(),
+		URL:             htu,
 		Nonce:           nonce,
 		AccessTokenHash: accessTokenHash,
 	}).CompactSerialize()
