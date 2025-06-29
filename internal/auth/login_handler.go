@@ -107,7 +107,7 @@ func (l *loginHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	http.Redirect(w, r, redirect, http.StatusSeeOther)
+	http.Redirect(w, r, redirect.String(), http.StatusSeeOther)
 }
 
 // Method implements api.Route.

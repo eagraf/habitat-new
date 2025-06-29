@@ -34,7 +34,7 @@ type ClientMetadata struct {
 
 type OAuthClient interface {
 	ClientMetadata() *ClientMetadata
-	Authorize(dpopClient *DpopHttpClient, i *identity.Identity) (string, *AuthorizeState, error)
+	Authorize(dpopClient *DpopHttpClient, i *identity.Identity) (*url.URL, *AuthorizeState, error)
 	ExchangeCode(
 		dpopClient *DpopHttpClient,
 		code string,
@@ -88,15 +88,15 @@ type AuthorizeState struct {
 func (o *oauthClientImpl) Authorize(
 	dpopClient *DpopHttpClient,
 	i *identity.Identity,
-) (string, *AuthorizeState, error) {
+) (*url.URL, *AuthorizeState, error) {
 	pr, err := fetchOAuthProtectedResource(i)
 	if err != nil {
-		return "", nil, err
+		return nil, nil, err
 	}
 
 	serverMetadata, err := fetchOauthAuthorizationServer(i, pr)
 	if err != nil {
-		return "", nil, err
+		return nil, nil, err
 	}
 
 	verifier := oauth2.GenerateVerifier()
@@ -104,7 +104,7 @@ func (o *oauthClientImpl) Authorize(
 	stateBytes := make([]byte, 12)
 	_, err = rand.Read(stateBytes)
 	if err != nil {
-		return "", nil, err
+		return nil, nil, err
 	}
 	state := base64.URLEncoding.EncodeToString(stateBytes)
 
@@ -116,7 +116,7 @@ func (o *oauthClientImpl) Authorize(
 		verifier,
 	)
 	if err != nil {
-		return "", nil, err
+		return nil, nil, err
 	}
 
 	redirectUrl, err := url.Parse(serverMetadata.AuthEndpoint)
@@ -125,7 +125,7 @@ func (o *oauthClientImpl) Authorize(
 		"request_uri": {requestUri},
 	}.Encode()
 
-	return redirectUrl.String(), &AuthorizeState{
+	return redirectUrl, &AuthorizeState{
 		Verifier:      verifier,
 		State:         state,
 		TokenEndpoint: serverMetadata.TokenEndpoint,
