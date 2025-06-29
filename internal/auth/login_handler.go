@@ -1,7 +1,6 @@
 package auth
 
 import (
-	"bytes"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
@@ -11,8 +10,6 @@ import (
 	"github.com/bluesky-social/indigo/atproto/identity"
 	"github.com/bluesky-social/indigo/atproto/syntax"
 	"github.com/eagraf/habitat-new/internal/node/api"
-	"github.com/eagraf/habitat-new/internal/node/config"
-	jose "github.com/go-jose/go-jose/v3"
 	"github.com/gorilla/sessions"
 	"github.com/rs/zerolog/log"
 )
@@ -32,40 +29,9 @@ type callbackHandler struct {
 }
 
 func NewLoginHandler(
-	nodeConfig *config.NodeConfig,
+	oauthClient OAuthClient,
+	sessionStore sessions.Store,
 ) (login api.Route, metadata api.Route, callback api.Route) {
-	key, err := ecdsa.GenerateKey(
-		elliptic.P256(),
-		bytes.NewReader(bytes.Repeat([]byte("hello world"), 1024)),
-	)
-	if err != nil {
-		log.Error().Err(err).Msg("error generating key")
-		panic(err)
-	}
-	jwk, err := json.Marshal(jose.JSONWebKey{
-		Key:       key,
-		KeyID:     "habitat",
-		Algorithm: string(jose.ES256),
-		Use:       "sig",
-	})
-	if err != nil {
-		log.Error().Err(err).Msg("error marshalling jwk")
-		panic(err)
-	}
-	oauthClient, err := NewOAuthClient(
-		"https://"+nodeConfig.Domain()+"/habitat/api/client-metadata.json", /*clientId*/
-		"https://"+nodeConfig.Domain()+"/habitat/api/auth-callback",        /*redirectUri*/
-		jwk, /*secretJwk*/
-	)
-	if err != nil {
-		log.Error().Err(err).Msg("error creating oauth client")
-		panic(err)
-	}
-
-	sessionStoreKey := make([]byte, 32)
-	rand.Read(sessionStoreKey)
-	sessionStore := sessions.NewCookieStore(sessionStoreKey)
-
 	return &loginHandler{
 			oauthClient:  oauthClient,
 			sessionStore: sessionStore,

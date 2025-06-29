@@ -1,7 +1,12 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"encoding/json"
 	"fmt"
 	"net"
 	"net/http"
@@ -9,6 +14,8 @@ import (
 	"os/signal"
 	"path/filepath"
 	"syscall"
+
+	jose "github.com/go-jose/go-jose/v3"
 
 	"github.com/bluesky-social/indigo/atproto/syntax"
 	"github.com/docker/docker/api/types/mount"
@@ -33,6 +40,7 @@ import (
 	"github.com/eagraf/habitat-new/internal/process"
 	"github.com/eagraf/habitat-new/internal/pubsub"
 	"github.com/eagraf/habitat-new/internal/web"
+	"github.com/gorilla/sessions"
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -174,7 +182,7 @@ func main() {
 		log.Fatal().Err(err).Msg("error creating node control server")
 	}
 
-	loginRoute, metadataRoute, callbackRoute := auth.NewLoginHandler(nodeConfig)
+	loginRoute, metadataRoute, callbackRoute := makeLoginRoutes(nodeConfig)
 
 	// Set up the main API server
 	// TODO: create a less tedious way to register all the routes in the future. It might be as simple
@@ -394,4 +402,39 @@ func initialState(
 		init,
 	}
 	return state, transitions, nil
+}
+
+func makeLoginRoutes(nodeConfig *config.NodeConfig) (api.Route, api.Route, api.Route) {
+	key, err := ecdsa.GenerateKey(
+		elliptic.P256(),
+		bytes.NewReader(bytes.Repeat([]byte("hello world"), 1024)),
+	)
+	if err != nil {
+		log.Error().Err(err).Msg("error generating key")
+		panic(err)
+	}
+	jwk, err := json.Marshal(jose.JSONWebKey{
+		Key:       key,
+		KeyID:     "habitat",
+		Algorithm: string(jose.ES256),
+		Use:       "sig",
+	})
+	if err != nil {
+		log.Error().Err(err).Msg("error marshalling jwk")
+		panic(err)
+	}
+	oauthClient, err := auth.NewOAuthClient(
+		"https://"+nodeConfig.Domain()+"/habitat/api/client-metadata.json", /*clientId*/
+		"https://"+nodeConfig.Domain()+"/habitat/api/auth-callback",        /*redirectUri*/
+		jwk, /*secretJwk*/
+	)
+	if err != nil {
+		log.Error().Err(err).Msg("error creating oauth client")
+		panic(err)
+	}
+
+	sessionStoreKey := make([]byte, 32)
+	rand.Read(sessionStoreKey)
+	sessionStore := sessions.NewCookieStore(sessionStoreKey)
+	return auth.NewLoginHandler(oauthClient, sessionStore)
 }
