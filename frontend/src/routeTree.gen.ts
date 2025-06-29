@@ -13,10 +13,14 @@
 import { Route as rootRoute } from './routes/__root'
 import { Route as ServerImport } from './routes/server'
 import { Route as OauthloginImport } from './routes/oauth_login'
+import { Route as OauthLoginImport } from './routes/oauth-login'
 import { Route as LoginImport } from './routes/login'
 import { Route as AppStoreImport } from './routes/app-store'
 import { Route as AddUserImport } from './routes/add-user'
+import { Route as RequireAuthImport } from './routes/_requireAuth'
 import { Route as IndexImport } from './routes/index'
+import { Route as RequireAuthPriviTestIndexImport } from './routes/_requireAuth/privi-test/index'
+import { Route as RequireAuthPriviTestViewImport } from './routes/_requireAuth/privi-test/view'
 
 // Create/Update Routes
 
@@ -29,6 +33,12 @@ const ServerRoute = ServerImport.update({
 const OauthloginRoute = OauthloginImport.update({
   id: '/oauth_login',
   path: '/oauth_login',
+  getParentRoute: () => rootRoute,
+} as any)
+
+const OauthLoginRoute = OauthLoginImport.update({
+  id: '/oauth-login',
+  path: '/oauth-login',
   getParentRoute: () => rootRoute,
 } as any)
 
@@ -50,10 +60,27 @@ const AddUserRoute = AddUserImport.update({
   getParentRoute: () => rootRoute,
 } as any)
 
+const RequireAuthRoute = RequireAuthImport.update({
+  id: '/_requireAuth',
+  getParentRoute: () => rootRoute,
+} as any)
+
 const IndexRoute = IndexImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRoute,
+} as any)
+
+const RequireAuthPriviTestIndexRoute = RequireAuthPriviTestIndexImport.update({
+  id: '/privi-test/',
+  path: '/privi-test/',
+  getParentRoute: () => RequireAuthRoute,
+} as any)
+
+const RequireAuthPriviTestViewRoute = RequireAuthPriviTestViewImport.update({
+  id: '/privi-test/view',
+  path: '/privi-test/view',
+  getParentRoute: () => RequireAuthRoute,
 } as any)
 
 // Populate the FileRoutesByPath interface
@@ -65,6 +92,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexImport
+      parentRoute: typeof rootRoute
+    }
+    '/_requireAuth': {
+      id: '/_requireAuth'
+      path: ''
+      fullPath: ''
+      preLoaderRoute: typeof RequireAuthImport
       parentRoute: typeof rootRoute
     }
     '/add-user': {
@@ -88,6 +122,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginImport
       parentRoute: typeof rootRoute
     }
+    '/oauth-login': {
+      id: '/oauth-login'
+      path: '/oauth-login'
+      fullPath: '/oauth-login'
+      preLoaderRoute: typeof OauthLoginImport
+      parentRoute: typeof rootRoute
+    }
     '/oauth_login': {
       id: '/oauth_login'
       path: '/oauth_login'
@@ -102,75 +143,137 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ServerImport
       parentRoute: typeof rootRoute
     }
+    '/_requireAuth/privi-test/view': {
+      id: '/_requireAuth/privi-test/view'
+      path: '/privi-test/view'
+      fullPath: '/privi-test/view'
+      preLoaderRoute: typeof RequireAuthPriviTestViewImport
+      parentRoute: typeof RequireAuthImport
+    }
+    '/_requireAuth/privi-test/': {
+      id: '/_requireAuth/privi-test/'
+      path: '/privi-test'
+      fullPath: '/privi-test'
+      preLoaderRoute: typeof RequireAuthPriviTestIndexImport
+      parentRoute: typeof RequireAuthImport
+    }
   }
 }
 
 // Create and export the route tree
 
+interface RequireAuthRouteChildren {
+  RequireAuthPriviTestViewRoute: typeof RequireAuthPriviTestViewRoute
+  RequireAuthPriviTestIndexRoute: typeof RequireAuthPriviTestIndexRoute
+}
+
+const RequireAuthRouteChildren: RequireAuthRouteChildren = {
+  RequireAuthPriviTestViewRoute: RequireAuthPriviTestViewRoute,
+  RequireAuthPriviTestIndexRoute: RequireAuthPriviTestIndexRoute,
+}
+
+const RequireAuthRouteWithChildren = RequireAuthRoute._addFileChildren(
+  RequireAuthRouteChildren,
+)
+
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '': typeof RequireAuthRouteWithChildren
   '/add-user': typeof AddUserRoute
   '/app-store': typeof AppStoreRoute
   '/login': typeof LoginRoute
+  '/oauth-login': typeof OauthLoginRoute
   '/oauth_login': typeof OauthloginRoute
   '/server': typeof ServerRoute
+  '/privi-test/view': typeof RequireAuthPriviTestViewRoute
+  '/privi-test': typeof RequireAuthPriviTestIndexRoute
 }
 
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '': typeof RequireAuthRouteWithChildren
   '/add-user': typeof AddUserRoute
   '/app-store': typeof AppStoreRoute
   '/login': typeof LoginRoute
+  '/oauth-login': typeof OauthLoginRoute
   '/oauth_login': typeof OauthloginRoute
   '/server': typeof ServerRoute
+  '/privi-test/view': typeof RequireAuthPriviTestViewRoute
+  '/privi-test': typeof RequireAuthPriviTestIndexRoute
 }
 
 export interface FileRoutesById {
   __root__: typeof rootRoute
   '/': typeof IndexRoute
+  '/_requireAuth': typeof RequireAuthRouteWithChildren
   '/add-user': typeof AddUserRoute
   '/app-store': typeof AppStoreRoute
   '/login': typeof LoginRoute
+  '/oauth-login': typeof OauthLoginRoute
   '/oauth_login': typeof OauthloginRoute
   '/server': typeof ServerRoute
+  '/_requireAuth/privi-test/view': typeof RequireAuthPriviTestViewRoute
+  '/_requireAuth/privi-test/': typeof RequireAuthPriviTestIndexRoute
 }
 
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | ''
     | '/add-user'
     | '/app-store'
     | '/login'
+    | '/oauth-login'
     | '/oauth_login'
     | '/server'
+    | '/privi-test/view'
+    | '/privi-test'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/add-user' | '/app-store' | '/login' | '/oauth_login' | '/server'
+  to:
+    | '/'
+    | ''
+    | '/add-user'
+    | '/app-store'
+    | '/login'
+    | '/oauth-login'
+    | '/oauth_login'
+    | '/server'
+    | '/privi-test/view'
+    | '/privi-test'
   id:
     | '__root__'
     | '/'
+    | '/_requireAuth'
     | '/add-user'
     | '/app-store'
     | '/login'
+    | '/oauth-login'
     | '/oauth_login'
     | '/server'
+    | '/_requireAuth/privi-test/view'
+    | '/_requireAuth/privi-test/'
   fileRoutesById: FileRoutesById
 }
 
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  RequireAuthRoute: typeof RequireAuthRouteWithChildren
   AddUserRoute: typeof AddUserRoute
   AppStoreRoute: typeof AppStoreRoute
   LoginRoute: typeof LoginRoute
+  OauthLoginRoute: typeof OauthLoginRoute
   OauthloginRoute: typeof OauthloginRoute
   ServerRoute: typeof ServerRoute
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  RequireAuthRoute: RequireAuthRouteWithChildren,
   AddUserRoute: AddUserRoute,
   AppStoreRoute: AppStoreRoute,
   LoginRoute: LoginRoute,
+  OauthLoginRoute: OauthLoginRoute,
   OauthloginRoute: OauthloginRoute,
   ServerRoute: ServerRoute,
 }
@@ -186,15 +289,24 @@ export const routeTree = rootRoute
       "filePath": "__root.tsx",
       "children": [
         "/",
+        "/_requireAuth",
         "/add-user",
         "/app-store",
         "/login",
+        "/oauth-login",
         "/oauth_login",
         "/server"
       ]
     },
     "/": {
       "filePath": "index.tsx"
+    },
+    "/_requireAuth": {
+      "filePath": "_requireAuth.tsx",
+      "children": [
+        "/_requireAuth/privi-test/view",
+        "/_requireAuth/privi-test/"
+      ]
     },
     "/add-user": {
       "filePath": "add-user.tsx"
@@ -205,11 +317,22 @@ export const routeTree = rootRoute
     "/login": {
       "filePath": "login.tsx"
     },
+    "/oauth-login": {
+      "filePath": "oauth-login.tsx"
+    },
     "/oauth_login": {
       "filePath": "oauth_login.tsx"
     },
     "/server": {
       "filePath": "server.tsx"
+    },
+    "/_requireAuth/privi-test/view": {
+      "filePath": "_requireAuth/privi-test/view.tsx",
+      "parent": "/_requireAuth"
+    },
+    "/_requireAuth/privi-test/": {
+      "filePath": "_requireAuth/privi-test/index.tsx",
+      "parent": "/_requireAuth"
     }
   }
 }
