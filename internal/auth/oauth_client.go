@@ -144,7 +144,7 @@ func (o *oauthClientImpl) ExchangeCode(
 		return "", err
 	}
 
-	log.Info().Msgf("toekn endpoint: %s", state.TokenEndpoint)
+	log.Info().Msgf("token endpoint: %s", state.TokenEndpoint)
 	req, err := http.NewRequest(
 		http.MethodPost,
 		state.TokenEndpoint,
