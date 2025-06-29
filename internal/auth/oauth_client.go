@@ -190,9 +190,6 @@ func fetchOAuthProtectedResource(i *identity.Identity) (*oauthProtectedResource,
 	if err != nil {
 		return nil, err
 	}
-	if url.Host == "localhost:3000" {
-		url.Host = "host.docker.internal:3000"
-	}
 	resp, err := http.DefaultClient.Get(
 		url.JoinPath("/.well-known/oauth-protected-resource").String(),
 	)
@@ -230,9 +227,6 @@ func fetchOauthAuthorizationServer(
 	url, err := url.Parse(pr.AuthorizationServers[0])
 	if err != nil {
 		return nil, err
-	}
-	if url.Host == "localhost:3000" {
-		url.Host = "host.docker.internal:3000"
 	}
 	resp, err := http.DefaultClient.Get(
 		url.JoinPath("/.well-known/oauth-authorization-server").String(),
@@ -293,9 +287,6 @@ func (o *oauthClientImpl) makePushedAuthorizationRequest(
 	parUrl, err := url.Parse(as.PAREndpoint)
 	if err != nil {
 		return "", err
-	}
-	if parUrl.Host == "localhost:3000" {
-		parUrl.Host = "host.docker.internal:3000"
 	}
 
 	req, err := http.NewRequest(
