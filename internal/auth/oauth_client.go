@@ -56,6 +56,7 @@ func NewOAuthClient(clientId string, redirectUri string, secretJwk []byte) (OAut
 		return nil, err
 	}
 	return &oauthClientImpl{
+		clientId:    clientId,
 		redirectUri: redirectUri,
 		secretJwk:   secret,
 	}, nil
