@@ -6,7 +6,9 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"encoding/json"
+	"io"
 	"net/http"
+	"path"
 
 	"github.com/bluesky-social/indigo/api/atproto"
 	"github.com/bluesky-social/indigo/atproto/identity"
@@ -14,6 +16,7 @@ import (
 	"github.com/bluesky-social/indigo/xrpc"
 	"github.com/eagraf/habitat-new/internal/node/api"
 	"github.com/eagraf/habitat-new/internal/node/config"
+	"github.com/eagraf/habitat-new/internal/node/constants"
 	jose "github.com/go-jose/go-jose/v3"
 	"github.com/gorilla/sessions"
 	"github.com/rs/zerolog/log"
@@ -33,6 +36,12 @@ type metadataHandler struct {
 }
 
 type callbackHandler struct {
+	oauthClient  OAuthClient
+	sessionStore sessions.Store
+}
+
+type xrpcBrokerHandler struct {
+	htuURL       string
 	oauthClient  OAuthClient
 	sessionStore sessions.Store
 }
@@ -79,6 +88,10 @@ func GetRoutes(
 		}, &callbackHandler{
 			oauthClient:  oauthClient,
 			sessionStore: sessionStore,
+		}, &xrpcBrokerHandler{
+			oauthClient:  oauthClient,
+			sessionStore: sessionStore,
+			htuURL:       nodeConfig.ExternalURL(),
 		},
 	}
 }
@@ -300,10 +313,102 @@ func (c *callbackHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
+	identity, err := dpopClient.GetIdentity()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     "handle",
+		Value:    string(identity.Handle),
+		Path:     "/",
+		SameSite: http.SameSiteLaxMode,
+	})
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     "did",
+		Value:    string(identity.DID),
+		Path:     "/",
+		SameSite: http.SameSiteLaxMode,
+	})
+
+	pdsURL := dpopClient.GetPDSURL()
+	if pdsURL != "" {
+		http.SetCookie(w, &http.Cookie{
+			Name:     "pds_url",
+			Value:    pdsURL,
+			Path:     "/",
+			SameSite: http.SameSiteLaxMode,
+		})
+	}
+
 	http.Redirect(
 		w,
 		r,
 		"/",
 		http.StatusSeeOther,
 	)
+}
+
+func (h *xrpcBrokerHandler) Method() string {
+	return http.MethodPost
+}
+
+func (h *xrpcBrokerHandler) Pattern() string {
+	return "/xrpc/{rest...}"
+}
+
+func (h *xrpcBrokerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	// Note: this is effectively acting as a reverse proxy in front of the XRPC endpoint.
+	// Using the main Habitat reverse proxy isn't sufficient because of the additional
+	// roundtrips DPoP requires.
+	log.Info().Msgf("request: %+v", r)
+
+	dpopSession, err := h.sessionStore.Get(r, "dpop-session")
+	if err != nil {
+		log.Error().Err(err).Msg("error getting dpop session")
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	htu := path.Join(h.htuURL, r.URL.Path)
+	dpopClient := NewDpopHttpClientWithHTU(dpopSession, htu)
+
+	// Unset the request URI (can't be set when used as a client)
+	r.RequestURI = ""
+	r.URL.Scheme = "http"
+	r.URL.Host = constants.DefaultPDSHostname
+	r.Header.Set("Authorization", "DPoP "+dpopClient.GetAccessToken())
+	r.Header.Del("Content-Length")
+
+	resp, err := dpopClient.Do(r)
+	if err != nil {
+		log.Error().Err(err).Msg("error doing request")
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	err = dpopSession.Save(r, w)
+	if err != nil {
+		log.Error().Err(err).Msg("error saving dpop session")
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Writing out the response as we got it.
+
+	// Copy response headers before writing status code
+	for k, vv := range resp.Header {
+		for _, v := range vv {
+			w.Header().Add(k, v)
+		}
+	}
+	w.WriteHeader(resp.StatusCode)
+
+	// Write body last
+	defer resp.Body.Close()
+	_, err = io.Copy(w, resp.Body)
+	if err == http.ErrBodyReadAfterClose {
+		return
+	}
 }
