@@ -62,29 +62,41 @@ func NewDpopHttpClientWithHTU(session *sessions.Session, htu string) *DpopHttpCl
 }
 
 func (s *DpopHttpClient) Do(req *http.Request) (*http.Response, error) {
-	err := s.Sign(req, req.URL.String())
+	err := s.Sign(req)
 	if err != nil {
 		return nil, err
 	}
+	// Read out the body since we'll need it twice
+	bodyBytes := []byte{}
+	if req.Body != nil {
+		bodyBytes, err = io.ReadAll(req.Body)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	req.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
 
+	// Check if new nonce is needed, and set it if so
 	if !isUseDPopNonceError(resp) {
 		return resp, nil
 	}
-
 	if resp.Header.Get("DPoP-Nonce") != "" {
 		s.session.Values[cNonceSessionKey] = resp.Header.Get("DPoP-Nonce")
 	}
-	log.Info().Msgf("retrying with new nonce: %s", resp.Header.Get("DPoP-Nonce"))
+
 	// retry with new nonce
-	err = s.Sign(req, req.URL.String())
+	req2 := req.Clone(req.Context())
+	req2.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+	err = s.Sign(req2)
 	if err != nil {
 		return nil, err
 	}
-	return http.DefaultClient.Do(req)
+	return http.DefaultClient.Do(req2)
 }
 
 func (s *DpopHttpClient) SetKey(key *ecdsa.PrivateKey) error {

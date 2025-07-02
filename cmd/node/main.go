@@ -339,9 +339,9 @@ func generatePDSAppConfig(
 			{
 				ID:      "pds-app-reverse-proxy-rule",
 				AppID:   appID,
-				Type:    node.ProxyRulePDS,
+				Type:    node.ProxyRuleRedirect,
 				Matcher: "/xrpc",
-				Target:  fmt.Sprintf("https://%s/xrpc", constants.DefaultPDSHostname),
+				Target:  "http://host.docker.internal:3000/xrpc",
 			},
 			{
 				ID:      "default-rule-oauth-well-known",
