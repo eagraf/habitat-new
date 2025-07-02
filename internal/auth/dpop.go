@@ -49,11 +49,16 @@ type dpopClaims struct {
 }
 
 type DpopHttpClient struct {
+	htu     string
 	session *sessions.Session
 }
 
 func NewDpopHttpClient(session *sessions.Session) *DpopHttpClient {
-	return &DpopHttpClient{session}
+	return &DpopHttpClient{session: session}
+}
+
+func NewDpopHttpClientWithHTU(session *sessions.Session, htu string) *DpopHttpClient {
+	return &DpopHttpClient{htu: htu, session: session}
 }
 
 func (s *DpopHttpClient) Do(req *http.Request) (*http.Response, error) {
@@ -157,7 +162,7 @@ func (s *DpopHttpClient) GetIdentity() (*identity.Identity, error) {
 	return &i, nil
 }
 
-func (s *DpopHttpClient) Sign(req *http.Request, htu string) error {
+func (s *DpopHttpClient) Sign(req *http.Request) error {
 	keyBytes, ok := s.session.Values[cKeySessionKey]
 	if !ok {
 		return errors.New("invalid/missing key in session")
@@ -182,6 +187,12 @@ func (s *DpopHttpClient) Sign(req *http.Request, htu string) error {
 	if err != nil {
 		return err
 	}
+
+	htu := req.URL.String()
+	if s.htu != "" {
+		htu = s.htu
+	}
+
 	nonce, _ := s.session.Values[cNonceSessionKey].(string)
 	accessTokenHash, _ := s.session.Values[cAccessTokenHashSessionKey].(string)
 	token, err := jwt.Signed(signer).Claims(&dpopClaims{

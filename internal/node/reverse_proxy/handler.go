@@ -103,8 +103,6 @@ func getPDSHandler(rule *node.ReverseProxyRule, sessionStore sessions.Store) (ht
 			}
 
 			dpopClient := auth.NewDpopHttpClient(dpopSession)
-			htu := fmt.Sprintf("https://beacon-dev.tail07d32.ts.net%s", req.URL.Path)
-			err = dpopClient.Sign(req, htu)
 			if err != nil {
 				log.Error().Err(err).Msg("error signing request")
 				return

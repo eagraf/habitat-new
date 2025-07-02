@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/pem"
 	"errors"
+	"fmt"
 	"os"
 	"os/user"
 	"path/filepath"
@@ -288,6 +289,16 @@ func (n *NodeConfig) UseTLS() bool {
 	return n.viper.GetBool("use_tls")
 }
 
+// WHY ARE THERE 3 OF THESE?
+func (n *NodeConfig) ExternalURL() string {
+	domain := n.Domain()
+	if domain == "localhost" {
+		return "http://localhost"
+	} else {
+		return fmt.Sprintf("https://%s", domain)
+	}
+}
+
 // Hostname that the node listens on. This may be updated dynamically because Tailscale may add a suffix
 func (n *NodeConfig) Hostname() string {
 	if n.TailscaleAuthkey() != "" {
@@ -314,7 +325,7 @@ func (n *NodeConfig) Domain() string {
 		}
 		return domain
 	}
-	return ""
+	return "localhost"
 }
 
 func (n *NodeConfig) ReverseProxyPort() string {
