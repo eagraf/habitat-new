@@ -46,6 +46,12 @@ type xrpcBrokerHandler struct {
 	sessionStore sessions.Store
 }
 
+// regreshHandler is purely for testing purposes.
+type refreshHandler struct {
+	oauthClient  OAuthClient
+	sessionStore sessions.Store
+}
+
 func GetRoutes(
 	nodeConfig *config.NodeConfig,
 	sessionStore sessions.Store,
@@ -92,6 +98,9 @@ func GetRoutes(
 			oauthClient:  oauthClient,
 			sessionStore: sessionStore,
 			htuURL:       nodeConfig.ExternalURL(),
+		}, &refreshHandler{
+			oauthClient:  oauthClient,
+			sessionStore: sessionStore,
 		},
 	}
 }
@@ -411,4 +420,41 @@ func (h *xrpcBrokerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if err == http.ErrBodyReadAfterClose {
 		return
 	}
+}
+
+func (h *refreshHandler) Method() string {
+	return http.MethodGet
+}
+
+func (h *refreshHandler) Pattern() string {
+	return "/refresh"
+}
+
+func (h *refreshHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	dpopSession, err := h.sessionStore.Get(r, "dpop-session")
+	if err != nil {
+		log.Error().Err(err).Msg("error getting dpop session")
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	dpopClient := NewDpopHttpClient(dpopSession, getAuthServerJWKBuilder())
+
+	tokenResp, err := h.oauthClient.RefreshToken(dpopClient)
+	if err != nil {
+		log.Error().Err(err).Msg("error refreshing token")
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	dpopClient.SetAccessTokenHash(tokenResp.AccessToken)
+	dpopClient.SetAccessToken(tokenResp.AccessToken)
+	dpopClient.SetRefreshToken(tokenResp.RefreshToken)
+
+	err = dpopSession.Save(r, w)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
 }

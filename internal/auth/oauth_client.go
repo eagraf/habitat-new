@@ -44,6 +44,7 @@ type OAuthClient interface {
 		issuer string,
 		state *AuthorizeState,
 	) (*TokenResponse, error)
+	RefreshToken(dpopClient *DpopHttpClient) (*TokenResponse, error)
 }
 
 type oauthClientImpl struct {
@@ -195,6 +196,75 @@ func (o *oauthClientImpl) ExchangeCode(
 
 	var tokenResp TokenResponse
 	err = json.NewDecoder(bytes.NewReader(rawTokenResp)).Decode(&tokenResp)
+	if err != nil {
+		return nil, err
+	}
+	log.Info().Msgf("token response: %+v", tokenResp)
+
+	return &tokenResp, nil
+}
+
+func (o *oauthClientImpl) RefreshToken(dpopClient *DpopHttpClient) (*TokenResponse, error) {
+	i, err := dpopClient.GetIdentity()
+	if err != nil {
+		return nil, err
+	}
+
+	pr, err := fetchOAuthProtectedResource(i)
+	if err != nil {
+		return nil, err
+	}
+
+	serverMetadata, err := fetchOauthAuthorizationServer(i, pr)
+	if err != nil {
+		return nil, err
+	}
+
+	tokenEndpoint := serverMetadata.TokenEndpoint
+
+	issuer := dpopClient.GetIssuer()
+
+	clientAssertion, err := o.getClientAssertion(issuer)
+	if err != nil {
+		return nil, err
+	}
+
+	refreshToken := dpopClient.GetRefreshToken()
+
+	req, err := http.NewRequest(
+		http.MethodPost,
+		tokenEndpoint,
+		strings.NewReader(url.Values{
+			"client_id":             {o.clientId},
+			"grant_type":            {"refresh_token"},
+			"refresh_token":         {refreshToken},
+			"client_assertion_type": {"urn:ietf:params:oauth:client-assertion-type:jwt-bearer"},
+			"client_assertion":      {clientAssertion},
+		}.Encode()),
+	)
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	resp, err := dpopClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		var errMsg json.RawMessage
+		json.NewDecoder(resp.Body).Decode(&errMsg)
+		return nil, fmt.Errorf("failed to exchange code: %s", resp.Status, string(errMsg))
+	}
+
+	rawRefreshResp, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	log.Info().Msgf("refresh response: %+v", string(rawRefreshResp))
+
+	var tokenResp TokenResponse
+	err = json.NewDecoder(bytes.NewReader(rawRefreshResp)).Decode(&tokenResp)
 	if err != nil {
 		return nil, err
 	}
