@@ -162,7 +162,7 @@ func (l *loginHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	dpopSession, _ := l.sessionStore.New(r, "dpop-session")
-	dpopClient := NewDpopHttpClient(dpopSession)
+	dpopClient := NewDpopHttpClient(dpopSession, getAuthServerJWKBuilder())
 	dpopKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -272,7 +272,7 @@ func (c *callbackHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	dpopClient := NewDpopHttpClient(dpopSession)
+	dpopClient := NewDpopHttpClient(dpopSession, getAuthServerJWKBuilder())
 	tokenResp, err := c.oauthClient.ExchangeCode(dpopClient, code, issuer, &state)
 	if err != nil {
 		log.Error().Err(err).Str("code", code).Str("issuer", issuer).Msg("error exchanging code")
@@ -372,7 +372,7 @@ func (h *xrpcBrokerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	htu := path.Join(h.htuURL, r.URL.Path)
-	dpopClient := NewDpopHttpClientWithHTU(dpopSession, htu)
+	dpopClient := NewDpopHttpClient(dpopSession, getPDSJWKBuilder(htu))
 
 	// Unset the request URI (can't be set when used as a client)
 	r.RequestURI = ""

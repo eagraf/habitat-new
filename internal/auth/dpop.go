@@ -48,17 +48,50 @@ type dpopClaims struct {
 	Nonce string `json:"nonce,omitempty"`
 }
 
+// DpopJWKBuilder is a function that builds a DPoP JWT for a given request type.
+type DpopJWKBuilder func(req *http.Request, signer jose.Signer, session *sessions.Session, nonce string) (string, error)
+
+func getPDSJWKBuilder(htu string) DpopJWKBuilder {
+	return func(req *http.Request, signer jose.Signer, session *sessions.Session, nonce string) (string, error) {
+		accessTokenHash, _ := session.Values[cAccessTokenHashSessionKey].(string)
+
+		return jwt.Signed(signer).Claims(&dpopClaims{
+			Claims: jwt.Claims{
+				ID:       generateNonce(),
+				IssuedAt: jwt.NewNumericDate(time.Now()),
+			},
+			Method:          req.Method,
+			URL:             htu,
+			Nonce:           nonce,
+			AccessTokenHash: accessTokenHash,
+		}).CompactSerialize()
+	}
+}
+
+func getAuthServerJWKBuilder() DpopJWKBuilder {
+	return func(req *http.Request, signer jose.Signer, session *sessions.Session, nonce string) (string, error) {
+		htu := req.URL.String()
+
+		return jwt.Signed(signer).Claims(&dpopClaims{
+			Claims: jwt.Claims{
+				ID:       generateNonce(),
+				IssuedAt: jwt.NewNumericDate(time.Now()),
+			},
+			Method: req.Method,
+			URL:    htu,
+			Nonce:  nonce,
+		}).CompactSerialize()
+	}
+}
+
 type DpopHttpClient struct {
-	htu     string
-	session *sessions.Session
+	htu        string
+	session    *sessions.Session
+	jwkBuilder DpopJWKBuilder
 }
 
-func NewDpopHttpClient(session *sessions.Session) *DpopHttpClient {
-	return &DpopHttpClient{session: session}
-}
-
-func NewDpopHttpClientWithHTU(session *sessions.Session, htu string) *DpopHttpClient {
-	return &DpopHttpClient{htu: htu, session: session}
+func NewDpopHttpClient(session *sessions.Session, jwkBuilder DpopJWKBuilder) *DpopHttpClient {
+	return &DpopHttpClient{session: session, jwkBuilder: jwkBuilder}
 }
 
 func (s *DpopHttpClient) Do(req *http.Request) (*http.Response, error) {
@@ -200,23 +233,8 @@ func (s *DpopHttpClient) Sign(req *http.Request) error {
 		return err
 	}
 
-	htu := req.URL.String()
-	if s.htu != "" {
-		htu = s.htu
-	}
-
 	nonce, _ := s.session.Values[cNonceSessionKey].(string)
-	accessTokenHash, _ := s.session.Values[cAccessTokenHashSessionKey].(string)
-	token, err := jwt.Signed(signer).Claims(&dpopClaims{
-		Claims: jwt.Claims{
-			ID:       generateNonce(),
-			IssuedAt: jwt.NewNumericDate(time.Now()),
-		},
-		Method:          req.Method,
-		URL:             htu,
-		Nonce:           nonce,
-		AccessTokenHash: accessTokenHash,
-	}).CompactSerialize()
+	token, err := s.jwkBuilder(req, signer, s.session, nonce)
 	if err != nil {
 		return err
 	}
