@@ -15,7 +15,6 @@ import (
 
 	"github.com/eagraf/habitat-new/core/state/node"
 	frontend "github.com/eagraf/habitat-new/frontend_server"
-	"github.com/eagraf/habitat-new/internal/auth"
 	"github.com/gorilla/sessions"
 	"github.com/rs/zerolog/log"
 )
@@ -26,10 +25,6 @@ func getHandlerFromRule(rule *node.ReverseProxyRule, webBundlePath string, sessi
 	// The reverse proxy will forward the traffic to another service.
 	case node.ProxyRuleRedirect:
 		return getRedirectHandler(rule)
-
-	case node.ProxyRulePDS:
-		log.Info().Msg("serving PDS")
-		return getPDSHandler(rule, sessionStore)
 
 	// The reverse proxy will serve files directly from the host system.
 	case node.ProxyRuleFileServer:
@@ -83,57 +78,6 @@ func getRedirectHandler(rule *node.ReverseProxyRule) (http.Handler, error) {
 			_, _ = rw.Write([]byte(err.Error()))
 		},
 	}, nil
-}
-
-func getPDSHandler(rule *node.ReverseProxyRule, sessionStore sessions.Store) (http.Handler, error) {
-	forwardURL, err := url.Parse(rule.Target)
-	if err != nil {
-		return nil, err
-	}
-
-	target := forwardURL.Host
-
-	return &httputil.ReverseProxy{
-		Director: func(req *http.Request) {
-			//
-			dpopSession, err := sessionStore.Get(req, "dpop-session")
-			if err != nil {
-				log.Error().Err(err).Msg("error getting dpop session")
-				return
-			}
-
-			dpopClient := auth.NewDpopHttpClient(dpopSession)
-			if err != nil {
-				log.Error().Err(err).Msg("error signing request")
-				return
-			}
-			req.Header.Set("Authorization", "DPoP "+dpopClient.GetAccessToken())
-			log.Info().Msgf("signed request to %v", req)
-
-			req.URL.Scheme = "http" // forwardURL.Scheme
-			req.URL.Host = target
-
-			// TODO implement globs
-			req.URL.Path = path.Join(
-				forwardURL.Path,
-				strings.TrimPrefix(req.URL.Path, rule.Matcher),
-			)
-		},
-		Transport: &http.Transport{
-			Dial: (&net.Dialer{
-				Timeout: 10 * time.Second,
-			}).Dial,
-		},
-		ModifyResponse: func(res *http.Response) error {
-			return nil
-		},
-		ErrorHandler: func(rw http.ResponseWriter, r *http.Request, err error) {
-			log.Error().Err(err).Msg("reverse proxy request forwarding error")
-			rw.WriteHeader(http.StatusInternalServerError)
-			_, _ = rw.Write([]byte(err.Error()))
-		},
-	}, nil
-
 }
 
 func getFileServerHandler(rule *node.ReverseProxyRule, options ...Option) (http.Handler, error) {
