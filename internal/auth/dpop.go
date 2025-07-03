@@ -238,13 +238,6 @@ func (s *DpopHttpClient) Sign(req *http.Request) error {
 	if err != nil {
 		return err
 	}
-	log.Info().
-		Str("nonce", nonce).
-		Str("url", req.URL.String()).
-		Str("method", req.Method).
-		Str("token", token).
-		Str("access_token_hash", accessTokenHash).
-		Msg("signing request")
 	req.Header.Set("DPoP", token)
 	return nil
 }

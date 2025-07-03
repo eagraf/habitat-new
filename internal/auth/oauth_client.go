@@ -188,7 +188,7 @@ func (o *oauthClientImpl) ExchangeCode(
 	if resp.StatusCode != http.StatusOK {
 		var errMsg json.RawMessage
 		json.NewDecoder(resp.Body).Decode(&errMsg)
-		return nil, fmt.Errorf("failed to exchange code: %s: %s", resp.Status, string(errMsg))
+		return nil, fmt.Errorf("failed to exchange code: %s", resp.Status, string(errMsg))
 	}
 
 	rawTokenResp, err := io.ReadAll(resp.Body)
@@ -336,8 +336,6 @@ func (o *oauthClientImpl) makePushedAuthorizationRequest(
 		"respose_mode":          {"query"},
 		"response_type":         {"code"},
 		"scope":                 {"atproto transition:generic"},
-		//"login_hint":            {*loginHint},
-
 		"client_assertion_type": {"urn:ietf:params:oauth:client-assertion-type:jwt-bearer"},
 		"client_assertion":      {clientAssertion},
 	}
