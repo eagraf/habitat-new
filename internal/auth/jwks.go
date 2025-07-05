@@ -6,15 +6,14 @@ import (
 
 	jose "github.com/go-jose/go-jose/v3"
 	"github.com/go-jose/go-jose/v3/jwt"
-	"github.com/gorilla/sessions"
 )
 
 // DpopJWKBuilder is a function that builds a DPoP JWT for a given request type.
-type DpopJWKBuilder func(req *http.Request, signer jose.Signer, session *sessions.Session, nonce string) (string, error)
+type DpopJWKBuilder func(req *http.Request, signer jose.Signer, session *dpopSession, nonce string) (string, error)
 
 func getPDSJWKBuilder(htu string) DpopJWKBuilder {
-	return func(req *http.Request, signer jose.Signer, session *sessions.Session, nonce string) (string, error) {
-		accessTokenHash, _ := session.Values[cAccessTokenHashSessionKey].(string)
+	return func(req *http.Request, signer jose.Signer, session *dpopSession, nonce string) (string, error) {
+		accessTokenHash := session.getAccessTokenHash()
 
 		return jwt.Signed(signer).Claims(&dpopClaims{
 			Claims: jwt.Claims{
@@ -30,7 +29,7 @@ func getPDSJWKBuilder(htu string) DpopJWKBuilder {
 }
 
 func getAuthServerJWKBuilder() DpopJWKBuilder {
-	return func(req *http.Request, signer jose.Signer, session *sessions.Session, nonce string) (string, error) {
+	return func(req *http.Request, signer jose.Signer, session *dpopSession, nonce string) (string, error) {
 		htu := req.URL.String()
 
 		return jwt.Signed(signer).Claims(&dpopClaims{

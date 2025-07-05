@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"crypto/ecdsa"
 	"crypto/elliptic"
-	"crypto/rand"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -170,27 +169,17 @@ func (l *loginHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	dpopSession, _ := l.sessionStore.New(r, "dpop-session")
-	dpopClient := NewDpopHttpClient(dpopSession, getAuthServerJWKBuilder())
-	dpopKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	dpopSession, err := createFreshDpopSession(r, w, l.sessionStore, id, l.pdsURL)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	dpopClient.SetKey(dpopKey)
-	dpopClient.SetIdentity(id)
-	dpopClient.SetPDSURL(l.pdsURL)
+
+	dpopClient := NewDpopHttpClient(dpopSession, getAuthServerJWKBuilder())
 
 	redirect, state, err := l.oauthClient.Authorize(dpopClient, id, loginHint)
 	if err != nil {
 		log.Error().Err(err).Str("identifier", identifier).Msg("error authorizing user")
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	err = dpopSession.Save(r, w)
-	if err != nil {
-		log.Error().Err(err).Msg("error saving dpop session")
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -275,13 +264,14 @@ func (c *callbackHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	code := r.URL.Query().Get("code")
 	issuer := r.URL.Query().Get("iss")
 
-	dpopSession, err := c.sessionStore.Get(r, "dpop-session")
+	dpopSession, err := getExistingDpopSession(r, w, c.sessionStore)
 	if err != nil {
-		log.Error().Err(err).Msg("error getting dpop session")
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
 	dpopClient := NewDpopHttpClient(dpopSession, getAuthServerJWKBuilder())
+
 	tokenResp, err := c.oauthClient.ExchangeCode(dpopClient, code, issuer, &state)
 	if err != nil {
 		log.Error().Err(err).Str("code", code).Str("issuer", issuer).Msg("error exchanging code")
@@ -289,14 +279,13 @@ func (c *callbackHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	dpopClient.SetAccessTokenHash(tokenResp.AccessToken)
-	dpopClient.SetAccessToken(tokenResp.AccessToken)
-	dpopClient.SetRefreshToken(tokenResp.RefreshToken)
-	dpopClient.SetIssuer(issuer)
-
-	err = dpopSession.Save(r, w)
+	err = dpopSession.setTokenResponseFields(tokenResp)
 	if err != nil {
-		log.Error().Err(err).Msg("error saving dpop session")
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	err = dpopSession.setIssuer(issuer)
+	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -322,7 +311,7 @@ func (c *callbackHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
-	identity, err := dpopClient.GetIdentity()
+	identity, err := dpopSession.getIdentity()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -342,7 +331,7 @@ func (c *callbackHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		SameSite: http.SameSiteLaxMode,
 	})
 
-	pdsURL := dpopClient.GetPDSURL()
+	pdsURL := dpopSession.getPDSURL()
 	if pdsURL != "" {
 		http.SetCookie(w, &http.Cookie{
 			Name:     "pds_url",
@@ -372,22 +361,19 @@ func (h *xrpcBrokerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Note: this is effectively acting as a reverse proxy in front of the XRPC endpoint.
 	// Using the main Habitat reverse proxy isn't sufficient because of the additional
 	// roundtrips DPoP requires.
-	log.Info().Msgf("request: %+v", r)
-
-	dpopSession, err := h.sessionStore.Get(r, "dpop-session")
+	dpopSession, err := getExistingDpopSession(r, w, h.sessionStore)
 	if err != nil {
-		log.Error().Err(err).Msg("error getting dpop session")
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	htu := path.Join(h.htuURL, r.URL.Path)
-	dpopClient := NewDpopHttpClient(dpopSession, getPDSJWKBuilder(htu))
+	pdsDpopClient := NewDpopHttpClient(dpopSession, getPDSJWKBuilder(htu))
 
 	// Unset the request URI (can't be set when used as a client)
 	r.RequestURI = ""
 	r.URL.Scheme = "http"
 	r.URL.Host = constants.DefaultPDSHostname
-	r.Header.Set("Authorization", "DPoP "+dpopClient.GetAccessToken())
+	r.Header.Set("Authorization", "DPoP "+dpopSession.getAccessToken())
 	r.Header.Del("Content-Length")
 
 	resp, err := dpopClient.Do(r)
@@ -397,7 +383,8 @@ func (h *xrpcBrokerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = dpopSession.Save(r, w)
+	log.Info().Msgf("access token: %s", dpopSession.getAccessToken())
+	resp, err := pdsDpopClient.Do(r)
 	if err != nil {
 		log.Error().Err(err).Msg("error saving dpop session")
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -431,26 +418,21 @@ func (h *refreshHandler) Pattern() string {
 }
 
 func (h *refreshHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	dpopSession, err := h.sessionStore.Get(r, "dpop-session")
+	dpopSession, err := getExistingDpopSession(r, w, h.sessionStore)
 	if err != nil {
-		log.Error().Err(err).Msg("error getting dpop session")
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	dpopClient := NewDpopHttpClient(dpopSession, getAuthServerJWKBuilder())
 
-	tokenResp, err := h.oauthClient.RefreshToken(dpopClient)
+	tokenResp, err := h.oauthClient.RefreshToken(dpopClient, dpopSession)
 	if err != nil {
 		log.Error().Err(err).Msg("error refreshing token")
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	dpopClient.SetAccessTokenHash(tokenResp.AccessToken)
-	dpopClient.SetAccessToken(tokenResp.AccessToken)
-	dpopClient.SetRefreshToken(tokenResp.RefreshToken)
-
-	err = dpopSession.Save(r, w)
+	err = dpopSession.setTokenResponseFields(tokenResp)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

@@ -44,7 +44,7 @@ type OAuthClient interface {
 		issuer string,
 		state *AuthorizeState,
 	) (*TokenResponse, error)
-	RefreshToken(dpopClient *DpopHttpClient) (*TokenResponse, error)
+	RefreshToken(dpopClient *DpopHttpClient, dpopSession *dpopSession) (*TokenResponse, error)
 }
 
 type oauthClientImpl struct {
@@ -204,8 +204,8 @@ func (o *oauthClientImpl) ExchangeCode(
 	return &tokenResp, nil
 }
 
-func (o *oauthClientImpl) RefreshToken(dpopClient *DpopHttpClient) (*TokenResponse, error) {
-	i, err := dpopClient.GetIdentity()
+func (o *oauthClientImpl) RefreshToken(dpopClient *DpopHttpClient, dpopSession *dpopSession) (*TokenResponse, error) {
+	i, err := dpopSession.getIdentity()
 	if err != nil {
 		return nil, err
 	}
@@ -222,14 +222,14 @@ func (o *oauthClientImpl) RefreshToken(dpopClient *DpopHttpClient) (*TokenRespon
 
 	tokenEndpoint := serverMetadata.TokenEndpoint
 
-	issuer := dpopClient.GetIssuer()
+	issuer := dpopSession.getIssuer()
 
 	clientAssertion, err := o.getClientAssertion(issuer)
 	if err != nil {
 		return nil, err
 	}
 
-	refreshToken := dpopClient.GetRefreshToken()
+	refreshToken := dpopSession.getRefreshToken()
 
 	req, err := http.NewRequest(
 		http.MethodPost,
