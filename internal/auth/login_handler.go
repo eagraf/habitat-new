@@ -376,19 +376,40 @@ func (h *xrpcBrokerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	r.Header.Set("Authorization", "DPoP "+dpopSession.getAccessToken())
 	r.Header.Del("Content-Length")
 
-	resp, err := dpopClient.Do(r)
+	// Copy the request body without consuming it
+	bodyCopy, err := io.ReadAll(r.Body)
 	if err != nil {
-		log.Error().Err(err).Msg("error doing request")
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	r.Body = io.NopCloser(bytes.NewBuffer(bodyCopy))
 
 	log.Info().Msgf("access token: %s", dpopSession.getAccessToken())
 	resp, err := pdsDpopClient.Do(r)
 	if err != nil {
-		log.Error().Err(err).Msg("error saving dpop session")
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
+	}
+	if resp.StatusCode == http.StatusUnauthorized {
+		authDpopClient := NewDpopHttpClient(dpopSession, getAuthServerJWKBuilder())
+		tokenResp, err := h.oauthClient.RefreshToken(authDpopClient, dpopSession)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		err = dpopSession.setTokenResponseFields(tokenResp)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		r.Header.Set("Authorization", "DPoP "+dpopSession.getAccessToken())
+		r.Body = io.NopCloser(bytes.NewBuffer(bodyCopy))
+		resp, err = pdsDpopClient.Do(r)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 	}
 
 	// Writing out the response as we got it.
