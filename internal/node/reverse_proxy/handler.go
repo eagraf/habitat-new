@@ -15,11 +15,10 @@ import (
 
 	"github.com/eagraf/habitat-new/core/state/node"
 	frontend "github.com/eagraf/habitat-new/frontend_server"
-	"github.com/gorilla/sessions"
 	"github.com/rs/zerolog/log"
 )
 
-func getHandlerFromRule(rule *node.ReverseProxyRule, webBundlePath string, sessionStore sessions.Store) (http.Handler, error) {
+func getHandlerFromRule(rule *node.ReverseProxyRule, webBundlePath string) (http.Handler, error) {
 	switch rule.Type {
 
 	// The reverse proxy will forward the traffic to another service.
