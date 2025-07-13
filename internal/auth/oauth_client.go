@@ -189,7 +189,7 @@ func (o *oauthClientImpl) ExchangeCode(
 	if resp.StatusCode != http.StatusOK {
 		var errMsg json.RawMessage
 		json.NewDecoder(resp.Body).Decode(&errMsg)
-		return nil, fmt.Errorf("failed to exchange code: %s", resp.Status, string(errMsg))
+		return nil, fmt.Errorf("failed to exchange code: %s - %s", resp.Status, string(errMsg))
 	}
 
 	rawTokenResp, err := io.ReadAll(resp.Body)
@@ -253,7 +253,7 @@ func (o *oauthClientImpl) RefreshToken(dpopClient *DpopHttpClient, dpopSession *
 	if resp.StatusCode != http.StatusOK {
 		var errMsg json.RawMessage
 		json.NewDecoder(resp.Body).Decode(&errMsg)
-		return nil, fmt.Errorf("failed to exchange code: %s", resp.Status, string(errMsg))
+		return nil, fmt.Errorf("failed to exchange code: %s - %s", resp.Status, string(errMsg))
 	}
 
 	rawRefreshResp, err := io.ReadAll(resp.Body)
@@ -292,10 +292,7 @@ func fetchOAuthProtectedResource(i *identity.Identity) (*oauthProtectedResource,
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf(
-			"failed to fetch authorization server",
-			errors.New(resp.Status),
-		)
+		return nil, fmt.Errorf("failed to fetch authorization server: %s", resp.Status)
 	}
 
 	var pr oauthProtectedResource
@@ -334,10 +331,7 @@ func fetchOauthAuthorizationServer(
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf(
-			"failed to fetch authorization server",
-			errors.New(resp.Status),
-		)
+		return nil, fmt.Errorf("failed to fetch authorization server: %s", resp.Status)
 	}
 
 	var as oauthAuthorizationServer
@@ -442,11 +436,7 @@ func (o *oauthClientImpl) makePushedAuthorizationRequest(
 
 	if resp.StatusCode != http.StatusCreated {
 		errMsg, _ := io.ReadAll(resp.Body)
-		return "", fmt.Errorf(
-			"failed to make pushed authorization request",
-			resp.Status,
-			string(errMsg),
-		)
+		return "", fmt.Errorf("failed to make pushed authorization request: %s - %s", resp.Status, string(errMsg))
 	}
 
 	var respBody parResponse
