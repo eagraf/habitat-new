@@ -141,9 +141,7 @@ func main() {
 		sessionStoreKey = []byte("FaKe_DeV-SeSsIoN-KeY")
 	}
 
-	sessionStore := sessions.NewCookieStore(sessionStoreKey)
-
-	proxy := reverse_proxy.NewProxyServer(logger, nodeConfig.WebBundlePath(), sessionStore)
+	proxy := reverse_proxy.NewProxyServer(logger, nodeConfig.WebBundlePath())
 	proxyServer := &http.Server{
 		Addr:    addr,
 		Handler: proxy,
@@ -187,6 +185,8 @@ func main() {
 	if err != nil {
 		log.Fatal().Err(err).Msg("error creating node control server")
 	}
+
+	sessionStore := sessions.NewCookieStore(sessionStoreKey)
 
 	// Set up the main API server
 	// TODO: create a less tedious way to register all the routes in the future. It might be as simple

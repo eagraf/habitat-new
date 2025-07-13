@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/eagraf/habitat-new/core/state/node"
-	"github.com/gorilla/sessions"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 
@@ -19,10 +18,9 @@ type ProxyServer struct {
 	logger           *zerolog.Logger
 	RuleSet          *RuleSet
 	defaultServePath string
-	sessionStore     sessions.Store
 }
 
-func NewProxyServer(logger *zerolog.Logger, defaultServePath string, sessionStore sessions.Store) *ProxyServer {
+func NewProxyServer(logger *zerolog.Logger, defaultServePath string) *ProxyServer {
 	return &ProxyServer{
 		logger: logger,
 		RuleSet: &RuleSet{
@@ -30,7 +28,6 @@ func NewProxyServer(logger *zerolog.Logger, defaultServePath string, sessionStor
 			baseFilePath: defaultServePath,
 		},
 		defaultServePath: defaultServePath,
-		sessionStore:     sessionStore,
 	}
 }
 
@@ -57,7 +54,7 @@ func (s *ProxyServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get the handler for the best matching rule
-	handler, err := getHandlerFromRule(bestMatch, s.defaultServePath, s.sessionStore)
+	handler, err := getHandlerFromRule(bestMatch, s.defaultServePath)
 	if err != nil {
 		msg := fmt.Sprintf("error getting handler: %s", err)
 		log.Error().Msg(msg)
