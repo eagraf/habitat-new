@@ -3,7 +3,7 @@ package auth
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"strings"
@@ -100,9 +100,8 @@ func (s *DpopHttpClient) Sign(req *http.Request) error {
 	}
 
 	nonce, err := s.session.getNonce()
-	var notFoundErr *ErrorSessionValueNotFound
-	if err != nil && !errors.As(err, &notFoundErr) {
-		return err
+	if err != nil {
+		return fmt.Errorf("failed to get nonce: %w", err)
 	}
 	token, err := s.jwkBuilder(req, signer, s.session, nonce)
 	if err != nil {

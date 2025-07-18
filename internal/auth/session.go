@@ -111,7 +111,11 @@ func getDpopKey(session *sessions.Session) (*ecdsa.PrivateKey, error) {
 	if !ok {
 		return nil, errors.New("invalid/missing key in session")
 	}
-	return x509.ParseECPrivateKey(keyBytes.([]byte))
+	bytes, ok := keyBytes.([]byte)
+	if !ok {
+		return nil, errors.New("key in session is not a []byte")
+	}
+	return x509.ParseECPrivateKey(bytes)
 }
 
 func (s *dpopSession) setTokenResponseFields(tokenResp *TokenResponse) error {
@@ -132,16 +136,40 @@ func (s *dpopSession) setTokenResponseFields(tokenResp *TokenResponse) error {
 	return nil
 }
 
-func (s *dpopSession) getAccessTokenHash() string {
-	return s.session.Values[cAccessTokenHashSessionKey].(string)
+func (s *dpopSession) getAccessTokenHash() (string, error) {
+	v, ok := s.session.Values[cAccessTokenHashSessionKey]
+	if !ok {
+		return "", &ErrorSessionValueNotFound{Key: cAccessTokenHashSessionKey}
+	}
+	hash, ok := v.(string)
+	if !ok {
+		return "", errors.New("access token hash in session is not a string")
+	}
+	return hash, nil
 }
 
-func (s *dpopSession) getAccessToken() string {
-	return s.session.Values[cAccessTokenSessionKey].(string)
+func (s *dpopSession) getAccessToken() (string, error) {
+	v, ok := s.session.Values[cAccessTokenSessionKey]
+	if !ok {
+		return "", &ErrorSessionValueNotFound{Key: cAccessTokenSessionKey}
+	}
+	token, ok := v.(string)
+	if !ok {
+		return "", errors.New("access token in session is not a string")
+	}
+	return token, nil
 }
 
-func (s *dpopSession) getRefreshToken() string {
-	return s.session.Values[cRefreshTokenSessionKey].(string)
+func (s *dpopSession) getRefreshToken() (string, error) {
+	v, ok := s.session.Values[cRefreshTokenSessionKey]
+	if !ok {
+		return "", &ErrorSessionValueNotFound{Key: cRefreshTokenSessionKey}
+	}
+	token, ok := v.(string)
+	if !ok {
+		return "", errors.New("refresh token in session is not a string")
+	}
+	return token, nil
 }
 
 func (s *dpopSession) setIssuer(issuer string) error {
@@ -153,15 +181,28 @@ func (s *dpopSession) setIssuer(issuer string) error {
 	return nil
 }
 
-func (s *dpopSession) getIssuer() string {
-	return s.session.Values[cIssuerSessionKey].(string)
+func (s *dpopSession) getIssuer() (string, error) {
+	v, ok := s.session.Values[cIssuerSessionKey]
+	if !ok {
+		return "", &ErrorSessionValueNotFound{Key: cIssuerSessionKey}
+	}
+	issuer, ok := v.(string)
+	if !ok {
+		return "", errors.New("issuer in session is not a string")
+	}
+	return issuer, nil
 }
 
-func (s *dpopSession) getPDSURL() string {
-	if v, ok := s.session.Values[cPDSURLSessionKey]; ok {
-		return v.(string)
+func (s *dpopSession) getPDSURL() (string, error) {
+	v, ok := s.session.Values[cPDSURLSessionKey]
+	if !ok {
+		return "", &ErrorSessionValueNotFound{Key: cPDSURLSessionKey}
 	}
-	return ""
+	url, ok := v.(string)
+	if !ok {
+		return "", errors.New("PDS URL in session is not a string")
+	}
+	return url, nil
 }
 
 func (s *dpopSession) getIdentity() (*identity.Identity, error) {
@@ -182,9 +223,13 @@ func (s *dpopSession) setNonce(nonce string) {
 }
 
 func (s *dpopSession) getNonce() (string, error) {
-	nonce, ok := s.session.Values[cNonceSessionKey]
+	v, ok := s.session.Values[cNonceSessionKey]
 	if !ok {
 		return "", &ErrorSessionValueNotFound{Key: cNonceSessionKey}
 	}
-	return nonce.(string), nil
+	nonce, ok := v.(string)
+	if !ok {
+		return "", errors.New("nonce in session is not a string")
+	}
+	return nonce, nil
 }

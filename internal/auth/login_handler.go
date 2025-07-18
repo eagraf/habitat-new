@@ -331,7 +331,11 @@ func (c *callbackHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		SameSite: http.SameSiteLaxMode,
 	})
 
-	pdsURL := dpopSession.getPDSURL()
+	pdsURL, err := dpopSession.getPDSURL()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 	if pdsURL != "" {
 		http.SetCookie(w, &http.Cookie{
 			Name:     "pds_url",
@@ -373,7 +377,12 @@ func (h *xrpcBrokerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	r.RequestURI = ""
 	r.URL.Scheme = "http"
 	r.URL.Host = constants.DefaultPDSHostname
-	r.Header.Set("Authorization", "DPoP "+dpopSession.getAccessToken())
+	accessToken, err := dpopSession.getAccessToken()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	r.Header.Set("Authorization", "DPoP "+accessToken)
 	r.Header.Del("Content-Length")
 
 	// Copy the request body without consuming it
@@ -384,7 +393,12 @@ func (h *xrpcBrokerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	r.Body = io.NopCloser(bytes.NewBuffer(bodyCopy))
 
-	log.Info().Msgf("access token: %s", dpopSession.getAccessToken())
+	accessToken, err = dpopSession.getAccessToken()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	log.Info().Msgf("access token: %s", accessToken)
 	resp, err := pdsDpopClient.Do(r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -403,7 +417,12 @@ func (h *xrpcBrokerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		r.Header.Set("Authorization", "DPoP "+dpopSession.getAccessToken())
+		accessToken, err = dpopSession.getAccessToken()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		r.Header.Set("Authorization", "DPoP "+accessToken)
 		r.Body = io.NopCloser(bytes.NewBuffer(bodyCopy))
 		resp, err = pdsDpopClient.Do(r)
 		if err != nil {

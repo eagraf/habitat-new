@@ -222,14 +222,20 @@ func (o *oauthClientImpl) RefreshToken(dpopClient *DpopHttpClient, dpopSession *
 
 	tokenEndpoint := serverMetadata.TokenEndpoint
 
-	issuer := dpopSession.getIssuer()
+	issuer, err := dpopSession.getIssuer()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get issuer: %w", err)
+	}
 
 	clientAssertion, err := o.getClientAssertion(issuer)
 	if err != nil {
 		return nil, err
 	}
 
-	refreshToken := dpopSession.getRefreshToken()
+	refreshToken, err := dpopSession.getRefreshToken()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get refresh token: %w", err)
+	}
 
 	req, err := http.NewRequest(
 		http.MethodPost,

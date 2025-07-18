@@ -13,7 +13,7 @@ type DpopJWKBuilder func(req *http.Request, signer jose.Signer, session *dpopSes
 
 func getPDSJWKBuilder(htu string) DpopJWKBuilder {
 	return func(req *http.Request, signer jose.Signer, session *dpopSession, nonce string) (string, error) {
-		accessTokenHash := session.getAccessTokenHash()
+		accessTokenHash, _ := session.getAccessTokenHash()
 
 		return jwt.Signed(signer).Claims(&dpopClaims{
 			Claims: jwt.Claims{
