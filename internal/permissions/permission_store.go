@@ -17,13 +17,13 @@ import (
 type Action int
 
 const (
+	// We do not support Write permissions at this time. The PDS already enforces that only the logged-in user associated with a
+	// DID can write data to the repo.
 	Read Action = iota
-	Write
 )
 
 var actionNames = map[Action]string{
-	Read:  "read",
-	Write: "write",
+	Read: "read",
 }
 
 func (a Action) String() string {
@@ -35,7 +35,6 @@ type Store interface {
 		didstr string,
 		nsid string,
 		rkey string,
-		act Action,
 	) (bool, error)
 	AddLexiconReadPermission(
 		didstr string,
@@ -79,9 +78,8 @@ func (p *store) HasPermission(
 	didstr string,
 	nsid string,
 	rkey string,
-	act Action,
 ) (bool, error) {
-	return p.enforcer.Enforce(didstr, getObject(nsid, rkey), act.String())
+	return p.enforcer.Enforce(didstr, getObject(nsid, rkey), Read.String())
 }
 
 // TODO: do some validation on input

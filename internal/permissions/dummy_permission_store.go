@@ -11,11 +11,7 @@ type dummy struct {
 	permsByNSID map[syntax.NSID]xmaps.Set[syntax.DID]
 }
 
-func (d *dummy) HasPermission(didstr string, nsid string, rkey string, act Action) (bool, error) {
-	if act != Read {
-		// Dummy store does not support writes yet
-		return false, errors.ErrUnsupported
-	}
+func (d *dummy) HasPermission(didstr string, nsid string, rkey string) (bool, error) {
 	dids, ok := d.permsByNSID[syntax.NSID(nsid)]
 	if !ok {
 		return false, nil

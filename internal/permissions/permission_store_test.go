@@ -13,34 +13,21 @@ func TestBasicPolicy1(t *testing.T) {
 	ps, err := NewStore(a, false)
 	require.NoError(t, err)
 
-	// inheritance
-	ok, err := ps.HasPermission("did:1", "app.bsky.posts", "post1", Write)
-	require.NoError(t, err)
-	require.True(t, ok)
-	ok, err = ps.HasPermission("did:1", "app.bsky.posts", "post2", Write)
-	require.NoError(t, err)
-	require.False(t, ok)
-
 	// glob match on record key
-	ok, err = ps.HasPermission("did:1", "app.bsky.likes", "like1", Read)
+	ok, err := ps.HasPermission("did:1", "app.bsky.likes", "like1")
 	require.NoError(t, err)
 	require.True(t, ok)
-	ok, err = ps.HasPermission("did:1", "app.bsky.likes", "like2", Read)
+	ok, err = ps.HasPermission("did:1", "app.bsky.likes", "like2")
 	require.NoError(t, err)
 	require.True(t, ok)
 
 	// glob match on nsid
-	ok, err = ps.HasPermission("did:2", "app.bsky.videos", "video1", Read)
+	ok, err = ps.HasPermission("did:2", "app.bsky.videos", "video1")
 	require.NoError(t, err)
 	require.True(t, ok)
-	ok, err = ps.HasPermission("did:2", "app.bsky.photos", "photo1", Read)
+	ok, err = ps.HasPermission("did:2", "app.bsky.photos", "photo1")
 	require.NoError(t, err)
 	require.True(t, ok)
-
-	// action match
-	ok, err = ps.HasPermission("did:1", "app.bsky.likes", "like1", Write)
-	require.NoError(t, err)
-	require.False(t, ok)
 }
 
 func TestAddRemovePolicies(t *testing.T) {
@@ -57,7 +44,7 @@ func TestAddRemovePolicies(t *testing.T) {
 	require.NoError(t, err)
 
 	// inheritance
-	ok, err := ps.HasPermission("did:1", "app.bsky.likes", "like1", Read)
+	ok, err := ps.HasPermission("did:1", "app.bsky.likes", "like1")
 	require.NoError(t, err)
 	require.True(t, ok)
 
@@ -74,7 +61,7 @@ func TestAddRemovePolicies(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEqual(t, prev, next)
 
-	ok, err = ps.HasPermission("did:1", "app.bsky.likes-new", "mynewlike", Read)
+	ok, err = ps.HasPermission("did:1", "app.bsky.likes-new", "mynewlike")
 	require.NoError(t, err)
 	require.True(t, ok)
 
@@ -90,7 +77,7 @@ func TestAddRemovePolicies(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEqual(t, prev, next)
 
-	ok, err = ps.HasPermission("did:1", "app.bsky.likes-new", "mynewlike", Read)
+	ok, err = ps.HasPermission("did:1", "app.bsky.likes-new", "mynewlike")
 	require.NoError(t, err)
 	require.False(t, ok)
 
@@ -108,7 +95,7 @@ func TestAddRemovePolicies(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEqual(t, prev, next)
 
-	ok, err = ps.HasPermission("did:1", "app.bsky.likes", "myoldlike", Read)
+	ok, err = ps.HasPermission("did:1", "app.bsky.likes", "myoldlike")
 	require.NoError(t, err)
 	require.False(t, ok)
 }
