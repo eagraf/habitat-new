@@ -27,7 +27,7 @@ export const Route = createFileRoute('/_requireAuth/permissions/lexicons/$lexico
         const form = useForm<Data>({})
         const { mutate: add, isPending: isAdding } = useMutation({
             async mutationFn(data: Data) {
-                const response = await authSession?.fetchHandler(`/xrpc/com.habitat.addPermission`, {
+                await authSession?.fetchHandler(`/xrpc/com.habitat.addPermission`, {
                     method: 'POST',
                     body: JSON.stringify({
                         did: data.did,
@@ -40,7 +40,6 @@ export const Route = createFileRoute('/_requireAuth/permissions/lexicons/$lexico
                 console.log(data.did)
                 form.reset()
                 router.invalidate()
-                return
             },
             onError(e) {
                 console.error(e)
@@ -50,7 +49,7 @@ export const Route = createFileRoute('/_requireAuth/permissions/lexicons/$lexico
         const { mutate: remove } = useMutation({
             async mutationFn(data: Data) {
                 // remove permission
-                const response = await authSession?.fetchHandler(`/xrpc/com.habitat.removePermission`, {
+                await authSession?.fetchHandler(`/xrpc/com.habitat.removePermission`, {
                     method: 'POST',
                     body: JSON.stringify({
                         did: data.did,
@@ -61,7 +60,6 @@ export const Route = createFileRoute('/_requireAuth/permissions/lexicons/$lexico
                     }
                 })
                 router.invalidate()
-                return
             },
             onError(e) {
                 console.error(e)
