@@ -2,6 +2,7 @@ package permissions
 
 import (
 	_ "embed"
+	"fmt"
 	"maps"
 	"slices"
 	"strings"
@@ -78,9 +79,9 @@ func NewStore(adapter persist.Adapter, autoSave bool) (Store, error) {
 func (p *casbinStore) HasPermission(
 	didstr string,
 	nsid string,
-	_rkey string,
+	rkey string,
 ) (bool, error) {
-	return p.enforcer.Enforce(didstr, nsid, Read.String())
+	return p.enforcer.Enforce(didstr, getCasbinObjectFromRecord(nsid, rkey), Read.String())
 }
 
 // TODO: do some validation on input, possible cases:
@@ -90,7 +91,7 @@ func (p *casbinStore) AddLexiconReadPermission(
 	didstr string,
 	nsid string,
 ) error {
-	_, err := p.enforcer.AddPolicy(didstr, nsid, Read.String(), "allow")
+	_, err := p.enforcer.AddPolicy(didstr, getCasbinObjectFromLexicon(nsid), Read.String(), "allow")
 	if err != nil {
 		return err
 	}
@@ -103,7 +104,7 @@ func (p *casbinStore) RemoveLexiconReadPermission(
 	nsid string,
 ) error {
 	// TODO: should we actually be adding a deny here instead of just removing allow?
-	_, err := p.enforcer.RemovePolicy(didstr, nsid, Read.String(), "allow")
+	_, err := p.enforcer.RemovePolicy(didstr, getCasbinObjectFromLexicon(nsid), Read.String(), "allow")
 	if err != nil {
 		return err
 	}
@@ -133,6 +134,18 @@ func (p *casbinStore) ListReadPermissionsByLexicon() (map[string][]string, error
 	}
 
 	return res, nil
+}
+
+// Helpers to translate lexicon + record references into object type required by casbin
+func getCasbinObjectFromRecord(lex string, rkey string) string {
+	if rkey == "" {
+		rkey = "*"
+	}
+	return fmt.Sprintf("%s.%s", lex, rkey)
+}
+
+func getCasbinObjectFromLexicon(lex string) string {
+	return fmt.Sprintf("%s.*", lex)
 }
 
 // List all permissions (lexicon -> [](users | groups))
