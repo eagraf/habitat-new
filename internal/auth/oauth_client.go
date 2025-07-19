@@ -426,15 +426,19 @@ func (o *oauthClientImpl) makePushedAuthorizationRequest(
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
-	log.Warn().
+	logger := log.Warn().
 		Str("client assertion", clientAssertion).
 		Str("issuer", as.Issuer).
 		Str("par url", parUrl.String()).
-		Str("login hint", *loginHint).
 		Str("state", state).
 		Str("verifier", verifier).
-		Str("redirect uri", o.redirectUri).
-		Msg("making par request")
+		Str("redirect uri", o.redirectUri)
+
+	if loginHint != nil {
+		logger = logger.Str("login hint", *loginHint)
+	}
+
+	logger.Msg("making par request")
 
 	resp, err := dpopClient.Do(req)
 	if err != nil {

@@ -4,39 +4,13 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"strings"
 	"testing"
 
 	"github.com/bluesky-social/indigo/api/atproto"
-	"github.com/bluesky-social/indigo/atproto/identity"
 	"github.com/gorilla/sessions"
 	"github.com/stretchr/testify/require"
 )
-
-// mockOAuthClient implements OAuthClient for testing
-type mockOAuthClient struct {
-	authorizeFunc func(dpopClient *DpopHttpClient, i *identity.Identity, handle *string) (string, *AuthorizeState, error)
-}
-
-func (m *mockOAuthClient) ClientMetadata() *ClientMetadata {
-	return &ClientMetadata{ClientName: "Test Client"}
-}
-
-func (m *mockOAuthClient) Authorize(dpopClient *DpopHttpClient, i *identity.Identity, handle *string) (string, *AuthorizeState, error) {
-	if m.authorizeFunc != nil {
-		return m.authorizeFunc(dpopClient, i, handle)
-	}
-	return "https://example.com/auth", &AuthorizeState{Verifier: "test", State: "test", TokenEndpoint: "https://example.com/token"}, nil
-}
-
-func (m *mockOAuthClient) ExchangeCode(dpopClient *DpopHttpClient, code string, issuer string, state *AuthorizeState) (*TokenResponse, error) {
-	return &TokenResponse{AccessToken: "test-token", RefreshToken: "test-refresh"}, nil
-}
-
-func (m *mockOAuthClient) RefreshToken(dpopClient *DpopHttpClient, dpopSession *dpopSession) (*TokenResponse, error) {
-	return &TokenResponse{AccessToken: "new-token", RefreshToken: "new-refresh"}, nil
-}
 
 // setupTestLoginHandler creates a loginHandler with test dependencies
 func setupTestLoginHandler(t *testing.T, pdsURL string, oauthClient OAuthClient) *loginHandler {
@@ -63,27 +37,31 @@ func setupMockPDS(t *testing.T, handle, did string) *httptest.Server {
 	}))
 }
 
-// setupMockOAuthServer creates a test OAuth server that responds to OAuth discovery endpoints
-func setupMockOAuthServer(t *testing.T) *httptest.Server {
+// setupMockPDSWithOAuth creates a test PDS server that also serves OAuth discovery endpoints
+func setupMockPDSWithOAuth(t *testing.T, handle, did string, oauthServerURL string) *httptest.Server {
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/xrpc/com.atproto.identity.resolveHandle" {
+			query := r.URL.Query()
+			if query.Get("handle") == handle {
+				resp := atproto.IdentityResolveHandle_Output{Did: did}
+				json.NewEncoder(w).Encode(resp)
+				return
+			}
+		}
+
+		// Serve OAuth discovery endpoints
 		switch r.URL.Path {
 		case "/.well-known/oauth-protected-resource":
-			resp := oauthProtectedResource{
-				AuthorizationServers: []string{r.Host + "/.well-known/oauth-authorization-server"},
-			}
-			json.NewEncoder(w).Encode(resp)
+			json.NewEncoder(w).Encode(oauthProtectedResource{
+				AuthorizationServers: []string{oauthServerURL + "/.well-known/oauth-authorization-server"},
+			})
 		case "/.well-known/oauth-authorization-server":
-			resp := oauthAuthorizationServer{
+			json.NewEncoder(w).Encode(oauthAuthorizationServer{
 				Issuer:        "https://example.com",
-				TokenEndpoint: r.Host + "/token",
-				PAREndpoint:   r.Host + "/par",
-				AuthEndpoint:  r.Host + "/auth",
-			}
-			json.NewEncoder(w).Encode(resp)
-		case "/par":
-			resp := parResponse{RequestUri: "urn:ietf:params:oauth:request_uri:test"}
-			w.WriteHeader(http.StatusCreated)
-			json.NewEncoder(w).Encode(resp)
+				TokenEndpoint: oauthServerURL + "/token",
+				PAREndpoint:   oauthServerURL + "/par",
+				AuthEndpoint:  oauthServerURL + "/auth",
+			})
 		default:
 			http.Error(w, "not found", http.StatusNotFound)
 		}
@@ -91,12 +69,16 @@ func setupMockOAuthServer(t *testing.T) *httptest.Server {
 }
 
 func TestLoginHandler_SuccessfulLogin(t *testing.T) {
-	// Setup mock PDS server to handle identity resolution
-	mockPDS := setupMockPDS(t, "test.bsky.app", "did:plc:test123")
+	// Setup fake OAuth server
+	fakeOAuthServer := fakeAuthServer(t, nil)
+	defer fakeOAuthServer.Close()
+
+	// Setup mock PDS server to handle identity resolution and OAuth discovery
+	mockPDS := setupMockPDSWithOAuth(t, "test.bsky.app", "did:plc:test123", fakeOAuthServer.URL)
 	defer mockPDS.Close()
 
-	// Setup mock OAuth client
-	oauthClient := &mockOAuthClient{}
+	// Create real OAuth client
+	oauthClient := testOAuthClient(t)
 	handler := setupTestLoginHandler(t, mockPDS.URL, oauthClient)
 
 	// Create request
@@ -109,7 +91,7 @@ func TestLoginHandler_SuccessfulLogin(t *testing.T) {
 	// Verify response
 	require.Equal(t, http.StatusSeeOther, w.Code)
 	location := w.Header().Get("Location")
-	require.Contains(t, location, "https://example.com/auth")
+	require.Contains(t, location, fakeOAuthServer.URL)
 
 	// Verify session cookies were set
 	cookies := w.Result().Cookies()
@@ -119,24 +101,19 @@ func TestLoginHandler_SuccessfulLogin(t *testing.T) {
 	}
 	require.True(t, sessionNames["dpop-session"], "DPoP session should be created")
 	require.True(t, sessionNames["auth-session"], "Auth session should be created")
-
 }
 
 func TestLoginHandler_WithPDSURL(t *testing.T) {
-	// Setup mock PDS server
-	mockPDS := setupMockPDS(t, "test.bsky.app", "did:plc:test123")
+	// Setup fake OAuth server
+	fakeOAuthServer := fakeAuthServer(t, nil)
+	defer fakeOAuthServer.Close()
+
+	// Setup mock PDS server to handle identity resolution and OAuth discovery
+	mockPDS := setupMockPDSWithOAuth(t, "test.bsky.app", "did:plc:test123", fakeOAuthServer.URL)
 	defer mockPDS.Close()
 
-	// Setup mock OAuth client that expects the PDS URL
-	oauthClient := &mockOAuthClient{
-		authorizeFunc: func(dpopClient *DpopHttpClient, i *identity.Identity, handle *string) (string, *AuthorizeState, error) {
-			require.Equal(t, "test.bsky.app", *handle)
-			require.Equal(t, "did:plc:test123", string(i.DID))
-			require.Equal(t, mockPDS.URL, i.Services["atproto_pds"].URL)
-			return "https://example.com/auth", &AuthorizeState{Verifier: "test", State: "test", TokenEndpoint: "https://example.com/token"}, nil
-		},
-	}
-
+	// Create real OAuth client
+	oauthClient := testOAuthClient(t)
 	handler := setupTestLoginHandler(t, mockPDS.URL, oauthClient)
 
 	// Create request
@@ -151,7 +128,7 @@ func TestLoginHandler_WithPDSURL(t *testing.T) {
 
 	// Verify redirect location and session cookies
 	location := w.Header().Get("Location")
-	require.Contains(t, location, "https://example.com/auth")
+	require.Contains(t, location, fakeOAuthServer.URL)
 
 	cookies := w.Result().Cookies()
 	var dpopCookie *http.Cookie
@@ -166,7 +143,12 @@ func TestLoginHandler_WithPDSURL(t *testing.T) {
 }
 
 func TestLoginHandler_InvalidHandle(t *testing.T) {
-	handler := setupTestLoginHandler(t, "", &mockOAuthClient{})
+	// Setup fake OAuth server
+	fakeOAuthServer := fakeAuthServer(t, nil)
+	defer fakeOAuthServer.Close()
+
+	oauthClient := testOAuthClient(t)
+	handler := setupTestLoginHandler(t, "", oauthClient)
 
 	// Test with invalid handle
 	req := httptest.NewRequest("GET", "/login?handle=invalid-handle", nil)
@@ -179,7 +161,12 @@ func TestLoginHandler_InvalidHandle(t *testing.T) {
 }
 
 func TestLoginHandler_MissingHandle(t *testing.T) {
-	handler := setupTestLoginHandler(t, "", &mockOAuthClient{})
+	// Setup fake OAuth server
+	fakeOAuthServer := fakeAuthServer(t, nil)
+	defer fakeOAuthServer.Close()
+
+	oauthClient := testOAuthClient(t)
+	handler := setupTestLoginHandler(t, "", oauthClient)
 
 	// Test with missing handle
 	req := httptest.NewRequest("GET", "/login", nil)
@@ -191,6 +178,10 @@ func TestLoginHandler_MissingHandle(t *testing.T) {
 }
 
 func TestLoginHandler_PDSResolutionError(t *testing.T) {
+	// Setup fake OAuth server
+	fakeOAuthServer := fakeAuthServer(t, nil)
+	defer fakeOAuthServer.Close()
+
 	// Test the case where PDS returns an invalid response format
 	mockPDS := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Return malformed JSON that can't be parsed
@@ -198,7 +189,8 @@ func TestLoginHandler_PDSResolutionError(t *testing.T) {
 	}))
 	defer mockPDS.Close()
 
-	handler := setupTestLoginHandler(t, mockPDS.URL, &mockOAuthClient{})
+	oauthClient := testOAuthClient(t)
+	handler := setupTestLoginHandler(t, mockPDS.URL, oauthClient)
 
 	req := httptest.NewRequest("GET", "/login?handle=test.bsky.app", nil)
 	w := httptest.NewRecorder()
@@ -209,6 +201,10 @@ func TestLoginHandler_PDSResolutionError(t *testing.T) {
 }
 
 func TestLoginHandler_InvalidDIDResponse(t *testing.T) {
+	// Setup fake OAuth server
+	fakeOAuthServer := fakeAuthServer(t, nil)
+	defer fakeOAuthServer.Close()
+
 	// Setup mock PDS server that returns invalid DID
 	mockPDS := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		resp := atproto.IdentityResolveHandle_Output{Did: "invalid-did"}
@@ -216,7 +212,8 @@ func TestLoginHandler_InvalidDIDResponse(t *testing.T) {
 	}))
 	defer mockPDS.Close()
 
-	handler := setupTestLoginHandler(t, mockPDS.URL, &mockOAuthClient{})
+	oauthClient := testOAuthClient(t)
+	handler := setupTestLoginHandler(t, mockPDS.URL, oauthClient)
 
 	req := httptest.NewRequest("GET", "/login?handle=test.bsky.app", nil)
 	w := httptest.NewRecorder()
@@ -227,17 +224,28 @@ func TestLoginHandler_InvalidDIDResponse(t *testing.T) {
 }
 
 func TestLoginHandler_OAuthAuthorizeError(t *testing.T) {
-	// Setup mock PDS server to handle identity resolution
-	mockPDS := setupMockPDS(t, "test.bsky.app", "did:plc:test123")
+	// Setup fake OAuth server that returns error for protected resource
+	fakeOAuthServer := fakeAuthServer(t, map[string]interface{}{
+		"protected-resource": map[string]interface{}{
+			"error": "server error",
+		},
+	})
+	defer fakeOAuthServer.Close()
+
+	// Override the OAuth server response to return error
+	fakeOAuthServer.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/.well-known/oauth-protected-resource" {
+			http.Error(w, "server error", http.StatusInternalServerError)
+			return
+		}
+		http.Error(w, "not found", http.StatusNotFound)
+	})
+
+	// Setup mock PDS server to handle identity resolution and OAuth discovery
+	mockPDS := setupMockPDSWithOAuth(t, "test.bsky.app", "did:plc:test123", fakeOAuthServer.URL)
 	defer mockPDS.Close()
 
-	// Setup OAuth client that returns error
-	oauthClient := &mockOAuthClient{
-		authorizeFunc: func(dpopClient *DpopHttpClient, i *identity.Identity, handle *string) (string, *AuthorizeState, error) {
-			return "", nil, &url.Error{Op: "Get", URL: "https://example.com", Err: &url.Error{}}
-		},
-	}
-
+	oauthClient := testOAuthClient(t)
 	handler := setupTestLoginHandler(t, mockPDS.URL, oauthClient)
 
 	req := httptest.NewRequest("GET", "/login?handle=test.bsky.app", nil)
@@ -249,16 +257,16 @@ func TestLoginHandler_OAuthAuthorizeError(t *testing.T) {
 }
 
 func TestLoginHandler_SessionSaveError(t *testing.T) {
-	// Setup mock PDS server to handle identity resolution
-	mockPDS := setupMockPDS(t, "test.bsky.app", "did:plc:test123")
+	// Setup fake OAuth server
+	fakeOAuthServer := fakeAuthServer(t, nil)
+	defer fakeOAuthServer.Close()
+
+	// Setup mock PDS server to handle identity resolution and OAuth discovery
+	mockPDS := setupMockPDSWithOAuth(t, "test.bsky.app", "did:plc:test123", fakeOAuthServer.URL)
 	defer mockPDS.Close()
 
-	// Setup OAuth client that returns success
-	oauthClient := &mockOAuthClient{
-		authorizeFunc: func(dpopClient *DpopHttpClient, i *identity.Identity, handle *string) (string, *AuthorizeState, error) {
-			return "https://example.com/auth", &AuthorizeState{Verifier: "test", State: "test", TokenEndpoint: "https://example.com/token"}, nil
-		},
-	}
+	// Create real OAuth client
+	oauthClient := testOAuthClient(t)
 
 	// Use a session store that will fail to save
 	sessionStore := sessions.NewCookieStore([]byte("test-key"))
@@ -278,27 +286,20 @@ func TestLoginHandler_SessionSaveError(t *testing.T) {
 
 	// Verify redirect location is still set correctly
 	location := w.Header().Get("Location")
-	require.Equal(t, "https://example.com/auth", location, "Should redirect to OAuth URL even with session errors")
+	require.Contains(t, location, fakeOAuthServer.URL, "Should redirect to OAuth URL even with session errors")
 }
 
 func TestLoginHandler_IntegrationWithRealOAuthFlow(t *testing.T) {
-	// Setup mock OAuth server
-	mockOAuth := setupMockOAuthServer(t)
-	defer mockOAuth.Close()
+	// Setup fake OAuth server
+	fakeOAuthServer := fakeAuthServer(t, nil)
+	defer fakeOAuthServer.Close()
 
-	// Setup mock PDS server to handle identity resolution
-	mockPDS := setupMockPDS(t, "test.bsky.app", "did:plc:test123")
+	// Setup mock PDS server to handle identity resolution and OAuth discovery
+	mockPDS := setupMockPDSWithOAuth(t, "test.bsky.app", "did:plc:test123", fakeOAuthServer.URL)
 	defer mockPDS.Close()
 
-	// Use a simple mock OAuth client instead of the real one to avoid JWK complexity
-	oauthClient := &mockOAuthClient{
-		authorizeFunc: func(dpopClient *DpopHttpClient, i *identity.Identity, handle *string) (string, *AuthorizeState, error) {
-			require.Equal(t, "test.bsky.app", *handle)
-			require.Equal(t, "did:plc:test123", string(i.DID))
-			return mockOAuth.URL + "/auth", &AuthorizeState{Verifier: "test", State: "test", TokenEndpoint: mockOAuth.URL + "/token"}, nil
-		},
-	}
-
+	// Create real OAuth client
+	oauthClient := testOAuthClient(t)
 	handler := setupTestLoginHandler(t, mockPDS.URL, oauthClient)
 
 	req := httptest.NewRequest("GET", "/login?handle=test.bsky.app", nil)
@@ -308,7 +309,7 @@ func TestLoginHandler_IntegrationWithRealOAuthFlow(t *testing.T) {
 
 	require.Equal(t, http.StatusSeeOther, w.Code)
 	location := w.Header().Get("Location")
-	require.Contains(t, location, mockOAuth.URL)
+	require.Contains(t, location, fakeOAuthServer.URL)
 
 	// Verify both session types are created with proper attributes
 	cookies := w.Result().Cookies()
@@ -325,7 +326,12 @@ func TestLoginHandler_IntegrationWithRealOAuthFlow(t *testing.T) {
 }
 
 func TestLoginHandler_FormParsingError(t *testing.T) {
-	handler := setupTestLoginHandler(t, "", &mockOAuthClient{})
+	// Setup fake OAuth server
+	fakeOAuthServer := fakeAuthServer(t, nil)
+	defer fakeOAuthServer.Close()
+
+	oauthClient := testOAuthClient(t)
+	handler := setupTestLoginHandler(t, "", oauthClient)
 
 	// Create request with malformed form data
 	req := httptest.NewRequest("POST", "/login", strings.NewReader("invalid form data"))
@@ -338,14 +344,12 @@ func TestLoginHandler_FormParsingError(t *testing.T) {
 }
 
 func TestLoginHandler_DefaultDirectoryLookup(t *testing.T) {
-	// Test the case where pdsURL is empty and we use the default directory
-	oauthClient := &mockOAuthClient{
-		authorizeFunc: func(dpopClient *DpopHttpClient, i *identity.Identity, handle *string) (string, *AuthorizeState, error) {
-			require.Nil(t, handle) // Should be nil when using default directory
-			return "https://example.com/auth", &AuthorizeState{Verifier: "test", State: "test", TokenEndpoint: "https://example.com/token"}, nil
-		},
-	}
+	// Setup fake OAuth server
+	fakeOAuthServer := fakeAuthServer(t, nil)
+	defer fakeOAuthServer.Close()
 
+	// Test the case where pdsURL is empty and we use the default directory
+	oauthClient := testOAuthClient(t)
 	handler := setupTestLoginHandler(t, "", oauthClient)
 
 	// Use a handle that should be resolvable by the default directory
@@ -357,7 +361,7 @@ func TestLoginHandler_DefaultDirectoryLookup(t *testing.T) {
 	// This might fail if the default directory can't resolve bsky.app, but we test the flow
 	// The important thing is that we call the OAuth client with the right parameters
 	if w.Code == http.StatusSeeOther {
-		require.Contains(t, w.Header().Get("Location"), "https://example.com/auth")
+		require.Contains(t, w.Header().Get("Location"), fakeOAuthServer.URL)
 
 		// Verify session cookies are still created even with default directory lookup
 		cookies := w.Result().Cookies()
@@ -371,18 +375,15 @@ func TestLoginHandler_DefaultDirectoryLookup(t *testing.T) {
 }
 
 func TestLoginHandler_StateMarshallingError(t *testing.T) {
-	// Setup mock PDS server to handle identity resolution
-	mockPDS := setupMockPDS(t, "test.bsky.app", "did:plc:test123")
+	// Setup fake OAuth server
+	fakeOAuthServer := fakeAuthServer(t, nil)
+	defer fakeOAuthServer.Close()
+
+	// Setup mock PDS server to handle identity resolution and OAuth discovery
+	mockPDS := setupMockPDSWithOAuth(t, "test.bsky.app", "did:plc:test123", fakeOAuthServer.URL)
 	defer mockPDS.Close()
 
-	// Setup OAuth client that returns a state that can't be marshalled
-	oauthClient := &mockOAuthClient{
-		authorizeFunc: func(dpopClient *DpopHttpClient, i *identity.Identity, handle *string) (string, *AuthorizeState, error) {
-			// Return a state with a channel, which can't be marshalled to JSON
-			return "https://example.com/auth", &AuthorizeState{Verifier: "test", State: "test", TokenEndpoint: "https://example.com/token"}, nil
-		},
-	}
-
+	oauthClient := testOAuthClient(t)
 	handler := setupTestLoginHandler(t, mockPDS.URL, oauthClient)
 
 	req := httptest.NewRequest("GET", "/login?handle=test.bsky.app", nil)
@@ -395,12 +396,16 @@ func TestLoginHandler_StateMarshallingError(t *testing.T) {
 }
 
 func TestLoginHandler_DPOPSessionCreationError(t *testing.T) {
-	// Setup mock PDS server to handle identity resolution
-	mockPDS := setupMockPDS(t, "test.bsky.app", "did:plc:test123")
+	// Setup fake OAuth server
+	fakeOAuthServer := fakeAuthServer(t, nil)
+	defer fakeOAuthServer.Close()
+
+	// Setup mock PDS server to handle identity resolution and OAuth discovery
+	mockPDS := setupMockPDSWithOAuth(t, "test.bsky.app", "did:plc:test123", fakeOAuthServer.URL)
 	defer mockPDS.Close()
 
-	// Setup OAuth client
-	oauthClient := &mockOAuthClient{}
+	// Create real OAuth client
+	oauthClient := testOAuthClient(t)
 
 	// Use a session store that might cause issues
 	sessionStore := sessions.NewCookieStore([]byte("test-key"))
