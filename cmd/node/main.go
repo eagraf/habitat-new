@@ -200,8 +200,6 @@ func main() {
 		}
 	} else if err != nil {
 		log.Fatal().Err(err).Msg("error reading from permission policies dir")
-	} else {
-		fmt.Println("There is a policies dir at", policiesDirPath)
 	}
 
 	perms := make(map[syntax.DID]permissions.Store, len(policiesDir))

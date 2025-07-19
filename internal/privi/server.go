@@ -262,34 +262,29 @@ type listPermissionRequest struct {
 func (s *Server) ListPermissions(w http.ResponseWriter, r *http.Request) {
 	callerDID, err := s.getCaller(r)
 	if err != nil {
-		fmt.Println("error caller DID", err.Error())
 		http.Error(w, err.Error(), http.StatusForbidden)
 		return
 	}
 
 	store, ok := s.stores[callerDID]
 	if !ok {
-		fmt.Println("store not found")
 		http.Error(w, fmt.Errorf("no store found for caller %s", callerDID).Error(), http.StatusInternalServerError)
 		return
 	}
 
 	permissions, err := store.permissions.ListReadPermissionsByLexicon()
 	if err != nil {
-		fmt.Println("error permissions", err.Error())
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	resp, err := json.Marshal(permissions)
 	if err != nil {
-		fmt.Println("error resp", err.Error())
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	if _, err := w.Write(resp); err != nil {
 		log.Err(err).Msgf("error sending response for ListPermissions request")
 	}
-	fmt.Println("passed")
 }
 
 type editPermissionRequest struct {
@@ -311,7 +306,6 @@ func (s *Server) AddPermission(w http.ResponseWriter, r *http.Request) {
 	}
 
 	store := s.stores[callerDID]
-	fmt.Println("Req looks like", req)
 	err = store.permissions.AddLexiconReadPermission(req.DID, req.Lexicon)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
