@@ -2,8 +2,10 @@ package permissions
 
 import (
 	_ "embed"
+	"fmt"
 	"maps"
 	"slices"
+	"strings"
 
 	"github.com/bradenaw/juniper/xmaps"
 	"github.com/casbin/casbin/v2"
@@ -83,10 +85,12 @@ func (p *store) HasPermission(
 	return p.enforcer.Enforce(didstr, getObject(nsid, rkey), act.String())
 }
 
+// TODO: do some validation on input
 func (p *store) AddLexiconReadPermission(
 	didstr string,
 	nsid string,
 ) error {
+	fmt.Println("Got add", didstr, nsid)
 	_, err := p.enforcer.AddPolicy(didstr, getObject(nsid, "*"), Read.String(), "allow")
 	if err != nil {
 		return err
@@ -94,6 +98,7 @@ func (p *store) AddLexiconReadPermission(
 	return p.adapter.SavePolicy(p.enforcer.GetModel())
 }
 
+// TODO: do some validation on input
 func (p *store) RemoveLexiconReadPermission(
 	didstr string,
 	nsid string,
@@ -109,6 +114,7 @@ func (p *store) RemoveLexiconReadPermission(
 func (p *store) ListReadPermissionsByLexicon() (map[string][]string, error) {
 	objs, err := p.enforcer.GetAllObjects()
 	if err != nil {
+		fmt.Println("enforcer error", err.Error())
 		return nil, err
 	}
 
@@ -116,6 +122,7 @@ func (p *store) ListReadPermissionsByLexicon() (map[string][]string, error) {
 	for _, obj := range objs {
 		perms, err := p.enforcer.GetImplicitUsersForResource(obj)
 		if err != nil {
+			fmt.Println("enforcer error get users", err.Error())
 			return nil, err
 		}
 		users := make(xmaps.Set[string], 0)
@@ -125,9 +132,10 @@ func (p *store) ListReadPermissionsByLexicon() (map[string][]string, error) {
 				users.Add(perm[0])
 			}
 		}
-		res[obj] = slices.Collect(maps.Keys(users))
+		res[strings.TrimSuffix(obj, ".*")] = slices.Collect(maps.Keys(users))
 	}
 
+	fmt.Println("passed")
 	return res, nil
 }
 
