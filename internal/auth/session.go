@@ -60,26 +60,30 @@ func createFreshDpopSession(
 		return nil, err
 	}
 
-	identityBytes, err := json.Marshal(id)
-	if err != nil {
-		return nil, err
-	}
-
 	session, err := sessionStore.New(r, "dpop-session")
 	if err != nil {
 		return nil, err
 	}
 
-	session.Values[cKeySessionKey] = keyBytes
-	session.Values[cIdentitySessionKey] = identityBytes
-	session.Values[cPDSURLSessionKey] = pdsURL
+	dpopSession := &dpopSession{session: session, req: r, respWriter: w}
 
-	err = session.Save(r, w)
+	// Use session class methods instead of manually modifying session values
+	dpopSession.setKey(keyBytes)
+
+	err = dpopSession.setIdentity(id)
 	if err != nil {
 		return nil, err
 	}
 
-	return &dpopSession{session: session}, nil
+	dpopSession.setPDSURL(pdsURL)
+
+	// Save the session after setting all values
+	err = dpopSession.session.Save(r, w)
+	if err != nil {
+		return nil, err
+	}
+
+	return dpopSession, nil
 }
 
 func getExistingDpopSession(r *http.Request, w http.ResponseWriter, sessionStore sessions.Store) (*dpopSession, error) {
@@ -232,4 +236,21 @@ func (s *dpopSession) getNonce() (string, error) {
 		return "", errors.New("nonce in session is not a string")
 	}
 	return nonce, nil
+}
+
+func (s *dpopSession) setKey(keyBytes []byte) {
+	s.session.Values[cKeySessionKey] = keyBytes
+}
+
+func (s *dpopSession) setIdentity(id *identity.Identity) error {
+	identityBytes, err := json.Marshal(id)
+	if err != nil {
+		return err
+	}
+	s.session.Values[cIdentitySessionKey] = identityBytes
+	return nil
+}
+
+func (s *dpopSession) setPDSURL(pdsURL string) {
+	s.session.Values[cPDSURLSessionKey] = pdsURL
 }
