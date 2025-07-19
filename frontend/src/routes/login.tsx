@@ -9,7 +9,9 @@ export const Route = createFileRoute('/login')({
     const navigate = useNavigate();
 
     useEffect(() => {
+      console.log('isAuthenticated', isAuthenticated);
       if (isAuthenticated) {
+        console.log('redirecting to /');
         navigate({ to: '/' });
       }
     }, [isAuthenticated, navigate]);
