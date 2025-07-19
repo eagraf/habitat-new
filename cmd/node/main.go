@@ -215,7 +215,7 @@ func main() {
 		}
 		did := spl[0]
 		adapter := fileadapter.NewAdapter(filepath.Join(policiesDirPath, name))
-		store, err := permissions.NewStore(adapter)
+		store, err := permissions.NewStore(adapter, true)
 		if err != nil {
 			log.Fatal().Err(err).Msgf("unable to initialize permissions store for user %s", did)
 		}
@@ -227,6 +227,8 @@ func main() {
 	_, ok := perms[syntax.DID(sashankDID)]
 	if !ok {
 		perms[syntax.DID(sashankDID)] = permissions.NewDummyStore()
+	} else {
+		fmt.Println("found policies for sashank")
 	}
 	perms[syntax.DID(sashankDID)].AddLexiconReadPermission(sashankDID, "com.habitat.test")
 
@@ -383,6 +385,24 @@ func generateDefaultReverseProxyRules(config *config.NodeConfig) ([]*node.Revers
 			Type:    node.ProxyRuleRedirect,
 			Matcher: "/xrpc/com.habitat.getRecord",
 			Target:  apiURL.String() + "/xrpc/com.habitat.getRecord",
+		},
+		{
+			ID:      "habitat-list-permissions",
+			Type:    node.ProxyRuleRedirect,
+			Matcher: "/xrpc/com.habitat.listPermissions",
+			Target:  apiURL.String() + "/xrpc/com.habitat.listPermissions",
+		},
+		{
+			ID:      "habitat-add-permissions",
+			Type:    node.ProxyRuleRedirect,
+			Matcher: "/xrpc/com.habitat.addPermission",
+			Target:  apiURL.String() + "/xrpc/com.habitat.addPermission",
+		},
+		{
+			ID:      "habitat-remove-permissions",
+			Type:    node.ProxyRuleRedirect,
+			Matcher: "/xrpc/com.habitat.removePermission",
+			Target:  apiURL.String() + "/xrpc/com.habitat.removePermission",
 		},
 		// Serve a DID document for habitat
 		{
