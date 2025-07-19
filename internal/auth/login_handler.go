@@ -75,6 +75,7 @@ func GetRoutes(
 	}
 	oauthClient, err := NewOAuthClient(
 		"https://beacon-dev.tail07d32.ts.net/habitat/api/client-metadata.json", /*clientId*/
+		"https://beacon-dev.tail07d32.ts.net",                                  /*clientUri*/
 		"https://beacon-dev.tail07d32.ts.net/habitat/api/auth-callback",        /*redirectUri*/
 		jwk, /*secretJwk*/
 	)

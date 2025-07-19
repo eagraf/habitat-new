@@ -49,11 +49,12 @@ type OAuthClient interface {
 
 type oauthClientImpl struct {
 	clientId    string
+	clientUri   string
 	redirectUri string
 	secretJwk   jose.JSONWebKey
 }
 
-func NewOAuthClient(clientId string, redirectUri string, secretJwk []byte) (OAuthClient, error) {
+func NewOAuthClient(clientId string, clientUri string, redirectUri string, secretJwk []byte) (OAuthClient, error) {
 	var secret jose.JSONWebKey
 	err := json.Unmarshal(secretJwk, &secret)
 	if err != nil {
@@ -61,6 +62,7 @@ func NewOAuthClient(clientId string, redirectUri string, secretJwk []byte) (OAut
 	}
 	return &oauthClientImpl{
 		clientId:    clientId,
+		clientUri:   clientUri,
 		redirectUri: redirectUri,
 		secretJwk:   secret,
 	}, nil
@@ -71,7 +73,7 @@ func (o *oauthClientImpl) ClientMetadata() *ClientMetadata {
 	publicJwk := o.secretJwk.Public()
 	return &ClientMetadata{
 		ClientName:              "Habitat",
-		ClientUri:               "https://beacon-dev.tail07d32.ts.net",
+		ClientUri:               o.clientUri,
 		ClientId:                o.clientId,
 		ApplicationType:         "web",
 		GrantTypes:              []string{"authorization_code", "refresh_token"},
