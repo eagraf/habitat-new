@@ -47,7 +47,7 @@ type Store interface {
 	ListReadPermissionsByLexicon() (map[string][]string, error)
 }
 
-type store struct {
+type casbinStore struct {
 	enforcer *casbin.Enforcer
 	adapter  persist.Adapter
 }
@@ -67,27 +67,30 @@ func NewStore(adapter persist.Adapter, autoSave bool) (Store, error) {
 	// Auto-Save allows for single policy updates to take effect dynamically.
 	// https://casbin.org/docs/adapters/#autosave
 	enforcer.EnableAutoSave(autoSave)
-	return &store{
+	return &casbinStore{
 		enforcer: enforcer,
 		adapter:  adapter,
 	}, nil
 }
 
 // HasPermission implements PermissionStore.
-func (p *store) HasPermission(
+// TODO: implement record key granularity for permissions
+func (p *casbinStore) HasPermission(
 	didstr string,
 	nsid string,
-	rkey string,
+	_rkey string,
 ) (bool, error) {
-	return p.enforcer.Enforce(didstr, getObject(nsid, rkey), Read.String())
+	return p.enforcer.Enforce(didstr, nsid, Read.String())
 }
 
-// TODO: do some validation on input
-func (p *store) AddLexiconReadPermission(
+// TODO: do some validation on input, possible cases:
+// - duplicate policies
+// - conflicting policies
+func (p *casbinStore) AddLexiconReadPermission(
 	didstr string,
 	nsid string,
 ) error {
-	_, err := p.enforcer.AddPolicy(didstr, getObject(nsid, "*"), Read.String(), "allow")
+	_, err := p.enforcer.AddPolicy(didstr, nsid, Read.String(), "allow")
 	if err != nil {
 		return err
 	}
@@ -95,19 +98,19 @@ func (p *store) AddLexiconReadPermission(
 }
 
 // TODO: do some validation on input
-func (p *store) RemoveLexiconReadPermission(
+func (p *casbinStore) RemoveLexiconReadPermission(
 	didstr string,
 	nsid string,
 ) error {
 	// TODO: should we actually be adding a deny here instead of just removing allow?
-	_, err := p.enforcer.RemovePolicy(didstr, getObject(nsid, "*"), Read.String(), "allow")
+	_, err := p.enforcer.RemovePolicy(didstr, nsid, Read.String(), "allow")
 	if err != nil {
 		return err
 	}
 	return p.adapter.SavePolicy(p.enforcer.GetModel())
 }
 
-func (p *store) ListReadPermissionsByLexicon() (map[string][]string, error) {
+func (p *casbinStore) ListReadPermissionsByLexicon() (map[string][]string, error) {
 	objs, err := p.enforcer.GetAllObjects()
 	if err != nil {
 		return nil, err
@@ -130,10 +133,6 @@ func (p *store) ListReadPermissionsByLexicon() (map[string][]string, error) {
 	}
 
 	return res, nil
-}
-
-func getObject(nsid string, rkey string) string {
-	return nsid + "." + rkey
 }
 
 // List all permissions (lexicon -> [](users | groups))

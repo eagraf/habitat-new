@@ -198,27 +198,6 @@ func (s *Server) pdsAuthMiddleware(next func(syntax.DID) http.HandlerFunc) http.
 	})
 }
 
-/*
-func middleware[T,Q any](fn func (req T) (Q, error))  http.HandlerFunc {
-	slurp, err := io.ReadAll(r.Body)
-	if err != nil {
-		http.Error(w, "invalid request body", http.StatusBadRequest)
-		return
-	}
-
-	var body T
-	err = json.Unmarshal(slurp, &T)
-	if err != nil {
-		http.Error(w, "failed to unmarshal request body", http.StatusBadRequest)
-		return
-	}
-
-	if fn(body) != nil {
-		http.Error(w, "fai")
-	}
-}
-*/
-
 // HACK: trust did
 func (s *Server) getCaller(r *http.Request) (syntax.DID, error) {
 	authHeader := r.Header.Get("Authorization")
@@ -273,13 +252,12 @@ func (s *Server) ListPermissions(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	resp, err := json.Marshal(permissions)
+
+	err = json.NewEncoder(w).Encode(permissions)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	if _, err := w.Write(resp); err != nil {
 		log.Err(err).Msgf("error sending response for ListPermissions request")
+		return
 	}
 }
 
