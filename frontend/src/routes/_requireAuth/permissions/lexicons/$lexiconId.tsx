@@ -12,12 +12,7 @@ export const Route = createFileRoute('/_requireAuth/permissions/lexicons/$lexico
         const response = await context.queryClient.fetchQuery({
             ...listPermissions(context.authSession),
         })
-        console.log(response[params.lexiconId])
         return response[params.lexiconId]
-        //return [
-        //    { did: 'sdlkjfhalskdjfalsdkjfh' },
-        //    { did: 'lcvkjhcxlgkjhxcllckxjh' },
-        //]
     },
     component() {
         const router = useRouter()
@@ -37,7 +32,6 @@ export const Route = createFileRoute('/_requireAuth/permissions/lexicons/$lexico
                         'atproto-proxy': 'did:web:localhost-0.taile529e.ts.net#privi'
                     }
                 })
-                console.log(data.did)
                 form.reset()
                 router.invalidate()
             },
