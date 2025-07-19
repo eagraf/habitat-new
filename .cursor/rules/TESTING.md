@@ -12,3 +12,7 @@ Some stylistic preferences:
 - Use testify.require instead of testify.assert
 - Dependency injection is your friend
 
+Recognize the pitfalls of coding agents:
+- Do not just disable tests or flip assertions so that a test passes if you get stuck
+- Do not just blindly increase coverage. Think about what useful assertions tests can make that test behavior, not implementation.
+
