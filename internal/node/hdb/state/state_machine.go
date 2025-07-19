@@ -27,36 +27,27 @@ type StateMachineController interface {
 }
 
 type StateMachine struct {
-	restartIndex uint64
-	databaseID   string
-	jsonState    *hdb.JSONState // this JSONState is maintained in addition to
-	publisher    pubsub.Publisher[hdb.StateUpdate]
-	replicator   Replicator
-	updateChan   <-chan hdb.StateUpdate
-	doneChan     chan bool
+	databaseID string
+	jsonState  *hdb.JSONState // this JSONState is maintained in addition to
+	publisher  pubsub.Publisher[hdb.StateUpdate]
+	updateChan <-chan hdb.StateUpdate
+	doneChan   chan bool
 
 	schema hdb.Schema
 }
 
-func NewStateMachine(databaseID string, schema hdb.Schema, initRawState []byte, replicator Replicator, publisher pubsub.Publisher[hdb.StateUpdate]) (StateMachineController, error) {
+func NewStateMachine(databaseID string, schema hdb.Schema, initRawState []byte, publisher pubsub.Publisher[hdb.StateUpdate]) (StateMachineController, error) {
 	jsonState, err := hdb.NewJSONState(schema, initRawState)
 	if err != nil {
 		return nil, err
 	}
 
-	restartIndex, err := replicator.GetLastCommandIndex()
-	if err != nil {
-		return nil, err
-	}
 	return &StateMachine{
-		restartIndex: restartIndex,
-		databaseID:   databaseID,
-		jsonState:    jsonState,
-		updateChan:   replicator.UpdateChannel(),
-		replicator:   replicator,
-		doneChan:     make(chan bool),
-		publisher:    publisher,
-		schema:       schema,
+		databaseID: databaseID,
+		jsonState:  jsonState,
+		doneChan:   make(chan bool),
+		publisher:  publisher,
+		schema:     schema,
 	}, nil
 }
 
@@ -67,36 +58,19 @@ func (sm *StateMachine) StartListening(ctx context.Context) {
 			return
 		// TODO this bit of code should be well tested
 		case stateUpdate := <-sm.updateChan:
-
-			// Only publish state updates if this node is the leader node.
-			if sm.replicator.IsLeader() {
-				// Only apply state updates if the update index is greater than the restart index.
-				// If the update index is equal to the restart index, then the state update is a
-				// restore message which tells the subscribers to restore everything from the most up to date state.
-				if sm.restartIndex > stateUpdate.Index() {
-					continue
-				}
-
-				// execute state update
-				stateBytes, err := stateUpdate.NewState().Bytes()
-				if err != nil {
-					log.Error().Err(err).Msgf("error getting new state bytes from state update chan")
-				}
-				jsonState, err := hdb.NewJSONState(sm.schema, stateBytes)
-				if err != nil {
-					log.Error().Err(err).Msgf("error getting new state from state update chan")
-				}
-				sm.jsonState = jsonState
-
-				if sm.restartIndex == stateUpdate.Index() {
-					log.Info().Msgf("Restoring node state")
-					stateUpdate.SetRestore()
-				}
-
-				err = sm.publisher.PublishEvent(stateUpdate)
-				if err != nil {
-					log.Error().Err(err).Msgf("error publishing state update")
-				}
+			// execute state update
+			stateBytes, err := stateUpdate.NewState().Bytes()
+			if err != nil {
+				log.Error().Err(err).Msgf("error getting new state bytes from state update chan")
+			}
+			jsonState, err := hdb.NewJSONState(sm.schema, stateBytes)
+			if err != nil {
+				log.Error().Err(err).Msgf("error getting new state from state update chan")
+			}
+			sm.jsonState = jsonState
+			err = sm.publisher.PublishEvent(stateUpdate)
+			if err != nil {
+				log.Error().Err(err).Msgf("error publishing state update")
 			}
 		case <-sm.doneChan:
 			return
@@ -157,10 +131,6 @@ func (sm *StateMachine) ProposeTransitions(transitions []hdb.Transition) (*hdb.J
 	}
 	log.Info().Msg(string(transitionsJSON))
 
-	_, err = sm.replicator.Dispatch(transitionsJSON)
-	if err != nil {
-		return nil, err
-	}
-
+	// TODO: write to the DB here
 	return jsonStateBranch, nil
 }
