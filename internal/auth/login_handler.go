@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"net/url"
 	"path"
 
 	"github.com/bluesky-social/indigo/api/atproto"
@@ -15,7 +16,6 @@ import (
 	"github.com/bluesky-social/indigo/xrpc"
 	"github.com/eagraf/habitat-new/internal/node/api"
 	"github.com/eagraf/habitat-new/internal/node/config"
-	"github.com/eagraf/habitat-new/internal/node/constants"
 	jose "github.com/go-jose/go-jose/v3"
 	"github.com/gorilla/sessions"
 	"github.com/rs/zerolog/log"
@@ -41,12 +41,6 @@ type callbackHandler struct {
 
 type xrpcBrokerHandler struct {
 	htuURL       string
-	oauthClient  OAuthClient
-	sessionStore sessions.Store
-}
-
-// regreshHandler is purely for testing purposes.
-type refreshHandler struct {
 	oauthClient  OAuthClient
 	sessionStore sessions.Store
 }
@@ -98,9 +92,6 @@ func GetRoutes(
 			oauthClient:  oauthClient,
 			sessionStore: sessionStore,
 			htuURL:       nodeConfig.ExternalURL(),
-		}, &refreshHandler{
-			oauthClient:  oauthClient,
-			sessionStore: sessionStore,
 		},
 	}
 }
@@ -374,10 +365,24 @@ func (h *xrpcBrokerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	htu := path.Join(h.htuURL, r.URL.Path)
 	pdsDpopClient := NewDpopHttpClient(dpopSession, getPDSJWKBuilder(htu))
 
+	// Get PDS URL from session
+	pdsURL, err := dpopSession.getPDSURL()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Parse PDS URL to get host and scheme
+	parsedPDSURL, err := url.Parse(pdsURL)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
 	// Unset the request URI (can't be set when used as a client)
 	r.RequestURI = ""
-	r.URL.Scheme = "http"
-	r.URL.Host = constants.DefaultPDSHostname
+	r.URL.Scheme = parsedPDSURL.Scheme
+	r.URL.Host = parsedPDSURL.Host
 	accessToken, err := dpopSession.getAccessToken()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -448,36 +453,4 @@ func (h *xrpcBrokerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if err == http.ErrBodyReadAfterClose {
 		return
 	}
-}
-
-func (h *refreshHandler) Method() string {
-	return http.MethodGet
-}
-
-func (h *refreshHandler) Pattern() string {
-	return "/refresh"
-}
-
-func (h *refreshHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	dpopSession, err := getExistingDpopSession(r, w, h.sessionStore)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	dpopClient := NewDpopHttpClient(dpopSession, getAuthServerJWKBuilder())
-
-	tokenResp, err := h.oauthClient.RefreshToken(dpopClient, dpopSession)
-	if err != nil {
-		log.Error().Err(err).Msg("error refreshing token")
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	err = dpopSession.setTokenResponseFields(tokenResp)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.WriteHeader(http.StatusOK)
 }

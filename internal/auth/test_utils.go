@@ -4,6 +4,8 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
+	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -189,6 +191,7 @@ func testDpopClientFromSession(t *testing.T, dpopSession *dpopSession) *DpopHttp
 type DpopSessionOptions struct {
 	PdsURL         string
 	Issuer         *string            // nil = omit
+	AccessToken    *string            // nil = omit
 	RefreshToken   *string            // nil = omit
 	Identity       *identity.Identity // nil = omit
 	RemoveIdentity bool               // if true, explicitly remove identity from session
@@ -219,6 +222,18 @@ func testDpopSession(t *testing.T, opts DpopSessionOptions) *dpopSession {
 	if opts.Issuer != nil {
 		err = dpopSession.setIssuer(*opts.Issuer)
 		require.NoError(t, err)
+	}
+
+	// Set access token if provided
+	if opts.AccessToken != nil {
+		dpopSession.session.Values[cAccessTokenSessionKey] = *opts.AccessToken
+
+		// Set access token hash (required for DPoP)
+		h := sha256.New()
+		h.Write([]byte(*opts.AccessToken))
+		hash := h.Sum(nil)
+		encodedHash := base64.RawURLEncoding.EncodeToString(hash)
+		dpopSession.session.Values[cAccessTokenHashSessionKey] = encodedHash
 	}
 
 	// Set refresh token if provided
