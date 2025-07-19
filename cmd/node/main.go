@@ -225,10 +225,11 @@ func main() {
 	_, ok := perms[syntax.DID(sashankDID)]
 	if !ok {
 		perms[syntax.DID(sashankDID)] = permissions.NewDummyStore()
-	} else {
-		fmt.Println("found policies for sashank")
 	}
-	perms[syntax.DID(sashankDID)].AddLexiconReadPermission(sashankDID, "com.habitat.test")
+	err = perms[syntax.DID(sashankDID)].AddLexiconReadPermission(sashankDID, "com.habitat.test")
+	if err != nil {
+		log.Err(err).Msgf("error adding test lexicon for sashank demo")
+	}
 
 	// Add privy routes
 	priviServer := privi.NewServer(

@@ -255,10 +255,6 @@ func (s *Server) getCaller(r *http.Request) (syntax.DID, error) {
 	return syntax.DID(did), err
 }
 
-type listPermissionRequest struct {
-	Lexicon string `json:"lexicon"`
-}
-
 func (s *Server) ListPermissions(w http.ResponseWriter, r *http.Request) {
 	callerDID, err := s.getCaller(r)
 	if err != nil {

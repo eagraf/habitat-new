@@ -33,7 +33,7 @@ func TestControllerPrivateDataPutGet(t *testing.T) {
 	require.Nil(t, got)
 	require.ErrorIs(t, ErrUnauthorized, err)
 
-	dummy.AddLexiconReadPermission(coll, "another-did")
+	require.NoError(t, dummy.AddLexiconReadPermission(coll, "another-did"))
 
 	got, err = p.getRecord(coll, "my-rkey", "another-did")
 	require.NoError(t, err)
