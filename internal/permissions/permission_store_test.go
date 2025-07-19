@@ -122,8 +122,8 @@ func TestList(t *testing.T) {
 	require.NoError(t, err)
 
 	exp := map[string][]string{
-		"app.bsky.*":           []string{"did:2"},
-		"app.bsky.likes.*":     []string{"did:1"},
+		"app.bsky":             []string{"did:2"},
+		"app.bsky.likes":       []string{"did:1"},
 		"app.bsky.posts":       []string{"did:2"},
 		"app.bsky.posts.post1": []string{},
 	}
