@@ -377,7 +377,12 @@ func generateDefaultReverseProxyRules(config *config.NodeConfig) ([]*node.Revers
 		frontendRule.Type = node.ProxyRuleEmbeddedFrontend
 	}
 
-	return []*node.ReverseProxyRule{
+	apiURL, err = url.Parse(fmt.Sprintf("http://localhost:%s", constants.DefaultPortHabitatAPI))
+	if err != nil {
+		return nil, err
+	}
+
+	res := []*node.ReverseProxyRule{
 		{
 			ID:      "default-rule-api",
 			Type:    node.ProxyRuleRedirect,
@@ -422,7 +427,19 @@ func generateDefaultReverseProxyRules(config *config.NodeConfig) ([]*node.Revers
 			Target:  config.HabitatPath() + "/well-known",
 		},
 		frontendRule,
-	}, nil
+	}
+
+	// Add any additional reverse proxy rules from the config file
+	configRules, err := config.ReverseProxyRules()
+	if err != nil {
+		return nil, err
+	}
+
+	for _, rule := range configRules {
+		res = append(res, rule)
+	}
+
+	return res, nil
 }
 
 func initialState(
