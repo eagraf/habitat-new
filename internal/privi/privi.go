@@ -4,51 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/bluesky-social/indigo/atproto/data"
 	"github.com/bluesky-social/indigo/atproto/syntax"
 	"github.com/eagraf/habitat-new/internal/permissions"
 )
-
-type record map[string]any
-
-// A record key is a string
-type recordKey string
-
-// Lexicon NSID -> records for that lexicon.
-// A record is stored as raw bytes and keyed by its record key (rkey).
-//
-// TODO: the internal store should be an MST for portability / compatiblity with conventional atproto  methods.
-type inMemoryRepo map[syntax.NSID]map[recordKey]record
-
-// putRecord puts a record for the given rkey into the repo no matter what; if a record always exists, it is overwritten.
-func (r inMemoryRepo) putRecord(collection string, rec record, rkey string, validate *bool) error {
-	if validate != nil && *validate {
-		err := data.Validate(rec)
-		if err != nil {
-			return err
-		}
-	}
-
-	coll, ok := r[syntax.NSID(collection)]
-	if !ok {
-		coll = make(map[recordKey]record)
-		r[syntax.NSID(collection)] = coll
-	}
-
-	// Always put (even if something exists).
-	coll[recordKey(rkey)] = rec
-	return nil
-}
-
-func (r inMemoryRepo) getRecord(collection string, rkey string) (record, bool) {
-	coll, ok := r[syntax.NSID(collection)]
-	if !ok {
-		return nil, false
-	}
-
-	record, ok := coll[recordKey(rkey)]
-	return record, ok
-}
 
 // Privi is an ATProto PDS Wrapper which allows for storing & getting private data.
 // It does this by encrypting data, then storing it in blob. A special lexicon for this purpose,
@@ -64,9 +22,8 @@ type store struct {
 	// e           Encrypter
 	permissions permissions.Store
 
-	// TODO: this should be a portable MST the same as stored in the PDS. For ease/demo purposes, just use an
-	// in-memory store.
-	repo inMemoryRepo
+	// TODO: this should be a portable MST the same as stored in the PDS
+	repo Repo
 }
 
 var (
