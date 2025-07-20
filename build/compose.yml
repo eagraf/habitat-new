@@ -43,5 +43,18 @@ services:
       - habitat_frontend
     extra_hosts:
       - "host.docker.internal:host-gateway"
+  # Copied from instructions here: https://github.com/bluesky-social/pds/blob/main/compose.yaml
+  pds:
+    container_name: pds
+    image: ghcr.io/bluesky-social/pds:0.4
+    restart: unless-stopped
+    ports:
+      - "0.0.0.0:5001:3000/tcp"
+    volumes:
+      - type: bind
+        source: ${DEV_HABITAT_APP_PATH}/pds
+        target: /pds
+    env_file:
+      - pds.env
 volumes:
   node_modules:
