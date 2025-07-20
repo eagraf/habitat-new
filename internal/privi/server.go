@@ -34,27 +34,26 @@ type Server struct {
 }
 
 // NewServer returns a privi server.
-func NewServer(didToStores map[syntax.DID]permissions.Store) *Server {
-	server := &Server{
-		stores: make(map[syntax.DID]*store),
-		dir:    identity.DefaultDirectory(),
-	}
+func NewServer(didToStores map[syntax.DID]permissions.Store, defaultRepo Repo) *Server {
+	// TODO: resolve the private repo accordint to the DID
+	stores := make(map[syntax.DID]*store)
 	for did, perms := range didToStores {
-		err := server.Register(did, perms)
-		if err != nil {
-			log.Err(err)
-		}
+		stores[did] = newStore(did, defaultRepo, perms)
+	}
+	server := &Server{
+		stores: stores,
+		dir:    identity.DefaultDirectory(),
 	}
 	return server
 }
 
-func (s *Server) Register(did syntax.DID, perms permissions.Store) error {
+func (s *Server) Register(did syntax.DID, repo Repo, perms permissions.Store) error {
 	_, ok := s.stores[did]
 	if ok {
 		return fmt.Errorf("existing privi store for this did: %s", did.String())
 	}
 
-	s.stores[did] = newStore(did, perms)
+	s.stores[did] = newStore(did, repo, perms)
 	return nil
 }
 
@@ -100,7 +99,7 @@ func (s *Server) PutRecord(w http.ResponseWriter, r *http.Request) {
 	}
 
 	v := true
-	err = inner.putRecord(req.Collection, req.Record, req.Rkey, &v)
+	err = inner.putRecord(r.Context(), req.Collection, req.Record, req.Rkey, &v)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -165,7 +164,7 @@ func (s *Server) GetRecord(callerDID syntax.DID) http.HandlerFunc {
 			return
 		}
 
-		out, err := inner.getRecord(collection, rkey, callerDID)
+		out, err := inner.getRecord(r.Context(), collection, rkey, callerDID)
 
 		if errors.Is(err, ErrUnauthorized) {
 			http.Error(w, ErrUnauthorized.Error(), http.StatusForbidden)

@@ -14,6 +14,7 @@ import (
 	"syscall"
 
 	"github.com/bluesky-social/indigo/atproto/syntax"
+	"github.com/bluesky-social/indigo/xrpc"
 	fileadapter "github.com/casbin/casbin/v2/persist/file-adapter"
 	"github.com/docker/docker/client"
 	"github.com/eagraf/habitat-new/core/state/node"
@@ -166,13 +167,14 @@ func main() {
 		log.Fatal().Err(err).Msg("error getting default HDB client")
 	}
 
+	defaultPDSURL := "http://" + constants.DefaultPDSHostname
 	ctrl2, err := controller.NewController2(
 		ctx,
 		pm,
 		pkgManagers,
 		dbClient,
 		proxy,
-		"http://"+constants.DefaultPDSHostname,
+		defaultPDSURL,
 	)
 	if err != nil {
 		log.Fatal().Err(err).Msg("error creating node Controller2")
@@ -239,6 +241,9 @@ func main() {
 	// Add privy routes
 	priviServer := privi.NewServer(
 		perms,
+		privi.NewPDSRepo(&xrpc.Client{
+			Host: defaultPDSURL,
+		}),
 	)
 	routes = append(routes, priviServer.GetRoutes()...)
 
