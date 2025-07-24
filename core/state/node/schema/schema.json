@@ -77,7 +77,7 @@
                     "id": { "type": "string"},
                     "type": {
                         "type": "string",
-                        "enum": [ "file", "redirect" ]
+                        "enum": [ "file", "redirect", "pds" ]
                     },
                     "matcher": { "type": "string" },
                     "target": { "type": "string" },

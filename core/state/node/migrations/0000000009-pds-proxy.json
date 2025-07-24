@@ -1,0 +1,17 @@
+{
+    "old_version": "v0.0.8",
+    "new_version": "v0.0.9",
+    "up": [
+        {
+            "op": "add",
+            "path": "/properties/reverse_proxy_rules/additionalProperties/properties/type/enum/2",
+            "value": "pds"
+        }
+    ],
+    "down": [
+        {
+            "op": "remove",
+            "path": "/properties/reverse_proxy_rules/additionalProperties/properties/type/enum/2"
+        }
+    ]
+}
