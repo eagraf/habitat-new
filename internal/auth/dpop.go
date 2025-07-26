@@ -3,20 +3,23 @@ package auth
 import (
 	"bytes"
 	"crypto/ecdsa"
+	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"io"
 	"net/http"
 	"strings"
+	"time"
 
 	jose "github.com/go-jose/go-jose/v3"
 	"github.com/go-jose/go-jose/v3/jwt"
+	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
 )
 
 // NonceProvider provides access to nonce management
 type NonceProvider interface {
-	GetNonce() (string, error)
+	GetNonce() (string, bool, error)
 	SetNonce(nonce string)
 }
 
@@ -40,15 +43,49 @@ type dpopClaims struct {
 	Nonce string `json:"nonce,omitempty"`
 }
 
-type DpopHttpClient struct {
-	htu           string
-	key           *ecdsa.PrivateKey
-	nonceProvider NonceProvider
-	jwkBuilder    DpopJWKBuilder
+// DpopOptions provide optional configuration for a DPoP HTTP client.
+type DpopOptions struct {
+	// Custom HTU claim in the DPoP token. If not provided, this will defualt to the
+	// request URL.
+	HTU string
+
+	// Access token to be used for PDS requests. If not provided, the access token
+	// hash will not be included in the DPoP token.
+	AccessToken string
 }
 
-func NewDpopHttpClient(key *ecdsa.PrivateKey, nonceProvider NonceProvider, jwkBuilder DpopJWKBuilder) *DpopHttpClient {
-	return &DpopHttpClient{key: key, nonceProvider: nonceProvider, jwkBuilder: jwkBuilder}
+type DpopOption func(*DpopOptions)
+
+func WithHTU(htu string) DpopOption {
+	return func(opts *DpopOptions) {
+		opts.HTU = htu
+	}
+}
+
+func WithAccessToken(accessToken string) DpopOption {
+	return func(opts *DpopOptions) {
+		opts.AccessToken = accessToken
+	}
+}
+
+type DpopHttpClient struct {
+	key           *ecdsa.PrivateKey
+	nonceProvider NonceProvider
+	opts          *DpopOptions
+}
+
+// NewDpopHttpClient creates a new DPoP HTTP client. This constructor is used
+// for authentication at login.
+func NewDpopHttpClient(
+	key *ecdsa.PrivateKey,
+	nonceProvider NonceProvider,
+	options ...DpopOption,
+) *DpopHttpClient {
+	opts := &DpopOptions{}
+	for _, option := range options {
+		option(opts)
+	}
+	return &DpopHttpClient{key: key, nonceProvider: nonceProvider, opts: opts}
 }
 
 func (s *DpopHttpClient) Do(req *http.Request) (*http.Response, error) {
@@ -107,17 +144,57 @@ func (s *DpopHttpClient) sign(req *http.Request) error {
 		return err
 	}
 
-	nonce, err := s.nonceProvider.GetNonce()
-	var notFoundErr *ErrorSessionValueNotFound
-	if err != nil && !errors.As(err, &notFoundErr) {
-		return err
-	}
-	token, err := s.jwkBuilder(req, signer, nonce)
+	claims, err := s.generateClaims(req)
 	if err != nil {
 		return err
 	}
-	req.Header.Set("DPoP", token)
+
+	signedJWK, err := jwt.Signed(signer).Claims(claims).CompactSerialize()
+	if err != nil {
+		return err
+	}
+
+	req.Header.Set("DPoP", signedJWK)
 	return nil
+}
+
+func (s *DpopHttpClient) generateClaims(req *http.Request) (*dpopClaims, error) {
+	htu := req.URL.String()
+	if s.opts.HTU == "" {
+		htu = s.opts.HTU
+	}
+
+	claims := &dpopClaims{
+		Claims: jwt.Claims{
+			ID:       base64.StdEncoding.EncodeToString([]byte(uuid.NewString())),
+			IssuedAt: jwt.NewNumericDate(time.Now()),
+		},
+		Method: req.Method,
+		URL:    htu,
+	}
+
+	nonce, ok, err := s.nonceProvider.GetNonce()
+	if err != nil {
+		return nil, err
+	}
+	if ok {
+		claims.Nonce = nonce
+	}
+
+	if s.opts.AccessToken != "" {
+		claims.AccessTokenHash = s.hashAccessToken(s.opts.AccessToken)
+	}
+
+	return claims, nil
+}
+
+func (s *DpopHttpClient) hashAccessToken(accessToken string) string {
+	token := strings.TrimPrefix(accessToken, "DPoP ")
+	h := sha256.New()
+	h.Write([]byte(token))
+	hash := h.Sum(nil)
+
+	return base64.RawURLEncoding.EncodeToString(hash)
 }
 
 func isUseDPopNonceError(resp *http.Response) bool {
