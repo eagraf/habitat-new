@@ -243,6 +243,10 @@ func TestDpopHttpClient_WithAccessToken(t *testing.T) {
 		// Verify access token hash is present
 		require.NotEmpty(t, claims.AccessTokenHash, "Access token hash should be present")
 
+		// Verify authorization header is present
+		require.NotEmpty(t, r.Header.Get("Authorization"), "Authorization header should be present")
+		require.Equal(t, "DPoP test-access-token", r.Header.Get("Authorization"), "Authorization header should be DPoP")
+
 		// Verify the hash matches the token
 		expectedToken := "test-access-token"
 		h := sha256.New()

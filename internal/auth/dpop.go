@@ -102,6 +102,8 @@ func (s *DpopHttpClient) Do(req *http.Request) (*http.Response, error) {
 		}
 	}
 
+	req.Header.Set("Authorization", "DPoP "+s.opts.AccessToken)
+
 	req.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -160,7 +162,7 @@ func (s *DpopHttpClient) sign(req *http.Request) error {
 
 func (s *DpopHttpClient) generateClaims(req *http.Request) (*dpopClaims, error) {
 	htu := req.URL.String()
-	if s.opts.HTU == "" {
+	if s.opts.HTU != "" {
 		htu = s.opts.HTU
 	}
 
@@ -189,9 +191,8 @@ func (s *DpopHttpClient) generateClaims(req *http.Request) (*dpopClaims, error) 
 }
 
 func (s *DpopHttpClient) hashAccessToken(accessToken string) string {
-	token := strings.TrimPrefix(accessToken, "DPoP ")
 	h := sha256.New()
-	h.Write([]byte(token))
+	h.Write([]byte(accessToken))
 	hash := h.Sum(nil)
 
 	return base64.RawURLEncoding.EncodeToString(hash)
