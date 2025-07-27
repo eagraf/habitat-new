@@ -124,7 +124,8 @@ func TestSession(t *testing.T) {
 	require.Equal(t, "test-nonce-123", nonce)
 
 	// Step 9: Test setting a new nonce through the provider
-	provider.SetNonce("new-nonce-456")
+	err = provider.SetNonce("new-nonce-456")
+	require.NoError(t, err)
 	newNonce, exists, err := provider.GetNonce()
 	require.NoError(t, err)
 	require.True(t, exists)
@@ -154,7 +155,8 @@ func TestSessionNonceProvider(t *testing.T) {
 	require.Empty(t, nonce)
 
 	// Test 2: Set nonce through provider
-	provider.SetNonce("provider-nonce-123")
+	err = provider.SetNonce("provider-nonce-123")
+	require.NoError(t, err)
 	nonce, exists, err = provider.GetNonce()
 	require.NoError(t, err)
 	require.True(t, exists)
@@ -166,7 +168,8 @@ func TestSessionNonceProvider(t *testing.T) {
 	require.Equal(t, "provider-nonce-123", directNonce)
 
 	// Test 4: Test with empty nonce
-	provider.SetNonce("")
+	err = provider.SetNonce("")
+	require.NoError(t, err)
 	nonce, exists, err = provider.GetNonce()
 	require.NoError(t, err)
 	require.True(t, exists)
