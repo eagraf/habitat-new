@@ -83,6 +83,10 @@ func GetRoutes(
 		}, &callbackHandler{
 			oauthClient:  oauthClient,
 			sessionStore: sessionStore,
+		}, &xrpcBrokerHandler{
+			oauthClient:  oauthClient,
+			sessionStore: sessionStore,
+			htuURL:       nodeConfig.ExternalURL(),
 		},
 	}, nil
 }
