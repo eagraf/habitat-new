@@ -113,7 +113,10 @@ func TestXrpcBrokerHandler_SuccessfulRequest(t *testing.T) {
 				"uri":   "at://did:plc:test123/app.bsky.feed.post/3juxg",
 				"value": map[string]interface{}{"text": "Hello world"},
 			}
-			json.NewEncoder(w).Encode(resp)
+			if err := json.NewEncoder(w).Encode(resp); err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
 			return
 		}
 		http.Error(w, "not found", http.StatusNotFound)
@@ -262,17 +265,23 @@ func TestXrpcBrokerHandler_SuccessfulTokenRefresh(t *testing.T) {
 		// Serve OAuth discovery endpoints on the PDS server
 		switch r.URL.Path {
 		case "/.well-known/oauth-protected-resource":
-			json.NewEncoder(w).Encode(oauthProtectedResource{
+			if err := json.NewEncoder(w).Encode(oauthProtectedResource{
 				AuthorizationServers: []string{fakeOAuthServer.URL + "/.well-known/oauth-authorization-server"},
-			})
+			}); err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
 			return
 		case "/.well-known/oauth-authorization-server":
-			json.NewEncoder(w).Encode(oauthAuthorizationServer{
+			if err := json.NewEncoder(w).Encode(oauthAuthorizationServer{
 				Issuer:        "https://example.com",
 				TokenEndpoint: fakeOAuthServer.URL + "/token",
 				PAREndpoint:   fakeOAuthServer.URL + "/par",
 				AuthEndpoint:  fakeOAuthServer.URL + "/auth",
-			})
+			}); err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
 			return
 		}
 
@@ -288,7 +297,10 @@ func TestXrpcBrokerHandler_SuccessfulTokenRefresh(t *testing.T) {
 				"uri":   "at://did:plc:test123/app.bsky.feed.post/3juxg",
 				"value": map[string]interface{}{"text": "Hello world"},
 			}
-			json.NewEncoder(w).Encode(resp)
+			if err := json.NewEncoder(w).Encode(resp); err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
 			return
 		}
 		http.Error(w, "not found", http.StatusNotFound)
@@ -337,7 +349,10 @@ func TestXrpcBrokerHandler_RequestBodyHandling(t *testing.T) {
 				return
 			}
 			w.Header().Set("Content-Type", "application/json")
-			w.Write(body)
+			if _, err := w.Write(body); err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
 			return
 		}
 		http.Error(w, "not found", http.StatusNotFound)
@@ -423,7 +438,10 @@ func TestXrpcBrokerHandler_RequestBodyCopying(t *testing.T) {
 				return
 			}
 			w.Header().Set("Content-Type", "application/json")
-			w.Write(body)
+			if _, err := w.Write(body); err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
 			return
 		}
 		http.Error(w, "not found", http.StatusNotFound)
