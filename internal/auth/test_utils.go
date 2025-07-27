@@ -54,22 +54,22 @@ func fakeAuthServer(t *testing.T, responses map[string]interface{}) *httptest.Se
 		switch r.URL.Path {
 		case "/.well-known/oauth-protected-resource":
 			if resp, ok := responses["protected-resource"]; ok {
-				json.NewEncoder(w).Encode(resp)
+				_ = json.NewEncoder(w).Encode(resp)
 				return
 			}
 			// Default response - use proper URL format
 			authServerURL := "http://" + r.Host + "/.well-known/oauth-authorization-server"
-			json.NewEncoder(w).Encode(oauthProtectedResource{
+			_ = json.NewEncoder(w).Encode(oauthProtectedResource{
 				AuthorizationServers: []string{authServerURL},
 			})
 
 		case "/.well-known/oauth-authorization-server":
 			if resp, ok := responses["auth-server"]; ok {
-				json.NewEncoder(w).Encode(resp)
+				_ = json.NewEncoder(w).Encode(resp)
 				return
 			}
 			// Default response - use proper URL format
-			json.NewEncoder(w).Encode(oauthAuthorizationServer{
+			_ = json.NewEncoder(w).Encode(oauthAuthorizationServer{
 				Issuer:        "https://example.com",
 				TokenEndpoint: "http://" + r.Host + "/token",
 				PAREndpoint:   "http://" + r.Host + "/par",
@@ -83,12 +83,12 @@ func fakeAuthServer(t *testing.T, responses map[string]interface{}) *httptest.Se
 				} else {
 					w.WriteHeader(http.StatusCreated)
 				}
-				json.NewEncoder(w).Encode(resp)
+				_ = json.NewEncoder(w).Encode(resp)
 				return
 			}
 			// Default response
 			w.WriteHeader(http.StatusCreated)
-			json.NewEncoder(w).Encode(parResponse{RequestUri: "urn:ietf:params:oauth:request_uri:test"})
+			_ = json.NewEncoder(w).Encode(parResponse{RequestUri: "urn:ietf:params:oauth:request_uri:test"})
 
 		case "/token":
 			if status, ok := responses["token-status"]; ok {
@@ -96,21 +96,21 @@ func fakeAuthServer(t *testing.T, responses map[string]interface{}) *httptest.Se
 			}
 
 			if errorMsg, ok := responses["token-error"]; ok {
-				json.NewEncoder(w).Encode(map[string]string{"error": errorMsg.(string)})
+				_ = json.NewEncoder(w).Encode(map[string]string{"error": errorMsg.(string)})
 				return
 			}
 
 			if resp, ok := responses["token"]; ok {
 				if str, ok := resp.(string); ok {
-					w.Write([]byte(str))
+					_, _ = w.Write([]byte(str))
 				} else {
-					json.NewEncoder(w).Encode(resp)
+					_ = json.NewEncoder(w).Encode(resp)
 				}
 				return
 			}
 
 			// Default success response
-			json.NewEncoder(w).Encode(TokenResponse{
+			_ = json.NewEncoder(w).Encode(TokenResponse{
 				AccessToken:  "default-access-token",
 				RefreshToken: "default-refresh-token",
 				Scope:        "atproto transition:generic",
@@ -134,21 +134,21 @@ func fakeTokenServer(t *testing.T, responses map[string]interface{}) *httptest.S
 			}
 
 			if errorMsg, ok := responses["token-error"]; ok {
-				json.NewEncoder(w).Encode(map[string]string{"error": errorMsg.(string)})
+				_ = json.NewEncoder(w).Encode(map[string]string{"error": errorMsg.(string)})
 				return
 			}
 
 			if resp, ok := responses["token"]; ok {
 				if str, ok := resp.(string); ok {
-					w.Write([]byte(str))
+					_, _ = w.Write([]byte(str))
 				} else {
-					json.NewEncoder(w).Encode(resp)
+					_ = json.NewEncoder(w).Encode(resp)
 				}
 				return
 			}
 
 			// Default success response
-			json.NewEncoder(w).Encode(TokenResponse{
+			_ = json.NewEncoder(w).Encode(TokenResponse{
 				AccessToken:  "default-access-token",
 				RefreshToken: "default-refresh-token",
 				Scope:        "atproto transition:generic",

@@ -129,10 +129,10 @@ func (o *oauthClientImpl) Authorize(
 		return "", nil, err
 	}
 
-	redirectUrl, err := url.Parse(serverMetadata.AuthEndpoint)
+	redirectUrl, _ := url.Parse(serverMetadata.AuthEndpoint)
 	redirectUrl.RawQuery = url.Values{
-		"client_id":   {o.clientId},
-		"request_uri": {requestUri},
+		"client_id":   []string{o.clientId},
+		"request_uri": []string{requestUri},
 	}.Encode()
 
 	return redirectUrl.String(), &AuthorizeState{
@@ -167,14 +167,14 @@ func (o *oauthClientImpl) ExchangeCode(
 		http.MethodPost,
 		state.TokenEndpoint,
 		strings.NewReader(url.Values{
-			"client_id":     {o.clientId},
-			"grant_type":    {"authorization_code"},
-			"redirect_uri":  {o.redirectUri},
-			"code":          {code},
-			"code_verifier": {state.Verifier},
+			"client_id":     []string{o.clientId},
+			"grant_type":    []string{"authorization_code"},
+			"redirect_uri":  []string{o.redirectUri},
+			"code":          []string{code},
+			"code_verifier": []string{state.Verifier},
 
-			"client_assertion_type": {"urn:ietf:params:oauth:client-assertion-type:jwt-bearer"},
-			"client_assertion":      {clientAssertion},
+			"client_assertion_type": []string{"urn:ietf:params:oauth:client-assertion-type:jwt-bearer"},
+			"client_assertion":      []string{clientAssertion},
 		}.Encode()),
 	)
 	if err != nil {
@@ -190,11 +190,14 @@ func (o *oauthClientImpl) ExchangeCode(
 
 	if resp.StatusCode != http.StatusOK {
 		var errMsg json.RawMessage
-		json.NewDecoder(resp.Body).Decode(&errMsg)
+		_ = json.NewDecoder(resp.Body).Decode(&errMsg)
 		return nil, fmt.Errorf("failed to exchange code: %s - %s", resp.Status, string(errMsg))
 	}
 
 	rawTokenResp, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
 
 	var tokenResp TokenResponse
 	err = json.NewDecoder(bytes.NewReader(rawTokenResp)).Decode(&tokenResp)
@@ -225,15 +228,15 @@ func (o *oauthClientImpl) RefreshToken(dpopClient *DpopHttpClient, identity *ide
 		return nil, err
 	}
 
-	req, err := http.NewRequest(
+	req, _ := http.NewRequest(
 		http.MethodPost,
 		tokenEndpoint,
 		strings.NewReader(url.Values{
-			"client_id":             {o.clientId},
-			"grant_type":            {"refresh_token"},
-			"refresh_token":         {refreshToken},
-			"client_assertion_type": {"urn:ietf:params:oauth:client-assertion-type:jwt-bearer"},
-			"client_assertion":      {clientAssertion},
+			"client_id":             []string{o.clientId},
+			"grant_type":            []string{"refresh_token"},
+			"refresh_token":         []string{refreshToken},
+			"client_assertion_type": []string{"urn:ietf:params:oauth:client-assertion-type:jwt-bearer"},
+			"client_assertion":      []string{clientAssertion},
 		}.Encode()),
 	)
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
@@ -246,7 +249,7 @@ func (o *oauthClientImpl) RefreshToken(dpopClient *DpopHttpClient, identity *ide
 
 	if resp.StatusCode != http.StatusOK {
 		var errMsg json.RawMessage
-		json.NewDecoder(resp.Body).Decode(&errMsg)
+		_ = json.NewDecoder(resp.Body).Decode(&errMsg)
 		return nil, fmt.Errorf("failed to exchange code: %s - %s", resp.Status, string(errMsg))
 	}
 
@@ -290,7 +293,7 @@ func fetchOAuthProtectedResource(i *identity.Identity) (*oauthProtectedResource,
 	}
 
 	var pr oauthProtectedResource
-	json.NewDecoder(resp.Body).Decode(&pr)
+	_ = json.NewDecoder(resp.Body).Decode(&pr)
 
 	return &pr, nil
 }

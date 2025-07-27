@@ -8,7 +8,7 @@ import (
 )
 
 type Route interface {
-	http.Handler
+	ServeHTTP(http.ResponseWriter, *http.Request)
 
 	// Pattern reports the path at which this is registered.
 	Pattern() string

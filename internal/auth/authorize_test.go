@@ -105,9 +105,13 @@ func TestOAuthClient_Authorize_AuthServerError(t *testing.T) {
 	// Override the auth server response to return error
 	server.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/.well-known/oauth-protected-resource" {
-			json.NewEncoder(w).Encode(oauthProtectedResource{
+			err := json.NewEncoder(w).Encode(oauthProtectedResource{
 				AuthorizationServers: []string{"http://" + r.Host + "/.well-known/oauth-authorization-server"},
 			})
+			if err != nil {
+				http.Error(w, "internal server error", http.StatusInternalServerError)
+				return
+			}
 			return
 		}
 		if r.URL.Path == "/.well-known/oauth-authorization-server" {
@@ -150,9 +154,13 @@ func TestOAuthClient_Authorize_LocalhostHostMapping(t *testing.T) {
 	// Test that localhost:3000 gets mapped to host.docker.internal:3000
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/.well-known/oauth-protected-resource" {
-			json.NewEncoder(w).Encode(oauthProtectedResource{
+			err := json.NewEncoder(w).Encode(oauthProtectedResource{
 				AuthorizationServers: []string{"http://localhost:3000/.well-known/oauth-authorization-server"},
 			})
+			if err != nil {
+				http.Error(w, "internal server error", http.StatusInternalServerError)
+				return
+			}
 			return
 		}
 		http.Error(w, "not found", http.StatusNotFound)

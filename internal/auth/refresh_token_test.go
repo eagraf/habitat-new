@@ -140,7 +140,7 @@ func TestOAuthClient_RefreshToken_AuthServerError(t *testing.T) {
 	// Override the auth server response to return error
 	server.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/.well-known/oauth-protected-resource" {
-			json.NewEncoder(w).Encode(oauthProtectedResource{
+			_ = json.NewEncoder(w).Encode(oauthProtectedResource{
 				AuthorizationServers: []string{"http://" + r.Host + "/.well-known/oauth-authorization-server"},
 			})
 			return
@@ -342,12 +342,12 @@ func TestOAuthClient_RefreshToken_RequestParameters(t *testing.T) {
 		switch r.URL.Path {
 		case "/.well-known/oauth-protected-resource":
 			authServerURL := "http://" + r.Host + "/.well-known/oauth-authorization-server"
-			json.NewEncoder(w).Encode(oauthProtectedResource{
+			_ = json.NewEncoder(w).Encode(oauthProtectedResource{
 				AuthorizationServers: []string{authServerURL},
 			})
 
 		case "/.well-known/oauth-authorization-server":
-			json.NewEncoder(w).Encode(oauthAuthorizationServer{
+			_ = json.NewEncoder(w).Encode(oauthAuthorizationServer{
 				Issuer:        "https://example.com",
 				TokenEndpoint: "http://" + r.Host + "/token",
 				PAREndpoint:   "http://" + r.Host + "/par",
@@ -396,7 +396,7 @@ func TestOAuthClient_RefreshToken_RequestParameters(t *testing.T) {
 			}
 
 			// Return success response
-			json.NewEncoder(w).Encode(TokenResponse{
+			_ = json.NewEncoder(w).Encode(TokenResponse{
 				AccessToken:  "new-access-token",
 				RefreshToken: "new-refresh-token",
 				Scope:        "atproto transition:generic",
