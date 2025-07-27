@@ -356,11 +356,6 @@ func generatePDSAppConfig(
 }
 
 func generateDefaultReverseProxyRules(config *config.NodeConfig) ([]*node.ReverseProxyRule, error) {
-	apiURL, err := url.Parse(fmt.Sprintf("http://localhost:%s", constants.DefaultPortHabitatAPI))
-	if err != nil {
-		return nil, err
-	}
-
 	frontendRule := &node.ReverseProxyRule{
 		ID:      "default-rule-frontend",
 		Matcher: "", // Root matcher
@@ -377,7 +372,7 @@ func generateDefaultReverseProxyRules(config *config.NodeConfig) ([]*node.Revers
 		frontendRule.Type = node.ProxyRuleEmbeddedFrontend
 	}
 
-	apiURL, err = url.Parse(fmt.Sprintf("http://localhost:%s", constants.DefaultPortHabitatAPI))
+	apiURL, err := url.Parse(fmt.Sprintf("http://localhost:%s", constants.DefaultPortHabitatAPI))
 	if err != nil {
 		return nil, err
 	}
@@ -435,9 +430,7 @@ func generateDefaultReverseProxyRules(config *config.NodeConfig) ([]*node.Revers
 		return nil, err
 	}
 
-	for _, rule := range configRules {
-		res = append(res, rule)
-	}
+	res = append(res, configRules...)
 
 	return res, nil
 }
