@@ -20,7 +20,7 @@ import (
 // NonceProvider provides access to nonce management
 type NonceProvider interface {
 	GetNonce() (string, bool, error)
-	SetNonce(nonce string)
+	SetNonce(nonce string) error
 }
 
 // DpopJWKBuilder is a function that builds a DPoP JWT for a given request type.
@@ -115,7 +115,10 @@ func (s *DpopHttpClient) Do(req *http.Request) (*http.Response, error) {
 		return resp, nil
 	}
 	if resp.Header.Get("DPoP-Nonce") != "" {
-		s.nonceProvider.SetNonce(resp.Header.Get("DPoP-Nonce"))
+		err := s.nonceProvider.SetNonce(resp.Header.Get("DPoP-Nonce"))
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// retry with new nonce

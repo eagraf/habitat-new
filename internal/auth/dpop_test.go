@@ -34,8 +34,9 @@ func (t *TestNonceProvider) GetNonce() (string, bool, error) {
 	return t.nonce, true, nil
 }
 
-func (t *TestNonceProvider) SetNonce(nonce string) {
+func (t *TestNonceProvider) SetNonce(nonce string) error {
 	t.nonce = nonce
+	return nil
 }
 
 func TestDpopHttpClient_InitialValidNonce(t *testing.T) {
