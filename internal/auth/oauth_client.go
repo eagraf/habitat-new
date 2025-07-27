@@ -162,7 +162,6 @@ func (o *oauthClientImpl) ExchangeCode(
 		return nil, err
 	}
 
-	log.Info().Msgf("token endpoint: %s", state.TokenEndpoint)
 	req, err := http.NewRequest(
 		http.MethodPost,
 		state.TokenEndpoint,
@@ -204,7 +203,6 @@ func (o *oauthClientImpl) ExchangeCode(
 	if err != nil {
 		return nil, err
 	}
-	log.Info().Msgf("token response: %+v", tokenResp)
 
 	return &tokenResp, nil
 }
@@ -258,8 +256,6 @@ func (o *oauthClientImpl) RefreshToken(dpopClient *DpopHttpClient, identity *ide
 		return nil, err
 	}
 
-	log.Info().Msgf("refresh response: %+v", string(rawRefreshResp))
-
 	var tokenResp TokenResponse
 	err = json.NewDecoder(bytes.NewReader(rawRefreshResp)).Decode(&tokenResp)
 	if err != nil {
@@ -293,7 +289,10 @@ func fetchOAuthProtectedResource(i *identity.Identity) (*oauthProtectedResource,
 	}
 
 	var pr oauthProtectedResource
-	_ = json.NewDecoder(resp.Body).Decode(&pr)
+	err = json.NewDecoder(resp.Body).Decode(&pr)
+	if err != nil {
+		return nil, err
+	}
 
 	return &pr, nil
 }
@@ -374,7 +373,6 @@ func (o *oauthClientImpl) makePushedAuthorizationRequest(
 	state string,
 	verifier string,
 ) (string, error) {
-	log.Info().Msgf("issuer: %s", as.Issuer)
 	clientAssertion, err := o.getClientAssertion(as.Issuer)
 	if err != nil {
 		return "", err
@@ -415,19 +413,13 @@ func (o *oauthClientImpl) makePushedAuthorizationRequest(
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
-	logger := log.Warn().
+	log.Debug().
 		Str("client assertion", clientAssertion).
 		Str("issuer", as.Issuer).
 		Str("par url", parUrl.String()).
 		Str("state", state).
 		Str("verifier", verifier).
 		Str("redirect uri", o.redirectUri)
-
-	if loginHint != nil {
-		logger = logger.Str("login hint", *loginHint)
-	}
-
-	logger.Msg("making par request")
 
 	resp, err := dpopClient.Do(req)
 	if err != nil {
