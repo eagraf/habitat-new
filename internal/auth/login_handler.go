@@ -105,53 +105,18 @@ func (l *loginHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	identifier := r.Form.Get("handle")
+	handle := r.Form.Get("handle")
 
-	atid, err := syntax.ParseAtIdentifier(identifier)
+	atid, err := syntax.ParseAtIdentifier(handle)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	pdsOnHabitat := doesHandleBelongToDomain(identifier, l.habitatNodeDomain)
-
-	var loginHint *string
-	var id *identity.Identity
-	if pdsOnHabitat {
-		client := &xrpc.Client{
-			Host: l.pdsURL,
-		}
-		handle := atid.String()
-		loginHint = &handle
-		resp, err := atproto.IdentityResolveHandle(r.Context(), client, handle)
-		if err != nil {
-			log.Warn().Err(err).Str("identifier", identifier).Msg("error resolving handle")
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-		did, err := syntax.ParseDID(resp.Did)
-		if err != nil {
-			log.Warn().Err(err).Str("did", resp.Did).Msg("error parsing did")
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-		id = &identity.Identity{
-			DID:    did,
-			Handle: syntax.Handle(handle),
-			Services: map[string]identity.Service{
-				"atproto_pds": {
-					URL: l.pdsURL,
-				},
-			},
-		}
-	} else {
-		loginHint = nil
-		id, err = identity.DefaultDirectory().Lookup(r.Context(), *atid)
-		if err != nil {
-			log.Warn().Err(err).Str("identifier", identifier).Msg("error looking up identifier")
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
+	id, loginHint, err := l.resolveIdentity(atid, handle)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 
 	dpopSession, err := newHabitatGorillaSession(r, w, l.sessionStore, id, l.pdsURL)
@@ -174,14 +139,14 @@ func (l *loginHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	redirect, state, err := l.oauthClient.Authorize(dpopClient, id, loginHint)
 	if err != nil {
-		log.Error().Err(err).Str("identifier", identifier).Msg("error authorizing user")
+		log.Error().Err(err).Str("identifier", handle).Msg("error authorizing user")
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	stateJson, err := json.Marshal(state)
 	if err != nil {
-		log.Error().Err(err).Str("identifier", identifier).Msg("error marshalling state")
+		log.Error().Err(err).Str("identifier", handle).Msg("error marshalling state")
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -197,6 +162,41 @@ func (l *loginHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	http.Redirect(w, r, redirect, http.StatusSeeOther)
+}
+
+func (l *loginHandler) resolveIdentity(atID *syntax.AtIdentifier, handle string) (*identity.Identity, *string, error) {
+	pdsOnHabitat := doesHandleBelongToDomain(handle, l.habitatNodeDomain)
+	if pdsOnHabitat {
+		client := &xrpc.Client{
+			Host: l.pdsURL,
+		}
+		handle := atID
+		loginHint := &handle
+		resp, err := atproto.IdentityResolveHandle(r.Context(), client, handle)
+		if err != nil {
+			return nil, nil, err
+		}
+		did, err := syntax.ParseDID(resp.Did)
+		if err != nil {
+			return nil, nil, err
+		}
+		return &identity.Identity{
+			DID:    did,
+			Handle: syntax.Handle(handle),
+			Services: map[string]identity.Service{
+				"atproto_pds": {
+					URL: l.pdsURL,
+				},
+			},
+		}, loginHint, nil
+	} else {
+		id, err := identity.DefaultDirectory().Lookup(r.Context(), *atid)
+		if err != nil {
+			return nil, nil, err
+		}
+		return id, nil, nil
+	}
+
 }
 
 // Method implements api.Route.
@@ -237,7 +237,6 @@ func (c *callbackHandler) Pattern() string {
 
 // ServeHTTP implements api.Route.
 func (c *callbackHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	log.Info().Msgf("query: %s", r.Cookies())
 	authSession, err := c.sessionStore.Get(r, "auth-session")
 	if err != nil {
 		log.Error().Err(err).Msg("error getting session")
@@ -306,27 +305,6 @@ func (c *callbackHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
-	}
-
-	// This is temporary to make it work with the frontend
-	http.SetCookie(w, &http.Cookie{
-		Name:  "access_token",
-		Value: tokenResp.AccessToken,
-		Path:  "/",
-		//		HttpOnly: true,
-		//Secure:   true,
-		SameSite: http.SameSiteLaxMode,
-	})
-
-	if tokenResp.RefreshToken != "" {
-		http.SetCookie(w, &http.Cookie{
-			Name:  "refresh_token",
-			Value: tokenResp.RefreshToken,
-			Path:  "/",
-			//HttpOnly: true,
-			//Secure:   true,
-			SameSite: http.SameSiteLaxMode,
-		})
 	}
 
 	identity, err := dpopSession.GetIdentity()
