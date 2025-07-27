@@ -51,7 +51,8 @@ func TestCallbackHandler_SuccessfulCallback(t *testing.T) {
 	}
 	stateJson, _ := json.Marshal(state)
 	authSession.AddFlash(stateJson)
-	authSession.Save(req, w)
+	err := authSession.Save(req, w)
+	require.NoError(t, err)
 
 	// Create DPoP session with the same request and response writer
 	identity := testIdentity(fakeOAuthServer.URL)
@@ -168,7 +169,8 @@ func TestCallbackHandler_InvalidSessionState(t *testing.T) {
 	// Create auth session with invalid state (not JSON)
 	authSession, _ := sessionStore.New(req, "auth-session")
 	authSession.AddFlash("invalid-json")
-	authSession.Save(req, w)
+	err := authSession.Save(req, w)
+	require.NoError(t, err)
 
 	handler.ServeHTTP(w, req)
 
@@ -193,7 +195,8 @@ func TestCallbackHandler_MissingCode(t *testing.T) {
 	}
 	stateJson, _ := json.Marshal(state)
 	authSession.AddFlash(stateJson)
-	authSession.Save(req, w)
+	err := authSession.Save(req, w)
+	require.NoError(t, err)
 
 	// Create DPoP session
 	testDpopSession(t, DpopSessionOptions{
@@ -235,7 +238,8 @@ func TestCallbackHandler_TokenExchangeError(t *testing.T) {
 	}
 	stateJson, _ := json.Marshal(state)
 	authSession.AddFlash(stateJson)
-	authSession.Save(req, w)
+	err := authSession.Save(req, w)
+	require.NoError(t, err)
 
 	// Create DPoP session
 	testDpopSession(t, DpopSessionOptions{
@@ -276,7 +280,8 @@ func TestCallbackHandler_DPOPSessionError(t *testing.T) {
 	}
 	stateJson, _ := json.Marshal(state)
 	authSession.AddFlash(stateJson)
-	authSession.Save(req, w)
+	err := authSession.Save(req, w)
+	require.NoError(t, err)
 
 	// Add query parameters
 	q := req.URL.Query()
@@ -310,7 +315,8 @@ func TestCallbackHandler_SessionSaveError(t *testing.T) {
 	}
 	stateJson, _ := json.Marshal(state)
 	authSession.AddFlash(stateJson)
-	authSession.Save(req, w)
+	err := authSession.Save(req, w)
+	require.NoError(t, err)
 
 	// Create DPoP session
 	testDpopSession(t, DpopSessionOptions{
@@ -361,7 +367,8 @@ func TestCallbackHandler_CookieAttributes(t *testing.T) {
 	}
 	stateJson, _ := json.Marshal(state)
 	authSession.AddFlash(stateJson)
-	authSession.Save(req, w)
+	err := authSession.Save(req, w)
+	require.NoError(t, err)
 
 	// Create DPoP session
 	testDpopSession(t, DpopSessionOptions{
