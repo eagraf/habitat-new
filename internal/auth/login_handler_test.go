@@ -23,21 +23,6 @@ func setupTestLoginHandler(t *testing.T, pdsURL string, oauthClient OAuthClient)
 	}
 }
 
-// setupMockPDS creates a test PDS server that responds to identity resolution
-func setupMockPDS(t *testing.T, handle, did string) *httptest.Server {
-	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/xrpc/com.atproto.identity.resolveHandle" {
-			query := r.URL.Query()
-			if query.Get("handle") == handle {
-				resp := atproto.IdentityResolveHandle_Output{Did: did}
-				json.NewEncoder(w).Encode(resp)
-				return
-			}
-		}
-		http.Error(w, "not found", http.StatusNotFound)
-	}))
-}
-
 // setupMockPDSWithOAuth creates a test PDS server that also serves OAuth discovery endpoints
 func setupMockPDSWithOAuth(t *testing.T, handle, did string, oauthServerURL string) *httptest.Server {
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -45,7 +30,11 @@ func setupMockPDSWithOAuth(t *testing.T, handle, did string, oauthServerURL stri
 			query := r.URL.Query()
 			if query.Get("handle") == handle {
 				resp := atproto.IdentityResolveHandle_Output{Did: did}
-				json.NewEncoder(w).Encode(resp)
+				err := json.NewEncoder(w).Encode(resp)
+				if err != nil {
+					http.Error(w, err.Error(), http.StatusInternalServerError)
+					return
+				}
 				return
 			}
 		}
@@ -53,16 +42,24 @@ func setupMockPDSWithOAuth(t *testing.T, handle, did string, oauthServerURL stri
 		// Serve OAuth discovery endpoints
 		switch r.URL.Path {
 		case "/.well-known/oauth-protected-resource":
-			json.NewEncoder(w).Encode(oauthProtectedResource{
+			err := json.NewEncoder(w).Encode(oauthProtectedResource{
 				AuthorizationServers: []string{oauthServerURL + "/.well-known/oauth-authorization-server"},
 			})
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
 		case "/.well-known/oauth-authorization-server":
-			json.NewEncoder(w).Encode(oauthAuthorizationServer{
+			err := json.NewEncoder(w).Encode(oauthAuthorizationServer{
 				Issuer:        "https://example.com",
 				TokenEndpoint: oauthServerURL + "/token",
 				PAREndpoint:   oauthServerURL + "/par",
 				AuthEndpoint:  oauthServerURL + "/auth",
 			})
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
 		default:
 			http.Error(w, "not found", http.StatusNotFound)
 		}
@@ -186,7 +183,11 @@ func TestLoginHandler_PDSResolutionError(t *testing.T) {
 	// Test the case where PDS returns an invalid response format
 	mockPDS := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Return malformed JSON that can't be parsed
-		w.Write([]byte("invalid json"))
+		err := json.NewEncoder(w).Encode(map[string]interface{}{"error": "invalid json"})
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 	}))
 	defer mockPDS.Close()
 
@@ -209,7 +210,11 @@ func TestLoginHandler_InvalidDIDResponse(t *testing.T) {
 	// Setup mock PDS server that returns invalid DID
 	mockPDS := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		resp := atproto.IdentityResolveHandle_Output{Did: "invalid-did"}
-		json.NewEncoder(w).Encode(resp)
+		err := json.NewEncoder(w).Encode(resp)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 	}))
 	defer mockPDS.Close()
 

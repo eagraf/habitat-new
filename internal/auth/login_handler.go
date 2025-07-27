@@ -189,7 +189,12 @@ func (l *loginHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	session.AddFlash(stateJson)
 
 	dpopSession.Save(r, w)
-	session.Save(r, w)
+	err = session.Save(r, w)
+	if err != nil {
+		log.Error().Err(err).Msg("error saving session")
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
 	http.Redirect(w, r, redirect, http.StatusSeeOther)
 }
@@ -212,7 +217,12 @@ func (m *metadataHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Add("Content-Type", "application/json")
-	w.Write(bytes)
+	_, err = w.Write(bytes)
+	if err != nil {
+		log.Error().Err(err).Msg("error writing response")
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 }
 
 // Method implements api.Route.
@@ -235,7 +245,12 @@ func (c *callbackHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	flashes := authSession.Flashes()
-	authSession.Save(r, w)
+	err = authSession.Save(r, w)
+	if err != nil {
+		log.Error().Err(err).Msg("error saving auth session")
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 	if len(flashes) == 0 {
 		http.Error(w, "no state in session", http.StatusBadRequest)
 		return
