@@ -50,7 +50,8 @@ func TestDpopHttpClient_InitialValidNonce(t *testing.T) {
 		require.NoError(t, err, "DPoP token should be valid JWT")
 
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("success"))
+		_, err = w.Write([]byte("success"))
+		require.NoError(t, err)
 	}))
 	defer server.Close()
 
@@ -113,7 +114,8 @@ func TestDpopHttpClient_NoNonceAtBeginning(t *testing.T) {
 
 		// Valid DPoP token with nonce, return success
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("success"))
+		_, err = w.Write([]byte("success"))
+		require.NoError(t, err)
 	}))
 	defer server.Close()
 
@@ -156,9 +158,10 @@ func TestDpopHttpClient_AuthorizationServerNonceError(t *testing.T) {
 			w.Header().Set("DPoP-Nonce", "auth-server-nonce-789")
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(map[string]string{
+			err := json.NewEncoder(w).Encode(map[string]string{
 				"error": "use_dpop_nonce",
 			})
+			require.NoError(t, err)
 			return
 		}
 
@@ -169,9 +172,10 @@ func TestDpopHttpClient_AuthorizationServerNonceError(t *testing.T) {
 			w.Header().Set("DPoP-Nonce", "auth-server-nonce-789")
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(map[string]string{
+			err := json.NewEncoder(w).Encode(map[string]string{
 				"error": "use_dpop_nonce",
 			})
+			require.NoError(t, err)
 			return
 		}
 
@@ -183,15 +187,17 @@ func TestDpopHttpClient_AuthorizationServerNonceError(t *testing.T) {
 			w.Header().Set("DPoP-Nonce", "auth-server-nonce-789")
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(map[string]string{
+			err := json.NewEncoder(w).Encode(map[string]string{
 				"error": "use_dpop_nonce",
 			})
+			require.NoError(t, err)
 			return
 		}
 
 		// Valid DPoP token with nonce, return success
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("success"))
+		_, err = w.Write([]byte("success"))
+		require.NoError(t, err)
 	}))
 	defer server.Close()
 
@@ -255,7 +261,8 @@ func TestDpopHttpClient_WithAccessToken(t *testing.T) {
 		require.Equal(t, expectedHash, claims.AccessTokenHash, "Access token hash should match")
 
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("success"))
+		_, err = w.Write([]byte("success"))
+		require.NoError(t, err)
 	}))
 	defer server.Close()
 
@@ -299,7 +306,8 @@ func TestDpopHttpClient_RequestFormat(t *testing.T) {
 		require.Equal(t, "test-request-body", string(bodyBytes), "Request body should be preserved")
 
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("success"))
+		_, err = w.Write([]byte("success"))
+		require.NoError(t, err)
 	}))
 	defer server.Close()
 
@@ -358,7 +366,8 @@ func TestDpopHttpClient_ErrorHandling(t *testing.T) {
 	// Create test server that returns an error
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("server error"))
+		_, err := w.Write([]byte("server error"))
+		require.NoError(t, err)
 	}))
 	defer server.Close()
 
