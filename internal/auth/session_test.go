@@ -1,0 +1,174 @@
+package auth
+
+import (
+	"net/http/httptest"
+	"testing"
+
+	"github.com/bluesky-social/indigo/atproto/identity"
+	"github.com/gorilla/sessions"
+	"github.com/stretchr/testify/require"
+)
+
+func TestSession(t *testing.T) {
+	// Setup
+	sessionStore := sessions.NewCookieStore([]byte("test-key"))
+	req := httptest.NewRequest("GET", "/test", nil)
+	w := httptest.NewRecorder()
+
+	// Create test data
+	testIdentity := &identity.Identity{
+		DID:    "did:plc:test123",
+		Handle: "test.bsky.app",
+		Services: map[string]identity.Service{
+			"atproto_pds": {
+				Type: "AtprotoPersonalDataServer",
+				URL:  "https://test.pds.com",
+			},
+		},
+	}
+
+	testTokenInfo := &TokenResponse{
+		AccessToken:  "test-access-token",
+		RefreshToken: "test-refresh-token",
+		Scope:        "atproto transition:generic",
+		TokenType:    "Bearer",
+		ExpiresIn:    3600,
+	}
+
+	// Step 1: Create a new session
+	session, err := newHabitatGorillaSession(req, w, sessionStore, testIdentity, "https://test.pds.com")
+	require.NoError(t, err)
+	require.NotNil(t, session)
+
+	// Get the key that was generated during session creation
+	originalKey, err := session.GetDpopKey()
+	require.NoError(t, err)
+	require.NotNil(t, originalKey)
+
+	// Step 2: Set additional fields
+	err = session.SetTokenInfo(testTokenInfo)
+	require.NoError(t, err)
+
+	err = session.SetIssuer("https://test.issuer.com")
+	require.NoError(t, err)
+
+	err = session.SetNonce("test-nonce-123")
+	require.NoError(t, err)
+
+	// Step 3: Save the session to get cookies
+	session.Save(req, w)
+
+	// Step 4: Extract cookies from the response
+	cookies := w.Result().Cookies()
+	require.Len(t, cookies, 1)
+	require.Equal(t, "dpop-session", cookies[0].Name)
+
+	// Step 5: Create a new request with the session cookie
+	newReq := httptest.NewRequest("GET", "/test", nil)
+	newReq.AddCookie(cookies[0])
+	newW := httptest.NewRecorder()
+
+	// Step 6: Retrieve the existing session
+	retrievedSession, err := getExistingHabitatGorillaSession(newReq, newW, sessionStore)
+	require.NoError(t, err)
+	require.NotNil(t, retrievedSession)
+
+	// Step 7: Verify all fields persisted correctly
+
+	// Verify DPoP key
+	retrievedKey, err := retrievedSession.GetDpopKey()
+	require.NoError(t, err)
+	require.NotNil(t, retrievedKey)
+	require.Equal(t, originalKey.D, retrievedKey.D)
+	require.Equal(t, originalKey.PublicKey.X, retrievedKey.PublicKey.X)
+	require.Equal(t, originalKey.PublicKey.Y, retrievedKey.PublicKey.Y)
+
+	// Verify identity
+	retrievedIdentity, err := retrievedSession.GetIdentity()
+	require.NoError(t, err)
+	require.NotNil(t, retrievedIdentity)
+	require.Equal(t, testIdentity.DID, retrievedIdentity.DID)
+	require.Equal(t, testIdentity.Handle, retrievedIdentity.Handle)
+	require.Equal(t, testIdentity.Services["atproto_pds"].URL, retrievedIdentity.Services["atproto_pds"].URL)
+
+	// Verify PDS URL
+	retrievedPDSURL, err := retrievedSession.GetPDSURL()
+	require.NoError(t, err)
+	require.Equal(t, "https://test.pds.com", retrievedPDSURL)
+
+	// Verify token info
+	retrievedTokenInfo, err := retrievedSession.GetTokenInfo()
+	require.NoError(t, err)
+	require.NotNil(t, retrievedTokenInfo)
+	require.Equal(t, testTokenInfo.AccessToken, retrievedTokenInfo.AccessToken)
+	require.Equal(t, testTokenInfo.RefreshToken, retrievedTokenInfo.RefreshToken)
+	require.Equal(t, testTokenInfo.Scope, retrievedTokenInfo.Scope)
+	require.Equal(t, testTokenInfo.TokenType, retrievedTokenInfo.TokenType)
+	require.Equal(t, testTokenInfo.ExpiresIn, retrievedTokenInfo.ExpiresIn)
+
+	// Verify issuer
+	retrievedIssuer, err := retrievedSession.GetIssuer()
+	require.NoError(t, err)
+	require.Equal(t, "https://test.issuer.com", retrievedIssuer)
+
+	// Verify nonce
+	retrievedNonce, err := retrievedSession.GetNonce()
+	require.NoError(t, err)
+	require.Equal(t, "test-nonce-123", retrievedNonce)
+
+	// Step 8: Test the nonce provider adapter
+	provider := NewSessionNonceProvider(retrievedSession)
+	nonce, exists, err := provider.GetNonce()
+	require.NoError(t, err)
+	require.True(t, exists)
+	require.Equal(t, "test-nonce-123", nonce)
+
+	// Step 9: Test setting a new nonce through the provider
+	provider.SetNonce("new-nonce-456")
+	newNonce, exists, err := provider.GetNonce()
+	require.NoError(t, err)
+	require.True(t, exists)
+	require.Equal(t, "new-nonce-456", newNonce)
+
+	// Verify it's also accessible directly from the session
+	directNonce, err := retrievedSession.GetNonce()
+	require.NoError(t, err)
+	require.Equal(t, "new-nonce-456", directNonce)
+}
+
+func TestSessionNonceProvider(t *testing.T) {
+	// Setup
+	sessionStore := sessions.NewCookieStore([]byte("test-key"))
+	req := httptest.NewRequest("GET", "/test", nil)
+	w := httptest.NewRecorder()
+
+	// Create a session
+	session, err := newHabitatGorillaSession(req, w, sessionStore, nil, "https://test.pds.com")
+	require.NoError(t, err)
+
+	// Test 1: NonceProvider with no nonce set
+	provider := NewSessionNonceProvider(session)
+	nonce, exists, err := provider.GetNonce()
+	require.NoError(t, err)
+	require.False(t, exists)
+	require.Empty(t, nonce)
+
+	// Test 2: Set nonce through provider
+	provider.SetNonce("provider-nonce-123")
+	nonce, exists, err = provider.GetNonce()
+	require.NoError(t, err)
+	require.True(t, exists)
+	require.Equal(t, "provider-nonce-123", nonce)
+
+	// Test 3: Verify nonce is accessible directly from session
+	directNonce, err := session.GetNonce()
+	require.NoError(t, err)
+	require.Equal(t, "provider-nonce-123", directNonce)
+
+	// Test 4: Test with empty nonce
+	provider.SetNonce("")
+	nonce, exists, err = provider.GetNonce()
+	require.NoError(t, err)
+	require.True(t, exists)
+	require.Equal(t, "", nonce)
+}
