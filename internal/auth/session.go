@@ -15,6 +15,14 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+type TokenResponse struct {
+	AccessToken  string `json:"access_token"`
+	RefreshToken string `json:"refresh_token"`
+	Scope        string `json:"scope"`
+	TokenType    string `json:"token_type"`
+	ExpiresIn    int    `json:"expires_in"`
+}
+
 type Session interface {
 	GetDpopKey() (*ecdsa.PrivateKey, error)
 	SetDpopKey(*ecdsa.PrivateKey)
@@ -120,7 +128,10 @@ func (s *habitatGorillaSession) Save(r *http.Request, w http.ResponseWriter) {
 	if err != nil {
 		log.Error().Err(err).Msg("error saving session")
 		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte(err.Error()))
+		_, err := w.Write([]byte(err.Error()))
+		if err != nil {
+			log.Error().Err(err).Msg("error writing error to response")
+		}
 	}
 }
 
@@ -266,6 +277,6 @@ func (p *SessionNonceProvider) GetNonce() (string, bool, error) {
 }
 
 // SetNonce implements NonceProvider
-func (p *SessionNonceProvider) SetNonce(nonce string) {
-	p.session.SetNonce(nonce)
+func (p *SessionNonceProvider) SetNonce(nonce string) error {
+	return p.session.SetNonce(nonce)
 }
