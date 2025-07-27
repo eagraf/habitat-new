@@ -193,13 +193,17 @@ func TestOAuthClient_ExchangeCode_RequestParameters(t *testing.T) {
 		}
 
 		// Return success response
-		json.NewEncoder(w).Encode(TokenResponse{
+		err = json.NewEncoder(w).Encode(TokenResponse{
 			AccessToken:  "test-access-token",
 			RefreshToken: "test-refresh-token",
 			Scope:        "atproto transition:generic",
 			TokenType:    "Bearer",
 			ExpiresIn:    3600,
 		})
+		if err != nil {
+			http.Error(w, "internal server error", http.StatusInternalServerError)
+			return
+		}
 	}))
 	defer server.Close()
 
