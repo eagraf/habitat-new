@@ -109,10 +109,10 @@ func TestList(t *testing.T) {
 	require.NoError(t, err)
 
 	exp := map[string][]string{
-		"app.bsky":             []string{"did:2"},
-		"app.bsky.likes":       []string{"did:1"},
-		"app.bsky.posts":       []string{"did:2"},
-		"app.bsky.posts.post1": []string{},
+		"app.bsky":             {"did:2"},
+		"app.bsky.likes":       {"did:1"},
+		"app.bsky.posts":       {"did:2"},
+		"app.bsky.posts.post1": {},
 	}
 
 	for lex, perm := range perms {

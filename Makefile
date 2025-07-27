@@ -66,6 +66,10 @@ install:: $(DEV_HABITAT_PATH)/habitat.yml $(CERT_DIR)/dev_node_cert.pem $(CERT_D
 docker-build:
 	docker compose -f ./build/compose.yml build
 
+# There's an issue when the front end has new dependencies that the package.json and pnpm-lock.yaml are not correctly updated. So rebuild with force no cache.
+docker-build-no-cache:
+	docker compose -f ./build/compose.yml build --no-cache
+
 run-dev: $(PDS_BLOB_DIR) $(CERT_DIR)/dev_root_user_cert.pem $(CERT_DIR)/dev_node_cert.pem $(DEV_HABITAT_CONFIG_PATH) $(PERMS_DIR) $(DEV_HABITAT_ENV_PATH)
 	TOPDIR=$(TOPDIR) \
 	DOCKER_WORKDIR=$(DOCKER_WORKDIR) \

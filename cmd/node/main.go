@@ -15,9 +15,7 @@ import (
 
 	"github.com/bluesky-social/indigo/atproto/syntax"
 	fileadapter "github.com/casbin/casbin/v2/persist/file-adapter"
-	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/client"
-	"github.com/docker/go-connections/nat"
 	"github.com/eagraf/habitat-new/core/state/node"
 	"github.com/eagraf/habitat-new/internal/docker"
 	"github.com/eagraf/habitat-new/internal/node/api"
@@ -106,14 +104,21 @@ func main() {
 	}
 
 	// Generate the list of apps to have installed and started when the node first comes up
-	pdsApp, pdsAppProxyRule := generatePDSAppConfig(nodeConfig)
+	// TODO: remove hard-codes by having this type of config in .yml or something similar
+	pdsProxyRule := &node.ReverseProxyRule{
+		ID:      "pds-app-reverse-proxy-rule",
+		AppID:   "pds-default-app-ID",
+		Type:    "redirect",
+		Matcher: "/xrpc",
+		Target:  fmt.Sprintf("https://%s/xrpc", constants.DefaultPDSHostname),
+	}
 	defaultApps, defaultProxyRules, err := nodeConfig.DefaultApps()
 	if err != nil {
 		log.Fatal().Err(err).Msg("unable to generate proxy rules")
 	}
 
-	apps := append(defaultApps, pdsApp)
-	rules := append(append(defaultProxyRules, pdsAppProxyRule), proxyRules...)
+	apps := defaultApps
+	rules := append(append(defaultProxyRules, pdsProxyRule), proxyRules...)
 
 	initState, initialTransitions, err := initialState(nodeConfig.RootUserCertB64(), apps, rules)
 	if err != nil {
@@ -280,68 +285,6 @@ func main() {
 		log.Err(err).Msg("received error on eg.Wait()")
 	}
 	log.Info().Msg("Finished!")
-}
-
-func generatePDSAppConfig(
-	nodeConfig *config.NodeConfig,
-) (*node.AppInstallation, *node.ReverseProxyRule) {
-	pdsMountDir := filepath.Join(nodeConfig.HabitatAppPath(), "pds")
-
-	// TODO @eagraf - unhardcode as much of this as possible
-	appID := "pds-default-app-ID"
-	return &node.AppInstallation{
-			ID:      appID,
-			Name:    "pds",
-			Version: "1",
-			UserID:  constants.RootUserID,
-			Package: &node.Package{
-				Driver: node.DriverTypeDocker,
-				DriverConfig: map[string]interface{}{
-					"env": []string{
-						fmt.Sprintf("PDS_HOSTNAME=%s", nodeConfig.Domain()),
-						"PDS_DEV_MODE=true",
-						"PDS_DATA_DIRECTORY=/pds",
-						"PDS_BLOBSTORE_DISK_LOCATION=/pds/blocks",
-						"PDS_PLC_ROTATION_KEY_K256_PRIVATE_KEY_HEX=5290bb1866a03fb23b09a6ffd64d21f6a4ebf624eaa301930eeb81740699239c",
-						"PDS_JWT_SECRET=bd6df801372d7058e1ce472305d7fc2e",
-						"PDS_ADMIN_PASSWORD=password",
-						"PDS_BSKY_APP_VIEW_URL=https://api.bsky.app",
-						"PDS_BSKY_APP_VIEW_DID=did:web:api.bsky.app",
-						"PDS_REPORT_SERVICE_URL=https://mod.bsky.app",
-						"PDS_INVITE_REQUIRED=false",
-						"PDS_REPORT_SERVICE_DID=did:plc:ar7c4by46qjdydhdevvrndac",
-						"PDS_CRAWLERS=https://bsky.network",
-						"DEBUG=true",
-					},
-					"mounts": []mount.Mount{
-						{
-							Type:   "bind",
-							Source: pdsMountDir,
-							Target: "/pds",
-						},
-					},
-					"exposed_ports": []string{constants.DefaultPortPDS},
-					"port_bindings": map[nat.Port][]nat.PortBinding{
-						"3000/tcp": {
-							{
-								HostIP:   "0.0.0.0",
-								HostPort: constants.DefaultPortPDS,
-							},
-						},
-					},
-				},
-				RegistryURLBase:    "registry.hub.docker.com",
-				RegistryPackageID:  "ethangraf/pds",
-				RegistryPackageTag: "latest",
-			},
-		},
-		&node.ReverseProxyRule{
-			ID:      "pds-app-reverse-proxy-rule",
-			AppID:   appID,
-			Type:    "redirect",
-			Matcher: "/xrpc",
-			Target:  fmt.Sprintf("https://%s/xrpc", constants.DefaultPDSHostname),
-		}
 }
 
 func generateDefaultReverseProxyRules(config *config.NodeConfig) ([]*node.ReverseProxyRule, error) {
