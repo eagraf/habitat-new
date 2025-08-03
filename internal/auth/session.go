@@ -25,10 +25,10 @@ type TokenResponse struct {
 
 type Session interface {
 	GetDpopKey() (*ecdsa.PrivateKey, error)
-	SetDpopKey(*ecdsa.PrivateKey)
+	SetDpopKey(*ecdsa.PrivateKey) error
 
 	GetNonce() (string, error)
-	SetNonce(string)
+	SetNonce(string) error
 
 	GetTokenInfo() (*TokenResponse, error)
 	SetTokenInfo(*TokenResponse) error
@@ -37,10 +37,10 @@ type Session interface {
 	SetIdentity(*identity.Identity) error
 
 	GetPDSURL() (string, error)
-	SetPDSURL(string)
+	SetPDSURL(string) error
 
 	GetIssuer() (string, error)
-	SetIssuer(string)
+	SetIssuer(string) error
 }
 
 const (
@@ -60,21 +60,18 @@ func (e *ErrorSessionValueNotFound) Error() string {
 	return fmt.Sprintf("session value not found: %s", e.Key)
 }
 
-type habitatGorillaSession struct {
+type cookieSession struct {
+	// Internally, use a Gorilla session to store the session data
 	session *sessions.Session
-
-	// These are needed for saving the session
-	req        *http.Request
-	respWriter http.ResponseWriter
 }
 
-func newHabitatGorillaSession(
+func newCookieSession(
 	r *http.Request,
 	w http.ResponseWriter,
 	sessionStore sessions.Store,
 	id *identity.Identity,
 	pdsURL string,
-) (*habitatGorillaSession, error) {
+) (*cookieSession, error) {
 	session, err := sessionStore.New(r, "dpop-session")
 	if err != nil {
 		return nil, err
@@ -86,7 +83,7 @@ func newHabitatGorillaSession(
 		return nil, err
 	}
 
-	dpopSession := &habitatGorillaSession{session: session, req: r, respWriter: w}
+	dpopSession := &cookieSession{session: session}
 
 	// Use session class methods instead of manually modifying session values
 	err = dpopSession.SetDpopKey(key)
@@ -107,7 +104,7 @@ func newHabitatGorillaSession(
 	return dpopSession, nil
 }
 
-func getExistingHabitatGorillaSession(r *http.Request, w http.ResponseWriter, sessionStore sessions.Store) (*habitatGorillaSession, error) {
+func getCookieSession(r *http.Request, w http.ResponseWriter, sessionStore sessions.Store) (*cookieSession, error) {
 	session, err := sessionStore.Get(r, "dpop-session")
 	if err != nil {
 		return nil, err
@@ -119,11 +116,11 @@ func getExistingHabitatGorillaSession(r *http.Request, w http.ResponseWriter, se
 		return nil, errors.New("invalid/missing key in session")
 	}
 
-	return &habitatGorillaSession{session: session, req: r, respWriter: w}, nil
+	return &cookieSession{session: session}, nil
 }
 
 // Save writes the session out to the response writer. It is designed to be called with defer.
-func (s *habitatGorillaSession) Save(r *http.Request, w http.ResponseWriter) {
+func (s *cookieSession) Save(r *http.Request, w http.ResponseWriter) {
 	err := s.session.Save(r, w)
 	if err != nil {
 		log.Error().Err(err).Msg("error saving session")
@@ -135,7 +132,7 @@ func (s *habitatGorillaSession) Save(r *http.Request, w http.ResponseWriter) {
 	}
 }
 
-func (s *habitatGorillaSession) SetDpopKey(key *ecdsa.PrivateKey) error {
+func (s *cookieSession) SetDpopKey(key *ecdsa.PrivateKey) error {
 	keyBytes, err := x509.MarshalECPrivateKey(key)
 	if err != nil {
 		return err
@@ -144,7 +141,7 @@ func (s *habitatGorillaSession) SetDpopKey(key *ecdsa.PrivateKey) error {
 	return nil
 }
 
-func (s *habitatGorillaSession) GetDpopKey() (*ecdsa.PrivateKey, error) {
+func (s *cookieSession) GetDpopKey() (*ecdsa.PrivateKey, error) {
 	keyBytes, ok := s.session.Values[cKeySessionKey]
 	if !ok {
 		return nil, errors.New("invalid/missing key in session")
@@ -156,7 +153,7 @@ func (s *habitatGorillaSession) GetDpopKey() (*ecdsa.PrivateKey, error) {
 	return x509.ParseECPrivateKey(bytes)
 }
 
-func (s *habitatGorillaSession) SetTokenInfo(tokenResp *TokenResponse) error {
+func (s *cookieSession) SetTokenInfo(tokenResp *TokenResponse) error {
 	marshalled, err := json.Marshal(tokenResp)
 	if err != nil {
 		return err
@@ -167,7 +164,7 @@ func (s *habitatGorillaSession) SetTokenInfo(tokenResp *TokenResponse) error {
 	return nil
 }
 
-func (s *habitatGorillaSession) GetTokenInfo() (*TokenResponse, error) {
+func (s *cookieSession) GetTokenInfo() (*TokenResponse, error) {
 	marshalled, ok := s.session.Values[cTokenInfoSessionKey]
 	if !ok {
 		return nil, &ErrorSessionValueNotFound{Key: cTokenInfoSessionKey}
@@ -184,12 +181,12 @@ func (s *habitatGorillaSession) GetTokenInfo() (*TokenResponse, error) {
 	return &tokenResp, nil
 }
 
-func (s *habitatGorillaSession) SetIssuer(issuer string) error {
+func (s *cookieSession) SetIssuer(issuer string) error {
 	s.session.Values[cIssuerSessionKey] = issuer
 	return nil
 }
 
-func (s *habitatGorillaSession) GetIssuer() (string, error) {
+func (s *cookieSession) GetIssuer() (string, error) {
 	v, ok := s.session.Values[cIssuerSessionKey]
 	if !ok {
 		return "", &ErrorSessionValueNotFound{Key: cIssuerSessionKey}
@@ -201,12 +198,12 @@ func (s *habitatGorillaSession) GetIssuer() (string, error) {
 	return issuer, nil
 }
 
-func (s *habitatGorillaSession) SetPDSURL(pdsURL string) error {
+func (s *cookieSession) SetPDSURL(pdsURL string) error {
 	s.session.Values[cPDSURLSessionKey] = pdsURL
 	return nil
 }
 
-func (s *habitatGorillaSession) GetPDSURL() (string, error) {
+func (s *cookieSession) GetPDSURL() (string, error) {
 	v, ok := s.session.Values[cPDSURLSessionKey]
 	if !ok {
 		return "", &ErrorSessionValueNotFound{Key: cPDSURLSessionKey}
@@ -218,7 +215,7 @@ func (s *habitatGorillaSession) GetPDSURL() (string, error) {
 	return url, nil
 }
 
-func (s *habitatGorillaSession) GetIdentity() (*identity.Identity, error) {
+func (s *cookieSession) GetIdentity() (*identity.Identity, error) {
 	bytes, ok := s.session.Values[cIdentitySessionKey].([]byte)
 	if !ok {
 		return nil, &ErrorSessionValueNotFound{Key: cIdentitySessionKey}
@@ -231,7 +228,7 @@ func (s *habitatGorillaSession) GetIdentity() (*identity.Identity, error) {
 	return &i, nil
 }
 
-func (s *habitatGorillaSession) SetIdentity(id *identity.Identity) error {
+func (s *cookieSession) SetIdentity(id *identity.Identity) error {
 	identityBytes, err := json.Marshal(id)
 	if err != nil {
 		return err
@@ -240,12 +237,12 @@ func (s *habitatGorillaSession) SetIdentity(id *identity.Identity) error {
 	return nil
 }
 
-func (s *habitatGorillaSession) SetNonce(nonce string) error {
+func (s *cookieSession) SetNonce(nonce string) error {
 	s.session.Values[cNonceSessionKey] = nonce
 	return nil
 }
 
-func (s *habitatGorillaSession) GetNonce() (string, error) {
+func (s *cookieSession) GetNonce() (string, error) {
 	v, ok := s.session.Values[cNonceSessionKey]
 	if !ok {
 		return "", &ErrorSessionValueNotFound{Key: cNonceSessionKey}
@@ -259,11 +256,11 @@ func (s *habitatGorillaSession) GetNonce() (string, error) {
 
 // SessionNonceProvider adapts dpopSession to implement NonceProvider
 type SessionNonceProvider struct {
-	session *habitatGorillaSession
+	session *cookieSession
 }
 
 // NewSessionNonceProvider creates a new SessionNonceProvider from a dpopSession
-func NewSessionNonceProvider(session *habitatGorillaSession) *SessionNonceProvider {
+func NewSessionNonceProvider(session *cookieSession) *SessionNonceProvider {
 	return &SessionNonceProvider{session: session}
 }
 

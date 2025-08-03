@@ -9,6 +9,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestSessionInterface(t *testing.T) {
+	var _ Session = &cookieSession{}
+}
+
 func TestSession(t *testing.T) {
 	// Setup
 	sessionStore := sessions.NewCookieStore([]byte("test-key"))
@@ -36,7 +40,7 @@ func TestSession(t *testing.T) {
 	}
 
 	// Step 1: Create a new session
-	session, err := newHabitatGorillaSession(req, w, sessionStore, testIdentity, "https://test.pds.com")
+	session, err := newCookieSession(req, w, sessionStore, testIdentity, "https://test.pds.com")
 	require.NoError(t, err)
 	require.NotNil(t, session)
 
@@ -69,7 +73,7 @@ func TestSession(t *testing.T) {
 	newW := httptest.NewRecorder()
 
 	// Step 6: Retrieve the existing session
-	retrievedSession, err := getExistingHabitatGorillaSession(newReq, newW, sessionStore)
+	retrievedSession, err := getCookieSession(newReq, newW, sessionStore)
 	require.NoError(t, err)
 	require.NotNil(t, retrievedSession)
 
@@ -144,7 +148,7 @@ func TestSessionNonceProvider(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	// Create a session
-	session, err := newHabitatGorillaSession(req, w, sessionStore, nil, "https://test.pds.com")
+	session, err := newCookieSession(req, w, sessionStore, nil, "https://test.pds.com")
 	require.NoError(t, err)
 
 	// Test 1: NonceProvider with no nonce set
