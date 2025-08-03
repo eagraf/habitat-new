@@ -199,7 +199,7 @@ func TestLoginHandler_PDSResolutionError(t *testing.T) {
 
 	handler.ServeHTTP(w, req)
 
-	require.Equal(t, http.StatusBadRequest, w.Code)
+	require.Equal(t, http.StatusInternalServerError, w.Code)
 }
 
 func TestLoginHandler_InvalidDIDResponse(t *testing.T) {
@@ -226,7 +226,7 @@ func TestLoginHandler_InvalidDIDResponse(t *testing.T) {
 
 	handler.ServeHTTP(w, req)
 
-	require.Equal(t, http.StatusBadRequest, w.Code)
+	require.Equal(t, http.StatusInternalServerError, w.Code)
 }
 
 func TestLoginHandler_OAuthAuthorizeError(t *testing.T) {

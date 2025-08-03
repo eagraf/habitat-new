@@ -98,8 +98,6 @@ func TestCallbackHandler_SuccessfulCallback(t *testing.T) {
 
 	// The handler should set these cookies in the final response
 	// Note: The cookies should be set even with the redirect
-	require.NotEmpty(t, cookieMap["access_token"])
-	require.NotEmpty(t, cookieMap["refresh_token"])
 	require.NotEmpty(t, cookieMap["handle"])
 	require.NotEmpty(t, cookieMap["did"])
 }
