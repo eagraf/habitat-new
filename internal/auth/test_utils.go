@@ -179,11 +179,8 @@ func testDpopClient(t *testing.T, identity *identity.Identity) *DpopHttpClient {
 	key, err := dpopSession.GetDpopKey()
 	require.NoError(t, err)
 
-	// Create nonce provider from session
-	nonceProvider := NewSessionNonceProvider(dpopSession)
-
 	// Create real DPoP client with auth server JWK builder
-	return NewDpopHttpClient(key, nonceProvider)
+	return NewDpopHttpClient(key, dpopSession)
 }
 
 // testDpopClientFromSession creates a real DPoP HTTP client from an existing session
@@ -192,11 +189,8 @@ func testDpopClientFromSession(t *testing.T, dpopSession *cookieSession) *DpopHt
 	key, err := dpopSession.GetDpopKey()
 	require.NoError(t, err)
 
-	// Create nonce provider from session
-	nonceProvider := NewSessionNonceProvider(dpopSession)
-
 	// Create real DPoP client with auth server JWK builder
-	return NewDpopHttpClient(key, nonceProvider)
+	return NewDpopHttpClient(key, dpopSession)
 }
 
 // DpopSessionOptions configures the behavior of testDpopSession
