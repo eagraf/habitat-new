@@ -172,7 +172,7 @@ func testDpopClient(t *testing.T, identity *identity.Identity) *DpopHttpClient {
 	w := httptest.NewRecorder()
 
 	// Create a fresh DPoP session
-	dpopSession, err := newHabitatGorillaSession(req, w, sessionStore, identity, "https://test.com")
+	dpopSession, err := newCookieSession(req, w, sessionStore, identity, "https://test.com")
 	require.NoError(t, err)
 
 	// Get the key from the session
@@ -187,7 +187,7 @@ func testDpopClient(t *testing.T, identity *identity.Identity) *DpopHttpClient {
 }
 
 // testDpopClientFromSession creates a real DPoP HTTP client from an existing session
-func testDpopClientFromSession(t *testing.T, dpopSession *habitatGorillaSession) *DpopHttpClient {
+func testDpopClientFromSession(t *testing.T, dpopSession *cookieSession) *DpopHttpClient {
 	// Get the key from the session
 	key, err := dpopSession.GetDpopKey()
 	require.NoError(t, err)
@@ -209,7 +209,7 @@ type DpopSessionOptions struct {
 }
 
 // testDpopSession creates a test DPoP session with configurable options
-func testDpopSession(t *testing.T, opts DpopSessionOptions) *habitatGorillaSession {
+func testDpopSession(t *testing.T, opts DpopSessionOptions) *cookieSession {
 	sessionStore := sessions.NewCookieStore([]byte("test-key"))
 	req := httptest.NewRequest("GET", "/test", nil)
 	w := httptest.NewRecorder()
@@ -222,7 +222,7 @@ func testDpopSession(t *testing.T, opts DpopSessionOptions) *habitatGorillaSessi
 		identity = testIdentity(opts.PdsURL)
 	}
 
-	dpopSession, err := newHabitatGorillaSession(req, w, sessionStore, identity, opts.PdsURL)
+	dpopSession, err := newCookieSession(req, w, sessionStore, identity, opts.PdsURL)
 	require.NoError(t, err)
 
 	// Set issuer if provided
