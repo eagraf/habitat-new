@@ -225,10 +225,6 @@ func testDpopSession(t *testing.T, opts DpopSessionOptions) *habitatGorillaSessi
 	dpopSession, err := newHabitatGorillaSession(req, w, sessionStore, identity, opts.PdsURL)
 	require.NoError(t, err)
 
-	// Set the req and respWriter fields for session operations
-	dpopSession.req = req
-	dpopSession.respWriter = w
-
 	// Set issuer if provided
 	if opts.Issuer != nil {
 		err = dpopSession.SetIssuer(*opts.Issuer)
