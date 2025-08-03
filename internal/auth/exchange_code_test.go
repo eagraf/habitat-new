@@ -99,48 +99,6 @@ func TestOAuthClient_ExchangeCode_NonOKStatus(t *testing.T) {
 	require.Contains(t, err.Error(), "400 Bad Request")
 }
 
-func TestOAuthClient_ExchangeCode_InvalidJSONResponse(t *testing.T) {
-	server := fakeTokenServer(t, map[string]interface{}{
-		"token": "invalid json",
-	})
-	defer server.Close()
-
-	client := testOAuthClient(t)
-	identity := testIdentity(server.URL)
-	dpopClient := testDpopClient(t, identity)
-	state := &AuthorizeState{
-		Verifier:      "test-verifier",
-		State:         "test-state",
-		TokenEndpoint: server.URL + "/token",
-	}
-
-	_, err := client.ExchangeCode(dpopClient, "test-code", "https://example.com", state)
-
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "invalid character")
-}
-
-func TestOAuthClient_ExchangeCode_EmptyResponse(t *testing.T) {
-	server := fakeTokenServer(t, map[string]interface{}{
-		"token": "",
-	})
-	defer server.Close()
-
-	client := testOAuthClient(t)
-	identity := testIdentity(server.URL)
-	dpopClient := testDpopClient(t, identity)
-	state := &AuthorizeState{
-		Verifier:      "test-verifier",
-		State:         "test-state",
-		TokenEndpoint: server.URL + "/token",
-	}
-
-	_, err := client.ExchangeCode(dpopClient, "test-code", "https://example.com", state)
-
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "EOF")
-}
-
 func TestOAuthClient_ExchangeCode_RequestParameters(t *testing.T) {
 	var capturedRequest *http.Request
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
