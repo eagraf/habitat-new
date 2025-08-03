@@ -27,8 +27,8 @@ type Session interface {
 	GetDpopKey() (*ecdsa.PrivateKey, error)
 	SetDpopKey(*ecdsa.PrivateKey) error
 
-	GetNonce() (string, error)
-	SetNonce(string) error
+	GetDpopNonce() (string, error)
+	SetDpopNonce(string) error
 
 	GetTokenInfo() (*TokenResponse, error)
 	SetTokenInfo(*TokenResponse) error
@@ -237,12 +237,12 @@ func (s *cookieSession) SetIdentity(id *identity.Identity) error {
 	return nil
 }
 
-func (s *cookieSession) SetNonce(nonce string) error {
+func (s *cookieSession) SetDpopNonce(nonce string) error {
 	s.session.Values[cNonceSessionKey] = nonce
 	return nil
 }
 
-func (s *cookieSession) GetNonce() (string, error) {
+func (s *cookieSession) GetDpopNonce() (string, error) {
 	v, ok := s.session.Values[cNonceSessionKey]
 	if !ok {
 		return "", &ErrorSessionValueNotFound{Key: cNonceSessionKey}
@@ -254,19 +254,11 @@ func (s *cookieSession) GetNonce() (string, error) {
 	return nonce, nil
 }
 
-// SessionNonceProvider adapts dpopSession to implement NonceProvider
-type SessionNonceProvider struct {
-	session *cookieSession
-}
-
-// NewSessionNonceProvider creates a new SessionNonceProvider from a dpopSession
-func NewSessionNonceProvider(session *cookieSession) *SessionNonceProvider {
-	return &SessionNonceProvider{session: session}
-}
+// The functions below are a little redundant, but they are here to satisfy the NonceProvider interface.
 
 // GetNonce implements NonceProvider
-func (p *SessionNonceProvider) GetNonce() (string, bool, error) {
-	nonce, err := p.session.GetNonce()
+func (s *cookieSession) GetNonce() (string, bool, error) {
+	nonce, err := s.GetDpopNonce()
 	if err != nil {
 		return "", false, nil
 	}
@@ -274,6 +266,6 @@ func (p *SessionNonceProvider) GetNonce() (string, bool, error) {
 }
 
 // SetNonce implements NonceProvider
-func (p *SessionNonceProvider) SetNonce(nonce string) error {
-	return p.session.SetNonce(nonce)
+func (s *cookieSession) SetNonce(nonce string) error {
+	return s.SetDpopNonce(nonce)
 }

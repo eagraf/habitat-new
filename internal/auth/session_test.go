@@ -116,29 +116,9 @@ func TestSession(t *testing.T) {
 	require.Equal(t, "https://test.issuer.com", retrievedIssuer)
 
 	// Verify nonce
-	retrievedNonce, err := retrievedSession.GetNonce()
+	retrievedNonce, err := retrievedSession.GetDpopNonce()
 	require.NoError(t, err)
 	require.Equal(t, "test-nonce-123", retrievedNonce)
-
-	// Step 8: Test the nonce provider adapter
-	provider := NewSessionNonceProvider(retrievedSession)
-	nonce, exists, err := provider.GetNonce()
-	require.NoError(t, err)
-	require.True(t, exists)
-	require.Equal(t, "test-nonce-123", nonce)
-
-	// Step 9: Test setting a new nonce through the provider
-	err = provider.SetNonce("new-nonce-456")
-	require.NoError(t, err)
-	newNonce, exists, err := provider.GetNonce()
-	require.NoError(t, err)
-	require.True(t, exists)
-	require.Equal(t, "new-nonce-456", newNonce)
-
-	// Verify it's also accessible directly from the session
-	directNonce, err := retrievedSession.GetNonce()
-	require.NoError(t, err)
-	require.Equal(t, "new-nonce-456", directNonce)
 }
 
 func TestSessionNonceProvider(t *testing.T) {
@@ -152,29 +132,28 @@ func TestSessionNonceProvider(t *testing.T) {
 	require.NoError(t, err)
 
 	// Test 1: NonceProvider with no nonce set
-	provider := NewSessionNonceProvider(session)
-	nonce, exists, err := provider.GetNonce()
+	nonce, exists, err := session.GetNonce()
 	require.NoError(t, err)
 	require.False(t, exists)
 	require.Empty(t, nonce)
 
 	// Test 2: Set nonce through provider
-	err = provider.SetNonce("provider-nonce-123")
+	err = session.SetNonce("provider-nonce-123")
 	require.NoError(t, err)
-	nonce, exists, err = provider.GetNonce()
+	nonce, exists, err = session.GetNonce()
 	require.NoError(t, err)
 	require.True(t, exists)
 	require.Equal(t, "provider-nonce-123", nonce)
 
 	// Test 3: Verify nonce is accessible directly from session
-	directNonce, err := session.GetNonce()
+	directNonce, err := session.GetDpopNonce()
 	require.NoError(t, err)
 	require.Equal(t, "provider-nonce-123", directNonce)
 
 	// Test 4: Test with empty nonce
-	err = provider.SetNonce("")
+	err = session.SetDpopNonce("")
 	require.NoError(t, err)
-	nonce, exists, err = provider.GetNonce()
+	nonce, exists, err = session.GetNonce()
 	require.NoError(t, err)
 	require.True(t, exists)
 	require.Equal(t, "", nonce)
