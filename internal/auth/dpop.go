@@ -74,10 +74,7 @@ type DpopHttpClient struct {
 // for authentication at login.
 func NewDpopHttpClient(
 	key *ecdsa.PrivateKey,
-<<<<<<< HEAD
 	nonceProvider DpopNonceProvider,
-=======
->>>>>>> 4162390 (Add TODO)
 	options ...DpopOption,
 ) *DpopHttpClient {
 	opts := &DpopOptions{}
