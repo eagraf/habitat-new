@@ -7,6 +7,8 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"context"
+
 	"github.com/bluesky-social/indigo/api/atproto"
 	"github.com/bluesky-social/indigo/atproto/identity"
 	"github.com/bluesky-social/indigo/atproto/syntax"
@@ -113,13 +115,13 @@ func (l *loginHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	id, loginHint, err := l.resolveIdentity(atid, handle)
+	id, loginHint, err := l.resolveIdentity(r.Context(), atid, handle)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	dpopSession, err := newHabitatGorillaSession(r, w, l.sessionStore, id, l.pdsURL)
+	dpopSession, err := newCookieSession(r, w, l.sessionStore, id, l.pdsURL)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -164,15 +166,14 @@ func (l *loginHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, redirect, http.StatusSeeOther)
 }
 
-func (l *loginHandler) resolveIdentity(atID *syntax.AtIdentifier, handle string) (*identity.Identity, *string, error) {
+func (l *loginHandler) resolveIdentity(ctx context.Context, atID *syntax.AtIdentifier, handle string) (*identity.Identity, *string, error) {
 	pdsOnHabitat := doesHandleBelongToDomain(handle, l.habitatNodeDomain)
 	if pdsOnHabitat {
 		client := &xrpc.Client{
 			Host: l.pdsURL,
 		}
-		handle := atID
 		loginHint := &handle
-		resp, err := atproto.IdentityResolveHandle(r.Context(), client, handle)
+		resp, err := atproto.IdentityResolveHandle(ctx, client, handle)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -190,7 +191,7 @@ func (l *loginHandler) resolveIdentity(atID *syntax.AtIdentifier, handle string)
 			},
 		}, loginHint, nil
 	} else {
-		id, err := identity.DefaultDirectory().Lookup(r.Context(), *atid)
+		id, err := identity.DefaultDirectory().Lookup(ctx, *atID)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -270,7 +271,7 @@ func (c *callbackHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	code := r.URL.Query().Get("code")
 	issuer := r.URL.Query().Get("iss")
 
-	dpopSession, err := getExistingHabitatGorillaSession(r, w, c.sessionStore)
+	dpopSession, err := getCookieSession(r, w, c.sessionStore)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

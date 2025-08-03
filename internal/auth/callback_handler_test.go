@@ -56,10 +56,8 @@ func TestCallbackHandler_SuccessfulCallback(t *testing.T) {
 
 	// Create DPoP session with the same request and response writer
 	identity := testIdentity(fakeOAuthServer.URL)
-	dpopSession, err := newHabitatGorillaSession(req, w, sessionStore, identity, fakeOAuthServer.URL)
+	dpopSession, err := newCookieSession(req, w, sessionStore, identity, fakeOAuthServer.URL)
 	require.NoError(t, err)
-	dpopSession.req = req
-	dpopSession.respWriter = w
 	err = dpopSession.SetIssuer("https://example.com")
 	require.NoError(t, err)
 
