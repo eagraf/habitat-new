@@ -134,21 +134,16 @@ func (l *loginHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Create nonce provider from session
-	nonceProvider := NewSessionNonceProvider(dpopSession)
-
-	dpopClient := NewDpopHttpClient(key, nonceProvider)
+	dpopClient := NewDpopHttpClient(key, dpopSession)
 
 	redirect, state, err := l.oauthClient.Authorize(dpopClient, id, loginHint)
 	if err != nil {
-		log.Error().Err(err).Str("identifier", handle).Msg("error authorizing user")
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	stateJson, err := json.Marshal(state)
 	if err != nil {
-		log.Error().Err(err).Str("identifier", handle).Msg("error marshalling state")
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -158,7 +153,6 @@ func (l *loginHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	dpopSession.Save(r, w)
 	err = session.Save(r, w)
 	if err != nil {
-		log.Error().Err(err).Msg("error saving session")
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -240,14 +234,12 @@ func (c *callbackHandler) Pattern() string {
 func (c *callbackHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	authSession, err := c.sessionStore.Get(r, "auth-session")
 	if err != nil {
-		log.Error().Err(err).Msg("error getting session")
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	flashes := authSession.Flashes()
 	err = authSession.Save(r, w)
 	if err != nil {
-		log.Error().Err(err).Msg("error saving auth session")
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -285,14 +277,10 @@ func (c *callbackHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Create nonce provider from session
-	nonceProvider := NewSessionNonceProvider(dpopSession)
-
-	dpopClient := NewDpopHttpClient(key, nonceProvider)
+	dpopClient := NewDpopHttpClient(key, dpopSession)
 
 	tokenResp, err := c.oauthClient.ExchangeCode(dpopClient, code, issuer, &state)
 	if err != nil {
-		log.Error().Err(err).Str("code", code).Str("issuer", issuer).Msg("error exchanging code")
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
