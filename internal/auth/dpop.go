@@ -23,10 +23,6 @@ type NonceProvider interface {
 	SetNonce(nonce string) error
 }
 
-// DpopJWKBuilder is a function that builds a DPoP JWT for a given request type.
-// DpopHttpClient will invoke it before making a request to get a signed JWK with proper info.
-type DpopJWKBuilder func(req *http.Request, signer jose.Signer, nonce string) (string, error)
-
 type dpopClaims struct {
 	jwt.Claims
 
