@@ -57,7 +57,7 @@ func setupTestRequestWithSession(t *testing.T, sessionStore sessions.Store, opts
 	session, err := sessionStore.New(sessionReq, "dpop-session")
 	require.NoError(t, err)
 
-	dpopSession := &habitatGorillaSession{session: session, req: sessionReq, respWriter: sessionW}
+	dpopSession := &cookieSession{session: session}
 
 	err = dpopSession.SetDpopKey(key)
 	require.NoError(t, err)

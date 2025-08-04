@@ -29,7 +29,7 @@ func (h *xrpcBrokerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Note: this is effectively acting as a reverse proxy in front of the XRPC endpoint.
 	// Using the main Habitat reverse proxy isn't sufficient because of the additional
 	// roundtrips DPoP requires.
-	dpopSession, err := getExistingHabitatGorillaSession(r, w, h.sessionStore)
+	dpopSession, err := getCookieSession(r, w, h.sessionStore)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -73,10 +73,7 @@ func (h *xrpcBrokerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	//r.Header.Set("Authorization", "DPoP "+accessToken)
 	r.Header.Del("Content-Length")
 
-	// Create nonce provider from session
-	nonceProvider := NewSessionNonceProvider(dpopSession)
-
-	pdsDpopClient := NewDpopHttpClient(key, NewSessionNonceProvider(dpopSession), WithHTU(htu), WithAccessToken(accessToken))
+	pdsDpopClient := NewDpopHttpClient(key, dpopSession, WithHTU(htu), WithAccessToken(accessToken))
 
 	// Copy the request body without consuming it
 	bodyCopy, err := io.ReadAll(r.Body)
@@ -97,7 +94,7 @@ func (h *xrpcBrokerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Check if we need to refresh the token
 	if resp.StatusCode == http.StatusUnauthorized {
 		// Try to refresh the token
-		authDpopClient := NewDpopHttpClient(key, nonceProvider)
+		authDpopClient := NewDpopHttpClient(key, dpopSession)
 		identity, err := dpopSession.GetIdentity()
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -121,7 +118,7 @@ func (h *xrpcBrokerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 		r.Body = io.NopCloser(bytes.NewBuffer(bodyCopy))
 
-		refreshedDpopClient := NewDpopHttpClient(key, nonceProvider, WithHTU(htu), WithAccessToken(tokenResp.AccessToken))
+		refreshedDpopClient := NewDpopHttpClient(key, dpopSession, WithHTU(htu), WithAccessToken(tokenResp.AccessToken))
 
 		// Retry the request with the new token
 		resp, err = refreshedDpopClient.Do(r)
