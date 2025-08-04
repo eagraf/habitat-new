@@ -24,19 +24,6 @@ const Header = ({ isAuthenticated: isOauthAuthenticated, handle: oauthHandle, on
         <ul>
           <li><Link to="/">🌱 Habitat</Link></li>
         </ul>
-        {isOauthAuthenticated ? (
-          <ul>
-            <li>
-              <button onClick={onOauthLogout}>
-                OAuth Logout {oauthHandle && `(${formatHandle(oauthHandle)})`}
-              </button>
-            </li>
-          </ul>
-        ) : (
-          <ul>
-            <li><Link to="/oauth-login"><button>OAuth Login</button></Link></li>
-          </ul>
-        )}
         {isAuthenticated && (
           <ul >
             <li>
