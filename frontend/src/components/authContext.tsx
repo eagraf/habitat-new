@@ -28,7 +28,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const [handle, setHandle] = useState<string | null>(null);
 
     useEffect(() => {
-        setIsAuthenticated(isAuthenticatedHelper());
+        const did = Cookies.get('did');
+        const authed = did ? true : false;
+        setIsAuthenticated(authed);
     }, []);
 
     useEffect(() => {
