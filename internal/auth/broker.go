@@ -2,7 +2,6 @@ package auth
 
 import (
 	"bytes"
-	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -29,7 +28,7 @@ func (h *xrpcBrokerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Note: this is effectively acting as a reverse proxy in front of the XRPC endpoint.
 	// Using the main Habitat reverse proxy isn't sufficient because of the additional
 	// roundtrips DPoP requires.
-	dpopSession, err := getCookieSession(r, w, h.sessionStore)
+	dpopSession, err := getCookieSession(r, h.sessionStore)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -39,15 +38,22 @@ func (h *xrpcBrokerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	htu := path.Join(h.htuURL, r.URL.Path)
 
 	// Get the key from the session
-	key, err := dpopSession.GetDpopKey()
+	key, ok, err := dpopSession.GetDpopKey()
+	if !ok {
+		http.Error(w, "no key in session", http.StatusInternalServerError)
+		return
+	}
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	// Get PDS URL from session
-	pdsURL, err := dpopSession.GetPDSURL()
-	fmt.Println("PDS URL", pdsURL)
+	pdsURL, ok, err := dpopSession.GetPDSURL()
+	if !ok {
+		http.Error(w, "no pds url in session", http.StatusInternalServerError)
+		return
+	}
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -64,7 +70,11 @@ func (h *xrpcBrokerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	r.RequestURI = ""
 	r.URL.Scheme = parsedPDSURL.Scheme
 	r.URL.Host = parsedPDSURL.Host
-	tokenInfo, err := dpopSession.GetTokenInfo()
+	tokenInfo, ok, err := dpopSession.GetTokenInfo()
+	if !ok {
+		http.Error(w, "no token info in session", http.StatusInternalServerError)
+		return
+	}
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -95,12 +105,20 @@ func (h *xrpcBrokerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if resp.StatusCode == http.StatusUnauthorized {
 		// Try to refresh the token
 		authDpopClient := NewDpopHttpClient(key, dpopSession)
-		identity, err := dpopSession.GetIdentity()
+		identity, ok, err := dpopSession.GetIdentity()
+		if !ok {
+			http.Error(w, "no identity in session", http.StatusInternalServerError)
+			return
+		}
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		issuer, err := dpopSession.GetIssuer()
+		issuer, ok, err := dpopSession.GetIssuer()
+		if !ok {
+			http.Error(w, "no issuer in session", http.StatusInternalServerError)
+			return
+		}
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
