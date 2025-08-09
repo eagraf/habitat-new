@@ -104,7 +104,7 @@ func (o *oauthClientImpl) Authorize(
 		return "", nil, err
 	}
 
-	serverMetadata, err := fetchOauthAuthorizationServer(i, pr)
+	serverMetadata, err := fetchOauthAuthorizationServer(pr)
 	if err != nil {
 		return "", nil, err
 	}
@@ -214,7 +214,7 @@ func (o *oauthClientImpl) RefreshToken(dpopClient *DpopHttpClient, identity *ide
 		return nil, err
 	}
 
-	serverMetadata, err := fetchOauthAuthorizationServer(identity, pr)
+	serverMetadata, err := fetchOauthAuthorizationServer(pr)
 	if err != nil {
 		return nil, err
 	}
@@ -305,22 +305,22 @@ type oauthAuthorizationServer struct {
 }
 
 func fetchOauthAuthorizationServer(
-	i *identity.Identity,
 	pr *oauthProtectedResource,
 ) (*oauthAuthorizationServer, error) {
 	if len(pr.AuthorizationServers) == 0 {
 		return nil, errors.New("no authorization server found")
 	}
-	url, err := url.Parse(pr.AuthorizationServers[0])
+	authServerURL, err := url.Parse(pr.AuthorizationServers[0])
 	if err != nil {
 		return nil, err
 	}
-	if url.Host == "localhost:3000" {
-		url.Host = "host.docker.internal:5001"
+
+	authServerURL.Path = "/.well-known/oauth-authorization-server"
+	if err != nil {
+		return nil, err
 	}
-	url.Path = "/.well-known/oauth-authorization-server"
 	resp, err := http.DefaultClient.Get(
-		url.String(),
+		authServerURL.String(),
 	)
 	if err != nil {
 		return nil, err
