@@ -24,22 +24,22 @@ type TokenResponse struct {
 }
 
 type Session interface {
-	GetDpopKey() (*ecdsa.PrivateKey, error)
+	GetDpopKey() (*ecdsa.PrivateKey, bool, error)
 	SetDpopKey(*ecdsa.PrivateKey) error
 
-	GetDpopNonce() (string, error)
+	GetDpopNonce() (string, bool, error)
 	SetDpopNonce(string) error
 
-	GetTokenInfo() (*TokenResponse, error)
+	GetTokenInfo() (*TokenResponse, bool, error)
 	SetTokenInfo(*TokenResponse) error
 
-	GetIdentity() (*identity.Identity, error)
+	GetIdentity() (*identity.Identity, bool, error)
 	SetIdentity(*identity.Identity) error
 
-	GetPDSURL() (string, error)
+	GetPDSURL() (string, bool, error)
 	SetPDSURL(string) error
 
-	GetIssuer() (string, error)
+	GetIssuer() (string, bool, error)
 	SetIssuer(string) error
 }
 
@@ -67,7 +67,6 @@ type cookieSession struct {
 
 func newCookieSession(
 	r *http.Request,
-	w http.ResponseWriter,
 	sessionStore sessions.Store,
 	id *identity.Identity,
 	pdsURL string,
@@ -104,7 +103,7 @@ func newCookieSession(
 	return dpopSession, nil
 }
 
-func getCookieSession(r *http.Request, w http.ResponseWriter, sessionStore sessions.Store) (*cookieSession, error) {
+func getCookieSession(r *http.Request, sessionStore sessions.Store) (*cookieSession, error) {
 	session, err := sessionStore.Get(r, "dpop-session")
 	if err != nil {
 		return nil, err
@@ -141,16 +140,20 @@ func (s *cookieSession) SetDpopKey(key *ecdsa.PrivateKey) error {
 	return nil
 }
 
-func (s *cookieSession) GetDpopKey() (*ecdsa.PrivateKey, error) {
+func (s *cookieSession) GetDpopKey() (*ecdsa.PrivateKey, bool, error) {
 	keyBytes, ok := s.session.Values[cKeySessionKey]
 	if !ok {
-		return nil, errors.New("invalid/missing key in session")
+		return nil, false, nil
 	}
-	bytes, ok := keyBytes.([]byte)
-	if !ok {
-		return nil, errors.New("key in session is not a []byte")
+	bytes, okCast := keyBytes.([]byte)
+	if !okCast {
+		return nil, false, errors.New("key in session is not a []byte")
 	}
-	return x509.ParseECPrivateKey(bytes)
+	key, err := x509.ParseECPrivateKey(bytes)
+	if err != nil {
+		return nil, false, err
+	}
+	return key, true, nil
 }
 
 func (s *cookieSession) SetTokenInfo(tokenResp *TokenResponse) error {
@@ -164,21 +167,21 @@ func (s *cookieSession) SetTokenInfo(tokenResp *TokenResponse) error {
 	return nil
 }
 
-func (s *cookieSession) GetTokenInfo() (*TokenResponse, error) {
+func (s *cookieSession) GetTokenInfo() (*TokenResponse, bool, error) {
 	marshalled, ok := s.session.Values[cTokenInfoSessionKey]
 	if !ok {
-		return nil, &ErrorSessionValueNotFound{Key: cTokenInfoSessionKey}
+		return nil, false, nil
 	}
-	bytes, ok := marshalled.([]byte)
-	if !ok {
-		return nil, errors.New("token info in session is not a []byte")
+	bytes, okCast := marshalled.([]byte)
+	if !okCast {
+		return nil, false, errors.New("token info in session is not a []byte")
 	}
 	var tokenResp TokenResponse
 	err := json.Unmarshal(bytes, &tokenResp)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
-	return &tokenResp, nil
+	return &tokenResp, true, nil
 }
 
 func (s *cookieSession) SetIssuer(issuer string) error {
@@ -186,16 +189,16 @@ func (s *cookieSession) SetIssuer(issuer string) error {
 	return nil
 }
 
-func (s *cookieSession) GetIssuer() (string, error) {
+func (s *cookieSession) GetIssuer() (string, bool, error) {
 	v, ok := s.session.Values[cIssuerSessionKey]
 	if !ok {
-		return "", &ErrorSessionValueNotFound{Key: cIssuerSessionKey}
+		return "", false, nil
 	}
-	issuer, ok := v.(string)
-	if !ok {
-		return "", errors.New("issuer in session is not a string")
+	issuer, okCast := v.(string)
+	if !okCast {
+		return "", false, errors.New("issuer in session is not a string")
 	}
-	return issuer, nil
+	return issuer, true, nil
 }
 
 func (s *cookieSession) SetPDSURL(pdsURL string) error {
@@ -203,29 +206,33 @@ func (s *cookieSession) SetPDSURL(pdsURL string) error {
 	return nil
 }
 
-func (s *cookieSession) GetPDSURL() (string, error) {
+func (s *cookieSession) GetPDSURL() (string, bool, error) {
 	v, ok := s.session.Values[cPDSURLSessionKey]
 	if !ok {
-		return "", &ErrorSessionValueNotFound{Key: cPDSURLSessionKey}
+		return "", false, nil
 	}
-	url, ok := v.(string)
-	if !ok {
-		return "", errors.New("PDS URL in session is not a string")
+	url, okCast := v.(string)
+	if !okCast {
+		return "", false, errors.New("PDS URL in session is not a string")
 	}
-	return url, nil
+	return url, true, nil
 }
 
-func (s *cookieSession) GetIdentity() (*identity.Identity, error) {
-	bytes, ok := s.session.Values[cIdentitySessionKey].([]byte)
+func (s *cookieSession) GetIdentity() (*identity.Identity, bool, error) {
+	v, ok := s.session.Values[cIdentitySessionKey]
 	if !ok {
-		return nil, &ErrorSessionValueNotFound{Key: cIdentitySessionKey}
+		return nil, false, nil
+	}
+	bytes, okCast := v.([]byte)
+	if !okCast {
+		return nil, false, errors.New("identity in session is not a []byte")
 	}
 	var i identity.Identity
 	err := json.Unmarshal(bytes, &i)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
-	return &i, nil
+	return &i, true, nil
 }
 
 func (s *cookieSession) SetIdentity(id *identity.Identity) error {
@@ -242,30 +249,14 @@ func (s *cookieSession) SetDpopNonce(nonce string) error {
 	return nil
 }
 
-func (s *cookieSession) GetDpopNonce() (string, error) {
+func (s *cookieSession) GetDpopNonce() (string, bool, error) {
 	v, ok := s.session.Values[cNonceSessionKey]
 	if !ok {
-		return "", &ErrorSessionValueNotFound{Key: cNonceSessionKey}
-	}
-	nonce, ok := v.(string)
-	if !ok {
-		return "", errors.New("nonce in session is not a string")
-	}
-	return nonce, nil
-}
-
-// The functions below are a little redundant, but they are here to satisfy the NonceProvider interface.
-
-// GetNonce implements NonceProvider
-func (s *cookieSession) GetNonce() (string, bool, error) {
-	nonce, err := s.GetDpopNonce()
-	if err != nil {
 		return "", false, nil
 	}
+	nonce, okCast := v.(string)
+	if !okCast {
+		return "", false, errors.New("nonce in session is not a string")
+	}
 	return nonce, true, nil
-}
-
-// SetNonce implements NonceProvider
-func (s *cookieSession) SetNonce(nonce string) error {
-	return s.SetDpopNonce(nonce)
 }

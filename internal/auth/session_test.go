@@ -40,13 +40,14 @@ func TestSession(t *testing.T) {
 	}
 
 	// Step 1: Create a new session
-	session, err := newCookieSession(req, w, sessionStore, testIdentity, "https://test.pds.com")
+	session, err := newCookieSession(req, sessionStore, testIdentity, "https://test.pds.com")
 	require.NoError(t, err)
 	require.NotNil(t, session)
 
 	// Get the key that was generated during session creation
-	originalKey, err := session.GetDpopKey()
+	originalKey, ok, err := session.GetDpopKey()
 	require.NoError(t, err)
+	require.True(t, ok)
 	require.NotNil(t, originalKey)
 
 	// Step 2: Set additional fields
@@ -56,7 +57,7 @@ func TestSession(t *testing.T) {
 	err = session.SetIssuer("https://test.issuer.com")
 	require.NoError(t, err)
 
-	err = session.SetNonce("test-nonce-123")
+	err = session.SetDpopNonce("test-nonce-123")
 	require.NoError(t, err)
 
 	// Step 3: Save the session to get cookies
@@ -70,39 +71,42 @@ func TestSession(t *testing.T) {
 	// Step 5: Create a new request with the session cookie
 	newReq := httptest.NewRequest("GET", "/test", nil)
 	newReq.AddCookie(cookies[0])
-	newW := httptest.NewRecorder()
 
 	// Step 6: Retrieve the existing session
-	retrievedSession, err := getCookieSession(newReq, newW, sessionStore)
+	retrievedSession, err := getCookieSession(newReq, sessionStore)
 	require.NoError(t, err)
 	require.NotNil(t, retrievedSession)
 
 	// Step 7: Verify all fields persisted correctly
 
 	// Verify DPoP key
-	retrievedKey, err := retrievedSession.GetDpopKey()
+	retrievedKey, ok, err := retrievedSession.GetDpopKey()
 	require.NoError(t, err)
+	require.True(t, ok)
 	require.NotNil(t, retrievedKey)
 	require.Equal(t, originalKey.D, retrievedKey.D)
 	require.Equal(t, originalKey.PublicKey.X, retrievedKey.PublicKey.X)
 	require.Equal(t, originalKey.PublicKey.Y, retrievedKey.PublicKey.Y)
 
 	// Verify identity
-	retrievedIdentity, err := retrievedSession.GetIdentity()
+	retrievedIdentity, ok, err := retrievedSession.GetIdentity()
 	require.NoError(t, err)
+	require.True(t, ok)
 	require.NotNil(t, retrievedIdentity)
 	require.Equal(t, testIdentity.DID, retrievedIdentity.DID)
 	require.Equal(t, testIdentity.Handle, retrievedIdentity.Handle)
 	require.Equal(t, testIdentity.Services["atproto_pds"].URL, retrievedIdentity.Services["atproto_pds"].URL)
 
 	// Verify PDS URL
-	retrievedPDSURL, err := retrievedSession.GetPDSURL()
+	retrievedPDSURL, ok, err := retrievedSession.GetPDSURL()
 	require.NoError(t, err)
+	require.True(t, ok)
 	require.Equal(t, "https://test.pds.com", retrievedPDSURL)
 
 	// Verify token info
-	retrievedTokenInfo, err := retrievedSession.GetTokenInfo()
+	retrievedTokenInfo, ok, err := retrievedSession.GetTokenInfo()
 	require.NoError(t, err)
+	require.True(t, ok)
 	require.NotNil(t, retrievedTokenInfo)
 	require.Equal(t, testTokenInfo.AccessToken, retrievedTokenInfo.AccessToken)
 	require.Equal(t, testTokenInfo.RefreshToken, retrievedTokenInfo.RefreshToken)
@@ -111,50 +115,14 @@ func TestSession(t *testing.T) {
 	require.Equal(t, testTokenInfo.ExpiresIn, retrievedTokenInfo.ExpiresIn)
 
 	// Verify issuer
-	retrievedIssuer, err := retrievedSession.GetIssuer()
+	retrievedIssuer, ok, err := retrievedSession.GetIssuer()
 	require.NoError(t, err)
+	require.True(t, ok)
 	require.Equal(t, "https://test.issuer.com", retrievedIssuer)
 
 	// Verify nonce
-	retrievedNonce, err := retrievedSession.GetDpopNonce()
+	retrievedNonce, ok, err := retrievedSession.GetDpopNonce()
 	require.NoError(t, err)
+	require.True(t, ok)
 	require.Equal(t, "test-nonce-123", retrievedNonce)
-}
-
-func TestSessionNonceProvider(t *testing.T) {
-	// Setup
-	sessionStore := sessions.NewCookieStore([]byte("test-key"))
-	req := httptest.NewRequest("GET", "/test", nil)
-	w := httptest.NewRecorder()
-
-	// Create a session
-	session, err := newCookieSession(req, w, sessionStore, nil, "https://test.pds.com")
-	require.NoError(t, err)
-
-	// Test 1: NonceProvider with no nonce set
-	nonce, exists, err := session.GetNonce()
-	require.NoError(t, err)
-	require.False(t, exists)
-	require.Empty(t, nonce)
-
-	// Test 2: Set nonce through provider
-	err = session.SetNonce("provider-nonce-123")
-	require.NoError(t, err)
-	nonce, exists, err = session.GetNonce()
-	require.NoError(t, err)
-	require.True(t, exists)
-	require.Equal(t, "provider-nonce-123", nonce)
-
-	// Test 3: Verify nonce is accessible directly from session
-	directNonce, err := session.GetDpopNonce()
-	require.NoError(t, err)
-	require.Equal(t, "provider-nonce-123", directNonce)
-
-	// Test 4: Test with empty nonce
-	err = session.SetDpopNonce("")
-	require.NoError(t, err)
-	nonce, exists, err = session.GetNonce()
-	require.NoError(t, err)
-	require.True(t, exists)
-	require.Equal(t, "", nonce)
 }
