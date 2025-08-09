@@ -121,14 +121,18 @@ func (l *loginHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	dpopSession, err := newCookieSession(r, w, l.sessionStore, id, l.pdsURL)
+	dpopSession, err := newCookieSession(r, l.sessionStore, id, l.pdsURL)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	// Get the key from the session
-	key, err := dpopSession.GetDpopKey()
+	key, ok, err := dpopSession.GetDpopKey()
+	if !ok {
+		http.Error(w, "no key in session", http.StatusInternalServerError)
+		return
+	}
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -263,7 +267,7 @@ func (c *callbackHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	code := r.URL.Query().Get("code")
 	issuer := r.URL.Query().Get("iss")
 
-	dpopSession, err := getCookieSession(r, w, c.sessionStore)
+	dpopSession, err := getCookieSession(r, c.sessionStore)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -271,7 +275,11 @@ func (c *callbackHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer dpopSession.Save(r, w)
 
 	// Get the key from the session
-	key, err := dpopSession.GetDpopKey()
+	key, ok, err := dpopSession.GetDpopKey()
+	if !ok {
+		http.Error(w, "no key in session", http.StatusInternalServerError)
+		return
+	}
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -296,7 +304,11 @@ func (c *callbackHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	identity, err := dpopSession.GetIdentity()
+	identity, ok, err := dpopSession.GetIdentity()
+	if !ok {
+		http.Error(w, "no identity in session", http.StatusInternalServerError)
+		return
+	}
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -316,7 +328,11 @@ func (c *callbackHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		SameSite: http.SameSiteLaxMode,
 	})
 
-	pdsURL, err := dpopSession.GetPDSURL()
+	pdsURL, ok, err := dpopSession.GetPDSURL()
+	if !ok {
+		http.Error(w, "no pds url in session", http.StatusInternalServerError)
+		return
+	}
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
