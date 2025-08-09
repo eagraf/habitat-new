@@ -2,6 +2,7 @@ package auth
 
 import (
 	"bytes"
+	"errors"
 	"io"
 	"net/http"
 	"net/url"
@@ -35,66 +36,28 @@ func (h *xrpcBrokerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	defer dpopSession.Save(r, w)
 
-	htu := path.Join(h.htuURL, r.URL.Path)
-
-	// Get the key from the session
-	key, ok, err := dpopSession.GetDpopKey()
-	if !ok {
-		http.Error(w, "no key in session", http.StatusInternalServerError)
-		return
-	}
+	pdsDpopClient, err := h.getForwardingDpopClient(r, dpopSession)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	// Get PDS URL from session
-	pdsURL, ok, err := dpopSession.GetPDSURL()
-	if !ok {
-		http.Error(w, "no pds url in session", http.StatusInternalServerError)
-		return
-	}
+	forwardReq, err := h.getForwardReq(r, dpopSession)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-
-	// Parse PDS URL to get host and scheme
-	parsedPDSURL, err := url.Parse(pdsURL)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	// Unset the request URI (can't be set when used as a client)
-	r.RequestURI = ""
-	r.URL.Scheme = parsedPDSURL.Scheme
-	r.URL.Host = parsedPDSURL.Host
-	tokenInfo, ok, err := dpopSession.GetTokenInfo()
-	if !ok {
-		http.Error(w, "no token info in session", http.StatusInternalServerError)
-		return
-	}
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	accessToken := tokenInfo.AccessToken
-	//r.Header.Set("Authorization", "DPoP "+accessToken)
-	r.Header.Del("Content-Length")
-
-	pdsDpopClient := NewDpopHttpClient(key, dpopSession, WithHTU(htu), WithAccessToken(accessToken))
 
 	// Copy the request body without consuming it
-	bodyCopy, err := io.ReadAll(r.Body)
+	bodyCopy, err := io.ReadAll(forwardReq.Body)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	r.Body = io.NopCloser(bytes.NewBuffer(bodyCopy))
+	forwardReq.Body = io.NopCloser(bytes.NewBuffer(bodyCopy))
 
 	// Forward the request to the PDS
-	resp, err := pdsDpopClient.Do(r)
+	resp, err := pdsDpopClient.Do(forwardReq)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -103,40 +66,24 @@ func (h *xrpcBrokerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// Check if we need to refresh the token
 	if resp.StatusCode == http.StatusUnauthorized {
-		// Try to refresh the token
-		authDpopClient := NewDpopHttpClient(key, dpopSession)
-		identity, ok, err := dpopSession.GetIdentity()
-		if !ok {
-			http.Error(w, "no identity in session", http.StatusInternalServerError)
-			return
-		}
+		err = h.refreshSession(dpopSession)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		issuer, ok, err := dpopSession.GetIssuer()
-		if !ok {
-			http.Error(w, "no issuer in session", http.StatusInternalServerError)
-			return
-		}
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		tokenResp, err := h.oauthClient.RefreshToken(authDpopClient, identity, issuer, tokenInfo.RefreshToken)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		err = dpopSession.SetTokenInfo(tokenResp)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			http.Error(w, err.Error(), http.StatusUnauthorized)
 			return
 		}
 
-		r.Body = io.NopCloser(bytes.NewBuffer(bodyCopy))
+		forwardReq, err = h.getForwardReq(r, dpopSession)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		forwardReq.Body = io.NopCloser(bytes.NewBuffer(bodyCopy))
 
-		refreshedDpopClient := NewDpopHttpClient(key, dpopSession, WithHTU(htu), WithAccessToken(tokenResp.AccessToken))
+		refreshedDpopClient, err := h.getForwardingDpopClient(r, dpopSession)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 
 		// Retry the request with the new token
 		resp, err = refreshedDpopClient.Do(r)
@@ -163,4 +110,81 @@ func (h *xrpcBrokerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if err == http.ErrBodyReadAfterClose {
 		return
 	}
+}
+
+func (h *xrpcBrokerHandler) getForwardReq(r *http.Request, dpopSession *cookieSession) (*http.Request, error) {
+	// Clone the initial request. Note this only makes a shallow copy of the body
+	newReq := r.Clone(r.Context())
+
+	// Get PDS URL from session
+	pdsURL, ok, err := dpopSession.GetPDSURL()
+	if !ok || err != nil {
+		return nil, errors.New("no pds url found in session")
+	}
+
+	// Parse PDS URL to get host and scheme
+	parsedPDSURL, err := url.Parse(pdsURL)
+	if err != nil {
+		return nil, err
+	}
+
+	// Unset the request URI (can't be set when used as a client)
+	newReq.RequestURI = ""
+	newReq.URL.Scheme = parsedPDSURL.Scheme
+	newReq.URL.Host = parsedPDSURL.Host
+	newReq.Header.Del("Content-Length")
+
+	return newReq, nil
+}
+
+func (h *xrpcBrokerHandler) getForwardingDpopClient(r *http.Request, dpopSession *cookieSession) (*DpopHttpClient, error) {
+	htu := path.Join(h.htuURL, r.URL.Path)
+
+	// Get the key from the session
+	key, ok, err := dpopSession.GetDpopKey()
+	if !ok || err != nil {
+		return nil, errors.New("no key in session")
+	}
+
+	tokenInfo, ok, err := dpopSession.GetTokenInfo()
+	if !ok || err != nil {
+		return nil, errors.New("no token info in session")
+	}
+	accessToken := tokenInfo.AccessToken
+
+	return NewDpopHttpClient(key, dpopSession, WithHTU(htu), WithAccessToken(accessToken)), nil
+}
+
+func (h *xrpcBrokerHandler) refreshSession(dpopSession *cookieSession) error {
+	key, ok, err := dpopSession.GetDpopKey()
+	if !ok || err != nil {
+		return errors.New("no key in session")
+	}
+
+	authDpopClient := NewDpopHttpClient(key, dpopSession)
+	identity, ok, err := dpopSession.GetIdentity()
+	if !ok || err != nil {
+		return errors.New("no identity in session")
+	}
+
+	issuer, ok, err := dpopSession.GetIssuer()
+	if !ok || err != nil {
+		return errors.New("no issuer in session")
+	}
+
+	tokenInfo, ok, err := dpopSession.GetTokenInfo()
+	if !ok || err != nil {
+		return errors.New("no token info in session")
+	}
+
+	tokenResp, err := h.oauthClient.RefreshToken(authDpopClient, identity, issuer, tokenInfo.RefreshToken)
+	if err != nil {
+		return err
+	}
+	err = dpopSession.SetTokenInfo(tokenResp)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
