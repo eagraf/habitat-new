@@ -121,7 +121,13 @@ func (l *loginHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	dpopSession, err := newCookieSession(r, l.sessionStore, id, l.pdsURL)
+	pdsService, ok := id.Services["atproto_pds"]
+	if !ok {
+		http.Error(w, "no pds url in identity", http.StatusInternalServerError)
+		return
+	}
+
+	dpopSession, err := newCookieSession(r, l.sessionStore, id, pdsService.URL)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -272,7 +278,7 @@ func (c *callbackHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	defer dpopSession.Save(r, w)
+	//defer dpopSession.Save(r, w)
 
 	// Get the key from the session
 	key, ok, err := dpopSession.GetDpopKey()
@@ -345,6 +351,7 @@ func (c *callbackHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			SameSite: http.SameSiteLaxMode,
 		})
 	}
+	dpopSession.Save(r, w)
 
 	http.Redirect(
 		w,
