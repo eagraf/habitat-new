@@ -198,7 +198,7 @@ func TestXrpcBrokerHandler_UnauthorizedResponse(t *testing.T) {
 	handler.ServeHTTP(w, req)
 
 	// Should fail due to token refresh error (no OAuth server configured)
-	require.Equal(t, http.StatusInternalServerError, w.Code)
+	require.Equal(t, http.StatusUnauthorized, w.Code)
 	require.Contains(t, w.Body.String(), "failed to fetch authorization server")
 }
 
@@ -236,7 +236,7 @@ func TestXrpcBrokerHandler_RefreshTokenError(t *testing.T) {
 	handler.ServeHTTP(w, req)
 
 	// Should fail due to OAuth server error (no server configured)
-	require.Equal(t, http.StatusInternalServerError, w.Code)
+	require.Equal(t, http.StatusUnauthorized, w.Code)
 	require.Contains(t, w.Body.String(), "failed to fetch authorization server")
 }
 

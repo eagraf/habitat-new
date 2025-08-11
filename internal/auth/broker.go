@@ -3,12 +3,15 @@ package auth
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
 	"path"
+	"strings"
 
 	"github.com/gorilla/sessions"
+	"github.com/rs/zerolog/log"
 )
 
 type xrpcBrokerHandler struct {
@@ -34,7 +37,6 @@ func (h *xrpcBrokerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	defer dpopSession.Save(r, w)
 
 	pdsDpopClient, err := h.getForwardingDpopClient(r, dpopSession)
 	if err != nil {
@@ -71,6 +73,7 @@ func (h *xrpcBrokerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusUnauthorized)
 			return
 		}
+		dpopSession.Save(r, w)
 
 		forwardReq, err = h.getForwardReq(r, dpopSession)
 		if err != nil {
@@ -86,12 +89,13 @@ func (h *xrpcBrokerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Retry the request with the new token
-		resp, err = refreshedDpopClient.Do(r)
+		resp, err = refreshedDpopClient.Do(forwardReq)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 		defer resp.Body.Close()
+		dpopSession.Save(r, w)
 	}
 
 	// Writing out the response as we got it.
@@ -114,7 +118,7 @@ func (h *xrpcBrokerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func (h *xrpcBrokerHandler) getForwardReq(r *http.Request, dpopSession *cookieSession) (*http.Request, error) {
 	// Clone the initial request. Note this only makes a shallow copy of the body
-	newReq := r.Clone(r.Context())
+	//newReq := r.Clone(r.Context())
 
 	// Get PDS URL from session
 	pdsURL, ok, err := dpopSession.GetPDSURL()
@@ -128,18 +132,38 @@ func (h *xrpcBrokerHandler) getForwardReq(r *http.Request, dpopSession *cookieSe
 		return nil, err
 	}
 
-	// Unset the request URI (can't be set when used as a client)
-	newReq.RequestURI = ""
-	newReq.URL.Scheme = parsedPDSURL.Scheme
-	newReq.URL.Host = parsedPDSURL.Host
-	newReq.Header.Del("Content-Length")
+	newURL := &url.URL{
+		Scheme:   parsedPDSURL.Scheme,
+		Host:     parsedPDSURL.Host,
+		Path:     r.URL.Path,
+		RawQuery: r.URL.RawQuery,
+	}
+
+	bodyCopy, err := io.ReadAll(r.Body)
+	if err != nil {
+		return nil, err
+	}
+	r.Body = io.NopCloser(bytes.NewBuffer(bodyCopy))
+
+	newReq := &http.Request{
+		Method: r.Method,
+		URL:    newURL,
+		Header: make(http.Header),
+		Body:   io.NopCloser(bytes.NewBuffer(bodyCopy)),
+	}
+	for k, v := range r.Header {
+		if k == "Authorization" || k == "Content-Length" {
+			continue
+		}
+		for _, vv := range v {
+			newReq.Header.Add(k, vv)
+		}
+	}
 
 	return newReq, nil
 }
 
-func (h *xrpcBrokerHandler) getForwardingDpopClient(r *http.Request, dpopSession *cookieSession) (*DpopHttpClient, error) {
-	htu := path.Join(h.htuURL, r.URL.Path)
-
+func (h *xrpcBrokerHandler) getForwardingDpopClient(originalRequest *http.Request, dpopSession *cookieSession) (*DpopHttpClient, error) {
 	// Get the key from the session
 	key, ok, err := dpopSession.GetDpopKey()
 	if !ok || err != nil {
@@ -148,11 +172,27 @@ func (h *xrpcBrokerHandler) getForwardingDpopClient(r *http.Request, dpopSession
 
 	tokenInfo, ok, err := dpopSession.GetTokenInfo()
 	if !ok || err != nil {
-		return nil, errors.New("no token info in session")
+		return nil, fmt.Errorf("no token info in session: %w", err)
 	}
 	accessToken := tokenInfo.AccessToken
 
-	return NewDpopHttpClient(key, dpopSession, WithHTU(htu), WithAccessToken(accessToken)), nil
+	opts := []DpopOption{
+		WithAccessToken(accessToken),
+	}
+	pdsURL, ok, err := dpopSession.GetPDSURL()
+	if !ok || err != nil {
+		return nil, errors.New("no pds url found in session")
+	}
+	parsedURL, err := url.Parse(pdsURL)
+	if err != nil {
+		return nil, err
+	}
+	if strings.HasPrefix(parsedURL.Host, "host.docker.internal") {
+		htu := path.Join(h.htuURL, originalRequest.URL.Path)
+		opts = append(opts, WithHTU(htu))
+	}
+
+	return NewDpopHttpClient(key, dpopSession, opts...), nil
 }
 
 func (h *xrpcBrokerHandler) refreshSession(dpopSession *cookieSession) error {
@@ -181,6 +221,7 @@ func (h *xrpcBrokerHandler) refreshSession(dpopSession *cookieSession) error {
 	if err != nil {
 		return err
 	}
+	log.Info().Msgf("refreshed session: %+v", tokenResp)
 	err = dpopSession.SetTokenInfo(tokenResp)
 	if err != nil {
 		return err
