@@ -38,6 +38,8 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/sync/errgroup"
+
+	_ "net/http/pprof"
 )
 
 func main() {
@@ -87,7 +89,9 @@ func main() {
 
 	// egCtx is cancelled if any function called with eg.Go() returns an error.
 	eg, egCtx := errgroup.WithContext(ctx)
-
+	eg.Go(func() error {
+		return http.ListenAndServe("localhost:6060", nil)
+	})
 	stateUpdates := pubsub.NewSimpleChannel(
 		[]pubsub.Publisher[hdb.StateUpdate]{hdbPublisher},
 		[]pubsub.Subscriber[hdb.StateUpdate]{stateLogger},
@@ -143,6 +147,7 @@ func main() {
 		Handler: proxy,
 	}
 
+	fmt.Println("about to create proxy listener")
 	var ln net.Listener
 	// If TS_AUTHKEY is set, create a tsnet listener. Otherwise, create a normal tcp listener.
 	if nodeConfig.TailscaleAuthkey() == "" {
@@ -151,6 +156,7 @@ func main() {
 		ln, err = proxy.TailscaleListener(addr, nodeConfig.Hostname(), nodeConfig.TailScaleStatePath(), nodeConfig.TailScaleFunnelEnabled())
 	}
 
+	fmt.Println("created proxy listener")
 	if err != nil {
 		log.Fatal().Err(err).Msg("error creating reverse proxy listener")
 	}

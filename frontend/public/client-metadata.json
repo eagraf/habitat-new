@@ -1,0 +1,10 @@
+{
+    "client_id": "https://localhost-1.taile529e.ts.net/client-metadata.json",
+    "client_name": "habitat",
+    "redirect_uris": ["https://localhost-1.taile529e.ts.net/"],
+    "response_types": ["code"],
+    "scope": "atproto transition:generic",
+    "grant_types":["authorization_code"],
+    "dpop_bound_access_tokens": true,
+    "token_endpoint_auth_method": "none"
+}

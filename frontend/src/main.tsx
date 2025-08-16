@@ -13,10 +13,10 @@ import { BrowserOAuthClient } from '@atproto/oauth-client-browser'
 export const oauthClient = new BrowserOAuthClient({
   handleResolver: 'https://bsky.social',
   clientMetadata: {
-    client_id: 'http://localhost?scope=atproto%20transition%3Ageneric',
-    redirect_uris: ['http://127.0.0.1:3001/'],
-    scope: 'atproto transition:generic',
-    token_endpoint_auth_method: 'none'
+    "client_id": "https://localhost-1.taile529e.ts.net/client-metadata.json",
+    "redirect_uris": ["https://localhost-1.taile529e.ts.net/"],
+    "scope": "atproto transition:generic",
+    "token_endpoint_auth_method": "none"
   },
   allowHttp: true
 })

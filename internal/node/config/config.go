@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/pem"
 	"errors"
+	"fmt"
 	"os"
 	"os/user"
 	"path/filepath"
@@ -291,8 +292,12 @@ func (n *NodeConfig) UseTLS() bool {
 // Hostname that the node listens on. This may be updated dynamically because Tailscale may add a suffix
 func (n *NodeConfig) Hostname() string {
 	if n.TailscaleAuthkey() != "" {
+		fmt.Println("have an auth key")
 		if n.Environment() == constants.EnvironmentDev {
+			fmt.Println("dev")
+			return n.Domain()
 			parts := strings.Split(n.Domain(), ".")
+			fmt.Println("Domain", n.Domain())
 			if len(parts) > 0 {
 				return parts[0]
 			} else {

@@ -51,7 +51,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 }
             }
 
-            const fullHandle = parentDomain == "localhost" ? `${identifier}` : `${identifier}.${window.location.hostname}`;
+            const fullHandle = parentDomain === "localhost" || parentDomain === "127.0.0.1" ? `${identifier}` : `${identifier}.${window.location.hostname}`;
+            console.log("fullHandle", fullHandle)
             const response = await fetch(`${window.location.origin}/xrpc/com.atproto.server.createSession`, {
                 method: 'POST',
                 body: JSON.stringify({

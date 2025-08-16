@@ -32,6 +32,7 @@ func NewProxyServer(logger *zerolog.Logger, defaultServePath string) *ProxyServe
 }
 
 func (s *ProxyServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("------> Got a request for ", r.URL)
 	var bestMatch *node.ReverseProxyRule = nil
 	// Find the matching rule with the highest "rank", aka the most slashes '/' in the URL path.
 	highestRank := -1
@@ -68,12 +69,13 @@ func (s *ProxyServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// fmt.Println("------> Serving request for ", r.URL, " to ", bestMatch.Target)
+	fmt.Println("------> Serving request for ", r.URL, " to ", bestMatch.Target)
 	// Serve the rule handler.
 	handler.ServeHTTP(w, r)
 }
 
 func (s *ProxyServer) TailscaleListener(addr, hostname, tsStatePath string, funnelEnabled bool) (net.Listener, error) {
+	fmt.Println(addr, hostname, tsStatePath, funnelEnabled)
 	var listener net.Listener
 	tsnet := &tsnet.Server{
 		Hostname: hostname,
@@ -84,11 +86,13 @@ func (s *ProxyServer) TailscaleListener(addr, hostname, tsStatePath string, funn
 	}
 
 	if funnelEnabled {
+		fmt.Println("about to listen funnel")
 		ln, err := tsnet.ListenFunnel("tcp", addr)
 		if err != nil {
 			return nil, err
 		}
 		listener = ln
+		fmt.Println("listened funnel")
 	} else {
 		ln, err := tsnet.Listen("tcp", addr)
 		if err != nil {

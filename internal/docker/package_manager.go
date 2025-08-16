@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/client"
 	"github.com/eagraf/habitat-new/core/state/node"
 	"github.com/eagraf/habitat-new/internal/package_manager"
@@ -63,7 +63,7 @@ func repoURLFromPackage(packageSpec *node.Package) string {
 func (m *dockerPackageManager) IsInstalled(packageSpec *node.Package, version string) (bool, error) {
 	// TODO review all contexts we create.
 	repoURL := repoURLFromPackage(packageSpec)
-	images, err := m.client.ImageList(context.Background(), types.ImageListOptions{
+	images, err := m.client.ImageList(context.Background(), image.ListOptions{
 		Filters: filters.NewArgs(
 			filters.Arg("reference", repoURL),
 		),
@@ -80,7 +80,7 @@ func (m *dockerPackageManager) InstallPackage(packageSpec *node.Package, version
 	}
 
 	repoURL := repoURLFromPackage(packageSpec)
-	_, err := m.client.ImagePull(context.Background(), repoURL, types.ImagePullOptions{})
+	_, err := m.client.ImagePull(context.Background(), repoURL, image.PullOptions{})
 	if err != nil {
 		return err
 	}
@@ -91,7 +91,7 @@ func (m *dockerPackageManager) InstallPackage(packageSpec *node.Package, version
 
 func (m *dockerPackageManager) UninstallPackage(packageURL *node.Package, version string) error {
 	repoURL := repoURLFromPackage(packageURL)
-	_, err := m.client.ImageRemove(context.Background(), repoURL, types.ImageRemoveOptions{})
+	_, err := m.client.ImageRemove(context.Background(), repoURL, image.RemoveOptions{})
 	if err != nil {
 		return err
 	}

@@ -17,7 +17,7 @@ export const Route = createFileRoute('/_requireAuth/privi-test/')({
             rkey: 'testRecord'
           }),
           headers: {
-            'atproto-proxy': 'did:web:localhost-0.taile529e.ts.net#privi'
+            'atproto-proxy': 'did:web:localhost-1.taile529e.ts.net#privi'
           }
         })
         console.log(response)
