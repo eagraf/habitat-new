@@ -66,6 +66,9 @@ func NewHabitatDB(path string, initialTransitions []hdb.Transition) (hdb.Client,
 			return nil, err
 		}
 		state, err = hdb.NewJSONState(sch, bytes)
+		if err != nil {
+			return nil, err
+		}
 	} else { // Otherwise, create state according to initialTransitions and write it
 
 		// Create empty schema according to the NodeSchema

@@ -34,7 +34,6 @@ func fakeInitState(rootUserCert, rootUserID, rootUsername string) *node.State {
 }
 
 func setupNodeDBTest(ctrl *gomock.Controller, t *testing.T) *hdb_mocks.MockClient {
-
 	mockedClient := hdb_mocks.NewMockClient(ctrl)
 
 	initState := fakeInitState("fake_cert", "fake_user_id", "fake_username")
@@ -42,7 +41,10 @@ func setupNodeDBTest(ctrl *gomock.Controller, t *testing.T) *hdb_mocks.MockClien
 		node.CreateInitializationTransition(initState),
 	}
 
-	mockedClient.ProposeTransitions(transitions)
+	_, err := mockedClient.ProposeTransitions(transitions)
+	if err != nil {
+		t.Fatal(err)
+	}
 	return mockedClient
 }
 
