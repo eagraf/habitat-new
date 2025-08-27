@@ -1,5 +1,7 @@
 package hdb
 
+import "errors"
+
 type DatabaseNotFoundError struct {
 	DatabaseName string
 	DatabaseID   string
@@ -13,10 +15,6 @@ func (e *DatabaseNotFoundError) Error() string {
 	}
 }
 
-type DatabaseAlreadyExistsError struct {
-	DatabaseName string
-}
-
-func (e *DatabaseAlreadyExistsError) Error() string {
-	return "Database with name " + e.DatabaseName + " already exists"
-}
+var (
+	DatabaseAlreadyExistsError = errors.New("database already exists")
+)

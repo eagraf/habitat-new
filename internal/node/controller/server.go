@@ -230,8 +230,7 @@ func (s *CtrlServer) GetNode(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resp := types.GetDatabaseResponse{
-		DatabaseID: db.DatabaseID(),
-		State:      stateMap,
+		State: stateMap,
 	}
 
 	respBody, err := json.Marshal(resp)
