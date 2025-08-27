@@ -101,7 +101,7 @@ func (s *CtrlServer) InstallApp(w http.ResponseWriter, r *http.Request) {
 	userID := r.PathValue("user_id")
 	// TODO: authenticate user
 
-	var req node.InstallAppRequest
+	var req InstallAppRequest
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -157,18 +157,6 @@ func (s *CtrlServer) GetNodeState(w http.ResponseWriter, r *http.Request) {
 
 	if _, err := w.Write(bytes); err != nil {
 		log.Err(err).Msgf("error sending response in for GetNodeState request")
-	}
-}
-
-type route struct {
-	method  string
-	pattern string
-	fn      http.HandlerFunc
-}
-
-func newRoute(method, pattern string, fn http.HandlerFunc) *route {
-	return &route{
-		method, pattern, fn,
 	}
 }
 
