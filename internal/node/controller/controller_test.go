@@ -41,6 +41,7 @@ func setupNodeDBTest(ctrl *gomock.Controller, t *testing.T) *hdb_mocks.MockClien
 		node.CreateInitializationTransition(initState),
 	}
 
+	mockedClient.EXPECT().ProposeTransitions(transitions)
 	_, err := mockedClient.ProposeTransitions(transitions)
 	if err != nil {
 		t.Fatal(err)
