@@ -5,14 +5,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 	"strings"
 
 	"github.com/bluesky-social/indigo/atproto/identity"
 	"github.com/bluesky-social/indigo/atproto/syntax"
+	"github.com/bluesky-social/indigo/repomgr"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/ipfs/go-cid"
+	"gorm.io/gorm"
 
 	"github.com/eagraf/habitat-new/internal/node/api"
 	"github.com/eagraf/habitat-new/internal/permissions"
@@ -27,23 +29,24 @@ type PutRecordRequest struct {
 }
 
 type Server struct {
-	stores map[syntax.DID]*store
-	perms  permissions.Store
+	perms permissions.Store
 	// Used for resolving handles -> did, did -> PDS
-	dir identity.Directory
+	dir     identity.Directory
+	db      *gorm.DB
+	repoman *repomgr.RepoManager
 }
 
 // NewServer returns a privi server.
 func NewServer(
-	dids []syntax.DID,
+	db *gorm.DB,
+	repoman *repomgr.RepoManager,
 	permissionStore permissions.Store,
 ) *Server {
 	server := &Server{
-		stores: make(map[syntax.DID]*store),
-		dir:    identity.DefaultDirectory(),
-	}
-	for _, did := range dids {
-		server.stores[did] = newStore(did, permissionStore)
+		db:      db,
+		perms:   permissionStore,
+		repoman: repoman,
+		dir:     identity.DefaultDirectory(),
 	}
 	return server
 }
@@ -51,17 +54,13 @@ func NewServer(
 // PutRecord puts a potentially encrypted record (see s.inner.putRecord)
 func (s *Server) PutRecord(w http.ResponseWriter, r *http.Request) {
 	var req PutRecordRequest
-	slurp, err := io.ReadAll(r.Body)
+	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	err = json.Unmarshal(slurp, &req)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
+	s.repoman.GetRecord(r.Context(), 123, req.Collection, req.Rkey, cid.Cid{})
 
 	// Get the PDS endpoint for the caller's DID
 	// If the caller does not have write access, the write will fail (assume privi is read-only premissions for now)

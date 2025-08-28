@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
 	"errors"
 	"fmt"
 	"net"
@@ -9,14 +10,19 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
-	"path"
 	"path/filepath"
 	"runtime"
 	"syscall"
 
-	"github.com/bluesky-social/indigo/atproto/syntax"
+	"github.com/bluesky-social/indigo/carstore"
+	"github.com/bluesky-social/indigo/did"
+	"github.com/bluesky-social/indigo/indexer"
+	"github.com/bluesky-social/indigo/repomgr"
+
 	fileadapter "github.com/casbin/casbin/v2/persist/file-adapter"
 	"github.com/docker/docker/api/types/mount"
+	godid "github.com/whyrusleeping/go-did"
+
 	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
 	"github.com/eagraf/habitat-new/core/state/node"
@@ -37,6 +43,8 @@ import (
 	"github.com/eagraf/habitat-new/internal/process"
 	"github.com/eagraf/habitat-new/internal/pubsub"
 	"github.com/eagraf/habitat-new/internal/web"
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -436,15 +444,58 @@ func createPriviServer(nodeConfig *config.NodeConfig) *privi.Server {
 	}
 
 	perms, err := permissions.NewStore(
-		fileadapter.NewAdapter(path.Join(policiesDirPath, "policies.csv")),
+		fileadapter.NewAdapter(filepath.Join(policiesDirPath, "policies.csv")),
 		true,
 	)
 	if err != nil {
 		log.Fatal().Err(err).Msg("error creating permission store")
 	}
+	// Set up SQLite database
+	dbPath := filepath.Join(nodeConfig.HabitatPath(), "privi.db")
+	db, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
+	if err != nil {
+		log.Fatal().Err(err).Msg("failed to connect to privi database")
+	}
 
-	return privi.NewServer(
-		[]syntax.DID{},
-		perms,
+	cs, err := carstore.NewCarStore(
+		db,
+		[]string{filepath.Join(nodeConfig.HabitatPath(), "carstore")},
 	)
+	if err != nil {
+		log.Fatal().Err(err).Msg("failed to create carstore")
+	}
+
+	keyFilePath := filepath.Join(nodeConfig.HabitatPath(), "privi.key")
+
+	// Try to read the key from disk
+	keyBytes, err := os.ReadFile(keyFilePath)
+	if err != nil {
+		log.Warn().Err(err).Msg("failed to read key from disk, creating new key")
+	}
+
+	var privkey *godid.PrivKey
+	if len(keyBytes) == 0 {
+		privkey, err = godid.GeneratePrivKey(rand.Reader, godid.KeyTypeSecp256k1)
+		if err != nil {
+			log.Fatal().Err(err).Msg("failed to generate privkey: %+v\n")
+		}
+		rawKey, err := privkey.RawBytes()
+		if err != nil {
+			log.Fatal().Err(err).Msg("failed to serialize privkey: %+v\n")
+		}
+		err = os.WriteFile(keyFilePath, rawKey, 0o644)
+		if err != nil {
+			log.Fatal().Err(err).Msg("failed to write privkey to disk: %+v\n")
+		}
+	} else {
+		privkey, err = godid.PrivKeyFromRawBytes(godid.KeyTypeSecp256k1, keyBytes)
+		if err != nil {
+			log.Fatal().Err(err).Msg("failed to parse privkey from disk: %+v\n")
+		}
+	}
+
+	// Initialize repo manager
+	repoman := repomgr.NewRepoManager(cs, indexer.NewKeyManager(did.NewMultiResolver(), privkey))
+
+	return privi.NewServer(db, repoman, perms)
 }
