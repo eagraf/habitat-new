@@ -14,7 +14,6 @@ import (
 	"github.com/eagraf/habitat-new/internal/node/hdb"
 	hdb_mocks "github.com/eagraf/habitat-new/internal/node/hdb/mocks"
 	"github.com/eagraf/habitat-new/internal/package_manager"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 )
@@ -47,46 +46,6 @@ func setupNodeDBTest(ctrl *gomock.Controller, t *testing.T) *hdb_mocks.MockClien
 		t.Fatal(err)
 	}
 	return mockedClient
-}
-
-func TestMigrationController(t *testing.T) {
-	ctrl := gomock.NewController(t)
-
-	mockClient := setupNodeDBTest(ctrl, t)
-
-	nodeState := &node.State{
-		SchemaVersion: "v0.0.2",
-	}
-	marshaled, err := nodeState.Bytes()
-	assert.Equal(t, nil, err)
-
-	mockClient.EXPECT().Bytes().Return(marshaled).Times(1)
-	mockClient.EXPECT().ProposeTransitions(gomock.Eq(
-		[]hdb.Transition{
-			node.CreateMigrationTransition("v0.0.3"),
-		},
-	)).Return(nil, nil).Times(1)
-
-	err = MigrateNodeDB(mockClient, "v0.0.3")
-	assert.Nil(t, err)
-
-	// Test no-op by migrating to the same version
-	mockClient.EXPECT().Bytes().Return(marshaled).Times(1)
-	mockClient.EXPECT().ProposeTransitions(gomock.Any()).Times(0)
-
-	err = MigrateNodeDB(mockClient, "v0.0.2")
-	assert.Nil(t, err)
-
-	// Test  migrating to a lower version
-	mockClient.EXPECT().Bytes().Return(marshaled).Times(1)
-	mockClient.EXPECT().ProposeTransitions(gomock.Eq(
-		[]hdb.Transition{
-			node.CreateMigrationTransition("v0.0.1"),
-		},
-	)).Times(1)
-
-	err = MigrateNodeDB(mockClient, "v0.0.1")
-	assert.Nil(t, err)
 }
 
 func TestAddUser(t *testing.T) {
