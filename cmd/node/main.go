@@ -134,7 +134,7 @@ func main() {
 		server.WithListener(ln),
 	))
 
-	ctrl2, err := controller.NewController2(
+	ctrl2, err := controller.NewController(
 		ctx,
 		pm,
 		pkgManagers,
@@ -143,7 +143,7 @@ func main() {
 		"http://"+constants.DefaultPDSHostname,
 	)
 	if err != nil {
-		log.Fatal().Err(err).Msg("error creating node Controller2")
+		log.Fatal().Err(err).Msg("error creating node controller")
 	}
 	ctrlServer, err := controller.NewCtrlServer(ctx, ctrl2, initState)
 	if err != nil {

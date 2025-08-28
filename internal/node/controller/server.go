@@ -15,12 +15,12 @@ import (
 )
 
 type CtrlServer struct {
-	inner *Controller2
+	inner *Controller
 }
 
 func NewCtrlServer(
 	ctx context.Context,
-	inner *Controller2,
+	inner *Controller,
 	state *node.State,
 ) (*CtrlServer, error) {
 	err := inner.restore(state)

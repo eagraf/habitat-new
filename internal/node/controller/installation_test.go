@@ -42,7 +42,7 @@ func (m *mockPkgManager) RestoreFromState(context.Context, map[string]*node.AppI
 
 func TestInstallAppController(t *testing.T) {
 	mockDriver := newMockDriver(node.DriverTypeDocker)
-	ctrl2, err := NewController2(context.Background(), process.NewProcessManager([]process.Driver{mockDriver}),
+	ctrl2, err := NewController(context.Background(), process.NewProcessManager([]process.Driver{mockDriver}),
 		map[node.DriverType]package_manager.PackageManager{
 			node.DriverTypeDocker: &mockPkgManager{
 				installs: make(map[*node.Package]struct{}),

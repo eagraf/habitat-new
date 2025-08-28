@@ -68,7 +68,7 @@ func TestAddUser(t *testing.T) {
 	}))
 	defer mockPDS.Close()
 
-	ctrl2, err := NewController2(context.Background(), fakeProcessManager(), nil, mockedClient, nil, mockPDS.URL)
+	ctrl2, err := NewController(context.Background(), fakeProcessManager(), nil, mockedClient, nil, mockPDS.URL)
 	require.NoError(t, err)
 
 	mockedClient.EXPECT().ProposeTransitions(gomock.Any()).Return(nil, nil).Times(1)
@@ -99,7 +99,7 @@ func TestMigrations(t *testing.T) {
 		schema:    fakestate.Schema(),
 		jsonState: jsonStateFromNodeState(fakestate),
 	}
-	ctrl2, err := NewController2(context.Background(), fakeProcessManager(), nil, db, nil, "fak-pds")
+	ctrl2, err := NewController(context.Background(), fakeProcessManager(), nil, db, nil, "fak-pds")
 	require.NoError(t, err)
 	s, err := NewCtrlServer(context.Background(), ctrl2, fakestate)
 	require.NoError(t, err)
@@ -119,7 +119,7 @@ func TestMigrations(t *testing.T) {
 }
 
 func TestGetNodeState(t *testing.T) {
-	ctrl2, err := NewController2(context.Background(), fakeProcessManager(),
+	ctrl2, err := NewController(context.Background(), fakeProcessManager(),
 		map[node.DriverType]package_manager.PackageManager{
 			node.DriverTypeDocker: &mockPkgManager{
 				installs: make(map[*node.Package]struct{}),
