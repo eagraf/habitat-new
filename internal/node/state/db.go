@@ -53,7 +53,7 @@ func NewHabitatDB(path string, initialTransitions []Transition) (Client, error) 
 
 	// If file exists already, initialize state to what is in the file
 	if exists {
-		state, err := os.ReadFile(path)
+		state, err = os.ReadFile(path)
 		if err != nil {
 			return nil, err
 		}
@@ -63,7 +63,6 @@ func NewHabitatDB(path string, initialTransitions []Transition) (Client, error) 
 			return nil, err
 		}
 	} else {
-		fmt.Println("does not exist")
 		// Otherwise, create state according to initialTransitions and write it
 		// Create empty schema according to the NodeSchema
 		empty, err := Schema.EmptyState()
