@@ -16,24 +16,18 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func fakeInitState(rootUserID, rootUsername string) *node_state.NodeState {
+func TestAddUser(t *testing.T) {
 	initState, err := node_state.GetEmptyStateForVersion(node_state.LatestVersion)
 	if err != nil {
 		panic(err)
 	}
 
-	initState.Users[rootUserID] = &node_state.User{
-		ID:       rootUserID,
-		Username: rootUsername,
+	initState.Users["fake_user_id"] = &node_state.User{
+		ID:       "fake_user_id",
+		Username: "fake_username",
 	}
 
-	return initState
-}
-
-func TestAddUser(t *testing.T) {
-	mockedClient := &mockHDB{
-		state: fakeInitState("fake_user_id", "fake_username"),
-	}
+	db := testDB(initState)
 
 	did := "did"
 	mockPDS := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -50,7 +44,7 @@ func TestAddUser(t *testing.T) {
 	}))
 	defer mockPDS.Close()
 
-	ctrl2, err := NewController(context.Background(), fakeProcessManager(), nil, mockedClient, nil, mockPDS.URL)
+	ctrl2, err := NewController(context.Background(), fakeProcessManager(), nil, db, nil, mockPDS.URL)
 	require.NoError(t, err)
 
 	email := "user@user.com"
@@ -67,6 +61,44 @@ func TestAddUser(t *testing.T) {
 	require.Equal(t, out.Did, did)
 }
 
+type fakeDB struct {
+	state *node_state.NodeState
+}
+
+func (db *fakeDB) Bytes() (node_state.SerializedState, error) {
+	return db.state.Bytes()
+}
+
+func (db *fakeDB) State() (*node_state.NodeState, error) {
+	return db.state, nil
+}
+
+func (db *fakeDB) ProposeTransitions(transitions []node_state.Transition) (node_state.SerializedState, error) {
+	old, err := db.state.Bytes()
+	if err != nil {
+		return nil, err
+	}
+	bytes, _, err := node_state.ProposeTransitions(old, transitions)
+	if err != nil {
+		return nil, err
+	}
+
+	var newState node_state.NodeState
+	err = json.Unmarshal(bytes, &newState)
+	if err != nil {
+		return nil, err
+	}
+
+	db.state = &newState
+	return bytes, err
+}
+
+func testDB(state *node_state.NodeState) node_state.Client {
+	return &fakeDB{
+		state: state,
+	}
+}
+
 func TestMigrations(t *testing.T) {
 	fakestate := &node_state.NodeState{
 		SchemaVersion:     "v0.0.1",
@@ -75,10 +107,8 @@ func TestMigrations(t *testing.T) {
 		Processes:         map[node_state.ProcessID]*node_state.Process{},
 		ReverseProxyRules: map[string]*node_state.ReverseProxyRule{},
 	}
+	db := testDB(fakestate)
 
-	db := &mockHDB{
-		state: fakestate,
-	}
 	ctrl2, err := NewController(context.Background(), fakeProcessManager(), nil, db, nil, "fak-pds")
 	require.NoError(t, err)
 	s, err := NewCtrlServer(context.Background(), ctrl2, fakestate)
@@ -99,20 +129,21 @@ func TestMigrations(t *testing.T) {
 }
 
 func TestGetNodeState(t *testing.T) {
+	state := fakeState()
+	db := testDB(state)
+
 	ctrl2, err := NewController(context.Background(), fakeProcessManager(),
 		map[node_state.DriverType]package_manager.PackageManager{
 			node_state.DriverTypeDocker: &mockPkgManager{
 				installs: make(map[*node_state.Package]struct{}),
 			},
 		},
-		&mockHDB{
-			state: state,
-		}, nil, "fake-pds")
+		db, nil, "fake-pds")
 	require.NoError(t, err)
 	ctrlServer, err := NewCtrlServer(
 		context.Background(),
 		ctrl2,
-		state,
+		fakeState(),
 	)
 	require.NoError(t, err)
 

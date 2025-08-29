@@ -48,8 +48,12 @@ func writeState(path string, bytes []byte) error {
 
 func NewHabitatDB(path string, initialTransitions []Transition) (Client, error) {
 	// First ensure that no db has the same name
-	exists, err := dbExists(path)
-	if err != nil {
+	_, err := os.Stat(path)
+
+	exists := true
+	if errors.Is(err, os.ErrNotExist) {
+		exists = false
+	} else if err != nil {
 		return nil, err
 	}
 
@@ -67,6 +71,7 @@ func NewHabitatDB(path string, initialTransitions []Transition) (Client, error) 
 			return nil, err
 		}
 	} else {
+		fmt.Println("does not exist")
 		// Otherwise, create state according to initialTransitions and write it
 		// Create empty schema according to the NodeSchema
 		empty, err := Schema.EmptyState()
@@ -139,7 +144,5 @@ func (db *fileDB) Bytes() (SerializedState, error) {
 func (db *fileDB) State() (*NodeState, error) {
 	db.mu.RLock()
 	defer db.mu.RUnlock()
-	var state *NodeState
-	err := json.Unmarshal(db.state, state)
-	return state, err
+	return FromBytes(db.state)
 }

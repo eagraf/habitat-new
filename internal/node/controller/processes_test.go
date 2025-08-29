@@ -81,38 +81,7 @@ func (d *mockDriver) ListRunningProcesses(context.Context) ([]node_state.Process
 	return maps.Keys(d.running), nil
 }
 
-// mock hdb for tests
-type mockHDB struct {
-	state *node_state.NodeState
-}
-
-var _ node_state.Client = &mockHDB{}
-
-func (db *mockHDB) Bytes() (node_state.SerializedState, error) {
-	return db.state.Bytes()
-}
-
-func (db *mockHDB) State() (*node_state.NodeState, error) {
-	return db.state, nil
-}
-
-func (db *mockHDB) ProposeTransitions(transitions []node_state.Transition) (node_state.SerializedState, error) {
-	// Blindly apply all transitions
-	bytes, err := db.Bytes()
-	if err != nil {
-		return nil, err
-	}
-
-	state, _, err := node_state.ProposeTransitions(bytes, transitions)
-	return state, err
-}
-
 var (
-	testPkg = &node_state.Package{
-		Driver:       node_state.DriverTypeDocker,
-		DriverConfig: map[string]interface{}{},
-	}
-
 	proc1 = &node_state.Process{
 		ID:    "proc1",
 		AppID: "app1",
@@ -121,8 +90,15 @@ var (
 		ID:    "proc2",
 		AppID: "app2",
 	}
+)
 
-	state = &node_state.NodeState{
+func fakeState() *node_state.NodeState {
+	testPkg := &node_state.Package{
+		Driver:       node_state.DriverTypeDocker,
+		DriverConfig: map[string]interface{}{},
+	}
+
+	return &node_state.NodeState{
 		SchemaVersion: node_state.LatestVersion,
 		Users: map[string]*node_state.User{
 			"user1": {
@@ -132,14 +108,14 @@ var (
 		AppInstallations: map[string]*node_state.AppInstallation{
 			"app1": {
 				ID:      "app1",
-				UserID:  "user_1",
+				UserID:  "user1",
 				Name:    "appname1",
 				State:   node_state.AppLifecycleStateInstalled,
 				Package: testPkg,
 			},
 			"app2": {
 				ID:      "app2",
-				UserID:  "user_1",
+				UserID:  "user1",
 				Name:    "appname2",
 				State:   node_state.AppLifecycleStateInstalled,
 				Package: testPkg,
@@ -148,16 +124,15 @@ var (
 		Processes:         map[node_state.ProcessID]*node_state.Process{},
 		ReverseProxyRules: map[string]*node_state.ReverseProxyRule{},
 	}
-)
+}
 
 func TestStartProcessHandler(t *testing.T) {
 	// For this test don't add any running processes to the initial state
-	middleware := &test_helpers.TestAuthMiddleware{UserID: "user_1"}
+	middleware := &test_helpers.TestAuthMiddleware{UserID: "user1"}
 
 	mockDriver := newMockDriver(node_state.DriverTypeDocker)
-	db := &mockHDB{
-		state: state,
-	}
+	state := fakeState()
+	db := testDB(state)
 
 	// NewCtrlServer restores the initial state
 	ctrl2, err := NewController(context.Background(), process.NewProcessManager([]process.Driver{mockDriver}), nil, db, nil, "fake-pds")
@@ -229,7 +204,7 @@ func TestStartProcessHandler(t *testing.T) {
 	// Process exists in node state
 	nodeState, err := db.State()
 	require.NoError(t, err)
-	procsForUser, err := nodeState.GetProcessesForUser("user_1")
+	procsForUser, err := nodeState.GetProcessesForUser("user1")
 	require.NoError(t, err)
 	require.Len(t, procsForUser, 1)
 
@@ -312,7 +287,7 @@ func TestStartProcessHandler(t *testing.T) {
 	// Process no longer exists in node state
 	nodeState, err = db.State()
 	require.NoError(t, err)
-	procsForUser, err = nodeState.GetProcessesForUser("user_1")
+	procsForUser, err = nodeState.GetProcessesForUser("user1")
 	require.NoError(t, err)
 	require.Len(t, procsForUser, 0)
 
@@ -343,23 +318,20 @@ func TestStartProcessHandler(t *testing.T) {
 	assert.Equal(t, http.StatusInternalServerError, resp.Result().StatusCode)
 
 	// Also test the inner error we get
-	require.ErrorContains(t, s.inner.stopProcess("docker:fake-id"), "process with id not found: docker:fake-id")
+	require.ErrorContains(t, s.inner.stopProcess("docker:fake-id"), "process with id docker:fake-id not found")
 }
 
 func TestControllerRestoreProcess(t *testing.T) {
+	state := fakeState()
 	// For this test, initial state should have Started processees for restore
 	state.Processes["proc1"] = proc1
 	state.Processes["proc2"] = proc2
 
 	mockDriver := newMockDriver(node_state.DriverTypeDocker)
 	pm := process.NewProcessManager([]process.Driver{mockDriver})
+	db := testDB(state)
 
-	ctrl, err := NewController(context.Background(), pm, nil, &mockHDB{
-		state: state,
-	},
-		nil,
-		"fake-pds",
-	)
+	ctrl, err := NewController(context.Background(), pm, nil, db, nil, "fake-pds")
 	require.NoError(t, err)
 
 	// Restore

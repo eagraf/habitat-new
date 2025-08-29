@@ -10,7 +10,6 @@ import (
 )
 
 // TODO structs defined here can embed the immutable structs, but also include mutable fields.
-
 type NodeState struct {
 	NodeID        string           `json:"node_id"`
 	Name          string           `json:"name"`
@@ -140,4 +139,10 @@ func (s *NodeState) Validate() error {
 		return keyErrs[0]
 	}
 	return nil
+}
+
+func FromBytes(bytes []byte) (*NodeState, error) {
+	var state NodeState
+	err := json.Unmarshal(bytes, &state)
+	return &state, err
 }
