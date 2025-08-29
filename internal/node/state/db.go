@@ -17,7 +17,7 @@ import (
 // A simple "database" backed by a JSON file
 type fileDB struct {
 	// Take a lock over the entire DB state so no one can modify concurrently as we don't handle that as of yet
-	mu sync.Mutex // protects below
+	mu sync.RWMutex // protects below
 
 	path  string
 	state *JSONState
@@ -98,7 +98,7 @@ func NewHabitatDB(path string, initialTransitions []Transition) (Client, error) 
 	}
 
 	db := &fileDB{
-		mu:    sync.Mutex{},
+		mu:    sync.RWMutex{},
 		path:  path,
 		state: state,
 	}
@@ -169,5 +169,7 @@ func (db *fileDB) ProposeTransitions(transitions []Transition) (*JSONState, erro
 
 // Get the state as bytes
 func (db *fileDB) Bytes() SerializedState {
-	return db.Bytes()
+	db.mu.RLock()
+	defer db.mu.RUnlock()
+	return db.state.Bytes()
 }
