@@ -147,14 +147,12 @@ func (s *CtrlServer) UninstallApp(w http.ResponseWriter, r *http.Request) {
 func (s *CtrlServer) GetNodeState(w http.ResponseWriter, r *http.Request) {
 	state, err := s.inner.getNodeState()
 	if err != nil {
-		fmt.Println("got error getting", err.Error())
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	bytes, err := json.Marshal(state)
 	if err != nil {
-		fmt.Println("got error marshalling", err.Error())
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -213,7 +211,6 @@ func (s *CtrlServer) MigrateDB(w http.ResponseWriter, r *http.Request) {
 
 	err = s.inner.migrateDB(req.TargetVersion)
 	if err != nil {
-		fmt.Println("Got error migration", err.Error())
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}

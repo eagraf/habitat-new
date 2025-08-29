@@ -6,6 +6,8 @@ import (
 	jsonpatch "github.com/evanphx/json-patch/v5"
 )
 
+// This file contains helpers for JSON patches.
+
 // TODO: find a way to make this private, since it really shouldn't be exported
 // Right now it's only used in internal/node/controller/processes_test.go for a fileDB mock
 // We can do this by makeing fileDB take in a persist func() and just having that be empty in tests or moving the mock into this package

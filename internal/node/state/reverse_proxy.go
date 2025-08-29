@@ -1,5 +1,7 @@
 package state
 
+// TODO: move these types to internal/reverse_proxy
+
 // ReverseProxyRule matches a URL path to a target of the given type.
 // There are two types of rules currently:
 //  1. File server: serves files from a given directory (useful for serving websites from Habitat)

@@ -75,8 +75,6 @@ func (c *Controller) startProcess(installationID string) error {
 		return errors.Wrap(err, "error proposing transition")
 	}
 
-	newState, err := c.db.State()
-
 	err = c.processManager.StartProcess(c.ctx, id, app)
 	if err != nil {
 		// Rollback the state change if the process start failed
@@ -84,6 +82,11 @@ func (c *Controller) startProcess(installationID string) error {
 			node_state.CreateProcessStopTransition(id),
 		})
 		return errors.Wrap(err, "error starting process")
+	}
+
+	newState, err := c.db.State()
+	if err != nil {
+		return err
 	}
 
 	// Register with reverse proxy server

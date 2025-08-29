@@ -23,6 +23,9 @@ func testTransitions(oldState *NodeState, transitions []Transition) (*NodeState,
 	}
 
 	newStateBytes, _, err := ProposeTransitions(oldBytes, transitions)
+	if err != nil {
+		return nil, err
+	}
 
 	var state NodeState
 	err = json.Unmarshal(newStateBytes, &state)

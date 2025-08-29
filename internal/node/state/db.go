@@ -10,6 +10,10 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+var (
+	DatabaseAlreadyExistsError = errors.New("database already exists")
+)
+
 // TODO: this should really be a struct that is NodeState or something similar with a Persist()
 // function to write it. Then we can have many implementations of NodeState where Persist() can persist
 // to a local file, raft, or somewhere else.
@@ -27,18 +31,6 @@ var _ Client = &fileDB{}
 
 func (db *fileDB) Path() string {
 	return db.path
-}
-
-// Helper function to check whether desired file exists already
-func dbExists(path string) (bool, error) {
-	// TODO we need a much cleaner way to do this. Maybe a db metadata file.
-	_, err := os.Stat(path)
-	if errors.Is(err, os.ErrNotExist) {
-		return false, nil
-	} else if err != nil {
-		return false, err
-	}
-	return true, nil
 }
 
 // Helper function to write byte state to a file
