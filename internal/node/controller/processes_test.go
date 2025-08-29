@@ -83,29 +83,28 @@ func (d *mockDriver) ListRunningProcesses(context.Context) ([]node_state.Process
 
 // mock hdb for tests
 type mockHDB struct {
-	jsonState *node_state.JSONState
+	state *node_state.NodeState
 }
 
-func (db *mockHDB) Bytes() node_state.SerializedState {
-	return db.jsonState.Bytes()
+var _ node_state.Client = &mockHDB{}
+
+func (db *mockHDB) Bytes() (node_state.SerializedState, error) {
+	return db.state.Bytes()
 }
-func (db *mockHDB) DatabaseID() string {
-	return "test"
+
+func (db *mockHDB) State() (*node_state.NodeState, error) {
+	return db.state, nil
 }
-func (db *mockHDB) ProposeTransitions(transitions []node_state.Transition) (*node_state.JSONState, error) {
+
+func (db *mockHDB) ProposeTransitions(transitions []node_state.Transition) (node_state.SerializedState, error) {
 	// Blindly apply all transitions
-	var state node_state.SerializedState = db.jsonState.Bytes()
-	for _, t := range transitions {
-		patch, err := t.Patch(state)
-		if err != nil {
-			return nil, err
-		}
-		err = db.jsonState.ApplyPatch(patch)
-		if err != nil {
-			return nil, err
-		}
+	bytes, err := db.Bytes()
+	if err != nil {
+		return nil, err
 	}
-	return db.jsonState, nil
+
+	state, _, err := node_state.ProposeTransitions(bytes, transitions)
+	return state, err
 }
 
 var (
@@ -156,10 +155,8 @@ func TestStartProcessHandler(t *testing.T) {
 	middleware := &test_helpers.TestAuthMiddleware{UserID: "user_1"}
 
 	mockDriver := newMockDriver(node_state.DriverTypeDocker)
-	jsonState, err := state.ToJSONState()
-	require.NoError(t, err)
 	db := &mockHDB{
-		jsonState: jsonState,
+		state: state,
 	}
 
 	// NewCtrlServer restores the initial state
@@ -230,7 +227,8 @@ func TestStartProcessHandler(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, resp.Result().StatusCode)
 
 	// Process exists in node state
-	nodeState := nodeStateFromJSONState(db.jsonState)
+	nodeState, err := db.State()
+	require.NoError(t, err)
 	procsForUser, err := nodeState.GetProcessesForUser("user_1")
 	require.NoError(t, err)
 	require.Len(t, procsForUser, 1)
@@ -312,7 +310,8 @@ func TestStartProcessHandler(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, resp.Result().StatusCode)
 
 	// Process no longer exists in node state
-	nodeState = nodeStateFromJSONState(db.jsonState)
+	nodeState, err = db.State()
+	require.NoError(t, err)
 	procsForUser, err = nodeState.GetProcessesForUser("user_1")
 	require.NoError(t, err)
 	require.Len(t, procsForUser, 0)
@@ -347,15 +346,6 @@ func TestStartProcessHandler(t *testing.T) {
 	require.ErrorContains(t, s.inner.stopProcess("docker:fake-id"), "process with id not found: docker:fake-id")
 }
 
-func nodeStateFromJSONState(j *node_state.JSONState) *node_state.NodeState {
-	var s node_state.NodeState
-	err := json.Unmarshal(j.Bytes(), &s)
-	if err != nil {
-		panic(err)
-	}
-	return &s
-}
-
 func TestControllerRestoreProcess(t *testing.T) {
 	// For this test, initial state should have Started processees for restore
 	state.Processes["proc1"] = proc1
@@ -364,10 +354,8 @@ func TestControllerRestoreProcess(t *testing.T) {
 	mockDriver := newMockDriver(node_state.DriverTypeDocker)
 	pm := process.NewProcessManager([]process.Driver{mockDriver})
 
-	jsonState, err := state.ToJSONState()
-	require.NoError(t, err)
 	ctrl, err := NewController(context.Background(), pm, nil, &mockHDB{
-		jsonState: jsonState,
+		state: state,
 	},
 		nil,
 		"fake-pds",

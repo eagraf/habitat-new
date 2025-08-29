@@ -17,10 +17,9 @@ import (
 // A simple "database" backed by a JSON file
 type fileDB struct {
 	// Take a lock over the entire DB state so no one can modify concurrently as we don't handle that as of yet
-	mu sync.RWMutex // protects below
-
+	mu    sync.RWMutex // protects below
 	path  string
-	state *JSONState
+	state SerializedState
 }
 
 // fileDB implements db client.
@@ -54,45 +53,45 @@ func NewHabitatDB(path string, initialTransitions []Transition) (Client, error) 
 		return nil, err
 	}
 
-	var state *JSONState
-	sch := &NodeSchema{}
+	var state SerializedState
 
 	// If file exists already, initialize state to what is in the file
 	if exists {
-		bytes, err := os.ReadFile(path)
+		state, err := os.ReadFile(path)
 		if err != nil {
 			return nil, err
 		}
-		state, err = NewJSONState(sch, bytes)
-		if err != nil {
-			return nil, err
-		}
-	} else { // Otherwise, create state according to initialTransitions and write it
 
-		// Create empty schema according to the NodeSchema
-		empty, err := sch.EmptyState()
+		err = Schema.ValidateState(state)
 		if err != nil {
 			return nil, err
 		}
+	} else {
+		// Otherwise, create state according to initialTransitions and write it
+		// Create empty schema according to the NodeSchema
+		empty, err := Schema.EmptyState()
+		if err != nil {
+			return nil, err
+		}
+
 		bytes, err := empty.Bytes()
 		if err != nil {
 			return nil, err
 		}
 
-		// Marshal empty schema into JSONState
-		emptyState, err := NewJSONState(sch, bytes)
+		// Transition empty state to initial state from initialTransactions
+		state, _, err = ProposeTransitions(bytes, initialTransitions)
 		if err != nil {
 			return nil, err
 		}
 
-		// Transition empty state to initial state from initialTransactions
-		state, _, err = proposeTransitions(emptyState, initialTransitions)
+		err = Schema.ValidateState(state)
 		if err != nil {
 			return nil, err
 		}
 
 		// Write out the initial state
-		if writeState(path, state.Bytes()) != nil {
+		if writeState(path, state) != nil {
 			return nil, err
 		}
 	}
@@ -105,54 +104,16 @@ func NewHabitatDB(path string, initialTransitions []Transition) (Client, error) 
 	return db, nil
 }
 
-// Helper function to statelessly generate new state from old + transitions
-// Returns the new state, wrappers for logging / debugging purposes, error if any
-func proposeTransitions(old *JSONState, transitions []Transition) (*JSONState, []*TransitionWrapper, error) {
-	// Make a temp copy of the state to operate on
-	tmp, err := old.Copy()
-	if err != nil {
-		return nil, nil, err
-	}
-
-	wrappers := make([]*TransitionWrapper, 0)
-
-	for _, t := range transitions {
-		err = t.Validate(tmp.Bytes())
-		if err != nil {
-			return nil, nil, fmt.Errorf("transition validation failed: %s", err)
-		}
-
-		patch, err := t.Patch(tmp.Bytes())
-		if err != nil {
-			return nil, nil, err
-		}
-
-		err = tmp.ApplyPatch(patch)
-		if err != nil {
-			return nil, nil, err
-		}
-
-		wrapped, err := WrapTransition(t, patch, tmp.Bytes())
-		if err != nil {
-			return nil, nil, err
-		}
-
-		wrappers = append(wrappers, wrapped)
-	}
-
-	return tmp, wrappers, nil
-}
-
-func (db *fileDB) ProposeTransitions(transitions []Transition) (*JSONState, error) {
+func (db *fileDB) ProposeTransitions(transitions []Transition) (SerializedState, error) {
 	db.mu.Lock()
 	defer db.mu.Unlock()
-	newState, wrapped, err := proposeTransitions(db.state, transitions)
+	newState, wrapped, err := ProposeTransitions(db.state, transitions)
 	if err != nil {
 		return nil, err
 	}
 
 	// Write to the database
-	err = writeState(db.path, newState.Bytes())
+	err = writeState(db.path, newState)
 	if err == nil {
 		wrappedJSON, err := json.Marshal(wrapped)
 		if err == nil {
@@ -168,8 +129,17 @@ func (db *fileDB) ProposeTransitions(transitions []Transition) (*JSONState, erro
 }
 
 // Get the state as bytes
-func (db *fileDB) Bytes() SerializedState {
+func (db *fileDB) Bytes() (SerializedState, error) {
 	db.mu.RLock()
 	defer db.mu.RUnlock()
-	return db.state.Bytes()
+	return db.state, nil
+}
+
+// Get the state as *NodeState
+func (db *fileDB) State() (*NodeState, error) {
+	db.mu.RLock()
+	defer db.mu.RUnlock()
+	var state *NodeState
+	err := json.Unmarshal(db.state, state)
+	return state, err
 }

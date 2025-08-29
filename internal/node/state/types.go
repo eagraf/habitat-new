@@ -54,6 +54,7 @@ func WrapTransition(t Transition, patch []byte, oldState SerializedState) (*Tran
 
 // An state.Client can transition a CRDT JSONState to a new result and also get the current state via Bytes()
 type Client interface {
-	ProposeTransitions(transitions []Transition) (*JSONState, error)
-	Bytes() SerializedState
+	ProposeTransitions(transitions []Transition) (SerializedState, error)
+	State() (*NodeState, error)
+	Bytes() (SerializedState, error)
 }

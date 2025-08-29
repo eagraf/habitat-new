@@ -221,9 +221,14 @@ type GetDatabaseResponse struct {
 
 func (s *CtrlServer) GetNode(w http.ResponseWriter, r *http.Request) {
 	db := s.inner.db
-	stateBytes := db.Bytes()
+	stateBytes, err := db.Bytes()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
 	var stateMap map[string]interface{}
-	err := json.Unmarshal(stateBytes, &stateMap)
+	err = json.Unmarshal(stateBytes, &stateMap)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return

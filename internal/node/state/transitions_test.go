@@ -2,7 +2,6 @@ package state
 
 import (
 	"encoding/json"
-	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -10,58 +9,23 @@ import (
 )
 
 func testTransitions(oldState *NodeState, transitions []Transition) (*NodeState, error) {
-	var oldJSONState *JSONState
-	schema := &NodeSchema{}
+	var err error
 	if oldState == nil {
-		emptyState, err := schema.EmptyState()
-		if err != nil {
-			return nil, err
-		}
-		ojs, err := emptyState.ToJSONState()
-		if err != nil {
-			return nil, err
-		}
-		oldJSONState = ojs
-	} else {
-		ojs, err := oldState.ToJSONState()
+		oldState, err = Schema.EmptyState()
 		if err != nil {
 			return nil, err
 		}
 
-		oldJSONState = ojs
 	}
-	for _, t := range transitions {
-		if t.Type() == "" {
-			return nil, fmt.Errorf("transition type is empty")
-		}
-
-		err := t.Validate(oldJSONState.Bytes())
-		if err != nil {
-			return nil, fmt.Errorf("transition validation failed: %s", err)
-		}
-
-		patch, err := t.Patch(oldJSONState.Bytes())
-		if err != nil {
-			return nil, err
-		}
-
-		newStateBytes, err := oldJSONState.ValidatePatch(patch)
-		if err != nil {
-			return nil, err
-		}
-
-		newState, err := NewJSONState(schema, newStateBytes)
-		if err != nil {
-			return nil, err
-		}
-
-		oldJSONState = newState
+	oldBytes, err := oldState.Bytes()
+	if err != nil {
+		return nil, err
 	}
+
+	newStateBytes, _, err := ProposeTransitions(oldBytes, transitions)
 
 	var state NodeState
-	stateBytes := oldJSONState.Bytes()
-
-	err := json.Unmarshal(stateBytes, &state)
+	err = json.Unmarshal(newStateBytes, &state)
 	if err != nil {
 		return nil, err
 	}

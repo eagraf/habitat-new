@@ -30,36 +30,10 @@ func fakeInitState(rootUserID, rootUsername string) *node_state.NodeState {
 	return initState
 }
 
-type fakeStateClient struct {
-	inner            *node_state.NodeState
-	transitionsStack [][]node_state.Transition
-}
-
-var _ node_state.Client = &fakeStateClient{}
-
-func newFakeStateClient() node_state.Client {
-	initState := fakeInitState("fake_user_id", "fake_username")
-	return &fakeStateClient{
-		inner:            initState,
-		transitionsStack: make([][]node_state.Transition, 0),
-	}
-}
-
-func (c *fakeStateClient) Bytes() node_state.SerializedState {
-	b, err := c.inner.Bytes()
-	if err != nil {
-		panic("Bytes() panicked in fake node state")
-	}
-	return b
-}
-
-func (c *fakeStateClient) ProposeTransitions(transitions []node_state.Transition) (*node_state.JSONState, error) {
-	c.transitionsStack = append(c.transitionsStack, transitions)
-	return nil, nil
-}
-
 func TestAddUser(t *testing.T) {
-	mockedClient := newFakeStateClient()
+	mockedClient := &mockHDB{
+		state: fakeInitState("fake_user_id", "fake_username"),
+	}
 
 	did := "did"
 	mockPDS := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -101,11 +75,9 @@ func TestMigrations(t *testing.T) {
 		Processes:         map[node_state.ProcessID]*node_state.Process{},
 		ReverseProxyRules: map[string]*node_state.ReverseProxyRule{},
 	}
-	jsonState, err := fakestate.ToJSONState()
-	require.NoError(t, err)
 
 	db := &mockHDB{
-		jsonState: jsonState,
+		state: fakestate,
 	}
 	ctrl2, err := NewController(context.Background(), fakeProcessManager(), nil, db, nil, "fak-pds")
 	require.NoError(t, err)
@@ -127,9 +99,6 @@ func TestMigrations(t *testing.T) {
 }
 
 func TestGetNodeState(t *testing.T) {
-	jsonState, err := state.ToJSONState()
-	require.NoError(t, err)
-
 	ctrl2, err := NewController(context.Background(), fakeProcessManager(),
 		map[node_state.DriverType]package_manager.PackageManager{
 			node_state.DriverTypeDocker: &mockPkgManager{
@@ -137,7 +106,7 @@ func TestGetNodeState(t *testing.T) {
 			},
 		},
 		&mockHDB{
-			jsonState: jsonState,
+			state: state,
 		}, nil, "fake-pds")
 	require.NoError(t, err)
 	ctrlServer, err := NewCtrlServer(

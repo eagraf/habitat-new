@@ -23,31 +23,23 @@ const LatestVersion = "v0.0.8"
 //go:embed schema/schema.json
 var nodeSchemaRaw string
 
-type NodeSchema struct{}
+type nodeSchema struct{}
 
-func (s *NodeSchema) Name() string {
+var Schema = &nodeSchema{}
+
+func (s *nodeSchema) Name() string {
 	return SchemaName
 }
 
-func (s *NodeSchema) EmptyState() (*NodeState, error) {
+func (s *nodeSchema) EmptyState() (*NodeState, error) {
 	return GetEmptyStateForVersion(CurrentVersion)
 }
 
-func (s *NodeSchema) Type() reflect.Type {
+func (s *nodeSchema) Type() reflect.Type {
 	return reflect.TypeOf(&NodeState{})
 }
 
-func (s *NodeSchema) Initialize(initState []byte) (Transition, error) {
-	var is *NodeState
-	err := json.Unmarshal(initState, &is)
-	if err != nil {
-		return nil, err
-	}
-	is.SchemaVersion = CurrentVersion
-	return CreateInitializationTransition(is), nil
-}
-
-func (s *NodeSchema) JSONSchemaForVersion(version string) (*jsonschema.Schema, error) {
+func (s *nodeSchema) JSONSchemaForVersion(version string) (*jsonschema.Schema, error) {
 	migrations, err := readSchemaMigrationFiles()
 	if err != nil {
 		return nil, err
@@ -66,7 +58,7 @@ func (s *NodeSchema) JSONSchemaForVersion(version string) (*jsonschema.Schema, e
 	return rs, nil
 }
 
-func (s *NodeSchema) ValidateState(state []byte) error {
+func (s *nodeSchema) ValidateState(state []byte) error {
 	var stateObj NodeState
 	err := json.Unmarshal(state, &stateObj)
 	if err != nil {

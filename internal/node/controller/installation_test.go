@@ -43,8 +43,6 @@ func (m *mockPkgManager) RestoreFromState(context.Context, map[string]*node_stat
 
 func TestInstallAppController(t *testing.T) {
 	mockDriver := newMockDriver(node_state.DriverTypeDocker)
-	jsonState, err := state.ToJSONState()
-	require.NoError(t, err)
 
 	ctrl2, err := NewController(context.Background(), process.NewProcessManager([]process.Driver{mockDriver}),
 		map[node_state.DriverType]package_manager.PackageManager{
@@ -53,7 +51,7 @@ func TestInstallAppController(t *testing.T) {
 			},
 		},
 		&mockHDB{
-			jsonState: jsonState,
+			state: state,
 		}, nil, "fake-pds")
 	require.NoError(t, err)
 	ctrlServer, err := NewCtrlServer(

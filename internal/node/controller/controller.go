@@ -2,7 +2,6 @@ package controller
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 
 	"github.com/bluesky-social/indigo/api/atproto"
@@ -52,12 +51,7 @@ func NewController(
 }
 
 func (c *Controller) getNodeState() (*node_state.NodeState, error) {
-	var nodeState node_state.NodeState
-	err := json.Unmarshal(c.db.Bytes(), &nodeState)
-	if err != nil {
-		return nil, err
-	}
-	return &nodeState, nil
+	return c.db.State()
 }
 
 func (c *Controller) startProcess(installationID string) error {
@@ -76,16 +70,12 @@ func (c *Controller) startProcess(installationID string) error {
 		return errors.Wrap(err, "error creating transition")
 	}
 
-	newJSONState, err := c.db.ProposeTransitions([]node_state.Transition{transition})
+	_, err = c.db.ProposeTransitions([]node_state.Transition{transition})
 	if err != nil {
 		return errors.Wrap(err, "error proposing transition")
 	}
 
-	var newState node_state.NodeState
-	err = newJSONState.Unmarshal(&newState)
-	if err != nil {
-		return errors.Wrap(err, "error getting new state")
-	}
+	newState, err := c.db.State()
 
 	err = c.processManager.StartProcess(c.ctx, id, app)
 	if err != nil {
@@ -185,10 +175,9 @@ func (c *Controller) addUser(ctx context.Context, input *atproto.ServerCreateAcc
 }
 
 func (c *Controller) migrateDB(targetVersion string) error {
-	var nodeState node_state.NodeState
-	err := json.Unmarshal(c.db.Bytes(), &nodeState)
+	nodeState, err := c.db.State()
 	if err != nil {
-		return nil
+		return err
 	}
 	// No-op if version is already the target
 	if semver.Compare(nodeState.SchemaVersion, targetVersion) == 0 {

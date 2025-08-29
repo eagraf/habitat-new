@@ -84,7 +84,7 @@ func TestDataMigrations(t *testing.T) {
 
 func TestValidationFailure(t *testing.T) {
 	// Test that validation fails when the state is invalid
-	nodeSchema := &NodeSchema{}
+	nodeSchema := Schema
 	state, err := nodeSchema.EmptyState()
 	assert.Nil(t, err)
 

@@ -119,24 +119,10 @@ func (s *NodeState) Copy() (*NodeState, error) {
 	return &copy, nil
 }
 
-func (s *NodeState) ToJSONState() (*JSONState, error) {
-	stateBytes, err := s.Bytes()
-	if err != nil {
-		return nil, err
-	}
-	jsonState, err := NewJSONState(&NodeSchema{}, stateBytes)
-	if err != nil {
-		return nil, err
-	}
-
-	return jsonState, nil
-}
-
 func (s *NodeState) Validate() error {
 	schemaVersion := s.SchemaVersion
 
-	ns := &NodeSchema{}
-	jsonSchema, err := ns.JSONSchemaForVersion(schemaVersion)
+	jsonSchema, err := Schema.JSONSchemaForVersion(schemaVersion)
 	if err != nil {
 		return err
 	}
