@@ -1,4 +1,4 @@
-package hdbms
+package state
 
 import (
 	"encoding/json"
@@ -7,8 +7,6 @@ import (
 	"os"
 	"sync"
 
-	"github.com/eagraf/habitat-new/core/state/node"
-	"github.com/eagraf/habitat-new/internal/node/hdb"
 	"github.com/rs/zerolog/log"
 )
 
@@ -22,11 +20,11 @@ type fileDB struct {
 	mu sync.Mutex // protects below
 
 	path  string
-	state *hdb.JSONState
+	state *JSONState
 }
 
 // fileDB implements db client.
-var _ hdb.Client = &fileDB{}
+var _ Client = &fileDB{}
 
 func (db *fileDB) Path() string {
 	return db.path
@@ -49,15 +47,15 @@ func writeState(path string, bytes []byte) error {
 	return os.WriteFile(path, bytes, 0600)
 }
 
-func NewHabitatDB(path string, initialTransitions []hdb.Transition) (hdb.Client, error) {
+func NewHabitatDB(path string, initialTransitions []Transition) (Client, error) {
 	// First ensure that no db has the same name
 	exists, err := dbExists(path)
 	if err != nil {
 		return nil, err
 	}
 
-	var state *hdb.JSONState
-	sch := &node.NodeSchema{}
+	var state *JSONState
+	sch := &NodeSchema{}
 
 	// If file exists already, initialize state to what is in the file
 	if exists {
@@ -65,7 +63,7 @@ func NewHabitatDB(path string, initialTransitions []hdb.Transition) (hdb.Client,
 		if err != nil {
 			return nil, err
 		}
-		state, err = hdb.NewJSONState(sch, bytes)
+		state, err = NewJSONState(sch, bytes)
 		if err != nil {
 			return nil, err
 		}
@@ -82,7 +80,7 @@ func NewHabitatDB(path string, initialTransitions []hdb.Transition) (hdb.Client,
 		}
 
 		// Marshal empty schema into JSONState
-		emptyState, err := hdb.NewJSONState(sch, bytes)
+		emptyState, err := NewJSONState(sch, bytes)
 		if err != nil {
 			return nil, err
 		}
@@ -109,14 +107,14 @@ func NewHabitatDB(path string, initialTransitions []hdb.Transition) (hdb.Client,
 
 // Helper function to statelessly generate new state from old + transitions
 // Returns the new state, wrappers for logging / debugging purposes, error if any
-func proposeTransitions(old *hdb.JSONState, transitions []hdb.Transition) (*hdb.JSONState, []*hdb.TransitionWrapper, error) {
+func proposeTransitions(old *JSONState, transitions []Transition) (*JSONState, []*TransitionWrapper, error) {
 	// Make a temp copy of the state to operate on
 	tmp, err := old.Copy()
 	if err != nil {
 		return nil, nil, err
 	}
 
-	wrappers := make([]*hdb.TransitionWrapper, 0)
+	wrappers := make([]*TransitionWrapper, 0)
 
 	for _, t := range transitions {
 		err = t.Validate(tmp.Bytes())
@@ -134,7 +132,7 @@ func proposeTransitions(old *hdb.JSONState, transitions []hdb.Transition) (*hdb.
 			return nil, nil, err
 		}
 
-		wrapped, err := hdb.WrapTransition(t, patch, tmp.Bytes())
+		wrapped, err := WrapTransition(t, patch, tmp.Bytes())
 		if err != nil {
 			return nil, nil, err
 		}
@@ -145,7 +143,7 @@ func proposeTransitions(old *hdb.JSONState, transitions []hdb.Transition) (*hdb.
 	return tmp, wrappers, nil
 }
 
-func (db *fileDB) ProposeTransitions(transitions []hdb.Transition) (*hdb.JSONState, error) {
+func (db *fileDB) ProposeTransitions(transitions []Transition) (*JSONState, error) {
 	db.mu.Lock()
 	defer db.mu.Unlock()
 	newState, wrapped, err := proposeTransitions(db.state, transitions)
@@ -170,6 +168,6 @@ func (db *fileDB) ProposeTransitions(transitions []hdb.Transition) (*hdb.JSONSta
 }
 
 // Get the state as bytes
-func (db *fileDB) Bytes() []byte {
-	return db.state.Bytes()
+func (db *fileDB) Bytes() SerializedState {
+	return db.Bytes()
 }

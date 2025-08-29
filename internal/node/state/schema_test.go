@@ -1,4 +1,4 @@
-package node
+package state
 
 import (
 	"context"
@@ -55,7 +55,7 @@ func TestInitializationTransition(t *testing.T) {
 }
 
 func TestGetAppByID(t *testing.T) {
-	state := &State{
+	state := &NodeState{
 		AppInstallations: map[string]*AppInstallation{
 			"app1": {
 				ID: "app1",
@@ -73,7 +73,7 @@ func TestGetAppByID(t *testing.T) {
 
 func TestGetReverseProxyRulesForProcess(t *testing.T) {
 
-	state := &State{
+	state := &NodeState{
 		AppInstallations: map[string]*AppInstallation{
 			"app1": {
 				ID: "app1",

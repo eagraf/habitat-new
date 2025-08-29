@@ -1,4 +1,4 @@
-package node
+package state
 
 // ReverseProxyRule matches a URL path to a target of the given type.
 // There are two types of rules currently:

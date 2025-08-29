@@ -1,4 +1,4 @@
-package hdb
+package state
 
 import (
 	"encoding/json"
@@ -7,13 +7,12 @@ import (
 	jsonpatch "github.com/evanphx/json-patch/v5"
 )
 
-// JSONState
 type JSONState struct {
-	schema Schema
+	schema *NodeSchema
 	state  []byte
 }
 
-func NewJSONState(schema Schema, initState []byte) (*JSONState, error) {
+func NewJSONState(schema *NodeSchema, initState []byte) (*JSONState, error) {
 	err := schema.ValidateState(initState)
 	if err != nil {
 		return nil, fmt.Errorf("error validating initial state: %s", err)
