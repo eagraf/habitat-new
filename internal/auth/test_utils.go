@@ -167,17 +167,17 @@ func testDpopClient(t *testing.T, identity *identity.Identity) *DpopHttpClient {
 	// Create a session store and session for testing
 	sessionStore := sessions.NewCookieStore([]byte("test-key"))
 
-	// Create a test request and response writer for session creation
+	// Create a test request for session creation
 	req := httptest.NewRequest("GET", "/test", nil)
-	w := httptest.NewRecorder()
 
 	// Create a fresh DPoP session
-	dpopSession, err := newCookieSession(req, w, sessionStore, identity, "https://test.com")
+	dpopSession, err := newCookieSession(req, sessionStore, identity, "https://test.com")
 	require.NoError(t, err)
 
 	// Get the key from the session
-	key, err := dpopSession.GetDpopKey()
+	key, exists, err := dpopSession.GetDpopKey()
 	require.NoError(t, err)
+	require.True(t, exists)
 
 	// Create real DPoP client with auth server JWK builder
 	return NewDpopHttpClient(key, dpopSession)
@@ -186,8 +186,9 @@ func testDpopClient(t *testing.T, identity *identity.Identity) *DpopHttpClient {
 // testDpopClientFromSession creates a real DPoP HTTP client from an existing session
 func testDpopClientFromSession(t *testing.T, dpopSession *cookieSession) *DpopHttpClient {
 	// Get the key from the session
-	key, err := dpopSession.GetDpopKey()
+	key, exists, err := dpopSession.GetDpopKey()
 	require.NoError(t, err)
+	require.True(t, exists)
 
 	// Create real DPoP client with auth server JWK builder
 	return NewDpopHttpClient(key, dpopSession)
@@ -206,7 +207,6 @@ type DpopSessionOptions struct {
 func testDpopSession(t *testing.T, opts DpopSessionOptions) *cookieSession {
 	sessionStore := sessions.NewCookieStore([]byte("test-key"))
 	req := httptest.NewRequest("GET", "/test", nil)
-	w := httptest.NewRecorder()
 
 	// Use provided identity or create a default one
 	var identity *identity.Identity
@@ -216,7 +216,7 @@ func testDpopSession(t *testing.T, opts DpopSessionOptions) *cookieSession {
 		identity = testIdentity(opts.PdsURL)
 	}
 
-	dpopSession, err := newCookieSession(req, w, sessionStore, identity, opts.PdsURL)
+	dpopSession, err := newCookieSession(req, sessionStore, identity, opts.PdsURL)
 	require.NoError(t, err)
 
 	// Set issuer if provided
@@ -236,8 +236,8 @@ func testDpopSession(t *testing.T, opts DpopSessionOptions) *cookieSession {
 		delete(dpopSession.session.Values, cIdentitySessionKey)
 	}
 
-	err = dpopSession.session.Save(req, w)
-	require.NoError(t, err)
+	// Save the session
+	dpopSession.Save(req, nil)
 
 	return dpopSession
 }
