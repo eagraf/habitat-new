@@ -3,7 +3,6 @@ package permissions
 import (
 	_ "embed"
 	"fmt"
-	"log"
 	"strings"
 
 	"github.com/casbin/casbin/v2"
@@ -117,7 +116,6 @@ func (p *casbinStore) ListReadPermissionsByLexicon(owner string) (map[string][]s
 		}
 	}
 
-	log.Println(res)
 	return res, nil
 }
 
