@@ -207,6 +207,7 @@ type DpopSessionOptions struct {
 func testDpopSession(t *testing.T, opts DpopSessionOptions) *cookieSession {
 	sessionStore := sessions.NewCookieStore([]byte("test-key"))
 	req := httptest.NewRequest("GET", "/test", nil)
+	w := httptest.NewRecorder()
 
 	// Use provided identity or create a default one
 	var identity *identity.Identity
@@ -218,6 +219,7 @@ func testDpopSession(t *testing.T, opts DpopSessionOptions) *cookieSession {
 
 	dpopSession, err := newCookieSession(req, sessionStore, identity, opts.PdsURL)
 	require.NoError(t, err)
+	require.NotNil(t, dpopSession)
 
 	// Set issuer if provided
 	if opts.Issuer != nil {
@@ -237,7 +239,7 @@ func testDpopSession(t *testing.T, opts DpopSessionOptions) *cookieSession {
 	}
 
 	// Save the session
-	dpopSession.Save(req, nil)
+	dpopSession.Save(req, w)
 
 	return dpopSession
 }
