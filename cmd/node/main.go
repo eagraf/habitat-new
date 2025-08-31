@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"crypto/rand"
 	"errors"
 	"fmt"
 	"net"
@@ -139,15 +138,7 @@ func main() {
 
 	// Gorilla sessions persisted in the browser's cookies.
 	// TODO These need to actually be persisted somewhere
-	sessionStoreKey := make([]byte, 32)
-	_, err = rand.Read(sessionStoreKey)
-	if err != nil {
-		log.Fatal().Err(err).Msg("error generating session store key")
-	}
-	if nodeConfig.Environment() == constants.EnvironmentDev {
-		// Keep the key consistent in dev mode so that the same session is used across restarts.
-		sessionStoreKey = []byte("FaKe_DeV-SeSsIoN-KeY")
-	}
+	sessionStoreKey := []byte("FaKe_DeV-SeSsIoN-KeY")
 
 	proxy := reverse_proxy.NewProxyServer(logger, nodeConfig.WebBundlePath())
 	proxyServer := &http.Server{

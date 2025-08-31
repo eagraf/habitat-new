@@ -43,7 +43,7 @@ func TestCallbackHandler_SuccessfulCallback(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	// Create auth session with state first
-	authSession, _ := sessionStore.New(req, "auth-session")
+	authSession, _ := sessionStore.New(req, SessionKeyAuth)
 	state := &AuthorizeState{
 		Verifier:      "test-verifier",
 		State:         "test-state",
@@ -163,7 +163,7 @@ func TestCallbackHandler_InvalidSessionState(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	// Create auth session with invalid state (not JSON)
-	authSession, _ := sessionStore.New(req, "auth-session")
+	authSession, _ := sessionStore.New(req, SessionKeyAuth)
 	authSession.AddFlash("invalid-json")
 	err := authSession.Save(req, w)
 	require.NoError(t, err)
@@ -183,7 +183,7 @@ func TestCallbackHandler_MissingCode(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	// Create auth session with state
-	authSession, _ := sessionStore.New(req, "auth-session")
+	authSession, _ := sessionStore.New(req, SessionKeyAuth)
 	state := &AuthorizeState{
 		Verifier:      "test-verifier",
 		State:         "test-state",
@@ -226,7 +226,7 @@ func TestCallbackHandler_TokenExchangeError(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	// Create auth session with state
-	authSession, _ := sessionStore.New(req, "auth-session")
+	authSession, _ := sessionStore.New(req, SessionKeyAuth)
 	state := &AuthorizeState{
 		Verifier:      "test-verifier",
 		State:         "test-state",
@@ -268,7 +268,7 @@ func TestCallbackHandler_DPOPSessionError(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	// Create auth session with state but no DPoP session
-	authSession, _ := sessionStore.New(req, "auth-session")
+	authSession, _ := sessionStore.New(req, SessionKeyAuth)
 	state := &AuthorizeState{
 		Verifier:      "test-verifier",
 		State:         "test-state",
@@ -303,7 +303,7 @@ func TestCallbackHandler_SessionSaveError(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	// Create auth session with state
-	authSession, _ := sessionStore.New(req, "auth-session")
+	authSession, _ := sessionStore.New(req, SessionKeyAuth)
 	state := &AuthorizeState{
 		Verifier:      "test-verifier",
 		State:         "test-state",
@@ -355,7 +355,7 @@ func TestCallbackHandler_CookieAttributes(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	// Create auth session with state
-	authSession, _ := sessionStore.New(req, "auth-session")
+	authSession, _ := sessionStore.New(req, SessionKeyAuth)
 	state := &AuthorizeState{
 		Verifier:      "test-verifier",
 		State:         "test-state",

@@ -97,8 +97,8 @@ func TestLoginHandler_SuccessfulLogin(t *testing.T) {
 	for _, cookie := range cookies {
 		sessionNames[cookie.Name] = true
 	}
-	require.True(t, sessionNames["dpop-session"], "DPoP session should be created")
-	require.True(t, sessionNames["auth-session"], "Auth session should be created")
+	require.True(t, sessionNames[SessionKeyDpop], "DPoP session should be created")
+	require.True(t, sessionNames[SessionKeyAuth], "Auth session should be created")
 }
 
 func TestLoginHandler_WithPDSURL(t *testing.T) {
@@ -131,7 +131,7 @@ func TestLoginHandler_WithPDSURL(t *testing.T) {
 	cookies := w.Result().Cookies()
 	var dpopCookie *http.Cookie
 	for _, cookie := range cookies {
-		if cookie.Name == "dpop-session" {
+		if cookie.Name == SessionKeyDpop {
 			dpopCookie = cookie
 			break
 		}
@@ -289,13 +289,13 @@ func TestLoginHandler_IntegrationWithRealOAuthFlow(t *testing.T) {
 	sessionNames := make(map[string]bool)
 	for _, cookie := range cookies {
 		sessionNames[cookie.Name] = true
-		if cookie.Name == "dpop-session" || cookie.Name == "auth-session" {
+		if cookie.Name == SessionKeyDpop || cookie.Name == SessionKeyAuth {
 			require.Equal(t, "/", cookie.Path, "Session cookies should have root path")
 			require.NotEmpty(t, cookie.Value, "Session cookies should have values")
 		}
 	}
-	require.True(t, sessionNames["dpop-session"], "DPoP session should be created")
-	require.True(t, sessionNames["auth-session"], "Auth session should be created")
+	require.True(t, sessionNames[SessionKeyDpop], "DPoP session should be created")
+	require.True(t, sessionNames[SessionKeyAuth], "Auth session should be created")
 }
 
 func TestLoginHandler_FormParsingError(t *testing.T) {
@@ -342,7 +342,7 @@ func TestLoginHandler_DefaultDirectoryLookup(t *testing.T) {
 		for _, cookie := range cookies {
 			sessionNames[cookie.Name] = true
 		}
-		require.True(t, sessionNames["dpop-session"], "DPoP session should be created with default directory")
-		require.True(t, sessionNames["auth-session"], "Auth session should be created with default directory")
+		require.True(t, sessionNames[SessionKeyDpop], "DPoP session should be created with default directory")
+		require.True(t, sessionNames[SessionKeyAuth], "Auth session should be created with default directory")
 	}
 }

@@ -43,6 +43,7 @@ func GetRoutes(
 	nodeConfig *config.NodeConfig,
 	sessionStore sessions.Store,
 ) ([]api.Route, error) {
+	// TODO persist this key
 	key, err := ecdsa.GenerateKey(
 		elliptic.P256(),
 		bytes.NewReader(bytes.Repeat([]byte("hello world"), 1024)),
@@ -58,8 +59,7 @@ func GetRoutes(
 		Use:       "sig",
 	})
 	if err != nil {
-		log.Error().Err(err).Msg("error marshalling jwk")
-		panic(err)
+		return nil, err
 	}
 
 	baseClientURL := nodeConfig.ExternalURL()
@@ -157,7 +157,7 @@ func (l *loginHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	session, _ := l.sessionStore.New(r, "auth-session")
+	session, _ := l.sessionStore.New(r, SessionKeyAuth)
 	session.AddFlash(stateJson)
 
 	dpopSession.Save(r, w)
@@ -242,7 +242,7 @@ func (c *callbackHandler) Pattern() string {
 
 // ServeHTTP implements api.Route.
 func (c *callbackHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	authSession, err := c.sessionStore.Get(r, "auth-session")
+	authSession, err := c.sessionStore.Get(r, SessionKeyAuth)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
