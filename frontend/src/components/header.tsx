@@ -10,13 +10,7 @@ function formatHandle(handle: string | null) {
   return handle;
 }
 
-interface HeaderProps {
-  isAuthenticated: boolean
-  handle: string | undefined
-  onLogout: () => void
-}
-
-const Header = ({ isAuthenticated: isOauthAuthenticated, handle: oauthHandle, onLogout: onOauthLogout }: HeaderProps) => {
+const Header = () => {
   const { isAuthenticated, handle, logout } = useAuth();
   return (
     <header >
