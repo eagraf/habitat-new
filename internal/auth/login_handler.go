@@ -17,7 +17,6 @@ import (
 	"github.com/eagraf/habitat-new/internal/node/config"
 	jose "github.com/go-jose/go-jose/v3"
 	"github.com/gorilla/sessions"
-	"github.com/rs/zerolog/log"
 )
 
 type loginHandler struct {
@@ -49,8 +48,7 @@ func GetRoutes(
 		bytes.NewReader(bytes.Repeat([]byte("hello world"), 1024)),
 	)
 	if err != nil {
-		log.Error().Err(err).Msg("error generating key")
-		panic(err)
+		return nil, err
 	}
 	jwk, err := json.Marshal(jose.JSONWebKey{
 		Key:       key,
@@ -70,7 +68,6 @@ func GetRoutes(
 		jwk, /*secretJwk*/
 	)
 	if err != nil {
-		log.Error().Err(err).Msg("error creating oauth client")
 		return nil, err
 	}
 
@@ -224,7 +221,6 @@ func (m *metadataHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Content-Type", "application/json")
 	_, err = w.Write(bytes)
 	if err != nil {
-		log.Error().Err(err).Msg("error writing response")
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
