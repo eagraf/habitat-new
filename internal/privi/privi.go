@@ -89,7 +89,12 @@ func newStore(did syntax.DID, perms permissions.Store) *store {
 // putRecord puts the given record on the repo connected to this store (currently an in-memory repo that is a KV store)
 // It does not do any encryption, permissions, auth, etc. It is assumed that only the owner of the store can call this and that
 // is gated by some higher up level. This should be re-written in the future to not give any incorrect impression.
-func (p *store) putRecord(collection string, record map[string]any, rkey string, validate *bool) error {
+func (p *store) putRecord(
+	collection string,
+	record map[string]any,
+	rkey string,
+	validate *bool,
+) error {
 	// It is assumed right now that if this endpoint is called, the caller wants to put a private record into privi.
 	return p.repo.putRecord(collection, record, rkey, validate)
 }
@@ -101,9 +106,13 @@ type GetRecordResponse struct {
 }
 
 // getRecord checks permissions on callerDID and then passes through to `repo.getRecord`.
-func (p *store) getRecord(collection string, rkey string, callerDID syntax.DID) (json.RawMessage, error) {
+func (p *store) getRecord(
+	collection string,
+	rkey string,
+	callerDID syntax.DID,
+) (json.RawMessage, error) {
 	// Run permissions before returning to the user
-	authz, err := p.permissions.HasPermission(callerDID.String(), collection, rkey)
+	authz, err := p.permissions.HasPermission(callerDID.String(), p.did.String(), collection, rkey)
 	if err != nil {
 		return nil, err
 	}

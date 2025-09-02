@@ -27,35 +27,25 @@ type PutRecordRequest struct {
 }
 
 type Server struct {
-	// TODO: allow privy server to serve many stores, not just one user
 	stores map[syntax.DID]*store
+	perms  permissions.Store
 	// Used for resolving handles -> did, did -> PDS
 	dir identity.Directory
 }
 
 // NewServer returns a privi server.
-func NewServer(didToStores map[syntax.DID]permissions.Store) *Server {
+func NewServer(
+	dids []syntax.DID,
+	permissionStore permissions.Store,
+) *Server {
 	server := &Server{
 		stores: make(map[syntax.DID]*store),
 		dir:    identity.DefaultDirectory(),
 	}
-	for did, perms := range didToStores {
-		err := server.Register(did, perms)
-		if err != nil {
-			log.Err(err)
-		}
+	for _, did := range dids {
+		server.stores[did] = newStore(did, permissionStore)
 	}
 	return server
-}
-
-func (s *Server) Register(did syntax.DID, perms permissions.Store) error {
-	_, ok := s.stores[did]
-	if ok {
-		return fmt.Errorf("existing privi store for this did: %s", did.String())
-	}
-
-	s.stores[did] = newStore(did, perms)
-	return nil
 }
 
 // PutRecord puts a potentially encrypted record (see s.inner.putRecord)
@@ -243,11 +233,15 @@ func (s *Server) ListPermissions(w http.ResponseWriter, r *http.Request) {
 
 	store, ok := s.stores[callerDID]
 	if !ok {
-		http.Error(w, fmt.Errorf("no store found for caller %s", callerDID).Error(), http.StatusInternalServerError)
+		http.Error(
+			w,
+			fmt.Errorf("no store found for caller %s", callerDID).Error(),
+			http.StatusInternalServerError,
+		)
 		return
 	}
 
-	permissions, err := store.permissions.ListReadPermissionsByLexicon()
+	permissions, err := store.permissions.ListReadPermissionsByLexicon(callerDID.String())
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -280,7 +274,7 @@ func (s *Server) AddPermission(w http.ResponseWriter, r *http.Request) {
 	}
 
 	store := s.stores[callerDID]
-	err = store.permissions.AddLexiconReadPermission(req.DID, req.Lexicon)
+	err = store.permissions.AddLexiconReadPermission(req.DID, callerDID.String(), req.Lexicon)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -301,7 +295,7 @@ func (s *Server) RemovePermission(w http.ResponseWriter, r *http.Request) {
 	}
 
 	store := s.stores[callerDID]
-	err = store.permissions.RemoveLexiconReadPermission(req.DID, req.Lexicon)
+	err = store.permissions.RemoveLexiconReadPermission(req.DID, callerDID.String(), req.Lexicon)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
