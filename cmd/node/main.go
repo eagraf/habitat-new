@@ -13,6 +13,7 @@ import (
 	"runtime"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/bluesky-social/indigo/atproto/syntax"
 	fileadapter "github.com/casbin/casbin/v2/persist/file-adapter"
@@ -453,6 +454,14 @@ func initialState(
 	for _, app := range startApps {
 		init.AppInstallations[app.ID] = app
 		init.AppInstallations[app.ID].State = state.AppLifecycleStateInstalled
+
+		procID := state.NewProcessID(app.Driver)
+		init.Processes[procID] = &state.Process{
+			ID:      procID,
+			AppID:   app.ID,
+			UserID:  constants.RootUserID,
+			Created: time.Now().Format(time.RFC3339),
+		}
 	}
 	for _, rule := range proxyRules {
 		init.ReverseProxyRules[rule.ID] = rule
