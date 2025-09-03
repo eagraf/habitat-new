@@ -1,5 +1,35 @@
 package app
 
+type DriverType string
+
+const (
+	DriverTypeUnknown DriverType = "unknown"
+	DriverTypeNoop    DriverType = "noop"
+	DriverTypeDocker  DriverType = "docker"
+	DriverTypeWeb     DriverType = "web"
+)
+
+func (d DriverType) String() string {
+	return string(d)
+}
+
+var (
+	driverTypes = map[string]DriverType{
+		"unknown": DriverTypeUnknown,
+		"noop":    DriverTypeNoop,
+		"docker":  DriverTypeDocker,
+		"web":     DriverTypeWeb,
+	}
+)
+
+func DriverTypeFromString(s string) DriverType {
+	t, ok := driverTypes[s]
+	if !ok {
+		return DriverTypeUnknown
+	}
+	return t
+}
+
 type Package struct {
 	Driver             DriverType             `json:"driver" yaml:"driver"`
 	DriverConfig       map[string]interface{} `json:"driver_config" yaml:"driver_config"`
