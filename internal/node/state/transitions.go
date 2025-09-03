@@ -176,7 +176,7 @@ func (t *addUserTransition) Validate(oldState SerializedState) error {
 
 type startInstallationTransition struct {
 	appInstallation *app.Installation
-	newProxyRules   []*reverse_proxy.Rule `json:"new_proxy_rules"`
+	NewProxyRules   []*reverse_proxy.Rule `json:"new_proxy_rules"`
 }
 
 func (t *startInstallationTransition) Type() TransitionType {
@@ -202,7 +202,7 @@ func (t *startInstallationTransition) Patch(oldState SerializedState) (Serialize
 	}
 
 	marshaledRules := make([]string, 0)
-	for _, rule := range t.newProxyRules {
+	for _, rule := range t.NewProxyRules {
 		marshaled, err := json.Marshal(rule)
 		if err != nil {
 			return nil, err
@@ -278,7 +278,7 @@ func CreateStartInstallationTransition(userID string, pkg *app.Package, version 
 			State:   app.LifecycleStateInstalling,
 			Package: pkg,
 		},
-		newProxyRules: proxyRules,
+		NewProxyRules: proxyRules,
 	}
 	return transition, id
 }

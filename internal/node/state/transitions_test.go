@@ -292,7 +292,7 @@ func TestAppInstallReverseProxyRules(t *testing.T) {
 					DriverConfig:       map[string]interface{}{},
 				},
 			},
-			newProxyRules: []*reverse_proxy.Rule{
+			NewProxyRules: []*reverse_proxy.Rule{
 				{
 					AppID:   "app1",
 					Matcher: "/path",

@@ -10,6 +10,7 @@ import (
 	"github.com/eagraf/habitat-new/internal/node/reverse_proxy"
 	node_state "github.com/eagraf/habitat-new/internal/node/state"
 	"github.com/eagraf/habitat-new/internal/process"
+	"github.com/eagraf/habitat-new/internal/types"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/mod/semver"
@@ -33,7 +34,7 @@ func NewController(
 	pdsURL string,
 ) (*Controller, error) {
 	// Validate types of all input components
-	_, ok := processManager.(node_state.Component[process.RestoreInfo])
+	_, ok := processManager.(types.Component[process.RestoreInfo])
 	if !ok {
 		return nil, fmt.Errorf("Process manager of type %T does not implement Component[*process.]", processManager)
 	}
