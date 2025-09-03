@@ -20,6 +20,7 @@ import (
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
+	"github.com/eagraf/habitat-new/internal/app"
 	"github.com/eagraf/habitat-new/internal/auth"
 	"github.com/eagraf/habitat-new/internal/docker"
 	"github.com/eagraf/habitat-new/internal/node/api"
@@ -31,7 +32,6 @@ import (
 	"github.com/eagraf/habitat-new/internal/node/reverse_proxy"
 	"github.com/eagraf/habitat-new/internal/node/server"
 	"github.com/eagraf/habitat-new/internal/node/state"
-	"github.com/eagraf/habitat-new/internal/package_manager"
 	"github.com/eagraf/habitat-new/internal/permissions"
 	"github.com/eagraf/habitat-new/internal/privi"
 	"github.com/eagraf/habitat-new/internal/process"
@@ -61,9 +61,9 @@ func main() {
 	)
 
 	// Initialize package managers
-	pkgManagers := map[state.DriverType]package_manager.PackageManager{
-		state.DriverTypeDocker: docker.NewPackageManager(dockerClient),
-		state.DriverTypeWeb:    web.NewPackageManager(nodeConfig.WebBundlePath()),
+	pkgManagers := map[app.DriverType]app.PackageManager{
+		app.DriverTypeDocker: docker.NewPackageManager(dockerClient),
+		app.DriverTypeWeb:    web.NewPackageManager(nodeConfig.WebBundlePath()),
 	}
 
 	if err != nil {
@@ -270,7 +270,7 @@ func main() {
 
 func generatePDSAppConfig(
 	nodeConfig *config.NodeConfig,
-) (*state.AppInstallation, []*reverse_proxy.Rule) {
+) (*app.Installation, []*reverse_proxy.Rule) {
 	pdsMountDir := filepath.Join(nodeConfig.HabitatAppPath(), "pds")
 
 	arch := runtime.GOARCH
@@ -283,13 +283,13 @@ func generatePDSAppConfig(
 
 	// TODO @eagraf - unhardcode as much of this as possible
 	appID := "pds-default-app-ID"
-	return &state.AppInstallation{
+	return &app.Installation{
 			ID:      appID,
 			Name:    "pds",
 			Version: "1",
 			UserID:  constants.RootUserID,
-			Package: &state.Package{
-				Driver: state.DriverTypeDocker,
+			Package: &app.Package{
+				Driver: app.DriverTypeDocker,
 				DriverConfig: map[string]interface{}{
 					"env": []string{
 						fmt.Sprintf("PDS_HOSTNAME=%s", nodeConfig.Domain()),
@@ -442,7 +442,7 @@ func generateDefaultReverseProxyRules(config *config.NodeConfig) ([]*reverse_pro
 
 func initialState(
 	rootUserCert string,
-	startApps []*state.AppInstallation,
+	startApps []*app.Installation,
 	proxyRules []*reverse_proxy.Rule,
 ) (*state.NodeState, []state.Transition, error) {
 	init, err := state.NewStateForLatestVersion()
@@ -451,14 +451,14 @@ func initialState(
 	}
 	init.SetRootUserCert(rootUserCert)
 
-	for _, app := range startApps {
-		init.AppInstallations[app.ID] = app
-		init.AppInstallations[app.ID].State = state.AppLifecycleStateInstalled
+	for _, install := range startApps {
+		init.AppInstallations[install.ID] = install
+		init.AppInstallations[install.ID].State = app.LifecycleStateInstalled
 
-		procID := state.NewProcessID(app.Driver)
-		init.Processes[procID] = &state.Process{
+		procID := process.NewID(install.Driver)
+		init.Processes[procID] = &process.Process{
 			ID:      procID,
-			AppID:   app.ID,
+			AppID:   install.ID,
 			UserID:  constants.RootUserID,
 			Created: time.Now().Format(time.RFC3339),
 		}

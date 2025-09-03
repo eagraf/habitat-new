@@ -12,10 +12,10 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/eagraf/habitat-new/internal/app"
 	"github.com/eagraf/habitat-new/internal/node/constants"
 	"github.com/eagraf/habitat-new/internal/node/controller"
 	"github.com/eagraf/habitat-new/internal/node/reverse_proxy"
-	"github.com/eagraf/habitat-new/internal/node/state"
 	"github.com/mitchellh/mapstructure"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -380,7 +380,7 @@ func (n *NodeConfig) FrontendDev() bool {
 	return n.viper.GetBool("frontend_dev")
 }
 
-func (n *NodeConfig) DefaultApps() ([]*state.AppInstallation, []*reverse_proxy.Rule, error) {
+func (n *NodeConfig) DefaultApps() ([]*app.Installation, []*reverse_proxy.Rule, error) {
 	var appRequestsMap map[string]*controller.InstallAppRequest
 	err := n.viper.UnmarshalKey("default_apps", &appRequestsMap, viper.DecoderConfigOption(
 		func(decoderConfig *mapstructure.DecoderConfig) {
@@ -393,7 +393,7 @@ func (n *NodeConfig) DefaultApps() ([]*state.AppInstallation, []*reverse_proxy.R
 		return nil, nil, err
 	}
 
-	apps := make([]*state.AppInstallation, 0)
+	apps := make([]*app.Installation, 0)
 	rules := make([]*reverse_proxy.Rule, 0)
 	for _, appRequest := range appRequestsMap {
 		apps = append(apps, appRequest.AppInstallation)
