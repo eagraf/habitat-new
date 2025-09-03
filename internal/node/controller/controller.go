@@ -118,7 +118,7 @@ func (c *Controller) stopProcess(processID node_state.ProcessID) error {
 	return err
 }
 
-func (c *Controller) installApp(userID string, pkg *node_state.Package, version string, name string, proxyRules []*node_state.ReverseProxyRule, start bool) error {
+func (c *Controller) installApp(userID string, pkg *node_state.Package, version string, name string, proxyRules []*reverse_proxy.Rule, start bool) error {
 	installer, ok := c.pkgManagers[pkg.Driver]
 	if !ok {
 		return fmt.Errorf("No driver %s found for app installation [name: %s, version: %s, package: %v]", pkg.Driver, name, version, pkg)

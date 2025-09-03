@@ -9,6 +9,7 @@ import (
 
 	"github.com/bluesky-social/indigo/api/atproto"
 	"github.com/eagraf/habitat-new/internal/node/api"
+	"github.com/eagraf/habitat-new/internal/node/reverse_proxy"
 	node_state "github.com/eagraf/habitat-new/internal/node/state"
 
 	"github.com/pkg/errors"
@@ -94,8 +95,8 @@ func (s *CtrlServer) ListProcesses(w http.ResponseWriter, r *http.Request) {
 }
 
 type InstallAppRequest struct {
-	AppInstallation   *node_state.AppInstallation    `json:"app_installation" yaml:"app_installation"`
-	ReverseProxyRules []*node_state.ReverseProxyRule `json:"reverse_proxy_rules" yaml:"reverse_proxy_rules"`
+	AppInstallation   *node_state.AppInstallation `json:"app_installation" yaml:"app_installation"`
+	ReverseProxyRules []*reverse_proxy.Rule       `json:"reverse_proxy_rules" yaml:"reverse_proxy_rules"`
 	StartAfterInstall bool
 }
 

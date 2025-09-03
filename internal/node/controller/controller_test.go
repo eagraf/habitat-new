@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/eagraf/habitat-new/internal/node/reverse_proxy"
 	node_state "github.com/eagraf/habitat-new/internal/node/state"
 
 	"github.com/bluesky-social/indigo/api/atproto"
@@ -105,7 +106,7 @@ func TestMigrations(t *testing.T) {
 		Users:             map[string]*node_state.User{},
 		AppInstallations:  map[string]*node_state.AppInstallation{},
 		Processes:         map[node_state.ProcessID]*node_state.Process{},
-		ReverseProxyRules: map[string]*node_state.ReverseProxyRule{},
+		ReverseProxyRules: map[string]*reverse_proxy.Rule{},
 	}
 	db := testDB(fakestate)
 

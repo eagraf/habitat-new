@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/eagraf/habitat-new/internal/node/reverse_proxy"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -42,8 +43,8 @@ func TestFrontendDevMode(t *testing.T) {
 	state.SetRootUserCert("fake_user_cert")
 	newState, err := testTransitions(state, []Transition{
 		&addReverseProxyRuleTransition{
-			Rule: &ReverseProxyRule{
-				Type:    ProxyRuleRedirect,
+			Rule: &reverse_proxy.Rule{
+				Type:    reverse_proxy.ProxyRuleRedirect,
 				ID:      "default-rule-frontend",
 				Matcher: "", // Root matcher
 			},
@@ -53,7 +54,7 @@ func TestFrontendDevMode(t *testing.T) {
 
 	frontendRule, ok := (newState.ReverseProxyRules)["default-rule-frontend"]
 	require.Equal(t, true, ok)
-	require.Equal(t, ProxyRuleRedirect, frontendRule.Type)
+	require.Equal(t, reverse_proxy.ProxyRuleRedirect, frontendRule.Type)
 }
 
 // use this if you expect the transitions to cause an error
@@ -141,7 +142,7 @@ func TestAppLifecycle(t *testing.T) {
 		},
 		"1",
 		"app_name1",
-		[]*ReverseProxyRule{},
+		[]*reverse_proxy.Rule{},
 	)
 	transitions := []Transition{
 		&initalizationTransition{
@@ -191,7 +192,7 @@ func TestAppLifecycle(t *testing.T) {
 		},
 		"1",
 		"app_name1",
-		[]*ReverseProxyRule{},
+		[]*reverse_proxy.Rule{},
 	)
 	testSecondAppConflict := []Transition{
 		transition,
@@ -240,7 +241,7 @@ func TestAppLifecycle(t *testing.T) {
 		},
 		"2",
 		"app_name1",
-		[]*ReverseProxyRule{},
+		[]*reverse_proxy.Rule{},
 	)
 	testDifferentVersion := []Transition{
 		trns,
@@ -259,7 +260,7 @@ func TestAppLifecycle(t *testing.T) {
 }
 
 func TestAppInstallReverseProxyRules(t *testing.T) {
-	proxyRules := make(map[string]*ReverseProxyRule)
+	proxyRules := make(map[string]*reverse_proxy.Rule)
 	transitions := []Transition{
 		&initalizationTransition{
 			InitState: &NodeState{
@@ -289,7 +290,7 @@ func TestAppInstallReverseProxyRules(t *testing.T) {
 					DriverConfig:       map[string]interface{}{},
 				},
 			},
-			NewProxyRules: []*ReverseProxyRule{
+			NewProxyRules: []*reverse_proxy.Rule{
 				{
 					AppID:   "app1",
 					Matcher: "/path",

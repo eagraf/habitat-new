@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/eagraf/habitat-new/internal/node/constants"
+	"github.com/eagraf/habitat-new/internal/node/reverse_proxy"
 	"github.com/google/uuid"
 )
 
@@ -18,9 +19,9 @@ type NodeState struct {
 	TestField     string           `json:"test_field,omitempty"`
 	Users         map[string]*User `json:"users"`
 	// A set of running processes that a node can restore to on startup.
-	Processes         map[ProcessID]*Process       `json:"processes"`
-	AppInstallations  map[string]*AppInstallation  `json:"app_installations"`
-	ReverseProxyRules map[string]*ReverseProxyRule `json:"reverse_proxy_rules"`
+	Processes         map[ProcessID]*Process         `json:"processes"`
+	AppInstallations  map[string]*AppInstallation    `json:"app_installations"`
+	ReverseProxyRules map[string]*reverse_proxy.Rule `json:"reverse_proxy_rules"`
 }
 
 func NewStateForLatestVersion() (*NodeState, error) {
@@ -78,7 +79,7 @@ func (s *NodeState) GetProcessesForUser(userID string) ([]*Process, error) {
 	return procs, nil
 }
 
-func (s *NodeState) GetReverseProxyRulesForProcess(processID ProcessID) ([]*ReverseProxyRule, error) {
+func (s *NodeState) GetReverseProxyRulesForProcess(processID ProcessID) ([]*reverse_proxy.Rule, error) {
 	process, ok := s.Processes[ProcessID(processID)]
 	if !ok {
 		return nil, fmt.Errorf("process with ID %s not found", processID)
@@ -87,7 +88,7 @@ func (s *NodeState) GetReverseProxyRulesForProcess(processID ProcessID) ([]*Reve
 	if !ok {
 		return nil, fmt.Errorf("app with ID %s not found", process.AppID)
 	}
-	rules := make([]*ReverseProxyRule, 0)
+	rules := make([]*reverse_proxy.Rule, 0)
 	for _, rule := range s.ReverseProxyRules {
 		if rule.AppID == app.ID {
 			rules = append(rules, rule)

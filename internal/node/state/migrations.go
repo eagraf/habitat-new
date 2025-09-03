@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/eagraf/habitat-new/internal/node/reverse_proxy"
 	jsonpatch "github.com/evanphx/json-patch/v5"
 	"github.com/wI2L/jsondiff"
 	"golang.org/x/mod/semver"
@@ -342,7 +343,7 @@ var NodeDataMigrations = MigrationsList{
 			for _, appInstallation := range newState.AppInstallations {
 				appInstallation.DriverConfig = map[string]interface{}{}
 			}
-			newState.ReverseProxyRules = make(map[string]*ReverseProxyRule)
+			newState.ReverseProxyRules = make(map[string]*reverse_proxy.Rule)
 			return newState, nil
 		},
 		down: func(state *NodeState) (*NodeState, error) {

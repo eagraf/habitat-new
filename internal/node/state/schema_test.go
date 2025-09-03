@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/eagraf/habitat-new/internal/node/reverse_proxy"
 	"github.com/qri-io/jsonschema"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -68,7 +69,7 @@ func TestGetReverseProxyRulesForProcess(t *testing.T) {
 				AppID: "non-existant-this-shouldn'thappen",
 			},
 		},
-		ReverseProxyRules: map[string]*ReverseProxyRule{
+		ReverseProxyRules: map[string]*reverse_proxy.Rule{
 			"rule1": {
 				ID:    "rule1",
 				AppID: "app1",

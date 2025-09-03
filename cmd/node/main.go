@@ -270,7 +270,7 @@ func main() {
 
 func generatePDSAppConfig(
 	nodeConfig *config.NodeConfig,
-) (*state.AppInstallation, []*state.ReverseProxyRule) {
+) (*state.AppInstallation, []*reverse_proxy.Rule) {
 	pdsMountDir := filepath.Join(nodeConfig.HabitatAppPath(), "pds")
 
 	arch := runtime.GOARCH
@@ -331,11 +331,11 @@ func generatePDSAppConfig(
 				RegistryPackageTag: pdsTag,
 			},
 		},
-		[]*state.ReverseProxyRule{
+		[]*reverse_proxy.Rule{
 			{
 				ID:      "pds-app-reverse-proxy-rule",
 				AppID:   appID,
-				Type:    state.ProxyRuleRedirect,
+				Type:    reverse_proxy.ProxyRuleRedirect,
 				Matcher: "/xrpc",
 				Target:  "http://host.docker.internal:3000/xrpc",
 			},
@@ -360,21 +360,21 @@ func generatePDSAppConfig(
 		}
 }
 
-func generateDefaultReverseProxyRules(config *config.NodeConfig) ([]*state.ReverseProxyRule, error) {
-	frontendRule := &state.ReverseProxyRule{
+func generateDefaultReverseProxyRules(config *config.NodeConfig) ([]*reverse_proxy.Rule, error) {
+	frontendRule := &reverse_proxy.Rule{
 		ID:      "default-rule-frontend",
 		Matcher: "", // Root matcher
 	}
 	if config.FrontendDev() {
 		// In development mode, we run the frontend in a separate docker container with hot-reloading.
 		// As a result, all frontend requests must be forwarde to the frontend container.
-		frontendRule.Type = state.ProxyRuleRedirect
+		frontendRule.Type = reverse_proxy.ProxyRuleRedirect
 		frontendRule.Target = "http://habitat_frontend:5173/"
 	} else {
 		// In production mode, we embed the frontend into the node binary. That way, we can serve
 		// the frontend without needing to set it up on the host machine.
 		// TODO @eagraf - evaluate the performance implications of this.
-		frontendRule.Type = state.ProxyRuleEmbeddedFrontend
+		frontendRule.Type = reverse_proxy.ProxyRuleEmbeddedFrontend
 	}
 
 	apiURL, err := url.Parse(fmt.Sprintf("http://localhost:%s", constants.DefaultPortHabitatAPI))
@@ -382,47 +382,47 @@ func generateDefaultReverseProxyRules(config *config.NodeConfig) ([]*state.Rever
 		return nil, err
 	}
 
-	res := []*state.ReverseProxyRule{
+	res := []*reverse_proxy.Rule{
 		{
 			ID:      "default-rule-api",
-			Type:    state.ProxyRuleRedirect,
+			Type:    reverse_proxy.ProxyRuleRedirect,
 			Matcher: "/habitat/api",
 			Target:  apiURL.String(),
 		},
 		{
 			ID:      "habitat-put-record",
-			Type:    state.ProxyRuleRedirect,
+			Type:    reverse_proxy.ProxyRuleRedirect,
 			Matcher: "/xrpc/com.habitat.putRecord",
 			Target:  apiURL.String() + "/xrpc/com.habitat.putRecord",
 		},
 		{
 			ID:      "habitat-get-record",
-			Type:    state.ProxyRuleRedirect,
+			Type:    reverse_proxy.ProxyRuleRedirect,
 			Matcher: "/xrpc/com.habitat.getRecord",
 			Target:  apiURL.String() + "/xrpc/com.habitat.getRecord",
 		},
 		{
 			ID:      "habitat-list-permissions",
-			Type:    state.ProxyRuleRedirect,
+			Type:    reverse_proxy.ProxyRuleRedirect,
 			Matcher: "/xrpc/com.habitat.listPermissions",
 			Target:  apiURL.String() + "/xrpc/com.habitat.listPermissions",
 		},
 		{
 			ID:      "habitat-add-permissions",
-			Type:    state.ProxyRuleRedirect,
+			Type:    reverse_proxy.ProxyRuleRedirect,
 			Matcher: "/xrpc/com.habitat.addPermission",
 			Target:  apiURL.String() + "/xrpc/com.habitat.addPermission",
 		},
 		{
 			ID:      "habitat-remove-permissions",
-			Type:    state.ProxyRuleRedirect,
+			Type:    reverse_proxy.ProxyRuleRedirect,
 			Matcher: "/xrpc/com.habitat.removePermission",
 			Target:  apiURL.String() + "/xrpc/com.habitat.removePermission",
 		},
 		// Serve a DID document for habitat
 		{
 			ID:      "did-rule",
-			Type:    state.ProxyRuleFileServer,
+			Type:    reverse_proxy.ProxyRuleFileServer,
 			Matcher: "/.well-known",
 			Target:  config.HabitatPath() + "/well-known",
 		},
@@ -443,7 +443,7 @@ func generateDefaultReverseProxyRules(config *config.NodeConfig) ([]*state.Rever
 func initialState(
 	rootUserCert string,
 	startApps []*state.AppInstallation,
-	proxyRules []*state.ReverseProxyRule,
+	proxyRules []*reverse_proxy.Rule,
 ) (*state.NodeState, []state.Transition, error) {
 	init, err := state.NewStateForLatestVersion()
 	if err != nil {

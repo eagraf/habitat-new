@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	"github.com/eagraf/habitat-new/internal/node/api"
+	"github.com/eagraf/habitat-new/internal/node/reverse_proxy"
 	node_state "github.com/eagraf/habitat-new/internal/node/state"
 
 	"github.com/eagraf/habitat-new/internal/node/api/test_helpers"
@@ -122,7 +123,7 @@ func fakeState() *node_state.NodeState {
 			},
 		},
 		Processes:         map[node_state.ProcessID]*node_state.Process{},
-		ReverseProxyRules: map[string]*node_state.ReverseProxyRule{},
+		ReverseProxyRules: map[string]*reverse_proxy.Rule{},
 	}
 }
 

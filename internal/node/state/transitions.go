@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/eagraf/habitat-new/internal/node/reverse_proxy"
 	"github.com/google/uuid"
 )
 
@@ -38,7 +39,7 @@ func (t *initalizationTransition) Patch(oldState SerializedState) (SerializedSta
 	}
 
 	if t.InitState.ReverseProxyRules == nil {
-		t.InitState.ReverseProxyRules = make(map[string]*ReverseProxyRule)
+		t.InitState.ReverseProxyRules = make(map[string]*reverse_proxy.Rule)
 	}
 
 	marshaled, err := json.Marshal(t.InitState)
@@ -173,7 +174,7 @@ func (t *addUserTransition) Validate(oldState SerializedState) error {
 
 type startInstallationTransition struct {
 	*AppInstallation
-	NewProxyRules []*ReverseProxyRule `json:"new_proxy_rules"`
+	NewProxyRules []*reverse_proxy.Rule `json:"new_proxy_rules"`
 }
 
 func (t *startInstallationTransition) Type() TransitionType {
@@ -262,7 +263,7 @@ func (t *startInstallationTransition) Validate(oldState SerializedState) error {
 	return nil
 }
 
-func CreateStartInstallationTransition(userID string, pkg *Package, version string, name string, proxyRules []*ReverseProxyRule) (Transition, string) {
+func CreateStartInstallationTransition(userID string, pkg *Package, version string, name string, proxyRules []*reverse_proxy.Rule) (Transition, string) {
 	id := uuid.NewString()
 	transition := &startInstallationTransition{
 		AppInstallation: &AppInstallation{
@@ -495,12 +496,12 @@ func (t *processStopTransition) Validate(oldState SerializedState) error {
 }
 
 type addReverseProxyRuleTransition struct {
-	Rule *ReverseProxyRule `json:"rule"`
+	Rule *reverse_proxy.Rule `json:"rule"`
 }
 
-func CreateAddReverseProxyRuleTransition(t ReverseProxyRuleType, matcher string, target string, appID string) Transition {
+func CreateAddReverseProxyRuleTransition(t reverse_proxy.RuleType, matcher string, target string, appID string) Transition {
 	return &addReverseProxyRuleTransition{
-		Rule: &ReverseProxyRule{
+		Rule: &reverse_proxy.Rule{
 			Type:    t,
 			Matcher: matcher,
 			Target:  target,
