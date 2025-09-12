@@ -119,6 +119,8 @@ func (s *DpopHttpClient) Do(req *http.Request) (*http.Response, error) {
 
 	// retry with new nonce
 	req2 := req.Clone(req.Context())
+	req2.RequestURI = ""
+
 	req2.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
 	err = s.sign(req2)
 	if err != nil {
@@ -221,5 +223,8 @@ func isUseDPopNonceError(resp *http.Response) bool {
 		}
 		resp.Body = io.NopCloser(bytes.NewReader(body))
 	}
+
+	// TODO 200 OK responses can also specify a nonce to use as an optimization. So far it appears the Bluesky PDS doesn't do this.
+
 	return false
 }

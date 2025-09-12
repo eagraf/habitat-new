@@ -6,13 +6,15 @@ import (
 	"encoding/base64"
 	"encoding/pem"
 	"errors"
+	"fmt"
 	"os"
 	"os/user"
 	"path/filepath"
 	"strings"
 
-	"github.com/eagraf/habitat-new/core/state/node"
 	"github.com/eagraf/habitat-new/internal/node/constants"
+	"github.com/eagraf/habitat-new/internal/node/controller"
+	"github.com/eagraf/habitat-new/internal/node/state"
 	"github.com/mitchellh/mapstructure"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -232,7 +234,7 @@ func (n *NodeConfig) HabitatAppPath() string {
 }
 
 func (n *NodeConfig) HDBPath() string {
-	return filepath.Join(n.HabitatPath(), "hdb")
+	return filepath.Join(n.HabitatPath(), "hdb", "state")
 }
 
 // WebBundlePath returns the path to the directory where web bundles for various applications are stored.
@@ -287,6 +289,16 @@ func (n *NodeConfig) UseTLS() bool {
 	return n.viper.GetBool("use_tls")
 }
 
+// WHY ARE THERE 3 OF THESE?
+func (n *NodeConfig) ExternalURL() string {
+	domain := n.Domain()
+	if domain == "localhost" {
+		return "http://localhost"
+	} else {
+		return fmt.Sprintf("https://%s", domain)
+	}
+}
+
 // Hostname that the node listens on. This may be updated dynamically because Tailscale may add a suffix
 func (n *NodeConfig) Hostname() string {
 	if n.TailscaleAuthkey() != "" {
@@ -313,7 +325,7 @@ func (n *NodeConfig) Domain() string {
 		}
 		return domain
 	}
-	return ""
+	return "localhost"
 }
 
 func (n *NodeConfig) ReverseProxyPort() string {
@@ -345,6 +357,10 @@ func (n *NodeConfig) TailScaleFunnelEnabled() bool {
 	}
 }
 
+func (n *NodeConfig) InternalPDSURL() string {
+	return "http://host.docker.internal:5001"
+}
+
 // TODO @eagraf we probably will eventually need a better secret management system.
 func (n *NodeConfig) PDSAdminUsername() string {
 	return "admin"
@@ -363,8 +379,8 @@ func (n *NodeConfig) FrontendDev() bool {
 	return n.viper.GetBool("frontend_dev")
 }
 
-func (n *NodeConfig) DefaultApps() ([]*node.AppInstallation, []*node.ReverseProxyRule, error) {
-	var appRequestsMap map[string]*node.InstallAppRequest
+func (n *NodeConfig) DefaultApps() ([]*state.AppInstallation, []*state.ReverseProxyRule, error) {
+	var appRequestsMap map[string]*controller.InstallAppRequest
 	err := n.viper.UnmarshalKey("default_apps", &appRequestsMap, viper.DecoderConfigOption(
 		func(decoderConfig *mapstructure.DecoderConfig) {
 			decoderConfig.TagName = "yaml"
@@ -376,8 +392,8 @@ func (n *NodeConfig) DefaultApps() ([]*node.AppInstallation, []*node.ReverseProx
 		return nil, nil, err
 	}
 
-	apps := make([]*node.AppInstallation, 0)
-	rules := make([]*node.ReverseProxyRule, 0)
+	apps := make([]*state.AppInstallation, 0)
+	rules := make([]*state.ReverseProxyRule, 0)
 	for _, appRequest := range appRequestsMap {
 		apps = append(apps, appRequest.AppInstallation)
 		rules = append(rules, appRequest.ReverseProxyRules...)
@@ -385,8 +401,8 @@ func (n *NodeConfig) DefaultApps() ([]*node.AppInstallation, []*node.ReverseProx
 	return apps, rules, nil
 }
 
-func (n *NodeConfig) ReverseProxyRules() ([]*node.ReverseProxyRule, error) {
-	var rules []*node.ReverseProxyRule
+func (n *NodeConfig) ReverseProxyRules() ([]*state.ReverseProxyRule, error) {
+	var rules []*state.ReverseProxyRule
 	err := n.viper.UnmarshalKey("reverse_proxy_rules", &rules, viper.DecoderConfigOption(
 		func(decoderConfig *mapstructure.DecoderConfig) {
 			decoderConfig.TagName = "yaml"

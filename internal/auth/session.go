@@ -15,13 +15,8 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-type TokenResponse struct {
-	AccessToken  string `json:"access_token"`
-	RefreshToken string `json:"refresh_token"`
-	Scope        string `json:"scope"`
-	TokenType    string `json:"token_type"`
-	ExpiresIn    int    `json:"expires_in"`
-}
+const SessionKeyDpop = "dpop-session"
+const SessionKeyAuth = "auth-session"
 
 type Session interface {
 	GetDpopKey() (*ecdsa.PrivateKey, bool, error)
@@ -71,7 +66,7 @@ func newCookieSession(
 	id *identity.Identity,
 	pdsURL string,
 ) (*cookieSession, error) {
-	session, err := sessionStore.New(r, "dpop-session")
+	session, err := sessionStore.New(r, SessionKeyDpop)
 	if err != nil {
 		return nil, err
 	}
@@ -104,7 +99,7 @@ func newCookieSession(
 }
 
 func getCookieSession(r *http.Request, sessionStore sessions.Store) (*cookieSession, error) {
-	session, err := sessionStore.Get(r, "dpop-session")
+	session, err := sessionStore.Get(r, SessionKeyDpop)
 	if err != nil {
 		return nil, err
 	}
