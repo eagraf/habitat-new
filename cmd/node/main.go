@@ -265,7 +265,7 @@ func setupPrivi(nodeConfig *config.NodeConfig) *privi.Server {
 	if errors.Is(err, os.ErrNotExist) {
 		_, err := os.Create(priviRepoPath)
 		if err != nil {
-			log.Err(err).Msgf("unable to create privi repo file at ", priviRepoPath)
+			log.Err(err).Msgf("unable to create privi repo file at %s", priviRepoPath)
 		}
 	} else if err != nil {
 		log.Err(err).Msgf("error finding privi repo file")
