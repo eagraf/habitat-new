@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"net"
@@ -167,52 +168,7 @@ func main() {
 		routes = append(routes, appstore.NewAvailableAppsRoute(nodeConfig.HabitatPath()))
 	}
 
-	// TODO: read from persisted state about permissions.
-	policiesDirPath := nodeConfig.PermissionPolicyFilesDir()
-	policiesDir, err := os.ReadDir(policiesDirPath)
-	if errors.Is(err, os.ErrNotExist) {
-		log.Info().Msgf("Creating a policies dir path at %s", policiesDirPath)
-		err := os.Mkdir(policiesDirPath, 0700)
-		if err != nil {
-			log.Fatal().Err(err).Msgf("error creating permission policies dir at %s", policiesDirPath)
-		}
-	} else if err != nil {
-		log.Fatal().Err(err).Msg("error reading from permission policies dir")
-	}
-
-	perms := make(map[syntax.DID]permissions.Store, len(policiesDir))
-
-	for _, file := range policiesDir {
-		// Convention is to store policies for a given did in a file called <did>_policies.csv
-		name := file.Name()
-		spl := strings.Split(file.Name(), "_")
-		if len(spl) < 2 {
-			log.Fatal().Err(err).Msgf("invalid naming for permission policy file: found %s, expected %s", file.Name(), "<did>_policies.csv")
-		}
-		did := spl[0]
-		adapter := fileadapter.NewAdapter(filepath.Join(policiesDirPath, name))
-		store, err := permissions.NewStore(adapter, true)
-		if err != nil {
-			log.Fatal().Err(err).Msgf("unable to initialize permissions store for user %s", did)
-		}
-		perms[syntax.DID(did)] = store
-	}
-
-	// FOR DEMO PURPOSES ONLY
-	sashankDID := "did:plc:v3amhno5wvyfams6aioqqj66"
-	_, ok := perms[syntax.DID(sashankDID)]
-	if !ok {
-		perms[syntax.DID(sashankDID)] = permissions.NewDummyStore()
-	}
-	err = perms[syntax.DID(sashankDID)].AddLexiconReadPermission(sashankDID, "com.habitat.test")
-	if err != nil {
-		log.Err(err).Msgf("error adding test lexicon for sashank demo")
-	}
-
-	// Add privy routes
-	priviServer := privi.NewServer(
-		perms,
-	)
+	priviServer := setupPrivi(nodeConfig)
 	routes = append(routes, priviServer.GetRoutes()...)
 
 	router := api.NewRouter(routes, logger)
@@ -258,6 +214,87 @@ func main() {
 		log.Err(err).Msg("received error on eg.Wait()")
 	}
 	log.Info().Msg("Finished!")
+}
+
+func setupPrivi(nodeConfig *config.NodeConfig) *privi.Server {
+	policiesDirPath := nodeConfig.PermissionPolicyFilesDir()
+	policiesDir, err := os.ReadDir(policiesDirPath)
+	if errors.Is(err, os.ErrNotExist) {
+		log.Info().Msgf("Creating a policies dir path at %s", policiesDirPath)
+		err := os.Mkdir(policiesDirPath, 0700)
+		if err != nil {
+			log.Fatal().Err(err).Msgf("error creating permission policies dir at %s", policiesDirPath)
+		}
+	} else if err != nil {
+		log.Fatal().Err(err).Msg("error reading from permission policies dir")
+	}
+
+	// TODO: move all the privi stuff into a helper
+	perms := make(map[syntax.DID]permissions.Store, len(policiesDir))
+
+	for _, file := range policiesDir {
+		// Convention is to store policies for a given did in a file called <did>_policies.csv
+		name := file.Name()
+		spl := strings.Split(file.Name(), "_")
+		if len(spl) < 2 {
+			log.Fatal().Err(err).Msgf("invalid naming for permission policy file: found %s, expected %s", file.Name(), "<did>_policies.csv")
+		}
+		did := spl[0]
+		adapter := fileadapter.NewAdapter(filepath.Join(policiesDirPath, name))
+		store, err := permissions.NewStore(adapter, true)
+		if err != nil {
+			log.Fatal().Err(err).Msgf("unable to initialize permissions store for user %s", did)
+		}
+		perms[syntax.DID(did)] = store
+	}
+
+	// FOR DEMO PURPOSES ONLY
+	sashankDID := "did:plc:v3amhno5wvyfams6aioqqj66"
+	_, ok := perms[syntax.DID(sashankDID)]
+	if !ok {
+		perms[syntax.DID(sashankDID)] = permissions.NewDummyStore()
+	}
+	err = perms[syntax.DID(sashankDID)].AddLexiconReadPermission(sashankDID, "com.habitat.test")
+	if err != nil {
+		log.Err(err).Msgf("error adding test lexicon for sashank demo")
+	}
+
+	// Create database file if it does not exist
+	priviRepoPath := nodeConfig.PriviRepoFile()
+	_, err = os.Stat(priviRepoPath)
+	if errors.Is(err, os.ErrNotExist) {
+		_, err := os.Create(priviRepoPath)
+		if err != nil {
+			log.Err(err).Msgf("unable to create privi repo file at ", priviRepoPath)
+		}
+	} else if err != nil {
+		log.Err(err).Msgf("error finding privi repo file")
+
+	}
+
+	priviDB, err := sql.Open("sqlite3", priviRepoPath)
+	if err != nil {
+		log.Fatal().Err(err).Msg("unable to open sqlite file backing privi server")
+	}
+	createTableSQL := `
+	CREATE TABLE IF NOT EXISTS records (
+		did TEXT,
+		rkey TEXT NOT NULL UNIQUE,
+		record TEXT,
+		PRIMARY KEY(did, rkey)
+	);`
+	_, err = priviDB.Exec(createTableSQL)
+	if err != nil {
+		log.Fatal().Err(err).Msg("unable to setup privi sqlite db")
+	}
+	defer priviDB.Close()
+
+	// Add privy routes
+	priviServer := privi.NewServer(
+		perms,
+		privi.NewSQLiteRepo(priviDB),
+	)
+	return priviServer
 }
 
 func generateDefaultReverseProxyRules(config *config.NodeConfig) ([]*reverse_proxy.Rule, error) {
