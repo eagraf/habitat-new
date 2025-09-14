@@ -60,6 +60,9 @@ func (r inMemoryRepo) getRecord(did string, rkey string) (record, error) {
 	}
 
 	record, ok := coll[recordKey(rkey)]
+	if !ok {
+		return nil, ErrRecordNotFound
+	}
 	return record, nil
 }
 
@@ -118,21 +121,17 @@ func (r *sqliteRepo) getRecord(did string, rkey string) (record, error) {
 	}
 	defer rows.Close()
 
-	numRows := 0
 	var row row
-
-	for rows.Next() {
-		numRows++
+	if rows.Next() {
 		err = rows.Scan(&row.did, &row.rkey, &row.rec)
 		if err != nil {
 			return nil, err
 		}
-		break
+	} else {
+		return nil, ErrRecordNotFound
 	}
 
-	if numRows == 0 {
-		return nil, ErrRecordNotFound
-	} else if rows.Next() {
+	if rows.Next() {
 		return nil, ErrMultipleRecordsFound
 	}
 
@@ -144,10 +143,4 @@ func (r *sqliteRepo) getRecord(did string, rkey string) (record, error) {
 
 	// TODO: return ErrorRecordNotFound somewhere
 	return record, nil
-}
-
-// Return the did from the path name
-// This is not that secure because someone can easily change the file name. Probably need a better way to store this.
-func didFromPath(path string) string {
-	return path
 }
