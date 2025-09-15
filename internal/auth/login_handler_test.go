@@ -1,44 +1,54 @@
 package auth
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
 	"github.com/bluesky-social/indigo/api/atproto"
+	"github.com/bluesky-social/indigo/atproto/identity"
+	"github.com/bluesky-social/indigo/atproto/syntax"
 	"github.com/gorilla/sessions"
 	"github.com/stretchr/testify/require"
 )
 
+type testDirectory struct{}
+
+func (d *testDirectory) LookupHandle(ctx context.Context, handle syntax.Handle) (*identity.Identity, error) {
+	fmt.Println("lookup handle")
+	return nil, fmt.Errorf("unimpl")
+}
+func (d *testDirectory) LookupDID(ctx context.Context, did syntax.DID) (*identity.Identity, error) {
+	fmt.Println("lookup did")
+	return nil, fmt.Errorf("unimpl")
+}
+func (d *testDirectory) Lookup(ctx context.Context, atid syntax.AtIdentifier) (*identity.Identity, error) {
+	fmt.Println("lookup")
+	return nil, fmt.Errorf("unimpl")
+}
+
+func (d *testDirectory) Purge(ctx context.Context, atid syntax.AtIdentifier) error {
+	return fmt.Errorf("unimpl")
+}
+
 // setupTestLoginHandler creates a loginHandler with test dependencies
-func setupTestLoginHandler(t *testing.T, pdsURL string, oauthClient OAuthClient) *loginHandler {
+func setupTestLoginHandler(oauthClient OAuthClient) *loginHandler {
 	sessionStore := sessions.NewCookieStore([]byte("test-key"))
 	return &loginHandler{
 		oauthClient:       oauthClient,
 		sessionStore:      sessionStore,
-		pdsURL:            pdsURL,
 		habitatNodeDomain: "bsky.app",
+		identityDir:       &testDirectory{},
 	}
 }
 
 // setupMockPDSWithOAuth creates a test PDS server that also serves OAuth discovery endpoints
 func setupMockPDSWithOAuth(t *testing.T, handle, did string, oauthServerURL string) *httptest.Server {
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/xrpc/com.atproto.identity.resolveHandle" {
-			query := r.URL.Query()
-			if query.Get("handle") == handle {
-				resp := atproto.IdentityResolveHandle_Output{Did: did}
-				err := json.NewEncoder(w).Encode(resp)
-				if err != nil {
-					http.Error(w, err.Error(), http.StatusInternalServerError)
-					return
-				}
-				return
-			}
-		}
-
 		// Serve OAuth discovery endpoints
 		switch r.URL.Path {
 		case "/.well-known/oauth-protected-resource":
@@ -77,7 +87,7 @@ func TestLoginHandler_SuccessfulLogin(t *testing.T) {
 
 	// Create real OAuth client
 	oauthClient := testOAuthClient(t)
-	handler := setupTestLoginHandler(t, mockPDS.URL, oauthClient)
+	handler := setupTestLoginHandler(oauthClient)
 
 	// Create request
 	req := httptest.NewRequest("GET", "/login?handle=test.bsky.app", nil)
@@ -112,7 +122,7 @@ func TestLoginHandler_WithPDSURL(t *testing.T) {
 
 	// Create real OAuth client
 	oauthClient := testOAuthClient(t)
-	handler := setupTestLoginHandler(t, mockPDS.URL, oauthClient)
+	handler := setupTestLoginHandler(oauthClient)
 
 	// Create request
 	req := httptest.NewRequest("GET", "/login?handle=test.bsky.app", nil)
@@ -146,7 +156,7 @@ func TestLoginHandler_InvalidHandle(t *testing.T) {
 	defer fakeOAuthServer.Close()
 
 	oauthClient := testOAuthClient(t)
-	handler := setupTestLoginHandler(t, "", oauthClient)
+	handler := setupTestLoginHandler(oauthClient)
 
 	// Test with invalid handle
 	req := httptest.NewRequest("GET", "/login?handle=invalid-handle", nil)
@@ -164,7 +174,7 @@ func TestLoginHandler_MissingHandle(t *testing.T) {
 	defer fakeOAuthServer.Close()
 
 	oauthClient := testOAuthClient(t)
-	handler := setupTestLoginHandler(t, "", oauthClient)
+	handler := setupTestLoginHandler(oauthClient)
 
 	// Test with missing handle
 	req := httptest.NewRequest("GET", "/login", nil)
@@ -192,7 +202,7 @@ func TestLoginHandler_PDSResolutionError(t *testing.T) {
 	defer mockPDS.Close()
 
 	oauthClient := testOAuthClient(t)
-	handler := setupTestLoginHandler(t, mockPDS.URL, oauthClient)
+	handler := setupTestLoginHandler(oauthClient)
 
 	req := httptest.NewRequest("GET", "/login?handle=test.bsky.app", nil)
 	w := httptest.NewRecorder()
@@ -219,7 +229,7 @@ func TestLoginHandler_InvalidDIDResponse(t *testing.T) {
 	defer mockPDS.Close()
 
 	oauthClient := testOAuthClient(t)
-	handler := setupTestLoginHandler(t, mockPDS.URL, oauthClient)
+	handler := setupTestLoginHandler(oauthClient)
 
 	req := httptest.NewRequest("GET", "/login?handle=test.bsky.app", nil)
 	w := httptest.NewRecorder()
@@ -252,7 +262,7 @@ func TestLoginHandler_OAuthAuthorizeError(t *testing.T) {
 	defer mockPDS.Close()
 
 	oauthClient := testOAuthClient(t)
-	handler := setupTestLoginHandler(t, mockPDS.URL, oauthClient)
+	handler := setupTestLoginHandler(oauthClient)
 
 	req := httptest.NewRequest("GET", "/login?handle=test.bsky.app", nil)
 	w := httptest.NewRecorder()
@@ -273,7 +283,7 @@ func TestLoginHandler_IntegrationWithRealOAuthFlow(t *testing.T) {
 
 	// Create real OAuth client
 	oauthClient := testOAuthClient(t)
-	handler := setupTestLoginHandler(t, mockPDS.URL, oauthClient)
+	handler := setupTestLoginHandler(oauthClient)
 
 	req := httptest.NewRequest("GET", "/login?handle=test.bsky.app", nil)
 	w := httptest.NewRecorder()
@@ -304,7 +314,7 @@ func TestLoginHandler_FormParsingError(t *testing.T) {
 	defer fakeOAuthServer.Close()
 
 	oauthClient := testOAuthClient(t)
-	handler := setupTestLoginHandler(t, "", oauthClient)
+	handler := setupTestLoginHandler(oauthClient)
 
 	// Create request with malformed form data
 	req := httptest.NewRequest("POST", "/login", strings.NewReader("invalid form data"))
@@ -323,7 +333,7 @@ func TestLoginHandler_DefaultDirectoryLookup(t *testing.T) {
 
 	// Test the case where pdsURL is empty and we use the default directory
 	oauthClient := testOAuthClient(t)
-	handler := setupTestLoginHandler(t, "", oauthClient)
+	handler := setupTestLoginHandler(oauthClient)
 
 	// Use a handle that should be resolvable by the default directory
 	req := httptest.NewRequest("GET", "/login?handle=bsky.app", nil)
