@@ -19,6 +19,11 @@ import (
 	"github.com/gorilla/sessions"
 )
 
+// TODO: deprecate PDS side car
+func internalPDSURL() string {
+	return "http://host.docker.internal:5001"
+}
+
 type loginHandler struct {
 	oauthClient       OAuthClient
 	sessionStore      sessions.Store
@@ -73,7 +78,7 @@ func GetRoutes(
 
 	return []api.Route{
 		&loginHandler{
-			pdsURL:            nodeConfig.InternalPDSURL(),
+			pdsURL:            internalPDSURL(),
 			oauthClient:       oauthClient,
 			sessionStore:      sessionStore,
 			habitatNodeDomain: nodeConfig.Domain(),
