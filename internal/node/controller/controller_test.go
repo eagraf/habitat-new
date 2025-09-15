@@ -46,21 +46,11 @@ func TestAddUser(t *testing.T) {
 	}))
 	defer mockPDS.Close()
 
-	ctrl2, err := NewController(context.Background(), fakeProcessManager(), nil, db, nil, mockPDS.URL)
+	ctrl2, err := NewController(context.Background(), fakeProcessManager(), nil, db, nil)
 	require.NoError(t, err)
 
-	email := "user@user.com"
-	pass := "pass"
-	input := &atproto.ServerCreateAccount_Input{
-		Did:      &did,
-		Email:    &email,
-		Handle:   "user-handle",
-		Password: &pass,
-	}
-
-	out, err := ctrl2.addUser(context.Background(), input)
+	err = ctrl2.addUser("user-handle", "did")
 	require.Nil(t, err)
-	require.Equal(t, out.Did, did)
 }
 
 type fakeDB struct {
@@ -111,7 +101,7 @@ func TestMigrations(t *testing.T) {
 	}
 	db := testDB(fakestate)
 
-	ctrl2, err := NewController(context.Background(), fakeProcessManager(), nil, db, nil, "fak-pds")
+	ctrl2, err := NewController(context.Background(), fakeProcessManager(), nil, db, nil)
 	require.NoError(t, err)
 	s, err := NewCtrlServer(context.Background(), ctrl2, fakestate)
 	require.NoError(t, err)
@@ -140,7 +130,7 @@ func TestGetNodeState(t *testing.T) {
 				installs: make(map[*app.Package]struct{}),
 			},
 		},
-		db, nil, "fake-pds")
+		db, nil)
 	require.NoError(t, err)
 	ctrlServer, err := NewCtrlServer(
 		context.Background(),

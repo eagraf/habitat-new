@@ -53,8 +53,7 @@ func TestInstallAppController(t *testing.T) {
 			},
 		},
 		db,
-		nil,
-		"fake-pds")
+		nil)
 	require.NoError(t, err)
 	ctrlServer, err := NewCtrlServer(
 		context.Background(),
