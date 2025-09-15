@@ -1,7 +1,5 @@
 package constants
 
-type HabitatContextKey string
-
 const (
 	// Environment names
 	EnvironmentDev  = "dev"
@@ -10,8 +8,6 @@ const (
 	// Default values
 	RootUsername = "root"
 	RootUserID   = "0"
-	// Request context keys
-	ContextKeyUserID HabitatContextKey = "user_id"
 
 	// Default port values
 	DefaultPortHabitatAPI   = "3000"
