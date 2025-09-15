@@ -17,13 +17,7 @@ func TestSQLiteRepoPutAndGetRecord(t *testing.T) {
 	priviDB, err := sql.Open("sqlite3", testDBPath)
 	require.NoError(t, err)
 
-	createTableSQL := `
-	CREATE TABLE IF NOT EXISTS records (
-		did TEXT,
-		rkey TEXT NOT NULL,
-		record TEXT
-	);`
-	_, err = priviDB.ExecContext(context.Background(), createTableSQL)
+	_, err = priviDB.ExecContext(context.Background(), CreateTableSQL())
 	require.NoError(t, err)
 	repo := NewSQLiteRepo(priviDB)
 

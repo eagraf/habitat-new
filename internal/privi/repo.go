@@ -3,6 +3,7 @@ package privi
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -105,7 +106,7 @@ func (r *sqliteRepo) putRecord(did string, rkey string, rec record, validate *bo
 		return err
 	}
 	// Always put (even if something exists).
-	_, err = r.db.Exec("insert into records(did, rkey, record) values(?, ?, ?);", did, rkey, string(bytes))
+	_, err = r.db.Exec("insert into records(did, rkey, record) values(?, ?, jsonb(?));", did, rkey, bytes)
 	return err
 }
 
@@ -115,32 +116,30 @@ var (
 )
 
 func (r *sqliteRepo) getRecord(did string, rkey string) (record, error) {
-	rows, err := r.db.Query("select * from records where rkey = ? and did = ?", rkey, did)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
+	queried := r.db.QueryRow("select did, rkey, json(record) from records where rkey = ? and did = ?", rkey, did)
 
 	var row row
-	if rows.Next() {
-		err = rows.Scan(&row.did, &row.rkey, &row.rec)
-		if err != nil {
-			return nil, err
-		}
-	} else {
+	err := queried.Scan(&row.did, &row.rkey, &row.rec)
+	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrRecordNotFound
+	} else if err != nil {
+		return nil, err
 	}
 
-	if rows.Next() {
-		return nil, ErrMultipleRecordsFound
-	}
-
-	var record map[string]any
+	var record record
 	err = json.Unmarshal([]byte(row.rec), &record)
 	if err != nil {
 		return nil, err
 	}
 
-	// TODO: return ErrorRecordNotFound somewhere
 	return record, nil
+}
+
+func CreateTableSQL() string {
+	return `CREATE TABLE IF NOT EXISTS records (
+		did TEXT,
+		rkey TEXT NOT NULL UNIQUE,
+		record BLOB,
+		PRIMARY KEY(did, rkey)
+	);`
 }

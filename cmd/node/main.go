@@ -168,7 +168,8 @@ func main() {
 		routes = append(routes, appstore.NewAvailableAppsRoute(nodeConfig.HabitatPath()))
 	}
 
-	priviServer := setupPrivi(nodeConfig)
+	priviServer, priviClose := setupPrivi(nodeConfig)
+	defer priviClose()
 	routes = append(routes, priviServer.GetRoutes()...)
 
 	router := api.NewRouter(routes, logger)
@@ -216,7 +217,7 @@ func main() {
 	log.Info().Msg("Finished!")
 }
 
-func setupPrivi(nodeConfig *config.NodeConfig) *privi.Server {
+func setupPrivi(nodeConfig *config.NodeConfig) (*privi.Server, func()) {
 	policiesDirPath := nodeConfig.PermissionPolicyFilesDir()
 	policiesDir, err := os.ReadDir(policiesDirPath)
 	if errors.Is(err, os.ErrNotExist) {
@@ -276,25 +277,19 @@ func setupPrivi(nodeConfig *config.NodeConfig) *privi.Server {
 	if err != nil {
 		log.Fatal().Err(err).Msg("unable to open sqlite file backing privi server")
 	}
-	createTableSQL := `
-	CREATE TABLE IF NOT EXISTS records (
-		did TEXT,
-		rkey TEXT NOT NULL UNIQUE,
-		record TEXT,
-		PRIMARY KEY(did, rkey)
-	);`
-	_, err = priviDB.Exec(createTableSQL)
+
+	_, err = priviDB.Exec(privi.CreateTableSQL())
 	if err != nil {
 		log.Fatal().Err(err).Msg("unable to setup privi sqlite db")
 	}
-	defer priviDB.Close()
 
 	// Add privy routes
 	priviServer := privi.NewServer(
 		perms,
 		privi.NewSQLiteRepo(priviDB),
 	)
-	return priviServer
+	return priviServer, func() { priviDB.Close() }
+
 }
 
 func generateDefaultReverseProxyRules(config *config.NodeConfig) ([]*reverse_proxy.Rule, error) {
@@ -360,7 +355,7 @@ func generateDefaultReverseProxyRules(config *config.NodeConfig) ([]*reverse_pro
 		{
 			ID:      "did-rule",
 			Type:    reverse_proxy.ProxyRuleFileServer,
-			Matcher: "/.well-known",
+			Matcher: "/.well-known/did.json",
 			Target:  config.HabitatPath() + "/well-known",
 		},
 		frontendRule,
