@@ -80,15 +80,7 @@ func main() {
 		log.Fatal().Err(err).Msg("unable to generate proxy rules")
 	}
 
-	// Generate the list of apps to have installed and started when the node first comes up
-	defaultProxyRules, err := nodeConfig.DefaultProxyRules()
-	if err != nil {
-		log.Fatal().Err(err).Msg("unable to generate proxy rules")
-	}
-
-	rules := append(defaultProxyRules, proxyRules...)
-
-	initState, initialTransitions, err := initialState(nodeConfig.RootUserCertB64(), rules)
+	initState, initialTransitions, err := initialState(nodeConfig.RootUserCertB64(), proxyRules)
 	if err != nil {
 		log.Fatal().Err(err).Msg("unable to do initial node transitions")
 	}
