@@ -14,7 +14,6 @@ import (
 	node_state "github.com/eagraf/habitat-new/internal/node/state"
 	"github.com/eagraf/habitat-new/internal/process"
 
-	"github.com/bluesky-social/indigo/api/atproto"
 	"github.com/stretchr/testify/require"
 )
 
@@ -30,21 +29,6 @@ func TestAddUser(t *testing.T) {
 	}
 
 	db := testDB(initState)
-
-	did := "did"
-	mockPDS := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		require.Equal(t, "/xrpc/com.atproto.server.createAccount", r.URL.String())
-		bytes, err := json.Marshal(
-			atproto.ServerCreateAccount_Output{
-				Did:    did,
-				Handle: "user-handle",
-			},
-		)
-		require.NoError(t, err)
-		_, err = w.Write(bytes)
-		require.NoError(t, err)
-	}))
-	defer mockPDS.Close()
 
 	ctrl2, err := NewController(context.Background(), fakeProcessManager(), nil, db, nil)
 	require.NoError(t, err)
