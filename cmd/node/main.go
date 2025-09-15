@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/bluesky-social/indigo/atproto/syntax"
 	fileadapter "github.com/casbin/casbin/v2/persist/file-adapter"
@@ -80,7 +81,10 @@ func main() {
 		log.Fatal().Err(err).Msg("unable to generate proxy rules")
 	}
 
-	initState, initialTransitions, err := initialState(nodeConfig.RootUserCertB64(), proxyRules)
+	defaultApps, defaultProxyRules, err := nodeConfig.DefaultApps()
+	rules := append(defaultProxyRules, proxyRules...)
+
+	initState, initialTransitions, err := initialState(nodeConfig.RootUserCertB64(), defaultApps, rules)
 	if err != nil {
 		log.Fatal().Err(err).Msg("unable to do initial node transitions")
 	}
@@ -335,14 +339,27 @@ func generateDefaultReverseProxyRules(config *config.NodeConfig) ([]*reverse_pro
 
 func initialState(
 	rootUserCert string,
+	startApps []*app.Installation,
 	proxyRules []*reverse_proxy.Rule,
 ) (*state.NodeState, []state.Transition, error) {
 	init, err := state.NewStateForLatestVersion()
 	if err != nil {
 		log.Fatal().Err(err).Msg("unable to generate initial node state")
 	}
-	init.SetRootUserCert(rootUserCert)
 
+	init.SetRootUserCert(rootUserCert)
+	for _, install := range startApps {
+		init.AppInstallations[install.ID] = install
+		init.AppInstallations[install.ID].State = app.LifecycleStateInstalled
+
+		procID := process.NewID(install.Driver)
+		init.Processes[procID] = &process.Process{
+			ID:      procID,
+			AppID:   install.ID,
+			UserID:  constants.RootUserID,
+			Created: time.Now().Format(time.RFC3339),
+		}
+	}
 	for _, rule := range proxyRules {
 		init.ReverseProxyRules[rule.ID] = rule
 	}

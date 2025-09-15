@@ -12,7 +12,9 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/eagraf/habitat-new/internal/app"
 	"github.com/eagraf/habitat-new/internal/node/constants"
+	"github.com/eagraf/habitat-new/internal/node/controller"
 	"github.com/eagraf/habitat-new/internal/node/reverse_proxy"
 	"github.com/mitchellh/mapstructure"
 	"github.com/rs/zerolog"
@@ -378,6 +380,28 @@ func (n *NodeConfig) ReverseProxyRules() ([]*reverse_proxy.Rule, error) {
 		return nil, err
 	}
 	return rules, nil
+}
+
+func (n *NodeConfig) DefaultApps() ([]*app.Installation, []*reverse_proxy.Rule, error) {
+	var appRequestsMap map[string]*controller.InstallAppRequest
+	err := n.viper.UnmarshalKey("default_apps", &appRequestsMap, viper.DecoderConfigOption(
+		func(decoderConfig *mapstructure.DecoderConfig) {
+			decoderConfig.TagName = "yaml"
+			decoderConfig.Squash = true
+		},
+	))
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to unmarshal default apps")
+		return nil, nil, err
+	}
+
+	apps := make([]*app.Installation, 0)
+	rules := make([]*reverse_proxy.Rule, 0)
+	for _, appRequest := range appRequestsMap {
+		apps = append(apps, appRequest.AppInstallation)
+		rules = append(rules, appRequest.ReverseProxyRules...)
+	}
+	return apps, rules, nil
 }
 
 // Helper functions

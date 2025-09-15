@@ -51,8 +51,10 @@ func TestLoadingDefaultApps(t *testing.T) {
 	testNodeConfig, err := NewNodeConfigFromViper(v)
 	assert.NoError(t, err)
 
-	defaultRules, err := testNodeConfig.DefaultProxyRules()
+	defaultApps, defaultRules, err := testNodeConfig.DefaultApps()
 	require.NoError(t, err)
+	assert.Len(t, defaultApps, 1)
+	assert.Equal(t, "pouch_frontend", defaultApps[0].Name)
 	assert.Equal(t, "pouch/3/dist", defaultRules[0].Target)
 	assert.Len(t, defaultRules, 3)
 }
