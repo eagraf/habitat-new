@@ -82,6 +82,9 @@ func main() {
 	}
 
 	defaultApps, defaultProxyRules, err := nodeConfig.DefaultApps()
+	if err != nil {
+		log.Fatal().Err(err).Msg("unable to get default apps")
+	}
 	rules := append(defaultProxyRules, proxyRules...)
 
 	initState, initialTransitions, err := initialState(nodeConfig.RootUserCertB64(), defaultApps, rules)
