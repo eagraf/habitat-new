@@ -1,8 +1,11 @@
 package main
 
 import (
+	"database/sql"
+	"errors"
 	"fmt"
 	"net/http"
+	"os"
 
 	"github.com/eagraf/habitat-new/internal/node/config"
 	"github.com/eagraf/habitat-new/internal/node/logging"
@@ -16,7 +19,31 @@ func main() {
 	if err != nil {
 		logger.Fatal().Err(err).Msg("error loading node config")
 	}
-	priviServer := privi.NewServer(nil)
+	// Create database file if it does not exist
+	// TODO: this should really be taken in as an argument or env variable
+	priviRepoPath := nodeConfig.PriviRepoFile()
+	_, err = os.Stat(priviRepoPath)
+	if errors.Is(err, os.ErrNotExist) {
+		_, err := os.Create(priviRepoPath)
+		if err != nil {
+			logger.Err(err).Msgf("unable to create privi repo file at %s", priviRepoPath)
+		}
+	} else if err != nil {
+		logger.Err(err).Msgf("error finding privi repo file")
+
+	}
+
+	priviDB, err := sql.Open("sqlite3", priviRepoPath)
+	if err != nil {
+		logger.Fatal().Err(err).Msg("unable to open sqlite file backing privi server")
+	}
+
+	_, err = priviDB.Exec(privi.CreateTableSQL())
+	if err != nil {
+		logger.Fatal().Err(err).Msg("unable to setup privi sqlite db")
+	}
+
+	priviServer := privi.NewServer(nil, privi.NewSQLiteRepo(priviDB))
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/xrpc/com.habitat.putRecord", priviServer.PutRecord)
@@ -44,8 +71,13 @@ func main() {
     }
   ]
 }`
+		// TODO: this should really be taken in as an argument or env variable
 		domain := nodeConfig.Domain()
-		w.Write([]byte(fmt.Sprintf(template, domain, domain)))
+		_, err := w.Write([]byte(fmt.Sprintf(template, domain, domain)))
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 	})
 
 	tsnet := &tsnet.Server{
