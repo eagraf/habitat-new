@@ -5,6 +5,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"github.com/bluesky-social/indigo/atproto/identity"
@@ -13,6 +14,7 @@ import (
 	"github.com/eagraf/habitat-new/internal/node/config"
 	jose "github.com/go-jose/go-jose/v3"
 	"github.com/gorilla/sessions"
+	"github.com/rs/zerolog/log"
 )
 
 type loginHandler struct {
@@ -28,6 +30,11 @@ type metadataHandler struct {
 }
 
 type callbackHandler struct {
+	oauthClient  OAuthClient
+	sessionStore sessions.Store
+}
+
+type refreshSessionHandler struct {
 	oauthClient  OAuthClient
 	sessionStore sessions.Store
 }
@@ -80,6 +87,9 @@ func GetRoutes(
 			oauthClient:  oauthClient,
 			sessionStore: sessionStore,
 			htuURL:       nodeConfig.ExternalURL(),
+		}, &refreshSessionHandler{
+			oauthClient:  oauthClient,
+			sessionStore: sessionStore,
 		},
 	}, nil
 }
@@ -319,4 +329,61 @@ func (c *callbackHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		"/",
 		http.StatusSeeOther,
 	)
+}
+
+func (h *refreshSessionHandler) Method() string {
+	return http.MethodGet
+}
+
+func (h *refreshSessionHandler) Pattern() string {
+	return "/refresh-session"
+}
+
+func (h *refreshSessionHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	dpopSession, err := getCookieSession(r, h.sessionStore)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	key, ok, err := dpopSession.GetDpopKey()
+	if !ok || err != nil {
+		http.Error(w, "no key in session", http.StatusInternalServerError)
+		return
+	}
+
+	authDpopClient := NewDpopHttpClient(key, dpopSession)
+	identity, ok, err := dpopSession.GetIdentity()
+	if !ok || err != nil {
+		http.Error(w, "no identity in session", http.StatusInternalServerError)
+		return
+	}
+
+	issuer, ok, err := dpopSession.GetIssuer()
+	if !ok || err != nil {
+		http.Error(w, "no issuer in session", http.StatusInternalServerError)
+		return
+	}
+
+	tokenInfo, ok, err := dpopSession.GetTokenInfo()
+	if !ok || err != nil {
+		http.Error(w, "no token info in session", http.StatusInternalServerError)
+		return
+	}
+
+	fmt.Printf("tokenInfo: %+v\n", tokenInfo)
+
+	tokenResp, err := h.oauthClient.RefreshToken(authDpopClient, identity, issuer, tokenInfo.RefreshToken)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	log.Info().Msgf("refreshed session: %+v", tokenResp)
+	err = dpopSession.SetTokenInfo(tokenResp)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	dpopSession.Save(r, w)
+
+	http.ResponseWriter.WriteHeader(w, http.StatusOK)
 }
