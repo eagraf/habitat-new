@@ -297,6 +297,12 @@ func generateDefaultReverseProxyRules(config *config.NodeConfig) ([]*reverse_pro
 			Target:  apiURL.String(),
 		},
 		{
+			ID:      "xrpc-broker",
+			Type:    reverse_proxy.ProxyRuleRedirect,
+			Matcher: "/xrpc",
+			Target:  apiURL.String() + "/xrpc",
+		},
+		{
 			ID:      "habitat-put-record",
 			Type:    reverse_proxy.ProxyRuleRedirect,
 			Matcher: "/xrpc/com.habitat.putRecord",
@@ -327,8 +333,6 @@ func generateDefaultReverseProxyRules(config *config.NodeConfig) ([]*reverse_pro
 			Target:  apiURL.String() + "/xrpc/com.habitat.removePermission",
 		},
 		// Serve a DID document for habitat
-		// This rule is currently broken because it clashes with the one above for PDS / OAuth
-		// We should delete the PDS side car because we never use it
 		{
 			ID:      "did-rule",
 			Type:    reverse_proxy.ProxyRuleFileServer,
