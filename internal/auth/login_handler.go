@@ -95,8 +95,8 @@ func GetRoutes(
 }
 
 // Method implements api.Route.
-func (l *loginHandler) Method() string {
-	return http.MethodGet
+func (l *loginHandler) Methods() []string {
+	return []string{http.MethodGet}
 }
 
 // Pattern implements api.Route.
@@ -176,8 +176,8 @@ func (l *loginHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 // Method implements api.Route.
-func (m *metadataHandler) Method() string {
-	return http.MethodGet
+func (m *metadataHandler) Methods() []string {
+	return []string{http.MethodGet}
 }
 
 // Pattern implements api.Route.
@@ -201,8 +201,8 @@ func (m *metadataHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 // Method implements api.Route.
-func (c *callbackHandler) Method() string {
-	return http.MethodGet
+func (c *callbackHandler) Methods() []string {
+	return []string{http.MethodGet}
 }
 
 // Pattern implements api.Route.
@@ -331,8 +331,8 @@ func (c *callbackHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	)
 }
 
-func (h *refreshSessionHandler) Method() string {
-	return http.MethodGet
+func (h *refreshSessionHandler) Methods() []string {
+	return []string{http.MethodGet}
 }
 
 func (h *refreshSessionHandler) Pattern() string {

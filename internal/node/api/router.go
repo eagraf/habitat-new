@@ -3,6 +3,7 @@ package api
 import (
 	"fmt"
 	"net/http"
+	"slices"
 
 	"github.com/rs/zerolog"
 )
@@ -12,7 +13,7 @@ type Route interface {
 
 	// Pattern reports the path at which this is registered.
 	Pattern() string
-	Method() string
+	Methods() []string
 }
 
 type processedRoute struct {
@@ -24,10 +25,10 @@ func processRoute(route Route) processedRoute {
 }
 
 func (p processedRoute) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if r.Method != p.Method() {
+	if !slices.Contains(p.Route.Methods(), r.Method) {
 		http.Error(
 			w,
-			fmt.Sprintf("invalid method, require %s", p.Method()),
+			fmt.Sprintf("invalid method, require %s", p.Route.Methods()),
 			http.StatusMethodNotAllowed,
 		)
 		return
@@ -61,8 +62,8 @@ func NewBasicRoute(method, pattern string, fn http.HandlerFunc) Route {
 	}
 }
 
-func (r *basicRoute) Method() string {
-	return r.method
+func (r *basicRoute) Methods() []string {
+	return []string{r.method}
 }
 
 func (r *basicRoute) Pattern() string {

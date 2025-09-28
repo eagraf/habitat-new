@@ -21,8 +21,8 @@ type xrpcBrokerHandler struct {
 	sessionStore sessions.Store
 }
 
-func (h *xrpcBrokerHandler) Method() string {
-	return http.MethodPost
+func (h *xrpcBrokerHandler) Methods() []string {
+	return []string{http.MethodPost, http.MethodPut, http.MethodDelete, http.MethodGet}
 }
 
 func (h *xrpcBrokerHandler) Pattern() string {

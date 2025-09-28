@@ -13,8 +13,8 @@ func (h *VersionHandler) Pattern() string {
 	return "/version"
 }
 
-func (h *VersionHandler) Method() string {
-	return http.MethodGet
+func (h *VersionHandler) Methods() []string {
+	return []string{http.MethodGet}
 }
 
 func (h *VersionHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
