@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"sync"
 
 	"github.com/rs/zerolog/log"
@@ -33,7 +34,11 @@ func (db *fileDB) Path() string {
 
 // Helper function to write byte state to a file
 func writeState(path string, bytes []byte) error {
-	return os.WriteFile(path, bytes, 0o600)
+	err := os.MkdirAll(filepath.Dir(path), 0700)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(path, bytes, 0600)
 }
 
 func NewHabitatDB(path string, initialTransitions []Transition) (Client, error) {
@@ -85,7 +90,8 @@ func NewHabitatDB(path string, initialTransitions []Transition) (Client, error) 
 		}
 
 		// Write out the initial state
-		if writeState(path, state) != nil {
+		err = writeState(path, state)
+		if err != nil {
 			return nil, err
 		}
 	}
