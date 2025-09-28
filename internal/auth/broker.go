@@ -51,13 +51,15 @@ func (h *xrpcBrokerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Copy the request body without consuming it
-	bodyCopy, err := io.ReadAll(forwardReq.Body)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+	if forwardReq.Method != http.MethodGet {
+		// Copy the request body without consuming it
+		bodyCopy, err := io.ReadAll(forwardReq.Body)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		forwardReq.Body = io.NopCloser(bytes.NewBuffer(bodyCopy))
 	}
-	forwardReq.Body = io.NopCloser(bytes.NewBuffer(bodyCopy))
 
 	// Forward the request to the PDS
 	resp, err := pdsDpopClient.Do(forwardReq)
@@ -82,7 +84,15 @@ func (h *xrpcBrokerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		forwardReq.Body = io.NopCloser(bytes.NewBuffer(bodyCopy))
+
+		if forwardReq.Method != http.MethodGet {
+			bodyCopy, err := io.ReadAll(forwardReq.Body)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			forwardReq.Body = io.NopCloser(bytes.NewBuffer(bodyCopy))
+		}
 
 		refreshedDpopClient, err := h.getForwardingDpopClient(r, dpopSession)
 		if err != nil {
