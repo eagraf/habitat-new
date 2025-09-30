@@ -116,6 +116,14 @@ func initProject(targetDir string) error {
 		return err
 	}
 
+	// Npm install all the dependencies
+	logging.Infof("Installing dependencies for frontend template in: %s", frontendDir)
+	npmAdapter := adapters.NewNpmAdapter()
+	err = npmAdapter.Install(frontendDir)
+	if err != nil {
+		return err
+	}
+
 	logging.Success("Project initialized successfully!")
 	return nil
 }
