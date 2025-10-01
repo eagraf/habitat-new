@@ -44,6 +44,7 @@ var versionCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(versionCmd)
 	rootCmd.AddCommand(initCmd)
+	rootCmd.AddCommand(typegenCmd)
 
 	// Add flags
 	rootCmd.Flags().BoolP("version", "v", false, "Print version information")
