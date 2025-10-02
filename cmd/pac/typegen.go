@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/eagraf/habitat-new/cmd/pac/gen"
 	"github.com/eagraf/habitat-new/cmd/pac/logging"
 	"github.com/spf13/cobra"
 )
@@ -54,8 +55,8 @@ var typegenCmd = &cobra.Command{
 		logging.Infof("Generating TypeScript types from: %s", atprotoFile)
 		logging.Infof("Output file: %s", outputPath)
 
-		// Use the real type generator
-		generator := NewRealTypeGenerator()
+		// Use the real type generator from the gen package
+		generator := gen.NewTypeScriptGenerator()
 		err := generateTypesWithGenerator(atprotoFile, outputPath, generator)
 		logging.CheckErr(err)
 
@@ -89,39 +90,6 @@ func generateTypesWithGenerator(inputFile, outputFile string, generator TypeGene
 
 	logging.Debug("Type generation completed")
 	return nil
-}
-
-// RealTypeGenerator implements the real type generation logic
-type RealTypeGenerator struct{}
-
-// NewRealTypeGenerator creates a new instance of RealTypeGenerator
-func NewRealTypeGenerator() TypeGenerator {
-	return &RealTypeGenerator{}
-}
-
-// GenerateTypes implements the TypeGenerator interface with real logic (currently stubbed)
-func (r *RealTypeGenerator) GenerateTypes(inputReader io.Reader) ([]byte, error) {
-	// TODO: Parse the atproto lexicon schema file
-	// This would involve:
-	// 1. Reading and parsing the JSON/YAML atproto schema
-	// 2. Converting atproto types to TypeScript types
-	// 3. Generating proper TypeScript interfaces/types
-
-	logging.Debug("Parsing atproto schema (stub)")
-
-	// Create a stub output content for now
-	stubContent := `// Generated TypeScript types from atproto lexicon schema
-// TODO: Implement actual type generation logic
-
-export interface StubType {
-  // This is a placeholder - actual types will be generated here
-  message: string;
-}
-
-export default StubType;
-`
-
-	return []byte(stubContent), nil
 }
 
 func init() {
