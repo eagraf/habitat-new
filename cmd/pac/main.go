@@ -45,6 +45,7 @@ func init() {
 	rootCmd.AddCommand(versionCmd)
 	rootCmd.AddCommand(initCmd)
 	rootCmd.AddCommand(typegenCmd)
+	rootCmd.AddCommand(clientgenCmd)
 
 	// Add flags
 	rootCmd.Flags().BoolP("version", "v", false, "Print version information")
