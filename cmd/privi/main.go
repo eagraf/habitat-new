@@ -5,7 +5,9 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"log"
 	"net/http"
+	"net/http/httputil"
 	"os"
 
 	fileadapter "github.com/casbin/casbin/v2/persist/file-adapter"
@@ -77,14 +79,26 @@ func main() {
 	priviServer := privi.NewServer(adapter, privi.NewSQLiteRepo(priviDB))
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("/xrpc/com.habitat.putRecord", priviServer.PutRecord)
+
+	logHandler := func(fn http.HandlerFunc) http.HandlerFunc {
+		return func(w http.ResponseWriter, r *http.Request) {
+			x, err := httputil.DumpRequest(r, true)
+			if err != nil {
+				http.Error(w, fmt.Sprint(err), http.StatusInternalServerError)
+				return
+			}
+			log.Println(fmt.Sprintf("%q", x))
+		}
+	}
+
+	mux.HandleFunc("/xrpc/com.habitat.putRecord", logHandler(priviServer.PutRecord))
 	mux.HandleFunc(
 		"/xrpc/com.habitat.getRecord",
-		priviServer.PdsAuthMiddleware(priviServer.GetRecord),
+		logHandler(priviServer.PdsAuthMiddleware(priviServer.GetRecord)),
 	)
-	mux.HandleFunc("/xrpc/com.habitat.listPermissions", priviServer.ListPermissions)
-	mux.HandleFunc("/xrpc/com.habitat.addPermission", priviServer.AddPermission)
-	mux.HandleFunc("/xrpc/com.habitat.removePermission", priviServer.RemovePermission)
+	mux.HandleFunc("/xrpc/com.habitat.listPermissions", logHandler(priviServer.ListPermissions))
+	mux.HandleFunc("/xrpc/com.habitat.addPermission", logHandler(priviServer.AddPermission))
+	mux.HandleFunc("/xrpc/com.habitat.removePermission", logHandler(priviServer.RemovePermission))
 
 	mux.HandleFunc("/.well-known/did.json", func(w http.ResponseWriter, r *http.Request) {
 		template := `{
