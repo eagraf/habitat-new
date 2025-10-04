@@ -11,11 +11,9 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	"strings"
 	"syscall"
 	"time"
 
-	"github.com/bluesky-social/indigo/atproto/syntax"
 	fileadapter "github.com/casbin/casbin/v2/persist/file-adapter"
 	"github.com/docker/docker/client"
 	"github.com/eagraf/habitat-new/internal/app"
@@ -88,7 +86,11 @@ func main() {
 	}
 	rules := append(defaultProxyRules, proxyRules...)
 
-	initState, initialTransitions, err := initialState(nodeConfig.RootUserCertB64(), defaultApps, rules)
+	initState, initialTransitions, err := initialState(
+		nodeConfig.RootUserCertB64(),
+		defaultApps,
+		rules,
+	)
 	if err != nil {
 		log.Fatal().Err(err).Msg("unable to do initial node transitions")
 	}
@@ -219,43 +221,15 @@ func main() {
 
 func setupPrivi(nodeConfig *config.NodeConfig) (*privi.Server, func()) {
 	policiesDirPath := nodeConfig.PermissionPolicyFilesDir()
-	policiesDir, err := os.ReadDir(policiesDirPath)
-	if errors.Is(err, os.ErrNotExist) {
-		log.Info().Msgf("Creating a policies dir path at %s", policiesDirPath)
-		err := os.Mkdir(policiesDirPath, 0700)
-		if err != nil {
-			log.Fatal().Err(err).Msgf("error creating permission policies dir at %s", policiesDirPath)
-		}
-	} else if err != nil {
-		log.Fatal().Err(err).Msg("error reading from permission policies dir")
-	}
-
-	// TODO: move all the privi stuff into a helper
-	perms := make(map[syntax.DID]permissions.Store, len(policiesDir))
-
-	for _, file := range policiesDir {
-		// Convention is to store policies for a given did in a file called <did>_policies.csv
-		name := file.Name()
-		spl := strings.Split(file.Name(), "_")
-		if len(spl) < 2 {
-			log.Fatal().Err(err).Msgf("invalid naming for permission policy file: found %s, expected %s", file.Name(), "<did>_policies.csv")
-		}
-		did := spl[0]
-		adapter := fileadapter.NewAdapter(filepath.Join(policiesDirPath, name))
-		store, err := permissions.NewStore(adapter, true)
-		if err != nil {
-			log.Fatal().Err(err).Msgf("unable to initialize permissions store for user %s", did)
-		}
-		perms[syntax.DID(did)] = store
-	}
+	perms, err := permissions.NewStore(
+		fileadapter.NewAdapter(filepath.Join(policiesDirPath, "policies.csv")),
+		true,
+	)
 
 	// FOR DEMO PURPOSES ONLY
 	sashankDID := "did:plc:v3amhno5wvyfams6aioqqj66"
-	_, ok := perms[syntax.DID(sashankDID)]
-	if !ok {
-		perms[syntax.DID(sashankDID)] = permissions.NewDummyStore()
-	}
-	err = perms[syntax.DID(sashankDID)].AddLexiconReadPermission(sashankDID, "com.habitat.test")
+	arushiDID := "did:plc:l3k2mbu6qa6rxjej5tvjj7zz"
+	err = perms.AddLexiconReadPermission(arushiDID, sashankDID, "com.habitat.test")
 	if err != nil {
 		log.Err(err).Msgf("error adding test lexicon for sashank demo")
 	}
@@ -270,7 +244,6 @@ func setupPrivi(nodeConfig *config.NodeConfig) (*privi.Server, func()) {
 		}
 	} else if err != nil {
 		log.Err(err).Msgf("error finding privi repo file")
-
 	}
 
 	priviDB, err := sql.Open("sqlite3", priviRepoPath)
@@ -289,7 +262,6 @@ func setupPrivi(nodeConfig *config.NodeConfig) (*privi.Server, func()) {
 		privi.NewSQLiteRepo(priviDB),
 	)
 	return priviServer, func() { priviDB.Close() }
-
 }
 
 func generateDefaultReverseProxyRules(config *config.NodeConfig) ([]*reverse_proxy.Rule, error) {
