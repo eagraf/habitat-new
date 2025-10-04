@@ -111,7 +111,7 @@ func main() {
   "service": [
     {
       "id": "#habitat,
-      "serviceEndpoint": "https://%s",
+      "serviceEndpoint": "http://%s",
       "type": "HabitatServer"
     }
   ]
