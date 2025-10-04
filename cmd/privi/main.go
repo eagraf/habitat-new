@@ -17,14 +17,15 @@ import (
 )
 
 const (
-	defaultPort = "9000"
+	defaultPort = "443"
 )
 
 var (
-	domainPtr   = flag.String("domain", "", "The publicly available domain at which the server can be found")
-	repoPathPtr = flag.String("path", "./repo.db", "The path to the sqlite file to use as the backing database for this server")
-	portPtr     = flag.String("port", defaultPort, "The port on which to run the server. Default 9000")
-	helpFlag    = flag.Bool("help", false, "Display this menu.")
+	domainPtr    = flag.String("domain", "", "The publicly available domain at which the server can be found")
+	repoPathPtr  = flag.String("path", "./repo.db", "The path to the sqlite file to use as the backing database for this server")
+	portPtr      = flag.String("port", defaultPort, "The port on which to run the server. Default 9000")
+	certsFilePtr = flag.String("certs", "/etc/letsencrypt/live/habitat.network/", "The directory in which TLS certs can be found. Should contain fullchain.pem and privkey.pem")
+	helpFlag     = flag.Bool("help", false, "Display this menu.")
 )
 
 func main() {
@@ -130,7 +131,7 @@ func main() {
 	}
 
 	fmt.Println("Starting server on port :" + *portPtr)
-	err = s.ListenAndServe()
+	err = s.ListenAndServeTLS(fmt.Sprintf("%s%s", *certsFilePtr, "fullchain.pem"), fmt.Sprintf("%s%s", *certsFilePtr, "privkey.pem"))
 	if err != nil {
 		logger.Fatal().Err(err).Msg("error serving http")
 	}
