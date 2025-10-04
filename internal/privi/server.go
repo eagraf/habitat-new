@@ -121,14 +121,14 @@ func (s *Server) GetRecord(callerDID syntax.DID) http.HandlerFunc {
 		}
 
 		targetDID := id.DID
-		out, err := s.store.getRecord(collection, rkey, targetDID, callerDID)
-		if errors.Is(err, ErrUnauthorized) {
-			utils.LogAndHTTPError(w, ErrUnauthorized.Error(), http.StatusForbidden)
+		record, err := s.store.getRecord(collection, rkey, targetDID, callerDID)
+		if err != nil {
+			utils.LogAndHTTPError(w, err.Error(), http.StatusInternalServerError)
 			return
-		} else if errors.Is(err, ErrRecordNotFound) {
-			utils.LogAndHTTPError(w, ErrRecordNotFound.Error(), http.StatusNotFound)
-			return
-		} else if err != nil {
+		}
+
+		out, err := json.Marshal(record)
+		if err != nil {
 			utils.LogAndHTTPError(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
