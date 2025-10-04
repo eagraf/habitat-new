@@ -101,7 +101,7 @@ func main() {
 	mux.HandleFunc("/xrpc/com.habitat.addPermission", logHandler(priviServer.AddPermission))
 	mux.HandleFunc("/xrpc/com.habitat.removePermission", logHandler(priviServer.RemovePermission))
 
-	mux.HandleFunc("/.well-known/did.json", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/.well-known/did.json", logHandler(func(w http.ResponseWriter, r *http.Request) {
 		template := `{
   "id": "did:web:%s",
   "@context": [
@@ -111,8 +111,8 @@ func main() {
   ],
   "service": [
     {
-      "id": "#habitat,
-      "serviceEndpoint": "http://%s",
+      "id": "#habitat",
+      "serviceEndpoint": "https://%s",
       "type": "HabitatServer"
     }
   ]
@@ -123,7 +123,7 @@ func main() {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-	})
+	}))
 
 	s := &http.Server{
 		Handler: mux,
