@@ -5,7 +5,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"log"
 	"net/http"
 	"net/http/httputil"
 	"os"
@@ -88,7 +87,8 @@ func main() {
 				http.Error(w, fmt.Sprint(err), http.StatusInternalServerError)
 				return
 			}
-			log.Println(fmt.Sprintf("%q", x))
+			fmt.Println("Got a request: ", string(x))
+			fn(w, r)
 		}
 	}
 
