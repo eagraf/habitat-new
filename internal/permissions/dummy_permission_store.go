@@ -30,6 +30,9 @@ func (d *dummy) AddLexiconReadPermission(grantee string, granter string, nsid st
 	dids, ok := d.permsByNSID[granter][syntax.NSID(nsid)]
 	if !ok {
 		dids = make(xmaps.Set[syntax.DID])
+		if d.permsByNSID[granter] == nil {
+			d.permsByNSID[granter] = make(map[syntax.NSID]xmaps.Set[syntax.DID])
+		}
 		d.permsByNSID[granter][syntax.NSID(nsid)] = dids
 	}
 	dids.Add(syntax.DID(grantee))
