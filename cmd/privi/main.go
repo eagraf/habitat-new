@@ -13,7 +13,6 @@ import (
 	"github.com/eagraf/habitat-new/internal/node/logging"
 	"github.com/eagraf/habitat-new/internal/permissions"
 	"github.com/eagraf/habitat-new/internal/privi"
-	"github.com/gorilla/mux"
 )
 
 const (
@@ -79,7 +78,7 @@ func main() {
 	}
 	priviServer := privi.NewServer(adapter, privi.NewSQLiteRepo(priviDB))
 
-	mux := mux.NewRouter()
+	mux := http.NewServeMux()
 
 	loggingMiddleware := func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -92,8 +91,6 @@ func main() {
 			next.ServeHTTP(w, r)
 		})
 	}
-
-	mux.Use(loggingMiddleware)
 
 	mux.HandleFunc("/xrpc/com.habitat.putRecord", priviServer.PutRecord)
 	mux.HandleFunc(
@@ -129,7 +126,7 @@ func main() {
 	})
 
 	s := &http.Server{
-		Handler: mux,
+		Handler: loggingMiddleware(mux),
 		Addr:    fmt.Sprintf(":%s", *portPtr),
 	}
 
