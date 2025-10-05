@@ -1,4 +1,4 @@
-import { habitatProxy } from "@/main";
+import { habitatProxy } from "@/constants";
 import { listPermissions } from "@/queries/permissions";
 import { useMutation } from "@tanstack/react-query";
 import { createFileRoute, useRouter } from "@tanstack/react-router";

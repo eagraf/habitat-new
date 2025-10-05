@@ -1,4 +1,4 @@
-import {  habitatProxy } from "@/main";
+import {  habitatProxy } from "@/constants";
 import { createFileRoute } from "@tanstack/react-router";
 
 export const Route = createFileRoute('/_requireAuth/privi-test/view')({

@@ -1,4 +1,4 @@
-import {  habitatProxy } from "@/main";
+import {  habitatProxy } from "@/constants";
 import type { OAuthSession } from "@atproto/oauth-client-browser";
 import { queryOptions } from "@tanstack/react-query";
 

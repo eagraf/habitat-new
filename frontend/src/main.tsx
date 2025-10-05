@@ -8,8 +8,6 @@ import reportWebVitals from "./reportWebVitals.ts";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserOAuthClient } from "@atproto/oauth-client-browser";
 
-export const habitatProxy = "did:web:habitat.network#habitat"
-
 export const oauthClient = new BrowserOAuthClient({
   handleResolver: "https://bsky.social",
   clientMetadata: __DOMAIN__
