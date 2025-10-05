@@ -13,6 +13,7 @@ import (
 	"github.com/eagraf/habitat-new/internal/node/logging"
 	"github.com/eagraf/habitat-new/internal/permissions"
 	"github.com/eagraf/habitat-new/internal/privi"
+	"github.com/gorilla/mux"
 )
 
 const (
@@ -78,30 +79,32 @@ func main() {
 	}
 	priviServer := privi.NewServer(adapter, privi.NewSQLiteRepo(priviDB))
 
-	mux := http.NewServeMux()
+	mux := mux.NewRouter()
 
-	logHandler := func(fn http.HandlerFunc) http.HandlerFunc {
-		return func(w http.ResponseWriter, r *http.Request) {
+	loggingMiddleware := func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			x, err := httputil.DumpRequest(r, true)
 			if err != nil {
 				http.Error(w, fmt.Sprint(err), http.StatusInternalServerError)
 				return
 			}
 			fmt.Println("Got a request: ", string(x))
-			fn(w, r)
-		}
+			next.ServeHTTP(w, r)
+		})
 	}
 
-	mux.HandleFunc("/xrpc/com.habitat.putRecord", logHandler(priviServer.PutRecord))
+	mux.Use(loggingMiddleware)
+
+	mux.HandleFunc("/xrpc/com.habitat.putRecord", priviServer.PutRecord)
 	mux.HandleFunc(
 		"/xrpc/com.habitat.getRecord",
-		logHandler(priviServer.PdsAuthMiddleware(priviServer.GetRecord)),
+		priviServer.PdsAuthMiddleware(priviServer.GetRecord),
 	)
-	mux.HandleFunc("/xrpc/com.habitat.listPermissions", logHandler(priviServer.ListPermissions))
-	mux.HandleFunc("/xrpc/com.habitat.addPermission", logHandler(priviServer.AddPermission))
-	mux.HandleFunc("/xrpc/com.habitat.removePermission", logHandler(priviServer.RemovePermission))
+	mux.HandleFunc("/xrpc/com.habitat.listPermissions", priviServer.ListPermissions)
+	mux.HandleFunc("/xrpc/com.habitat.addPermission", priviServer.AddPermission)
+	mux.HandleFunc("/xrpc/com.habitat.removePermission", priviServer.RemovePermission)
 
-	mux.HandleFunc("/.well-known/did.json", logHandler(func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/.well-known/did.json", func(w http.ResponseWriter, r *http.Request) {
 		template := `{
   "id": "did:web:%s",
   "@context": [
@@ -123,7 +126,7 @@ func main() {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-	}))
+	})
 
 	s := &http.Server{
 		Handler: mux,
