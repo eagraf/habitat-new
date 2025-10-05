@@ -225,13 +225,16 @@ func setupPrivi(nodeConfig *config.NodeConfig) (*privi.Server, func()) {
 		fileadapter.NewAdapter(filepath.Join(policiesDirPath, "policies.csv")),
 		true,
 	)
+	if err != nil {
+		log.Fatal().Err(err).Msgf("error creating permission store")
+	}
 
 	// FOR DEMO PURPOSES ONLY
 	sashankDID := "did:plc:v3amhno5wvyfams6aioqqj66"
 	arushiDID := "did:plc:l3k2mbu6qa6rxjej5tvjj7zz"
 	err = perms.AddLexiconReadPermission(arushiDID, sashankDID, "com.habitat.test")
 	if err != nil {
-		log.Err(err).Msgf("error adding test lexicon for sashank demo")
+		log.Fatal().Err(err).Msgf("error adding test lexicon for sashank demo")
 	}
 
 	// Create database file if it does not exist
@@ -240,10 +243,10 @@ func setupPrivi(nodeConfig *config.NodeConfig) (*privi.Server, func()) {
 	if errors.Is(err, os.ErrNotExist) {
 		_, err := os.Create(priviRepoPath)
 		if err != nil {
-			log.Err(err).Msgf("unable to create privi repo file at %s", priviRepoPath)
+			log.Fatal().Err(err).Msgf("unable to create privi repo file at %s", priviRepoPath)
 		}
 	} else if err != nil {
-		log.Err(err).Msgf("error finding privi repo file")
+		log.Fatal().Err(err).Msgf("error finding privi repo file")
 	}
 
 	priviDB, err := sql.Open("sqlite3", priviRepoPath)
