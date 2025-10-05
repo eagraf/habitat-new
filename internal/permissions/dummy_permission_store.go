@@ -8,7 +8,7 @@ import (
 )
 
 type dummy struct {
-	permsByNSID map[string]map[syntax.NSID]xmaps.Set[syntax.DID]
+	permsByNSID map[string] /* owner */ map[syntax.NSID]xmaps.Set[syntax.DID] /* grantee */
 }
 
 var _ Store = (*dummy)(nil)
