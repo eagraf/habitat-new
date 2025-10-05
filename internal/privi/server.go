@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -13,6 +12,7 @@ import (
 	"github.com/bluesky-social/indigo/atproto/identity"
 	"github.com/bluesky-social/indigo/atproto/syntax"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 
 	"github.com/eagraf/habitat-new/internal/node/api"
 	"github.com/eagraf/habitat-new/internal/permissions"
@@ -22,85 +22,59 @@ import (
 type PutRecordRequest struct {
 	Collection string         `json:"collection"`
 	Repo       string         `json:"repo"`
-	Rkey       string         `json:"rkey"`
+	Rkey       string         `json:"rkey,omitempty"`
 	Record     map[string]any `json:"record"`
 }
 
 type Server struct {
 	// TODO: allow privy server to serve many stores, not just one user
-	stores map[syntax.DID]*store
+	store *store
 	// Used for resolving handles -> did, did -> PDS
 	dir identity.Directory
+	// TODO: should this really live here?
+	repo repo
 }
 
 // NewServer returns a privi server.
-func NewServer(didToStores map[syntax.DID]permissions.Store) *Server {
+func NewServer(perms permissions.Store, repo repo) *Server {
 	server := &Server{
-		stores: make(map[syntax.DID]*store),
-		dir:    identity.DefaultDirectory(),
-	}
-	for did, perms := range didToStores {
-		err := server.Register(did, perms)
-		if err != nil {
-			log.Err(err)
-		}
+		store: newStore(perms, repo),
+		dir:   identity.DefaultDirectory(),
+		repo:  repo,
 	}
 	return server
-}
-
-func (s *Server) Register(did syntax.DID, perms permissions.Store) error {
-	_, ok := s.stores[did]
-	if ok {
-		return fmt.Errorf("existing privi store for this did: %s", did.String())
-	}
-
-	s.stores[did] = newStore(did, perms)
-	return nil
 }
 
 // PutRecord puts a potentially encrypted record (see s.inner.putRecord)
 func (s *Server) PutRecord(w http.ResponseWriter, r *http.Request) {
 	var req PutRecordRequest
-	slurp, err := io.ReadAll(r.Body)
+	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	err = json.Unmarshal(slurp, &req)
+	atid, err := syntax.ParseAtIdentifier(req.Repo)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	// Get the PDS endpoint for the caller's DID
-	// If the caller does not have write access, the write will fail (assume privi is read-only premissions for now)
-	did := req.Repo
-	atid, err := syntax.ParseAtIdentifier(did)
+	ownerId, err := s.dir.Lookup(r.Context(), *atid)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	id, err := s.dir.Lookup(r.Context(), *atid)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	inner, ok := s.servedByMe(id.DID)
-	if !ok {
-		// TODO: write helpful message
-		http.Error(
-			w,
-			fmt.Sprintf("%s: did %s", errWrongServer.Error(), id.DID.String()),
-			http.StatusBadRequest,
-		)
-		return
+	var rkey string
+	if req.Rkey == "" {
+		rkey = uuid.NewString()
+	} else {
+		rkey = req.Rkey
 	}
 
 	v := true
-	err = inner.putRecord(req.Collection, req.Record, req.Rkey, &v)
+	err = s.store.putRecord(ownerId.DID.String(), req.Collection, req.Record, rkey, &v)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -110,13 +84,6 @@ func (s *Server) PutRecord(w http.ResponseWriter, r *http.Request) {
 		log.Err(err).Msgf("error sending response for PutRecord request")
 	}
 }
-
-func (s *Server) servedByMe(did syntax.DID) (*store, bool) {
-	store, ok := s.stores[did]
-	return store, ok
-}
-
-var errWrongServer = fmt.Errorf("did is not served by this privi instance:")
 
 // Find desired did
 // if other did, forward request there
@@ -133,7 +100,6 @@ func (s *Server) GetRecord(callerDID syntax.DID) http.HandlerFunc {
 			return
 		}
 
-		// cid := u.Query().Get("cid") -- TODO: enable get by this
 		collection := u.Query().Get("collection")
 		repo := u.Query().Get("repo")
 		rkey := u.Query().Get("rkey")
@@ -154,19 +120,7 @@ func (s *Server) GetRecord(callerDID syntax.DID) http.HandlerFunc {
 		}
 
 		targetDID := id.DID
-		inner, ok := s.servedByMe(targetDID)
-		if !ok {
-			// TODO: write helpful message
-			http.Error(
-				w,
-				fmt.Sprintf("%s: did %s", errWrongServer.Error(), id.DID.String()),
-				http.StatusBadRequest,
-			)
-			return
-		}
-
-		out, err := inner.getRecord(collection, rkey, callerDID)
-
+		out, err := s.store.getRecord(collection, rkey, targetDID, callerDID)
 		if errors.Is(err, ErrUnauthorized) {
 			http.Error(w, ErrUnauthorized.Error(), http.StatusForbidden)
 			return
@@ -187,7 +141,7 @@ func (s *Server) GetRecord(callerDID syntax.DID) http.HandlerFunc {
 // This creates the xrpc.Client to use in the inner privi requests
 // TODO: this should actually pull out the requested did from the url param or input and re-direct there. (Potentially move this lower into the fns themselves).
 // This would allow for requesting to any pds through these routes, not just the one tied to this habitat node.
-func (s *Server) pdsAuthMiddleware(next func(syntax.DID) http.HandlerFunc) http.HandlerFunc {
+func (s *Server) PdsAuthMiddleware(next func(syntax.DID) http.HandlerFunc) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		did, err := s.getCaller(r)
 		if err != nil {
@@ -241,13 +195,7 @@ func (s *Server) ListPermissions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	store, ok := s.stores[callerDID]
-	if !ok {
-		http.Error(w, fmt.Errorf("no store found for caller %s", callerDID).Error(), http.StatusInternalServerError)
-		return
-	}
-
-	permissions, err := store.permissions.ListReadPermissionsByLexicon()
+	permissions, err := s.store.permissions.ListReadPermissionsByLexicon(callerDID.String())
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -279,8 +227,7 @@ func (s *Server) AddPermission(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	store := s.stores[callerDID]
-	err = store.permissions.AddLexiconReadPermission(req.DID, req.Lexicon)
+	err = s.store.permissions.AddLexiconReadPermission(req.DID, callerDID.String(), req.Lexicon)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -300,8 +247,7 @@ func (s *Server) RemovePermission(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	store := s.stores[callerDID]
-	err = store.permissions.RemoveLexiconReadPermission(req.DID, req.Lexicon)
+	err = s.store.permissions.RemoveLexiconReadPermission(req.DID, callerDID.String(), req.Lexicon)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -318,7 +264,7 @@ func (s *Server) GetRoutes() []api.Route {
 		api.NewBasicRoute(
 			http.MethodGet,
 			"/xrpc/com.habitat.getRecord",
-			s.pdsAuthMiddleware(s.GetRecord),
+			s.PdsAuthMiddleware(s.GetRecord),
 		),
 		api.NewBasicRoute(http.MethodPost, "/xrpc/com.habitat.addPermission", s.AddPermission),
 		api.NewBasicRoute(

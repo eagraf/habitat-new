@@ -9,10 +9,11 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/eagraf/habitat-new/internal/app"
+	"github.com/eagraf/habitat-new/internal/node/reverse_proxy"
 	node_state "github.com/eagraf/habitat-new/internal/node/state"
+	"github.com/eagraf/habitat-new/internal/process"
 
-	"github.com/bluesky-social/indigo/api/atproto"
-	"github.com/eagraf/habitat-new/internal/package_manager"
 	"github.com/stretchr/testify/require"
 )
 
@@ -29,36 +30,11 @@ func TestAddUser(t *testing.T) {
 
 	db := testDB(initState)
 
-	did := "did"
-	mockPDS := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		require.Equal(t, "/xrpc/com.atproto.server.createAccount", r.URL.String())
-		bytes, err := json.Marshal(
-			atproto.ServerCreateAccount_Output{
-				Did:    did,
-				Handle: "user-handle",
-			},
-		)
-		require.NoError(t, err)
-		_, err = w.Write(bytes)
-		require.NoError(t, err)
-	}))
-	defer mockPDS.Close()
-
-	ctrl2, err := NewController(context.Background(), fakeProcessManager(), nil, db, nil, mockPDS.URL)
+	ctrl2, err := NewController(context.Background(), fakeProcessManager(), nil, db, nil)
 	require.NoError(t, err)
 
-	email := "user@user.com"
-	pass := "pass"
-	input := &atproto.ServerCreateAccount_Input{
-		Did:      &did,
-		Email:    &email,
-		Handle:   "user-handle",
-		Password: &pass,
-	}
-
-	out, err := ctrl2.addUser(context.Background(), input)
+	err = ctrl2.addUser("user-handle", "did")
 	require.Nil(t, err)
-	require.Equal(t, out.Did, did)
 }
 
 type fakeDB struct {
@@ -103,13 +79,13 @@ func TestMigrations(t *testing.T) {
 	fakestate := &node_state.NodeState{
 		SchemaVersion:     "v0.0.1",
 		Users:             map[string]*node_state.User{},
-		AppInstallations:  map[string]*node_state.AppInstallation{},
-		Processes:         map[node_state.ProcessID]*node_state.Process{},
-		ReverseProxyRules: map[string]*node_state.ReverseProxyRule{},
+		AppInstallations:  map[string]*app.Installation{},
+		Processes:         map[process.ID]*process.Process{},
+		ReverseProxyRules: map[string]*reverse_proxy.Rule{},
 	}
 	db := testDB(fakestate)
 
-	ctrl2, err := NewController(context.Background(), fakeProcessManager(), nil, db, nil, "fak-pds")
+	ctrl2, err := NewController(context.Background(), fakeProcessManager(), nil, db, nil)
 	require.NoError(t, err)
 	s, err := NewCtrlServer(context.Background(), ctrl2, fakestate)
 	require.NoError(t, err)
@@ -133,12 +109,12 @@ func TestGetNodeState(t *testing.T) {
 	db := testDB(state)
 
 	ctrl2, err := NewController(context.Background(), fakeProcessManager(),
-		map[node_state.DriverType]package_manager.PackageManager{
-			node_state.DriverTypeDocker: &mockPkgManager{
-				installs: make(map[*node_state.Package]struct{}),
+		map[app.DriverType]app.PackageManager{
+			app.DriverTypeDocker: &mockPkgManager{
+				installs: make(map[*app.Package]struct{}),
 			},
 		},
-		db, nil, "fake-pds")
+		db, nil)
 	require.NoError(t, err)
 	ctrlServer, err := NewCtrlServer(
 		context.Background(),

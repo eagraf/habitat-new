@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/bluesky-social/indigo/atproto/syntax"
 	"github.com/eagraf/habitat-new/internal/permissions"
 	"github.com/stretchr/testify/require"
 )
@@ -20,25 +19,25 @@ func TestControllerPrivateDataPutGet(t *testing.T) {
 	require.NoError(t, err)
 
 	dummy := permissions.NewDummyStore()
-	p := newStore(syntax.DID("my-did"), dummy)
+	p := newStore(dummy, newInMemoryRepo())
 
 	// putRecord
 	coll := "my.fake.collection"
 	rkey := "my-rkey"
 	validate := true
-	err = p.putRecord(coll, val, rkey, &validate)
+	err = p.putRecord("my-did", coll, val, rkey, &validate)
 	require.NoError(t, err)
 
-	got, err := p.getRecord(coll, "my-rkey", "another-did")
+	got, err := p.getRecord(coll, rkey, "my-did", "another-did")
 	require.Nil(t, got)
 	require.ErrorIs(t, ErrUnauthorized, err)
 
-	require.NoError(t, dummy.AddLexiconReadPermission(coll, "another-did"))
+	require.NoError(t, dummy.AddLexiconReadPermission("another-did", "my-did", coll))
 
-	got, err = p.getRecord(coll, "my-rkey", "another-did")
+	got, err = p.getRecord(coll, "my-rkey", "my-did", "another-did")
 	require.NoError(t, err)
 	require.Equal(t, []byte(got), marshalledVal)
 
-	err = p.putRecord(coll, val, rkey, &validate)
+	err = p.putRecord("my-did", coll, val, rkey, &validate)
 	require.NoError(t, err)
 }

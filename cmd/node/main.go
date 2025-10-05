@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"net"
@@ -10,16 +11,12 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	"runtime"
-	"strings"
 	"syscall"
 	"time"
 
-	"github.com/bluesky-social/indigo/atproto/syntax"
 	fileadapter "github.com/casbin/casbin/v2/persist/file-adapter"
-	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/client"
-	"github.com/docker/go-connections/nat"
+	"github.com/eagraf/habitat-new/internal/app"
 	"github.com/eagraf/habitat-new/internal/auth"
 	"github.com/eagraf/habitat-new/internal/docker"
 	"github.com/eagraf/habitat-new/internal/node/api"
@@ -31,7 +28,6 @@ import (
 	"github.com/eagraf/habitat-new/internal/node/reverse_proxy"
 	"github.com/eagraf/habitat-new/internal/node/server"
 	"github.com/eagraf/habitat-new/internal/node/state"
-	"github.com/eagraf/habitat-new/internal/package_manager"
 	"github.com/eagraf/habitat-new/internal/permissions"
 	"github.com/eagraf/habitat-new/internal/privi"
 	"github.com/eagraf/habitat-new/internal/process"
@@ -61,9 +57,9 @@ func main() {
 	)
 
 	// Initialize package managers
-	pkgManagers := map[state.DriverType]package_manager.PackageManager{
-		state.DriverTypeDocker: docker.NewPackageManager(dockerClient),
-		state.DriverTypeWeb:    web.NewPackageManager(nodeConfig.WebBundlePath()),
+	pkgManagers := map[app.DriverType]app.PackageManager{
+		app.DriverTypeDocker: docker.NewPackageManager(dockerClient),
+		app.DriverTypeWeb:    web.NewPackageManager(nodeConfig.WebBundlePath()),
 	}
 
 	if err != nil {
@@ -84,17 +80,17 @@ func main() {
 		log.Fatal().Err(err).Msg("unable to generate proxy rules")
 	}
 
-	// Generate the list of apps to have installed and started when the node first comes up
-	pdsApp, pdsAppProxyRules := generatePDSAppConfig(nodeConfig)
 	defaultApps, defaultProxyRules, err := nodeConfig.DefaultApps()
 	if err != nil {
-		log.Fatal().Err(err).Msg("unable to generate proxy rules")
+		log.Fatal().Err(err).Msg("unable to get default apps")
 	}
+	rules := append(defaultProxyRules, proxyRules...)
 
-	apps := append(defaultApps, pdsApp)
-	rules := append(append(defaultProxyRules, pdsAppProxyRules...), proxyRules...)
-
-	initState, initialTransitions, err := initialState(nodeConfig.RootUserCertB64(), apps, rules)
+	initState, initialTransitions, err := initialState(
+		nodeConfig.RootUserCertB64(),
+		defaultApps,
+		rules,
+	)
 	if err != nil {
 		log.Fatal().Err(err).Msg("unable to do initial node transitions")
 	}
@@ -145,7 +141,6 @@ func main() {
 		pkgManagers,
 		db,
 		proxy,
-		"http://"+constants.DefaultPDSHostname,
 	)
 	if err != nil {
 		log.Fatal().Err(err).Msg("error creating node controller")
@@ -175,52 +170,8 @@ func main() {
 		routes = append(routes, appstore.NewAvailableAppsRoute(nodeConfig.HabitatPath()))
 	}
 
-	// TODO: read from persisted state about permissions.
-	policiesDirPath := nodeConfig.PermissionPolicyFilesDir()
-	policiesDir, err := os.ReadDir(policiesDirPath)
-	if errors.Is(err, os.ErrNotExist) {
-		log.Info().Msgf("Creating a policies dir path at %s", policiesDirPath)
-		err := os.Mkdir(policiesDirPath, 0700)
-		if err != nil {
-			log.Fatal().Err(err).Msgf("error creating permission policies dir at %s", policiesDirPath)
-		}
-	} else if err != nil {
-		log.Fatal().Err(err).Msg("error reading from permission policies dir")
-	}
-
-	perms := make(map[syntax.DID]permissions.Store, len(policiesDir))
-
-	for _, file := range policiesDir {
-		// Convention is to store policies for a given did in a file called <did>_policies.csv
-		name := file.Name()
-		spl := strings.Split(file.Name(), "_")
-		if len(spl) < 2 {
-			log.Fatal().Err(err).Msgf("invalid naming for permission policy file: found %s, expected %s", file.Name(), "<did>_policies.csv")
-		}
-		did := spl[0]
-		adapter := fileadapter.NewAdapter(filepath.Join(policiesDirPath, name))
-		store, err := permissions.NewStore(adapter, true)
-		if err != nil {
-			log.Fatal().Err(err).Msgf("unable to initialize permissions store for user %s", did)
-		}
-		perms[syntax.DID(did)] = store
-	}
-
-	// FOR DEMO PURPOSES ONLY
-	sashankDID := "did:plc:v3amhno5wvyfams6aioqqj66"
-	_, ok := perms[syntax.DID(sashankDID)]
-	if !ok {
-		perms[syntax.DID(sashankDID)] = permissions.NewDummyStore()
-	}
-	err = perms[syntax.DID(sashankDID)].AddLexiconReadPermission(sashankDID, "com.habitat.test")
-	if err != nil {
-		log.Err(err).Msgf("error adding test lexicon for sashank demo")
-	}
-
-	// Add privy routes
-	priviServer := privi.NewServer(
-		perms,
-	)
+	priviServer, priviClose := setupPrivi(nodeConfig)
+	defer priviClose()
 	routes = append(routes, priviServer.GetRoutes()...)
 
 	router := api.NewRouter(routes, logger)
@@ -268,113 +219,69 @@ func main() {
 	log.Info().Msg("Finished!")
 }
 
-func generatePDSAppConfig(
-	nodeConfig *config.NodeConfig,
-) (*state.AppInstallation, []*state.ReverseProxyRule) {
-	pdsMountDir := filepath.Join(nodeConfig.HabitatAppPath(), "pds")
-
-	arch := runtime.GOARCH
-	var pdsTag string
-	if arch == "arm64" {
-		pdsTag = "arm-latest"
-	} else {
-		pdsTag = "latest"
+func setupPrivi(nodeConfig *config.NodeConfig) (*privi.Server, func()) {
+	policiesDirPath := nodeConfig.PermissionPolicyFilesDir()
+	perms, err := permissions.NewStore(
+		fileadapter.NewAdapter(filepath.Join(policiesDirPath, "policies.csv")),
+		true,
+	)
+	if err != nil {
+		log.Fatal().Err(err).Msgf("error creating permission store")
 	}
 
-	// TODO @eagraf - unhardcode as much of this as possible
-	appID := "pds-default-app-ID"
-	return &state.AppInstallation{
-			ID:      appID,
-			Name:    "pds",
-			Version: "1",
-			UserID:  constants.RootUserID,
-			Package: &state.Package{
-				Driver: state.DriverTypeDocker,
-				DriverConfig: map[string]interface{}{
-					"env": []string{
-						fmt.Sprintf("PDS_HOSTNAME=%s", nodeConfig.Domain()),
-						"PDS_DEV_MODE=true",
-						"PDS_DATA_DIRECTORY=/pds",
-						"PDS_BLOBSTORE_DISK_LOCATION=/pds/blocks",
-						"PDS_PLC_ROTATION_KEY_K256_PRIVATE_KEY_HEX=5290bb1866a03fb23b09a6ffd64d21f6a4ebf624eaa301930eeb81740699239c",
-						"PDS_JWT_SECRET=bd6df801372d7058e1ce472305d7fc2e",
-						"PDS_ADMIN_PASSWORD=password",
-						"PDS_BSKY_APP_VIEW_URL=https://api.bsky.app",
-						"PDS_BSKY_APP_VIEW_DID=did:web:api.bsky.app",
-						"PDS_REPORT_SERVICE_URL=https://mod.bsky.app",
-						"PDS_INVITE_REQUIRED=false",
-						"PDS_REPORT_SERVICE_DID=did:plc:ar7c4by46qjdydhdevvrndac",
-						"PDS_CRAWLERS=https://bsky.network",
-						"DEBUG=1",
-						"LOG_LEVEL=debug",
-						"LOG_ENABLED=1",
-					},
-					"mounts": []mount.Mount{
-						{
-							Type:   "bind",
-							Source: pdsMountDir,
-							Target: "/pds",
-						},
-					},
-					"exposed_ports": []string{constants.DefaultPortPDS},
-					"port_bindings": map[nat.Port][]nat.PortBinding{
-						"3000/tcp": {
-							{
-								HostIP:   "0.0.0.0",
-								HostPort: constants.DefaultPortPDS,
-							},
-						},
-					},
-				},
-				RegistryURLBase:    "registry.hub.docker.com",
-				RegistryPackageID:  "ethangraf/pds",
-				RegistryPackageTag: pdsTag,
-			},
-		},
-		[]*state.ReverseProxyRule{
-			{
-				ID:      "pds-app-reverse-proxy-rule",
-				AppID:   appID,
-				Type:    state.ProxyRuleRedirect,
-				Matcher: "/xrpc",
-				Target:  "http://host.docker.internal:3000/xrpc",
-			},
-			{
-				ID:      "default-rule-oauth-well-known",
-				Type:    "redirect",
-				Matcher: "/.well-known",
-				Target:  "http://host.docker.internal:5001/.well-known/",
-			},
-			{
-				ID:      "default-rule-oauth-login",
-				Type:    "redirect",
-				Matcher: "/oauth",
-				Target:  "http://host.docker.internal:5001/oauth/",
-			},
-			{
-				ID:      "default-rule-atproto",
-				Type:    "redirect",
-				Matcher: "/@atproto",
-				Target:  "http://host.docker.internal:5001/@atproto/",
-			},
+	// FOR DEMO PURPOSES ONLY
+	sashankDID := "did:plc:v3amhno5wvyfams6aioqqj66"
+	arushiDID := "did:plc:l3k2mbu6qa6rxjej5tvjj7zz"
+	err = perms.AddLexiconReadPermission(arushiDID, sashankDID, "com.habitat.test")
+	if err != nil {
+		log.Fatal().Err(err).Msgf("error adding test lexicon for sashank demo")
+	}
+
+	// Create database file if it does not exist
+	priviRepoPath := nodeConfig.PriviRepoFile()
+	_, err = os.Stat(priviRepoPath)
+	if errors.Is(err, os.ErrNotExist) {
+		_, err := os.Create(priviRepoPath)
+		if err != nil {
+			log.Fatal().Err(err).Msgf("unable to create privi repo file at %s", priviRepoPath)
 		}
+	} else if err != nil {
+		log.Fatal().Err(err).Msgf("error finding privi repo file")
+	}
+
+	priviDB, err := sql.Open("sqlite3", priviRepoPath)
+	if err != nil {
+		log.Fatal().Err(err).Msg("unable to open sqlite file backing privi server")
+	}
+
+	_, err = priviDB.Exec(privi.CreateTableSQL())
+	if err != nil {
+		log.Fatal().Err(err).Msg("unable to setup privi sqlite db")
+	}
+
+	// Add privy routes
+	priviServer := privi.NewServer(
+		perms,
+		privi.NewSQLiteRepo(priviDB),
+	)
+	return priviServer, func() { priviDB.Close() }
 }
 
-func generateDefaultReverseProxyRules(config *config.NodeConfig) ([]*state.ReverseProxyRule, error) {
-	frontendRule := &state.ReverseProxyRule{
+func generateDefaultReverseProxyRules(config *config.NodeConfig) ([]*reverse_proxy.Rule, error) {
+	frontendRule := &reverse_proxy.Rule{
 		ID:      "default-rule-frontend",
 		Matcher: "", // Root matcher
 	}
 	if config.FrontendDev() {
 		// In development mode, we run the frontend in a separate docker container with hot-reloading.
 		// As a result, all frontend requests must be forwarde to the frontend container.
-		frontendRule.Type = state.ProxyRuleRedirect
+		frontendRule.Type = reverse_proxy.ProxyRuleRedirect
 		frontendRule.Target = "http://habitat_frontend:5173/"
 	} else {
 		// In production mode, we embed the frontend into the node binary. That way, we can serve
 		// the frontend without needing to set it up on the host machine.
 		// TODO @eagraf - evaluate the performance implications of this.
-		frontendRule.Type = state.ProxyRuleEmbeddedFrontend
+		frontendRule.Type = reverse_proxy.ProxyRuleEmbeddedFrontend
 	}
 
 	apiURL, err := url.Parse(fmt.Sprintf("http://localhost:%s", constants.DefaultPortHabitatAPI))
@@ -382,49 +289,51 @@ func generateDefaultReverseProxyRules(config *config.NodeConfig) ([]*state.Rever
 		return nil, err
 	}
 
-	res := []*state.ReverseProxyRule{
+	res := []*reverse_proxy.Rule{
 		{
 			ID:      "default-rule-api",
-			Type:    state.ProxyRuleRedirect,
+			Type:    reverse_proxy.ProxyRuleRedirect,
 			Matcher: "/habitat/api",
 			Target:  apiURL.String(),
 		},
 		{
 			ID:      "habitat-put-record",
-			Type:    state.ProxyRuleRedirect,
+			Type:    reverse_proxy.ProxyRuleRedirect,
 			Matcher: "/xrpc/com.habitat.putRecord",
 			Target:  apiURL.String() + "/xrpc/com.habitat.putRecord",
 		},
 		{
 			ID:      "habitat-get-record",
-			Type:    state.ProxyRuleRedirect,
+			Type:    reverse_proxy.ProxyRuleRedirect,
 			Matcher: "/xrpc/com.habitat.getRecord",
 			Target:  apiURL.String() + "/xrpc/com.habitat.getRecord",
 		},
 		{
 			ID:      "habitat-list-permissions",
-			Type:    state.ProxyRuleRedirect,
+			Type:    reverse_proxy.ProxyRuleRedirect,
 			Matcher: "/xrpc/com.habitat.listPermissions",
 			Target:  apiURL.String() + "/xrpc/com.habitat.listPermissions",
 		},
 		{
 			ID:      "habitat-add-permissions",
-			Type:    state.ProxyRuleRedirect,
+			Type:    reverse_proxy.ProxyRuleRedirect,
 			Matcher: "/xrpc/com.habitat.addPermission",
 			Target:  apiURL.String() + "/xrpc/com.habitat.addPermission",
 		},
 		{
 			ID:      "habitat-remove-permissions",
-			Type:    state.ProxyRuleRedirect,
+			Type:    reverse_proxy.ProxyRuleRedirect,
 			Matcher: "/xrpc/com.habitat.removePermission",
 			Target:  apiURL.String() + "/xrpc/com.habitat.removePermission",
 		},
 		// Serve a DID document for habitat
+		// This rule is currently broken because it clashes with the one above for PDS / OAuth
+		// We should delete the PDS side car because we never use it
 		{
 			ID:      "did-rule",
-			Type:    state.ProxyRuleFileServer,
-			Matcher: "/.well-known",
-			Target:  config.HabitatPath() + "/well-known",
+			Type:    reverse_proxy.ProxyRuleFileServer,
+			Matcher: "/.well-known/",
+			Target:  config.HabitatPath() + "/well-known/",
 		},
 		frontendRule,
 	}
@@ -442,23 +351,23 @@ func generateDefaultReverseProxyRules(config *config.NodeConfig) ([]*state.Rever
 
 func initialState(
 	rootUserCert string,
-	startApps []*state.AppInstallation,
-	proxyRules []*state.ReverseProxyRule,
+	startApps []*app.Installation,
+	proxyRules []*reverse_proxy.Rule,
 ) (*state.NodeState, []state.Transition, error) {
 	init, err := state.NewStateForLatestVersion()
 	if err != nil {
 		log.Fatal().Err(err).Msg("unable to generate initial node state")
 	}
+
 	init.SetRootUserCert(rootUserCert)
+	for _, install := range startApps {
+		init.AppInstallations[install.ID] = install
+		init.AppInstallations[install.ID].State = app.LifecycleStateInstalled
 
-	for _, app := range startApps {
-		init.AppInstallations[app.ID] = app
-		init.AppInstallations[app.ID].State = state.AppLifecycleStateInstalled
-
-		procID := state.NewProcessID(app.Driver)
-		init.Processes[procID] = &state.Process{
+		procID := process.NewID(install.Driver)
+		init.Processes[procID] = &process.Process{
 			ID:      procID,
-			AppID:   app.ID,
+			AppID:   install.ID,
 			UserID:  constants.RootUserID,
 			Created: time.Now().Format(time.RFC3339),
 		}

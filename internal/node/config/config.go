@@ -12,9 +12,10 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/eagraf/habitat-new/internal/app"
 	"github.com/eagraf/habitat-new/internal/node/constants"
 	"github.com/eagraf/habitat-new/internal/node/controller"
-	"github.com/eagraf/habitat-new/internal/node/state"
+	"github.com/eagraf/habitat-new/internal/node/reverse_proxy"
 	"github.com/mitchellh/mapstructure"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -38,11 +39,7 @@ func loadEnv(v *viper.Viper) error {
 	if err != nil {
 		return err
 	}
-	homedir, err := homedir()
-	if err != nil {
-		return err
-	}
-	v.SetDefault("habitat_path", filepath.Join(homedir, ".habitat"))
+	v.SetDefault("habitat_path", ".habitat")
 
 	err = v.BindEnv("habitat_app_path", "HABITAT_APP_PATH")
 	if err != nil {
@@ -357,29 +354,35 @@ func (n *NodeConfig) TailScaleFunnelEnabled() bool {
 	}
 }
 
-func (n *NodeConfig) InternalPDSURL() string {
-	return "http://host.docker.internal:5001"
-}
-
-// TODO @eagraf we probably will eventually need a better secret management system.
-func (n *NodeConfig) PDSAdminUsername() string {
-	return "admin"
-}
-
-func (n *NodeConfig) PDSAdminPassword() string {
-	return "password"
-}
-
 func (n *NodeConfig) PermissionPolicyFilesDir() string {
 	// TODO: make this not hacky >:( -- we should read from an environment variable otherwise this is one more place to keep in sync
 	return filepath.Join(n.HabitatPath(), "permissions")
+}
+
+func (n *NodeConfig) PriviRepoFile() string {
+	return filepath.Join(n.HabitatPath(), "privi-repo.db")
 }
 
 func (n *NodeConfig) FrontendDev() bool {
 	return n.viper.GetBool("frontend_dev")
 }
 
-func (n *NodeConfig) DefaultApps() ([]*state.AppInstallation, []*state.ReverseProxyRule, error) {
+func (n *NodeConfig) ReverseProxyRules() ([]*reverse_proxy.Rule, error) {
+	var rules []*reverse_proxy.Rule
+	err := n.viper.UnmarshalKey("reverse_proxy_rules", &rules, viper.DecoderConfigOption(
+		func(decoderConfig *mapstructure.DecoderConfig) {
+			decoderConfig.TagName = "yaml"
+			decoderConfig.Squash = true
+		},
+	))
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to unmarshal default reverse proxy rules")
+		return nil, err
+	}
+	return rules, nil
+}
+
+func (n *NodeConfig) DefaultApps() ([]*app.Installation, []*reverse_proxy.Rule, error) {
 	var appRequestsMap map[string]*controller.InstallAppRequest
 	err := n.viper.UnmarshalKey("default_apps", &appRequestsMap, viper.DecoderConfigOption(
 		func(decoderConfig *mapstructure.DecoderConfig) {
@@ -392,28 +395,13 @@ func (n *NodeConfig) DefaultApps() ([]*state.AppInstallation, []*state.ReversePr
 		return nil, nil, err
 	}
 
-	apps := make([]*state.AppInstallation, 0)
-	rules := make([]*state.ReverseProxyRule, 0)
+	apps := make([]*app.Installation, 0)
+	rules := make([]*reverse_proxy.Rule, 0)
 	for _, appRequest := range appRequestsMap {
 		apps = append(apps, appRequest.AppInstallation)
 		rules = append(rules, appRequest.ReverseProxyRules...)
 	}
 	return apps, rules, nil
-}
-
-func (n *NodeConfig) ReverseProxyRules() ([]*state.ReverseProxyRule, error) {
-	var rules []*state.ReverseProxyRule
-	err := n.viper.UnmarshalKey("reverse_proxy_rules", &rules, viper.DecoderConfigOption(
-		func(decoderConfig *mapstructure.DecoderConfig) {
-			decoderConfig.TagName = "yaml"
-			decoderConfig.Squash = true
-		},
-	))
-	if err != nil {
-		log.Error().Err(err).Msg("Failed to unmarshal default reverse proxy rules")
-		return nil, err
-	}
-	return rules, nil
 }
 
 // Helper functions
