@@ -41,7 +41,7 @@ func TestTypeScriptGenerator_GenerateTypes(t *testing.T) {
 			}`,
 			wantErr: false,
 			contains: []string{
-				"export interface Main",
+				"export interface Record",
 				"$type: 'com.test.record'",
 				"text: string",
 				"count?: number",

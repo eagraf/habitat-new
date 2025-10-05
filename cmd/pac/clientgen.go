@@ -66,15 +66,36 @@ var clientgenCmd = &cobra.Command{
 
 		// Determine entity name from the lexicon file
 		entityName := getEntityNameFromFile(atprotoFile)
-		outputFile := filepath.Join(outputPath, fmt.Sprintf("%s_client.ts", entityName))
 
+		// First, generate TypeScript types in the types directory
+		// TODO: this will be idempotent in the future. We don't necessarilly want to regenerate unless some hash has changed.
+		typesPath := filepath.Join(absRoot, "src", "types")
+		if err := os.MkdirAll(typesPath, 0755); err != nil {
+			logging.Error(fmt.Sprintf("Failed to create types directory: %v", err))
+			os.Exit(1)
+		}
+
+		typesFile := filepath.Join(typesPath, fmt.Sprintf("%s_types.ts", entityName))
+		logging.Infof("Generating TypeScript types from: %s", atprotoFile)
+		logging.Infof("Types output file: %s", typesFile)
+
+		typeGenerator := gen.NewTypeScriptGenerator()
+		if err := generateTypesWithGenerator(atprotoFile, typesFile, typeGenerator); err != nil {
+			logging.CheckErr(fmt.Errorf("failed to generate types: %w", err))
+			os.Exit(1)
+		}
+		logging.Success("TypeScript types generated successfully!")
+
+		// Now generate the client code
+		outputFile := filepath.Join(outputPath, fmt.Sprintf("%s_client.ts", entityName))
 		logging.Infof("Generating TypeScript client code from: %s", atprotoFile)
-		logging.Infof("Output file: %s", outputFile)
+		logging.Infof("Client output file: %s", outputFile)
 
 		// Use the client generator from the gen package
-		generator := gen.NewClientGenerator()
-		if err := generateClientWithGenerator(atprotoFile, outputFile, generator); err != nil {
+		clientGenerator := gen.NewClientGenerator()
+		if err := generateClientWithGenerator(atprotoFile, outputFile, clientGenerator); err != nil {
 			logging.CheckErr(err)
+			os.Exit(1)
 		}
 
 		logging.Success("TypeScript client code generated successfully!")

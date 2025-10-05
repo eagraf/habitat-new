@@ -44,7 +44,13 @@ func (g *TypeScriptGenerator) GenerateTypes(inputReader io.Reader) ([]byte, erro
 
 	// Generate types for each definition
 	for name, def := range parsedDefs {
-		if err := g.generateDefinitionType(&output, name, def); err != nil {
+		// If this is the main definition, use the last section of the lexicon ID as the type name
+		typeName := name
+		if name == "main" {
+			typeName = g.getLastSectionOfID(doc.ID)
+		}
+
+		if err := g.generateDefinitionType(&output, typeName, def); err != nil {
 			return nil, fmt.Errorf("failed to generate type for definition %s: %w", name, err)
 		}
 		output.WriteString("\n")
@@ -236,6 +242,12 @@ func (g *TypeScriptGenerator) generateSchemaFieldType(output *strings.Builder, n
 				enumValues[i] = fmt.Sprintf("'%s'", val)
 			}
 			output.WriteString(fmt.Sprintf("export type %s = %s;\n", typeName, strings.Join(enumValues, " | ")))
+		} else if len(schema.KnownValues) > 0 {
+			enumValues := make([]string, len(schema.KnownValues))
+			for i, val := range schema.KnownValues {
+				enumValues[i] = fmt.Sprintf("'%s'", val)
+			}
+			output.WriteString(fmt.Sprintf("export type %s = %s;\n", typeName, strings.Join(enumValues, " | ")))
 		} else {
 			output.WriteString(fmt.Sprintf("export type %s = string;\n", typeName))
 		}
@@ -325,6 +337,15 @@ func (g *TypeScriptGenerator) getTypeScriptType(schema interface{}) string {
 		if ref, ok := schemaMap["$ref"].(string); ok {
 			return g.toPascalCase(strings.TrimPrefix(ref, "#"))
 		}
+		// Check for ref (atproto style)
+		if ref, ok := schemaMap["ref"].(string); ok {
+			// Extract the type name after the # symbol
+			parts := strings.Split(ref, "#")
+			if len(parts) > 1 {
+				return g.toPascalCase(parts[len(parts)-1])
+			}
+			return g.toPascalCase(ref)
+		}
 		return "any"
 	}
 
@@ -333,6 +354,13 @@ func (g *TypeScriptGenerator) getTypeScriptType(schema interface{}) string {
 		if enum, ok := schemaMap["enum"].([]interface{}); ok && len(enum) > 0 {
 			enumValues := make([]string, len(enum))
 			for i, val := range enum {
+				enumValues[i] = fmt.Sprintf("'%s'", val)
+			}
+			return strings.Join(enumValues, " | ")
+		}
+		if knownValues, ok := schemaMap["knownValues"].([]interface{}); ok && len(knownValues) > 0 {
+			enumValues := make([]string, len(knownValues))
+			for i, val := range knownValues {
 				enumValues[i] = fmt.Sprintf("'%s'", val)
 			}
 			return strings.Join(enumValues, " | ")
@@ -355,6 +383,14 @@ func (g *TypeScriptGenerator) getTypeScriptType(schema interface{}) string {
 	case "ref":
 		if ref, ok := schemaMap["$ref"].(string); ok {
 			return g.toPascalCase(strings.TrimPrefix(ref, "#"))
+		}
+		if ref, ok := schemaMap["ref"].(string); ok {
+			// Extract the type name after the # symbol
+			parts := strings.Split(ref, "#")
+			if len(parts) > 1 {
+				return g.toPascalCase(parts[len(parts)-1])
+			}
+			return g.toPascalCase(ref)
 		}
 		return "any"
 	default:
@@ -429,4 +465,13 @@ func (g *TypeScriptGenerator) toPascalCase(s string) string {
 	}
 
 	return result.String()
+}
+
+// getLastSectionOfID extracts the last section from a lexicon ID
+func (g *TypeScriptGenerator) getLastSectionOfID(id string) string {
+	parts := strings.Split(id, ".")
+	if len(parts) > 0 {
+		return parts[len(parts)-1]
+	}
+	return "main"
 }

@@ -82,6 +82,7 @@ type SchemaField struct {
 	Items       interface{}            `json:"items,omitempty"`
 	Ref         string                 `json:"$ref,omitempty"`
 	Enum        []string               `json:"enum,omitempty"`
+	KnownValues []string               `json:"knownValues,omitempty"`
 	Default     interface{}            `json:"default,omitempty"`
 	Const       interface{}            `json:"const,omitempty"`
 	Format      string                 `json:"format,omitempty"`
