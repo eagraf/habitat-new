@@ -17,7 +17,7 @@ export const oauthClient = new BrowserOAuthClient({
     ? clientMetadata(__DOMAIN__)
     : {
       client_id: "http://localhost?scope=atproto%20transition%3Ageneric",
-      redirect_uris: ["http://127.0.0.1:3001/", "http://127.0.0.1:5173/"],
+      redirect_uris: ["http://127.0.0.1:5173/"],
       scope: "atproto transition:generic",
       token_endpoint_auth_method: "none",
     },
