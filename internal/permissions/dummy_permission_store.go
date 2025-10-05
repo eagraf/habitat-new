@@ -26,22 +26,22 @@ func (d *dummy) HasPermission(
 	return dids.Contains(syntax.DID(requester)), nil
 }
 
-func (d *dummy) AddLexiconReadPermission(grantee string, granter string, nsid string) error {
-	dids, ok := d.permsByNSID[granter][syntax.NSID(nsid)]
+func (d *dummy) AddLexiconReadPermission(grantee string, owner string, nsid string) error {
+	dids, ok := d.permsByNSID[owner][syntax.NSID(nsid)]
 	if !ok {
 		dids = make(xmaps.Set[syntax.DID])
-		if d.permsByNSID[granter] == nil {
-			d.permsByNSID[granter] = make(map[syntax.NSID]xmaps.Set[syntax.DID])
+		if d.permsByNSID[owner] == nil {
+			d.permsByNSID[owner] = make(map[syntax.NSID]xmaps.Set[syntax.DID])
 		}
-		d.permsByNSID[granter][syntax.NSID(nsid)] = dids
+		d.permsByNSID[owner][syntax.NSID(nsid)] = dids
 	}
 	dids.Add(syntax.DID(grantee))
 	return nil
 }
 
 func (d *dummy) RemoveLexiconReadPermission(
-	granteeDID string,
-	granterDID string,
+	grantee string,
+	owner string,
 	nsid string,
 ) error {
 	return errors.ErrUnsupported

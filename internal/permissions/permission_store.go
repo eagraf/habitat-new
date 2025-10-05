@@ -18,13 +18,13 @@ type Store interface {
 		rkey string,
 	) (bool, error)
 	AddLexiconReadPermission(
-		granteeDID string,
-		granterDID string,
+		grantee string,
+		owner string,
 		nsid string,
 	) error
 	RemoveLexiconReadPermission(
-		granteeDID string,
-		granterDID string,
+		grantee string,
+		owner string,
 		nsid string,
 	) error
 	ListReadPermissionsByLexicon(owner string) (map[string][]string, error)
