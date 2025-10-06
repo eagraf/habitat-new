@@ -99,6 +99,14 @@ var clientgenCmd = &cobra.Command{
 		}
 
 		logging.Success("TypeScript client code generated successfully!")
+
+		// Always generate data route config for all schemas
+		logging.Infof("Generating data route config for entity: %s", entityName)
+		if err := generateDataConfig(absRoot, atprotoFile, entityName); err != nil {
+			logging.CheckErr(fmt.Errorf("failed to generate data config: %w", err))
+			os.Exit(1)
+		}
+		logging.Success("Data route config generated successfully!")
 	},
 }
 
@@ -172,6 +180,38 @@ func getEntityNameFromFilename(filePath string) string {
 	ext := filepath.Ext(base)
 	name := base[:len(base)-len(ext)]
 	return strings.ToLower(name)
+}
+
+// generateDataConfig generates or updates the data route config file
+func generateDataConfig(projectRoot, _ string, _ string) error {
+	// Create routes directory if it doesn't exist
+	routesPath := filepath.Join(projectRoot, "src", "routes")
+	if err := os.MkdirAll(routesPath, 0755); err != nil {
+		return fmt.Errorf("failed to create routes directory: %w", err)
+	}
+
+	// Find all existing entity client files
+	apiPath := filepath.Join(projectRoot, "src", "api")
+	entityFiles, err := filepath.Glob(filepath.Join(apiPath, "*_client.ts"))
+	if err != nil {
+		return fmt.Errorf("failed to find entity files: %w", err)
+	}
+
+	// Generate the config
+	configGenerator := gen.NewConfigGenerator()
+	generatedContent, err := configGenerator.GenerateConfig(entityFiles, projectRoot)
+	if err != nil {
+		return fmt.Errorf("failed to generate config: %w", err)
+	}
+
+	// Write the generated content to the config file
+	configFile := filepath.Join(routesPath, "data.config.ts")
+	if err := os.WriteFile(configFile, generatedContent, 0644); err != nil {
+		return fmt.Errorf("failed to write config file: %w", err)
+	}
+
+	logging.Infof("Generated data config: %s", configFile)
+	return nil
 }
 
 func init() {
