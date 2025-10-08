@@ -21,13 +21,6 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-type PutRecordRequest struct {
-	Collection string         `json:"collection"`
-	Repo       string         `json:"repo"`
-	Rkey       string         `json:"rkey,omitempty"`
-	Record     map[string]any `json:"record"`
-}
-
 type Server struct {
 	// TODO: allow privy server to serve many stores, not just one user
 	store *store
@@ -51,7 +44,7 @@ var formDecoder = schema.NewDecoder()
 
 // PutRecord puts a potentially encrypted record (see s.inner.putRecord)
 func (s *Server) PutRecord(w http.ResponseWriter, r *http.Request) {
-	var req PutRecordRequest
+	var req habitat.NetworkHabitatRepoPutRecordInput
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		utils.LogAndHTTPError(w, err, "reading request body", http.StatusBadRequest)
