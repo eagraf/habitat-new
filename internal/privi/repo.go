@@ -17,15 +17,15 @@ import (
 // In the future, it is possible to implement sync endpoints and other methods.
 
 type repo interface {
-	putRecord(did string, rkey string, rec any, validate *bool) error
-	getRecord(did string, rkey string) (any, error)
+	putRecord(did string, rkey string, rec record, validate *bool) error
+	getRecord(did string, rkey string) (record, error)
 }
 
 // Lexicon NSID -> records for that lexicon.
 // A record is stored as raw bytes and keyed by its record key (rkey).
 //
 // TODO: the internal store should be an MST for portability / compatiblity with conventional atproto  methods.
-type inMemoryRepo map[syntax.DID]map[recordKey]any
+type inMemoryRepo map[syntax.DID]map[recordKey]record
 
 // inMemoryRepo implements repo
 var _ repo = &inMemoryRepo{}
@@ -35,7 +35,7 @@ func newInMemoryRepo() inMemoryRepo {
 }
 
 // putRecord puts a record for the given rkey into the repo no matter what; if a record always exists, it is overwritten.
-func (r inMemoryRepo) putRecord(did string, rkey string, rec any, validate *bool) error {
+func (r inMemoryRepo) putRecord(did string, rkey string, rec record, validate *bool) error {
 	if validate != nil && *validate {
 		err := data.Validate(rec)
 		if err != nil {
@@ -106,12 +106,7 @@ func (r *sqliteRepo) putRecord(did string, rkey string, rec record, validate *bo
 		return err
 	}
 	// Always put (even if something exists).
-	_, err = r.db.Exec(
-		"insert into records(did, rkey, record) values(?, ?, jsonb(?));",
-		did,
-		rkey,
-		bytes,
-	)
+	_, err = r.db.Exec("insert into records(did, rkey, record) values(?, ?, jsonb(?));", did, rkey, bytes)
 	return err
 }
 
@@ -121,11 +116,7 @@ var (
 )
 
 func (r *sqliteRepo) getRecord(did string, rkey string) (record, error) {
-	queried := r.db.QueryRow(
-		"select did, rkey, json(record) from records where rkey = ? and did = ?",
-		rkey,
-		did,
-	)
+	queried := r.db.QueryRow("select did, rkey, json(record) from records where rkey = ? and did = ?", rkey, did)
 
 	var row row
 	err := queried.Scan(&row.did, &row.rkey, &row.rec)
