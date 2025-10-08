@@ -66,32 +66,32 @@ func (g *ClientGenerator) GenerateClient(inputReader io.Reader) ([]byte, error) 
 	output.WriteString(fmt.Sprintf("import type { %s } from '../types/%s_types';\n\n", entityNamePascal, entityName))
 
 	// Generate public CRUD operations
-	g.generateCreateRecordFunction(&output, entityNamePascal, recordDef)
+	g.generateCreateRecordFunction(&output, entityNamePascal, doc.ID)
 	output.WriteString("\n")
-	g.generateListRecordsFunction(&output, entityNamePlural, recordDef)
+	g.generateListRecordsFunction(&output, entityNamePlural, doc.ID)
 	output.WriteString("\n")
-	g.generateGetRecordFunction(&output, entityNamePascal, recordDef)
+	g.generateGetRecordFunction(&output, entityNamePascal, doc.ID)
 	output.WriteString("\n\n")
 
 	// Add comment for private operations
 	output.WriteString("// Convenience functions for private record operations\n")
 
 	// Generate private CRUD operations
-	g.generatePutPrivateRecordFunction(&output, entityNamePascal, recordDef)
+	g.generatePutPrivateRecordFunction(&output, entityNamePascal, doc.ID)
 	output.WriteString("\n")
-	g.generateGetPrivateRecordFunction(&output, entityNamePascal, recordDef)
+	g.generateGetPrivateRecordFunction(&output, entityNamePascal, doc.ID)
 	output.WriteString("\n")
-	g.generateListPrivateRecordsFunction(&output, entityNamePlural, recordDef)
+	g.generateListPrivateRecordsFunction(&output, entityNamePlural, doc.ID)
 
 	return []byte(output.String()), nil
 }
 
 // generateCreateRecordFunction generates the createRecord function
-func (g *ClientGenerator) generateCreateRecordFunction(output *strings.Builder, entityName string, record *RecordDefinition) {
+func (g *ClientGenerator) generateCreateRecordFunction(output *strings.Builder, entityName string, lexiconID string) {
 	output.WriteString(fmt.Sprintf("export const create%sRecord = async (record: %s): Promise<CreateRecordResponse> => {\n", entityName, entityName))
 	output.WriteString("    const client = new HabitatClient(getUserDid(), getDefaultAgent());\n")
 	output.WriteString(fmt.Sprintf("    const response = await client.createRecord<%s>(\n", entityName))
-	output.WriteString(fmt.Sprintf("        '%s',\n", record.Key))
+	output.WriteString(fmt.Sprintf("        '%s',\n", lexiconID))
 	output.WriteString("        record\n")
 	output.WriteString("    );\n")
 	output.WriteString("    return response;\n")
@@ -99,30 +99,30 @@ func (g *ClientGenerator) generateCreateRecordFunction(output *strings.Builder, 
 }
 
 // generateListRecordsFunction generates the listRecords function
-func (g *ClientGenerator) generateListRecordsFunction(output *strings.Builder, entityNamePlural string, record *RecordDefinition) {
+func (g *ClientGenerator) generateListRecordsFunction(output *strings.Builder, entityNamePlural string, lexiconID string) {
 	entityName := g.singularize(entityNamePlural)
 	output.WriteString(fmt.Sprintf("export const list%s = async (): Promise<ListRecordsResponse<%s>> => {\n", entityNamePlural, entityName))
 	output.WriteString("    const client = new HabitatClient(getUserDid(), getDefaultAgent());\n")
-	output.WriteString(fmt.Sprintf("    const response = await client.listRecords<%s>('%s');\n", entityName, record.Key))
+	output.WriteString(fmt.Sprintf("    const response = await client.listRecords<%s>('%s');\n", entityName, lexiconID))
 	output.WriteString("    return response;\n")
 	output.WriteString("};\n")
 }
 
 // generateGetRecordFunction generates the getRecord function
-func (g *ClientGenerator) generateGetRecordFunction(output *strings.Builder, entityName string, record *RecordDefinition) {
+func (g *ClientGenerator) generateGetRecordFunction(output *strings.Builder, entityName string, lexiconID string) {
 	output.WriteString(fmt.Sprintf("export const get%sRecord = async (rkey: string): Promise<GetRecordResponse<%s>> => {\n", entityName, entityName))
 	output.WriteString("    const client = new HabitatClient(getUserDid(), getDefaultAgent());\n")
-	output.WriteString(fmt.Sprintf("    const response = await client.getRecord<%s>('%s', rkey);\n", entityName, record.Key))
+	output.WriteString(fmt.Sprintf("    const response = await client.getRecord<%s>('%s', rkey);\n", entityName, lexiconID))
 	output.WriteString("    return response;\n")
 	output.WriteString("};\n")
 }
 
 // generatePutPrivateRecordFunction generates the putPrivateRecord function
-func (g *ClientGenerator) generatePutPrivateRecordFunction(output *strings.Builder, entityName string, record *RecordDefinition) {
+func (g *ClientGenerator) generatePutPrivateRecordFunction(output *strings.Builder, entityName string, lexiconID string) {
 	output.WriteString(fmt.Sprintf("export const putPrivate%sRecord = async (record: %s, rkey?: string): Promise<CreateRecordResponse> => {\n", entityName, entityName))
 	output.WriteString("    const client = new HabitatClient(getUserDid(), getDefaultAgent());\n")
 	output.WriteString(fmt.Sprintf("    const response = await client.putPrivateRecord<%s>(\n", entityName))
-	output.WriteString(fmt.Sprintf("        '%s',\n", record.Key))
+	output.WriteString(fmt.Sprintf("        '%s',\n", lexiconID))
 	output.WriteString("        record,\n")
 	output.WriteString("        rkey\n")
 	output.WriteString("    );\n")
@@ -131,21 +131,21 @@ func (g *ClientGenerator) generatePutPrivateRecordFunction(output *strings.Build
 }
 
 // generateGetPrivateRecordFunction generates the getPrivateRecord function
-func (g *ClientGenerator) generateGetPrivateRecordFunction(output *strings.Builder, entityName string, record *RecordDefinition) {
+func (g *ClientGenerator) generateGetPrivateRecordFunction(output *strings.Builder, entityName string, lexiconID string) {
 	output.WriteString(fmt.Sprintf("export const getPrivate%sRecord = async (rkey: string): Promise<GetRecordResponse<%s>> => {\n", entityName, entityName))
 	output.WriteString("    const client = new HabitatClient(getUserDid(), getDefaultAgent());\n")
-	output.WriteString(fmt.Sprintf("    const response = await client.getPrivateRecord<%s>('%s', rkey);\n", entityName, record.Key))
+	output.WriteString(fmt.Sprintf("    const response = await client.getPrivateRecord<%s>('%s', rkey);\n", entityName, lexiconID))
 	output.WriteString("    return response;\n")
 	output.WriteString("};\n")
 }
 
 // generateListPrivateRecordsFunction generates the listPrivateRecords function
-func (g *ClientGenerator) generateListPrivateRecordsFunction(output *strings.Builder, entityNamePlural string, record *RecordDefinition) {
+func (g *ClientGenerator) generateListPrivateRecordsFunction(output *strings.Builder, entityNamePlural string, lexiconID string) {
 	// Extract entity name from plural form (simple approach - remove 's' or 'es')
 	entityName := g.singularize(entityNamePlural)
 	output.WriteString(fmt.Sprintf("export const listPrivate%s = async (): Promise<ListRecordsResponse<%s>> => {\n", entityNamePlural, entityName))
 	output.WriteString("    const client = new HabitatClient(getUserDid(), getDefaultAgent());\n")
-	output.WriteString(fmt.Sprintf("    const response = await client.listPrivateRecords<%s>('%s');\n", entityName, record.Key))
+	output.WriteString(fmt.Sprintf("    const response = await client.listPrivateRecords<%s>('%s');\n", entityName, lexiconID))
 	output.WriteString("    return response;\n")
 	output.WriteString("};\n")
 }

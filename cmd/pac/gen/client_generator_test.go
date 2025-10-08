@@ -42,33 +42,32 @@ func TestClientGenerator_GenerateClient(t *testing.T) {
 			wantErr: false,
 			contains: []string{
 				// Check imports
-				"import type { ComAtprotoRepoCreateRecord, ComAtprotoRepoGetRecord, ComAtprotoRepoListRecords } from '@atproto/api'",
 				"import { HabitatClient, getUserDid, getDefaultAgent } from '../sdk/atproto'",
-				"import type { PutRecordResponse, GetRecordResponse, ListRecordsResponse } from '../sdk/atproto'",
+				"import type { CreateRecordResponse, GetRecordResponse, ListRecordsResponse } from '../sdk/atproto'",
 				"import type { Note } from '../types/note_types'",
 
 				// Check public operations
 				"export const createNoteRecord = async (record: Note)",
-				"client.createRecord<Note>({",
+				"client.createRecord<Note>(",
 				"export const listNotes = async ()",
-				"client.listRecords<Note>({",
+				"client.listRecords<Note>(",
 				"export const getNoteRecord = async (rkey: string)",
-				"client.getRecord<Note>({",
+				"client.getRecord<Note>(",
 
 				// Check private operations
 				"export const putPrivateNoteRecord = async (record: Note, rkey?: string)",
-				"client.putPrivateRecord<Note>({",
+				"client.putPrivateRecord<Note>(",
 				"export const getPrivateNoteRecord = async (rkey: string)",
-				"client.getPrivateRecord<Note>({",
+				"client.getPrivateRecord<Note>(",
 				"export const listPrivateNotes = async ()",
-				"client.listPrivateRecords<Note>({",
+				"client.listPrivateRecords<Note>(",
 
 				// Check return types with generics
 				"Promise<GetRecordResponse<Note>>",
 				"Promise<ListRecordsResponse<Note>>",
 
-				// Check collection is set
-				"collection: 'com.example.note'",
+				// Check collection ID is set correctly
+				"'com.example.note'",
 			},
 		},
 		{
@@ -116,12 +115,13 @@ func TestClientGenerator_GenerateClient(t *testing.T) {
 				"export const putPrivateEventRecord = async (record: Event, rkey?: string)",
 				"export const getPrivateEventRecord = async (rkey: string)",
 				"export const listPrivateEvents = async ()",
-				"client.createRecord<Event>({",
-				"client.listRecords<Event>({",
-				"client.getRecord<Event>({",
-				"client.putPrivateRecord<Event>({",
-				"client.getPrivateRecord<Event>({",
-				"client.listPrivateRecords<Event>({",
+				"client.createRecord<Event>(",
+				"client.listRecords<Event>(",
+				"client.getRecord<Event>(",
+				"client.putPrivateRecord<Event>(",
+				"client.getPrivateRecord<Event>(",
+				"client.listPrivateRecords<Event>(",
+				"'com.calendar.event'",
 			},
 		},
 		{
