@@ -28,6 +28,11 @@ type Store interface {
 		nsid string,
 	) error
 	ListReadPermissionsByLexicon(owner string) (map[string][]string, error)
+	ListReadPermissionsByUser(
+		owner string,
+		requester string,
+		nsid string,
+	) (allow []string, deny []string, err error)
 }
 
 type casbinStore struct {
@@ -117,6 +122,29 @@ func (p *casbinStore) ListReadPermissionsByLexicon(owner string) (map[string][]s
 	}
 
 	return res, nil
+}
+
+// ListReadPermissionsByUser implements Store.
+func (p *casbinStore) ListReadPermissionsByUser(
+	owner string,
+	requester string,
+	nsid string,
+) ([]string, []string, error) {
+	policies, err := p.enforcer.GetFilteredPolicy(0, requester, owner, nsid)
+	if err != nil {
+		return nil, nil, err
+	}
+	allows := []string{}
+	denies := []string{}
+	for _, policy := range policies {
+		if policy[3] == "allow" {
+			allows = append(allows, policy[2])
+		}
+		if policy[3] == "deny" {
+			denies = append(denies, policy[2])
+		}
+	}
+	return allows, denies, nil
 }
 
 // Helpers to translate lexicon + record references into object type required by casbin

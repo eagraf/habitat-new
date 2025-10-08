@@ -5,11 +5,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 
+	"github.com/eagraf/habitat-new/api/habitat"
 	_ "github.com/mattn/go-sqlite3"
 
 	"github.com/bluesky-social/indigo/atproto/data"
 	"github.com/bluesky-social/indigo/atproto/syntax"
+
+	sq "github.com/Masterminds/squirrel"
 )
 
 // Persist private data within repos that mirror public repos.
@@ -19,6 +23,11 @@ import (
 type repo interface {
 	putRecord(did string, rkey string, rec record, validate *bool) error
 	getRecord(did string, rkey string) (record, error)
+	listRecords(
+		params habitat.NetworkHabitatRepoListRecordsParams,
+		allow []string,
+		deny []string,
+	) ([]record, error)
 }
 
 // Lexicon NSID -> records for that lexicon.
@@ -67,6 +76,33 @@ func (r inMemoryRepo) getRecord(did string, rkey string) (record, error) {
 	return record, nil
 }
 
+func (r inMemoryRepo) listRecords(
+	params habitat.NetworkHabitatRepoListRecordsParams,
+	allow []string,
+	deny []string,
+) ([]record, error) {
+	coll, ok := r[syntax.DID(params.Repo)]
+	if !ok {
+		return nil, ErrRecordNotFound
+	}
+
+	result := []record{}
+
+	for rkey, record := range coll {
+		for _, d := range deny {
+			if strings.HasPrefix(string(rkey), strings.TrimSuffix(d, "*")) {
+				continue
+			}
+		}
+		for _, a := range allow {
+			if strings.HasPrefix(string(rkey), strings.TrimSuffix(a, "*")) {
+				result = append(result, record)
+			}
+		}
+	}
+	return nil, ErrRecordNotFound
+}
+
 // A sqlite-backed repo per user contains the following two columns:
 // [did, record key, record value]
 // For now, store all records in the same database. Eventually, this should be broken up into
@@ -106,7 +142,12 @@ func (r *sqliteRepo) putRecord(did string, rkey string, rec record, validate *bo
 		return err
 	}
 	// Always put (even if something exists).
-	_, err = r.db.Exec("insert into records(did, rkey, record) values(?, ?, jsonb(?));", did, rkey, bytes)
+	_, err = r.db.Exec(
+		"insert into records(did, rkey, record) values(?, ?, jsonb(?));",
+		did,
+		rkey,
+		bytes,
+	)
 	return err
 }
 
@@ -116,7 +157,11 @@ var (
 )
 
 func (r *sqliteRepo) getRecord(did string, rkey string) (record, error) {
-	queried := r.db.QueryRow("select did, rkey, json(record) from records where rkey = ? and did = ?", rkey, did)
+	queried := r.db.QueryRow(
+		"select did, rkey, json(record) from records where rkey = ? and did = ?",
+		rkey,
+		did,
+	)
 
 	var row row
 	err := queried.Scan(&row.did, &row.rkey, &row.rec)
@@ -133,6 +178,44 @@ func (r *sqliteRepo) getRecord(did string, rkey string) (record, error) {
 	}
 
 	return record, nil
+}
+
+// listRecords implements repo.
+func (r *sqliteRepo) listRecords(
+	params habitat.NetworkHabitatRepoListRecordsParams,
+	allow []string,
+	deny []string,
+) ([]record, error) {
+	query := sq.Select("record").From("records").Where(sq.Eq{"did": params.Repo})
+	for _, d := range deny {
+		query = query.Where(sq.NotLike{"rkey": strings.TrimSuffix(d, "*")})
+	}
+	for _, a := range allow {
+		query = query.Where(sq.Like{"rkey": strings.TrimSuffix(a, "*")})
+	}
+	if params.Cursor != "" {
+		query = query.Where(sq.Gt{"rkey": params.Cursor})
+	}
+	if params.Limit != 0 {
+		query = query.Limit(uint64(params.Limit))
+	}
+	rows, err := query.RunWith(r.db).Query()
+	if err != nil {
+		return nil, err
+	}
+	records := []record{}
+	for rows.Next() {
+		var rec string
+		if err := rows.Scan(&rec); err != nil {
+			return nil, err
+		}
+		var record record
+		if err := json.Unmarshal([]byte(rec), &record); err != nil {
+			return nil, err
+		}
+		records = append(records, record)
+	}
+	return records, nil
 }
 
 func CreateTableSQL() string {
