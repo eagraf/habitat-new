@@ -16,3 +16,12 @@ type Adapter interface {
 	// GetInstallInstructions returns instructions for installing the tool
 	GetInstallInstructions() string
 }
+
+// Agent defines the interface for AI coding agents
+type Agent interface {
+	Adapter
+
+	// Prompt executes a prompt in the specified working directory
+	// Returns the output from the agent
+	Prompt(workingDir string, prompt string) error
+}

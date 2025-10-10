@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/eagraf/habitat-new/cmd/pac/adapters"
 	"github.com/eagraf/habitat-new/cmd/pac/logging"
 	"github.com/manifoldco/promptui"
 	"github.com/spf13/cobra"
@@ -14,6 +15,7 @@ import (
 
 var (
 	pagegenProjectRoot string
+	pagegenAgent       string
 )
 
 // PageGenConfig holds the configuration for generating a page
@@ -59,10 +61,36 @@ var pagegenCmd = &cobra.Command{
 		// Generate the prompt for the coding agent
 		prompt := generateAgentPrompt(config)
 
-		// TODO: This is where we would call the coding agent with the generated prompt
-		// For now, just display the prompt
 		logging.Success("Page generation configuration completed!")
-		logging.Infof("\n%s", prompt)
+
+		// Initialize the agent
+		agent, err := getAgent(pagegenAgent)
+		if err != nil {
+			logging.CheckErr(fmt.Errorf("Failed to initialize agent: %w", err))
+			os.Exit(1)
+		}
+
+		// Check if the agent is installed
+		version, err := agent.GetVersion()
+		if err == adapters.ErrNotInstalled {
+			logging.Errorf("Agent is not installed:\n%s", agent.GetInstallInstructions())
+			os.Exit(1)
+		} else if err != nil {
+			logging.CheckErr(fmt.Errorf("Failed to check agent version: %w", err))
+			os.Exit(1)
+		}
+
+		logging.Infof("Using agent: %s (version: %s)", pagegenAgent, version)
+		logging.Infof("\n=== Generated Prompt ===\n%s\n", prompt)
+
+		// Call the agent to generate the page
+		logging.Info("Calling agent to generate page...")
+		if err := agent.Prompt(absRoot, prompt); err != nil {
+			logging.CheckErr(fmt.Errorf("Failed to run agent: %w", err))
+			os.Exit(1)
+		}
+
+		logging.Success("Page generation completed!")
 	},
 }
 
@@ -308,45 +336,61 @@ func discoverLexicons(projectRoot string) ([]string, error) {
 func generateAgentPrompt(config *PageGenConfig) string {
 	var sb strings.Builder
 
-	sb.WriteString("=== Page Generation Prompt ===\n\n")
+	sb.WriteString("Generate a new React page with the following specifications:\n\n")
+
 	sb.WriteString("## Page Description\n")
 	sb.WriteString(config.Description)
 	sb.WriteString("\n\n")
 
 	sb.WriteString("## Data Access Requirements\n\n")
 
-	sb.WriteString("### Read Access\n")
-	if len(config.ReadLexicons) == 0 {
-		sb.WriteString("- None\n")
-	} else {
+	// Read Access
+	if len(config.ReadLexicons) > 0 {
+		sb.WriteString("### Data to Read\n")
+		sb.WriteString("This page should READ data from the following resources:\n")
 		for _, lex := range config.ReadLexicons {
-			sb.WriteString(fmt.Sprintf("- %s\n", lex))
+			sb.WriteString(fmt.Sprintf("- %s (use types from src/types/%s_types.ts and API client from src/api/%s_client.ts)\n", lex, lex, lex))
 		}
+		sb.WriteString("\n")
 	}
-	sb.WriteString("\n")
 
-	sb.WriteString("### Write Access\n")
-	if len(config.WriteLexicons) == 0 {
-		sb.WriteString("- None\n")
-	} else {
+	// Write Access
+	if len(config.WriteLexicons) > 0 {
+		sb.WriteString("### Data to Write\n")
+		sb.WriteString("This page should CREATE/UPDATE/DELETE data for the following resources:\n")
 		for _, lex := range config.WriteLexicons {
-			sb.WriteString(fmt.Sprintf("- %s\n", lex))
+			sb.WriteString(fmt.Sprintf("- %s (use types from src/types/%s_types.ts and API client from src/api/%s_client.ts)\n", lex, lex, lex))
 		}
+		sb.WriteString("\n")
 	}
-	sb.WriteString("\n")
 
-	sb.WriteString("## Next Steps\n")
-	sb.WriteString("TODO: This prompt will be passed to a coding agent to generate the page.\n")
-	sb.WriteString("The agent will:\n")
-	sb.WriteString("1. Create a new route file in src/routes/\n")
-	sb.WriteString("2. Import the necessary type definitions and API clients\n")
-	sb.WriteString("3. Implement the page component with the specified functionality\n")
-	sb.WriteString("4. Use TanStack Query for data fetching where appropriate\n")
+	sb.WriteString("## Implementation Guidelines\n")
+	sb.WriteString("1. Create a new lazy-loaded route file in src/routes/ with a .lazy.tsx extension\n")
+	sb.WriteString("2. Import the necessary type definitions from src/types/\n")
+	sb.WriteString("3. Import the necessary API clients from src/api/\n")
+	sb.WriteString("4. Use TanStack Query (useQuery, useMutation) for data fetching and mutations\n")
+	sb.WriteString("5. Follow the existing patterns in the codebase for styling and component structure\n")
+	sb.WriteString("6. Ensure the page is responsive and follows modern UX best practices\n")
+	sb.WriteString("7. Add proper error handling and loading states\n")
+	sb.WriteString("8. Use TypeScript for type safety\n")
 
 	return sb.String()
+}
+
+// getAgent returns an Agent implementation based on the agent name
+func getAgent(agentName string) (adapters.Agent, error) {
+	switch strings.ToLower(agentName) {
+	case "cursor":
+		return adapters.NewCursorAdapter(), nil
+	default:
+		return nil, fmt.Errorf("unknown agent: %s (supported: cursor)", agentName)
+	}
 }
 
 func init() {
 	// Add project root flag
 	pagegenCmd.Flags().StringVarP(&pagegenProjectRoot, "project-root", "r", "", "Project root directory (default: current directory)")
+
+	// Add agent flag
+	pagegenCmd.Flags().StringVarP(&pagegenAgent, "agent", "a", "cursor", "AI coding agent to use (supported: cursor)")
 }
