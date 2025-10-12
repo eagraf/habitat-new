@@ -410,7 +410,7 @@ func (o *oauthClientImpl) makePushedAuthorizationRequest(
 		"scope":                 {"atproto transition:generic"},
 		"client_assertion_type": {"urn:ietf:params:oauth:client-assertion-type:jwt-bearer"},
 		"client_assertion":      {clientAssertion},
-		"login_hint":            {id.DID.String()},
+		"login_hint":            {id.Handle.String()},
 	}
 
 	req, err := http.NewRequest(
