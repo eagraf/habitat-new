@@ -101,18 +101,18 @@ func (g *ClientGenerator) generateCreateRecordFunction(output *strings.Builder, 
 // generateListRecordsFunction generates the listRecords function
 func (g *ClientGenerator) generateListRecordsFunction(output *strings.Builder, entityNamePlural string, lexiconID string) {
 	entityName := g.singularize(entityNamePlural)
-	output.WriteString(fmt.Sprintf("export const list%s = async (): Promise<ListRecordsResponse<%s>> => {\n", entityNamePlural, entityName))
+	output.WriteString(fmt.Sprintf("export const list%s = async (repo?: string): Promise<ListRecordsResponse<%s>> => {\n", entityNamePlural, entityName))
 	output.WriteString("    const client = new HabitatClient(getUserDid(), getDefaultAgent());\n")
-	output.WriteString(fmt.Sprintf("    const response = await client.listRecords<%s>('%s');\n", entityName, lexiconID))
+	output.WriteString(fmt.Sprintf("    const response = await client.listRecords<%s>('%s', undefined, undefined, repo);\n", entityName, lexiconID))
 	output.WriteString("    return response;\n")
 	output.WriteString("};\n")
 }
 
 // generateGetRecordFunction generates the getRecord function
 func (g *ClientGenerator) generateGetRecordFunction(output *strings.Builder, entityName string, lexiconID string) {
-	output.WriteString(fmt.Sprintf("export const get%sRecord = async (rkey: string): Promise<GetRecordResponse<%s>> => {\n", entityName, entityName))
+	output.WriteString(fmt.Sprintf("export const get%sRecord = async (rkey: string, repo?: string): Promise<GetRecordResponse<%s>> => {\n", entityName, entityName))
 	output.WriteString("    const client = new HabitatClient(getUserDid(), getDefaultAgent());\n")
-	output.WriteString(fmt.Sprintf("    const response = await client.getRecord<%s>('%s', rkey);\n", entityName, lexiconID))
+	output.WriteString(fmt.Sprintf("    const response = await client.getRecord<%s>('%s', rkey, undefined, repo);\n", entityName, lexiconID))
 	output.WriteString("    return response;\n")
 	output.WriteString("};\n")
 }
@@ -132,9 +132,9 @@ func (g *ClientGenerator) generatePutPrivateRecordFunction(output *strings.Build
 
 // generateGetPrivateRecordFunction generates the getPrivateRecord function
 func (g *ClientGenerator) generateGetPrivateRecordFunction(output *strings.Builder, entityName string, lexiconID string) {
-	output.WriteString(fmt.Sprintf("export const getPrivate%sRecord = async (rkey: string): Promise<GetRecordResponse<%s>> => {\n", entityName, entityName))
+	output.WriteString(fmt.Sprintf("export const getPrivate%sRecord = async (rkey: string, repo?: string): Promise<GetRecordResponse<%s>> => {\n", entityName, entityName))
 	output.WriteString("    const client = new HabitatClient(getUserDid(), getDefaultAgent());\n")
-	output.WriteString(fmt.Sprintf("    const response = await client.getPrivateRecord<%s>('%s', rkey);\n", entityName, lexiconID))
+	output.WriteString(fmt.Sprintf("    const response = await client.getPrivateRecord<%s>('%s', rkey, undefined, repo);\n", entityName, lexiconID))
 	output.WriteString("    return response;\n")
 	output.WriteString("};\n")
 }
@@ -143,9 +143,9 @@ func (g *ClientGenerator) generateGetPrivateRecordFunction(output *strings.Build
 func (g *ClientGenerator) generateListPrivateRecordsFunction(output *strings.Builder, entityNamePlural string, lexiconID string) {
 	// Extract entity name from plural form (simple approach - remove 's' or 'es')
 	entityName := g.singularize(entityNamePlural)
-	output.WriteString(fmt.Sprintf("export const listPrivate%s = async (): Promise<ListRecordsResponse<%s>> => {\n", entityNamePlural, entityName))
+	output.WriteString(fmt.Sprintf("export const listPrivate%s = async (repo?: string): Promise<ListRecordsResponse<%s>> => {\n", entityNamePlural, entityName))
 	output.WriteString("    const client = new HabitatClient(getUserDid(), getDefaultAgent());\n")
-	output.WriteString(fmt.Sprintf("    const response = await client.listPrivateRecords<%s>('%s');\n", entityName, lexiconID))
+	output.WriteString(fmt.Sprintf("    const response = await client.listPrivateRecords<%s>('%s', undefined, undefined, repo);\n", entityName, lexiconID))
 	output.WriteString("    return response;\n")
 	output.WriteString("};\n")
 }

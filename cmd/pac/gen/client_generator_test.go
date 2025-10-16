@@ -49,17 +49,17 @@ func TestClientGenerator_GenerateClient(t *testing.T) {
 				// Check public operations
 				"export const createNoteRecord = async (record: Note)",
 				"client.createRecord<Note>(",
-				"export const listNotes = async ()",
+				"export const listNotes = async (repo?: string)",
 				"client.listRecords<Note>(",
-				"export const getNoteRecord = async (rkey: string)",
+				"export const getNoteRecord = async (rkey: string, repo?: string)",
 				"client.getRecord<Note>(",
 
 				// Check private operations
 				"export const putPrivateNoteRecord = async (record: Note, rkey?: string)",
 				"client.putPrivateRecord<Note>(",
-				"export const getPrivateNoteRecord = async (rkey: string)",
+				"export const getPrivateNoteRecord = async (rkey: string, repo?: string)",
 				"client.getPrivateRecord<Note>(",
-				"export const listPrivateNotes = async ()",
+				"export const listPrivateNotes = async (repo?: string)",
 				"client.listPrivateRecords<Note>(",
 
 				// Check return types with generics
@@ -110,11 +110,11 @@ func TestClientGenerator_GenerateClient(t *testing.T) {
 			contains: []string{
 				"import type { Event } from '../types/event_types'",
 				"export const createEventRecord = async (record: Event)",
-				"export const listEvents = async ()",
-				"export const getEventRecord = async (rkey: string)",
+				"export const listEvents = async (repo?: string)",
+				"export const getEventRecord = async (rkey: string, repo?: string)",
 				"export const putPrivateEventRecord = async (record: Event, rkey?: string)",
-				"export const getPrivateEventRecord = async (rkey: string)",
-				"export const listPrivateEvents = async ()",
+				"export const getPrivateEventRecord = async (rkey: string, repo?: string)",
+				"export const listPrivateEvents = async (repo?: string)",
 				"client.createRecord<Event>(",
 				"client.listRecords<Event>(",
 				"client.getRecord<Event>(",
@@ -144,8 +144,8 @@ func TestClientGenerator_GenerateClient(t *testing.T) {
 			}`,
 			wantErr: false,
 			contains: []string{
-				"export const listPosts = async ()",
-				"export const listPrivatePosts = async ()",
+				"export const listPosts = async (repo?: string)",
+				"export const listPrivatePosts = async (repo?: string)",
 			},
 		},
 		{
@@ -168,8 +168,8 @@ func TestClientGenerator_GenerateClient(t *testing.T) {
 			}`,
 			wantErr: false,
 			contains: []string{
-				"export const listStories = async ()",
-				"export const listPrivateStories = async ()",
+				"export const listStories = async (repo?: string)",
+				"export const listPrivateStories = async (repo?: string)",
 			},
 		},
 		{
@@ -192,7 +192,7 @@ func TestClientGenerator_GenerateClient(t *testing.T) {
 			}`,
 			wantErr: false,
 			contains: []string{
-				"export const listPrivateTests = async ()",
+				"export const listPrivateTests = async (repo?: string)",
 			},
 		},
 		{
