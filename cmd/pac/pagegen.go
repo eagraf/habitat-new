@@ -1,11 +1,13 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/eagraf/habitat-new/cmd/pac/adapters"
 	"github.com/eagraf/habitat-new/cmd/pac/logging"
@@ -16,14 +18,48 @@ import (
 var (
 	pagegenProjectRoot string
 	pagegenAgent       string
+	pagegenForce       bool
+	pagegenResume      string
 )
 
 // PageGenConfig holds the configuration for generating a page
 type PageGenConfig struct {
-	Description       string
-	ReadLexicons      []string
-	WriteLexicons     []string
-	AvailableLexicons []string
+	Description       string   `json:"description"`
+	AvailableLexicons []string `json:"available_lexicons"`
+
+	// Map Lexicon NSIDs to configs containing permitted operations and descriptions of how they will be used
+	LexiconConfigs map[string]LexiconConfig `json:"lexicon_configs"`
+
+	// Route relative to the root of the website
+	Route string `json:"route"`
+
+	// Map query params to their descriptions
+	QueryParams map[string]string `json:"query_params"`
+}
+
+type LexOp string
+
+const (
+	LexOpCreateRecord LexOp = "createRecord"
+	LexOpListRecords  LexOp = "listRecords"
+	LexOpGetRecord    LexOp = "getRecord"
+	LexOpPutRecord    LexOp = "putRecord"
+	LexOpDeleteRecord LexOp = "deleteRecord"
+
+	// Private operations
+	LexOpCreatePrivateRecord LexOp = "createPrivateRecord"
+	LexOpGetPrivateRecord    LexOp = "getPrivateRecord"
+	LexOpListPrivateRecords  LexOp = "listPrivateRecords"
+	LexOpPutPrivateRecord    LexOp = "putPrivateRecord"
+	LexOpDeletePrivateRecord LexOp = "deletePrivateRecord"
+)
+
+// LexiconConfig defines how a particular page will interact with a lexicon
+type LexiconConfig struct {
+	LexiconID string `json:"lexicon_id"`
+
+	// Maps permitted operations to a description of how they will be used
+	Operations map[LexOp]string `json:"operations"`
 }
 
 var pagegenCmd = &cobra.Command{
@@ -51,11 +87,34 @@ var pagegenCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		// Run the interactive page generation flow
-		config, err := runPageGenInteractive(absRoot)
-		if err != nil {
-			logging.CheckErr(fmt.Errorf("Failed to gather page generation requirements: %w", err))
-			os.Exit(1)
+		var config *PageGenConfig
+
+		// Check if we're resuming from a saved config
+		if pagegenResume != "" {
+			logging.Infof("Loading configuration from: %s", pagegenResume)
+			var err error
+			config, err = loadConfigFromFile(pagegenResume)
+			if err != nil {
+				logging.CheckErr(fmt.Errorf("Failed to load configuration from file: %w", err))
+				os.Exit(1)
+			}
+			logging.Success("Configuration loaded successfully!")
+		} else {
+			// Run the interactive page generation flow
+			var err error
+			config, err = runPageGenInteractive(absRoot, pagegenForce)
+			if err != nil {
+				logging.CheckErr(fmt.Errorf("Failed to gather page generation requirements: %w", err))
+				os.Exit(1)
+			}
+
+			// Save the config to a backup file
+			configPath, err := saveConfigToFile(config, absRoot)
+			if err != nil {
+				logging.Warnf("Failed to save configuration backup: %v", err)
+			} else {
+				logging.Infof("Configuration saved to: %s", configPath)
+			}
 		}
 
 		// Generate the prompt for the coding agent
@@ -95,8 +154,11 @@ var pagegenCmd = &cobra.Command{
 }
 
 // runPageGenInteractive runs the interactive CLI flow to gather page generation requirements
-func runPageGenInteractive(projectRoot string) (*PageGenConfig, error) {
-	config := &PageGenConfig{}
+func runPageGenInteractive(projectRoot string, force bool) (*PageGenConfig, error) {
+	config := &PageGenConfig{
+		LexiconConfigs: make(map[string]LexiconConfig),
+		QueryParams:    make(map[string]string),
+	}
 
 	// Discover available lexicons from the types directory
 	lexicons, err := discoverLexicons(projectRoot)
@@ -120,19 +182,47 @@ func runPageGenInteractive(projectRoot string) (*PageGenConfig, error) {
 	}
 	config.Description = description
 
-	// Step 2: Select lexicons for read access
-	readLexicons, err := promptForLexicons("Select lexicons this page will have READ access to", lexicons)
+	// Step 2: Get page route
+	route, err := promptForRoute()
 	if err != nil {
-		return nil, fmt.Errorf("failed to select read lexicons: %w", err)
+		return nil, fmt.Errorf("failed to get page route: %w", err)
 	}
-	config.ReadLexicons = readLexicons
+	config.Route = route
 
-	// Step 3: Select lexicons for write access
-	writeLexicons, err := promptForLexicons("Select lexicons this page will have WRITE access to", lexicons)
-	if err != nil {
-		return nil, fmt.Errorf("failed to select write lexicons: %w", err)
+	// Check if the target file already exists (immediately after getting route)
+	filename := routeToFilename(route)
+	targetFile := filepath.Join(projectRoot, "src", "routes", fmt.Sprintf("%s.lazy.tsx", filename))
+
+	if _, err := os.Stat(targetFile); err == nil {
+		// File exists
+		if !force {
+			return nil, fmt.Errorf("page file already exists: %s\nUse -f or --force flag to overwrite the existing file", targetFile)
+		}
+		logging.Warnf("Page file already exists: %s (will be overwritten)", targetFile)
+		fmt.Println()
 	}
-	config.WriteLexicons = writeLexicons
+
+	// Step 3: Select lexicons and configure operations
+	selectedLexicons, err := promptForLexicons("Select lexicons this page will interact with", lexicons)
+	if err != nil {
+		return nil, fmt.Errorf("failed to select lexicons: %w", err)
+	}
+
+	// For each selected lexicon, configure operations
+	for _, lexicon := range selectedLexicons {
+		lexConfig, err := promptForLexiconConfig(lexicon)
+		if err != nil {
+			return nil, fmt.Errorf("failed to configure lexicon %s: %w", lexicon, err)
+		}
+		config.LexiconConfigs[lexicon] = lexConfig
+	}
+
+	// Step 4: Configure query parameters
+	queryParams, err := promptForQueryParams()
+	if err != nil {
+		return nil, fmt.Errorf("failed to configure query params: %w", err)
+	}
+	config.QueryParams = queryParams
 
 	return config, nil
 }
@@ -250,6 +340,30 @@ func promptWithEditor() (string, error) {
 	return result, nil
 }
 
+// promptForRoute prompts the user for the page route
+func promptForRoute() (string, error) {
+	prompt := promptui.Prompt{
+		Label: "Enter the page route (e.g., /dashboard, /users/profile)",
+		Validate: func(input string) error {
+			input = strings.TrimSpace(input)
+			if input == "" {
+				return fmt.Errorf("route cannot be empty")
+			}
+			if !strings.HasPrefix(input, "/") {
+				return fmt.Errorf("route must start with /")
+			}
+			return nil
+		},
+	}
+
+	result, err := prompt.Run()
+	if err != nil {
+		return "", err
+	}
+
+	return strings.TrimSpace(result), nil
+}
+
 // promptForLexicons prompts the user to select lexicons from a list using a multi-select interface
 func promptForLexicons(label string, lexicons []string) ([]string, error) {
 	if len(lexicons) == 0 {
@@ -305,6 +419,182 @@ func promptForLexicons(label string, lexicons []string) ([]string, error) {
 	return result, nil
 }
 
+// promptForLexiconConfig prompts the user to configure operations for a lexicon
+func promptForLexiconConfig(lexiconID string) (LexiconConfig, error) {
+	config := LexiconConfig{
+		LexiconID:  lexiconID,
+		Operations: make(map[LexOp]string),
+	}
+
+	logging.Infof("\nConfiguring operations for lexicon: %s", lexiconID)
+
+	// List of available operations
+	availableOps := []LexOp{
+		LexOpCreateRecord,
+		LexOpListRecords,
+		LexOpGetRecord,
+		LexOpPutRecord,
+		LexOpDeleteRecord,
+		LexOpCreatePrivateRecord,
+		LexOpGetPrivateRecord,
+		LexOpListPrivateRecords,
+		LexOpPutPrivateRecord,
+		LexOpDeletePrivateRecord,
+	}
+
+	// Track which operations are already added
+	selectedOps := make(map[LexOp]bool)
+
+	for {
+		// Ask if user wants to add an operation
+		confirmPrompt := promptui.Select{
+			Label: "Add an operation for this lexicon?",
+			Items: []string{"Yes", "No - Continue to next lexicon"},
+		}
+
+		idx, _, err := confirmPrompt.Run()
+		if err != nil {
+			return config, err
+		}
+
+		// If user selected "No", break
+		if idx == 1 {
+			break
+		}
+
+		// Filter out already selected operations
+		availableToSelect := make([]LexOp, 0)
+		for _, op := range availableOps {
+			if !selectedOps[op] {
+				availableToSelect = append(availableToSelect, op)
+			}
+		}
+
+		if len(availableToSelect) == 0 {
+			logging.Info("All operations have been added")
+			break
+		}
+
+		// Select an operation
+		opItems := make([]string, len(availableToSelect))
+		for i, op := range availableToSelect {
+			opItems[i] = string(op)
+		}
+
+		opPrompt := promptui.Select{
+			Label: "Select operation to add",
+			Items: opItems,
+			Size:  12,
+		}
+
+		opIdx, _, err := opPrompt.Run()
+		if err != nil {
+			return config, err
+		}
+
+		selectedOp := availableToSelect[opIdx]
+
+		// Get description immediately
+		description, err := promptForOperationDescription(selectedOp)
+		if err != nil {
+			return config, fmt.Errorf("failed to get description for %s: %w", selectedOp, err)
+		}
+
+		config.Operations[selectedOp] = description
+		selectedOps[selectedOp] = true
+		logging.Infof("Added operation: %s", selectedOp)
+	}
+
+	return config, nil
+}
+
+// promptForOperationDescription prompts for a description of how an operation will be used
+func promptForOperationDescription(op LexOp) (string, error) {
+	prompt := promptui.Prompt{
+		Label: fmt.Sprintf("Describe how '%s' will be used in this page", op),
+		Validate: func(input string) error {
+			if strings.TrimSpace(input) == "" {
+				return fmt.Errorf("description cannot be empty")
+			}
+			return nil
+		},
+	}
+
+	result, err := prompt.Run()
+	if err != nil {
+		return "", err
+	}
+
+	return strings.TrimSpace(result), nil
+}
+
+// promptForQueryParams prompts the user to add query parameters with descriptions
+func promptForQueryParams() (map[string]string, error) {
+	params := make(map[string]string)
+
+	logging.Info("\nConfiguring query parameters (optional)")
+
+	for {
+		// Ask if user wants to add a query param
+		confirmPrompt := promptui.Select{
+			Label: "Add a query parameter?",
+			Items: []string{"Yes", "No - Skip to next step"},
+		}
+
+		idx, _, err := confirmPrompt.Run()
+		if err != nil {
+			return nil, err
+		}
+
+		// If user selected "No", break
+		if idx == 1 {
+			break
+		}
+
+		// Prompt for param name
+		namePrompt := promptui.Prompt{
+			Label: "Query parameter name",
+			Validate: func(input string) error {
+				input = strings.TrimSpace(input)
+				if input == "" {
+					return fmt.Errorf("parameter name cannot be empty")
+				}
+				if _, exists := params[input]; exists {
+					return fmt.Errorf("parameter '%s' already exists", input)
+				}
+				return nil
+			},
+		}
+
+		paramName, err := namePrompt.Run()
+		if err != nil {
+			return nil, err
+		}
+		paramName = strings.TrimSpace(paramName)
+
+		// Prompt for param description
+		descPrompt := promptui.Prompt{
+			Label: fmt.Sprintf("Description for '%s'", paramName),
+			Validate: func(input string) error {
+				if strings.TrimSpace(input) == "" {
+					return fmt.Errorf("description cannot be empty")
+				}
+				return nil
+			},
+		}
+
+		description, err := descPrompt.Run()
+		if err != nil {
+			return nil, err
+		}
+
+		params[paramName] = strings.TrimSpace(description)
+		logging.Infof("Added query parameter: %s", paramName)
+	}
+
+	return params, nil
+}
+
 // discoverLexicons discovers available lexicons by examining the types directory
 func discoverLexicons(projectRoot string) ([]string, error) {
 	typesDir := filepath.Join(projectRoot, "src", "types")
@@ -332,6 +622,23 @@ func discoverLexicons(projectRoot string) ([]string, error) {
 	return lexicons, nil
 }
 
+// routeToFilename converts a route path to a valid filename
+// e.g., "/dashboard" -> "dashboard", "/users/profile" -> "users.profile"
+func routeToFilename(route string) string {
+	// Remove leading slash
+	filename := strings.TrimPrefix(route, "/")
+
+	// Replace slashes with dots for nested routes
+	filename = strings.ReplaceAll(filename, "/", ".")
+
+	// Handle root path
+	if filename == "" {
+		filename = "index"
+	}
+
+	return filename
+}
+
 // generateAgentPrompt generates the prompt that will be passed to the coding agent
 func generateAgentPrompt(config *PageGenConfig) string {
 	var sb strings.Builder
@@ -342,39 +649,102 @@ func generateAgentPrompt(config *PageGenConfig) string {
 	sb.WriteString(config.Description)
 	sb.WriteString("\n\n")
 
-	sb.WriteString("## Data Access Requirements\n\n")
+	// Generate filename from route
+	filename := routeToFilename(config.Route)
+	filepath := fmt.Sprintf("src/routes/%s.lazy.tsx", filename)
 
-	// Read Access
-	if len(config.ReadLexicons) > 0 {
-		sb.WriteString("### Data to Read\n")
-		sb.WriteString("This page should READ data from the following resources:\n")
-		for _, lex := range config.ReadLexicons {
-			sb.WriteString(fmt.Sprintf("- %s (use types from src/types/%s_types.ts and API client from src/api/%s_client.ts)\n", lex, lex, lex))
+	sb.WriteString("## Page Route\n")
+	sb.WriteString(fmt.Sprintf("The page should be accessible at: %s\n", config.Route))
+	sb.WriteString(fmt.Sprintf("Create a new lazy-loaded route file at: **%s**\n\n", filepath))
+
+	// Query Parameters
+	if len(config.QueryParams) > 0 {
+		sb.WriteString("## Query Parameters\n")
+		sb.WriteString("This page accepts the following query parameters:\n")
+		for param, desc := range config.QueryParams {
+			sb.WriteString(fmt.Sprintf("- **%s**: %s\n", param, desc))
 		}
 		sb.WriteString("\n")
 	}
 
-	// Write Access
-	if len(config.WriteLexicons) > 0 {
-		sb.WriteString("### Data to Write\n")
-		sb.WriteString("This page should CREATE/UPDATE/DELETE data for the following resources:\n")
-		for _, lex := range config.WriteLexicons {
-			sb.WriteString(fmt.Sprintf("- %s (use types from src/types/%s_types.ts and API client from src/api/%s_client.ts)\n", lex, lex, lex))
+	// Lexicon Configurations
+	if len(config.LexiconConfigs) > 0 {
+		sb.WriteString("## Data Access Requirements\n\n")
+		sb.WriteString("This page will interact with the following lexicons/resources:\n\n")
+
+		for lexID, lexConfig := range config.LexiconConfigs {
+			sb.WriteString(fmt.Sprintf("### %s\n", lexID))
+			sb.WriteString(fmt.Sprintf("- Types: src/types/%s_types.ts\n", lexID))
+			sb.WriteString(fmt.Sprintf("- API Client: src/api/%s_client.ts\n\n", lexID))
+
+			if len(lexConfig.Operations) > 0 {
+				sb.WriteString("**Operations to use:**\n")
+				for op, desc := range lexConfig.Operations {
+					sb.WriteString(fmt.Sprintf("- **%s**: %s\n", op, desc))
+				}
+				sb.WriteString("\n")
+			}
 		}
-		sb.WriteString("\n")
 	}
 
 	sb.WriteString("## Implementation Guidelines\n")
-	sb.WriteString("1. Create a new lazy-loaded route file in src/routes/ with a .lazy.tsx extension\n")
-	sb.WriteString("2. Import the necessary type definitions from src/types/\n")
-	sb.WriteString("3. Import the necessary API clients from src/api/\n")
-	sb.WriteString("4. Use TanStack Query (useQuery, useMutation) for data fetching and mutations\n")
+	sb.WriteString("1. Import the necessary type definitions from src/types/\n")
+	sb.WriteString("2. Import the necessary API clients from src/api/\n")
+	sb.WriteString("3. Use TanStack Query (useQuery, useMutation) for data fetching and mutations\n")
+	sb.WriteString("4. Use TanStack Router's useSearch() hook to access query parameters if applicable\n")
 	sb.WriteString("5. Follow the existing patterns in the codebase for styling and component structure\n")
 	sb.WriteString("6. Ensure the page is responsive and follows modern UX best practices\n")
 	sb.WriteString("7. Add proper error handling and loading states\n")
 	sb.WriteString("8. Use TypeScript for type safety\n")
+	sb.WriteString("9. Implement the specific operations described for each lexicon\n")
+	sb.WriteString("10. Respect the system light/dark mode\n")
+	sb.WriteString("11. Do not create example data. Only use live data queried using the HabitatClient\n")
 
 	return sb.String()
+}
+
+// saveConfigToFile saves the PageGenConfig to a JSON file
+func saveConfigToFile(config *PageGenConfig, projectRoot string) (string, error) {
+	// Create a .pac directory if it doesn't exist
+	pacDir := filepath.Join(projectRoot, ".pac")
+	if err := os.MkdirAll(pacDir, 0755); err != nil {
+		return "", fmt.Errorf("failed to create .pac directory: %w", err)
+	}
+
+	// Generate filename with timestamp
+	timestamp := time.Now().Format("20060102-150405")
+	filename := fmt.Sprintf("pagegen-%s.json", timestamp)
+	configPath := filepath.Join(pacDir, filename)
+
+	// Marshal config to JSON with pretty printing
+	data, err := json.MarshalIndent(config, "", "  ")
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal config to JSON: %w", err)
+	}
+
+	// Write to file
+	if err := os.WriteFile(configPath, data, 0644); err != nil {
+		return "", fmt.Errorf("failed to write config file: %w", err)
+	}
+
+	return configPath, nil
+}
+
+// loadConfigFromFile loads a PageGenConfig from a JSON file
+func loadConfigFromFile(filePath string) (*PageGenConfig, error) {
+	// Read the file
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read config file: %w", err)
+	}
+
+	// Unmarshal JSON
+	var config PageGenConfig
+	if err := json.Unmarshal(data, &config); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal config JSON: %w", err)
+	}
+
+	return &config, nil
 }
 
 // getAgent returns an Agent implementation based on the agent name
@@ -393,4 +763,10 @@ func init() {
 
 	// Add agent flag
 	pagegenCmd.Flags().StringVarP(&pagegenAgent, "agent", "a", "cursor", "AI coding agent to use (supported: cursor)")
+
+	// Add force flag
+	pagegenCmd.Flags().BoolVarP(&pagegenForce, "force", "f", false, "Force overwrite if page file already exists")
+
+	// Add resume flag
+	pagegenCmd.Flags().StringVar(&pagegenResume, "resume", "", "Resume from a saved configuration file (path to JSON file)")
 }
