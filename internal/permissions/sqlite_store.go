@@ -19,7 +19,7 @@ var _ Store = (*sqliteStore)(nil)
 // - Whole NSID prefixes: "com.habitat.*"
 // - Specific NSIDs: "com.habitat.collection"
 // - Specific records: "com.habitat.collection.recordKey"
-func NewSQLiteStore(db *sql.DB) (Store, error) {
+func NewSQLiteStore(db *sql.DB) (*sqliteStore, error) {
 	// Create permissions table if it doesn't exist
 	// Schema: (grantee, owner, object, effect)
 	// - grantee: user/group being granted permission
