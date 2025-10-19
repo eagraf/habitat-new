@@ -73,7 +73,7 @@ func TestDpopHttpClient_InitialValidNonce(t *testing.T) {
 	// Execute request
 	resp, err := client.Do(req)
 	require.NoError(t, err)
-	defer require.NoError(t, resp.Body.Close())
+	defer func() { require.NoError(t, resp.Body.Close()) }()
 
 	// Verify response
 	require.Equal(t, http.StatusOK, resp.StatusCode)
@@ -137,7 +137,7 @@ func TestDpopHttpClient_NoNonceAtBeginning(t *testing.T) {
 	// Execute request
 	resp, err := client.Do(req)
 	require.NoError(t, err)
-	defer require.NoError(t, resp.Body.Close())
+	defer func() { require.NoError(t, resp.Body.Close()) }()
 
 	// Verify response
 	require.Equal(t, http.StatusOK, resp.StatusCode)
@@ -219,7 +219,7 @@ func TestDpopHttpClient_AuthorizationServerNonceError(t *testing.T) {
 	// Execute request
 	resp, err := client.Do(req)
 	require.NoError(t, err)
-	defer require.NoError(t, resp.Body.Close())
+	defer func() { require.NoError(t, resp.Body.Close()) }()
 
 	// Verify response
 	require.Equal(t, http.StatusOK, resp.StatusCode)
@@ -289,7 +289,7 @@ func TestDpopHttpClient_WithAccessToken(t *testing.T) {
 	// Execute request
 	resp, err := client.Do(req)
 	require.NoError(t, err)
-	defer require.NoError(t, resp.Body.Close())
+	defer func() { require.NoError(t, resp.Body.Close()) }()
 
 	// Verify response
 	require.Equal(t, http.StatusOK, resp.StatusCode)
@@ -334,7 +334,7 @@ func TestDpopHttpClient_RequestFormat(t *testing.T) {
 	// Execute request
 	resp, err := client.Do(req)
 	require.NoError(t, err)
-	defer require.NoError(t, resp.Body.Close())
+	defer func() { require.NoError(t, resp.Body.Close()) }()
 
 	// Verify response
 	require.Equal(t, http.StatusOK, resp.StatusCode)
@@ -393,7 +393,7 @@ func TestDpopHttpClient_ErrorHandling(t *testing.T) {
 	// Execute request
 	resp, err := client.Do(req)
 	require.NoError(t, err)
-	defer require.NoError(t, resp.Body.Close())
+	defer func() { require.NoError(t, resp.Body.Close()) }()
 
 	// Verify response status
 	require.Equal(t, http.StatusInternalServerError, resp.StatusCode)

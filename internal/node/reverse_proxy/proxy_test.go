@@ -30,7 +30,7 @@ func TestProxy(t *testing.T) {
 
 	// Simulate a static file dir to be served
 	fileDir := t.TempDir()
-	defer require.NoError(t, os.RemoveAll(fileDir))
+	defer func() { require.NoError(t, os.RemoveAll(fileDir)) }()
 
 	file, err := os.CreateTemp(fileDir, "file")
 	require.NoError(t, err)
