@@ -24,7 +24,7 @@ func processRoute(route Route) processedRoute {
 }
 
 func (p processedRoute) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if r.Method != p.Route.Method() {
+	if r.Method != p.Method() {
 		http.Error(
 			w,
 			fmt.Sprintf("invalid method, require %s", p.Route.Method()),
