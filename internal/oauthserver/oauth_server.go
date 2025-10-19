@@ -4,8 +4,10 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
+	"encoding/gob"
 	"fmt"
 	"net/http"
+	"net/url"
 
 	"github.com/bluesky-social/indigo/atproto/identity"
 	"github.com/bluesky-social/indigo/atproto/syntax"
@@ -20,10 +22,14 @@ const (
 )
 
 type authRequestFlash struct {
-	handle  string
-	request fosite.AuthorizeRequester
-	state   *auth.AuthorizeState
-	dpopKey *ecdsa.PrivateKey
+	ClientID       string
+	RedirectURI    *url.URL
+	State          string
+	Scopes         []string
+	ResponseTypes  []string
+	Form           url.Values
+	Session        *session
+	AuthorizeState *auth.AuthorizeState
 }
 
 type OAuthServer struct {
@@ -40,9 +46,9 @@ func NewOAuthServer(
 	directory identity.Directory,
 ) *OAuthServer {
 	storage := newStore()
-	secret := []byte("my super secret signing password")
 	config := &fosite.Config{
-		GlobalSecret: secret,
+		GlobalSecret:               []byte("my super secret signing password"),
+		SendDebugMessagesToClients: true,
 	}
 	provider := compose.Compose(
 		config,
@@ -52,7 +58,8 @@ func NewOAuthServer(
 		compose.OAuth2RefreshTokenGrantFactory,
 		compose.OAuth2PKCEFactory,
 	)
-
+	gob.Register(&authRequestFlash{})
+	gob.Register(auth.AuthorizeState{})
 	return &OAuthServer{
 		storage:      storage,
 		provider:     provider,
@@ -84,24 +91,29 @@ func (o *OAuthServer) HandleAuthorize(
 	if err != nil {
 		return fmt.Errorf("failed to lookup identity: %w", err)
 	}
-	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	dpopKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		return fmt.Errorf("failed to generate key: %w", err)
 	}
-	dpopClient := auth.NewDpopHttpClient(key, &nonceProvider{})
+	dpopClient := auth.NewDpopHttpClient(dpopKey, &nonceProvider{})
 	redirect, state, err := o.oauthClient.Authorize(dpopClient, id)
 	if err != nil {
 		return fmt.Errorf("failed to authorize: %w", err)
 	}
-
-	session, _ := o.sessionStore.Get(r, sessionName)
-	session.AddFlash(&authRequestFlash{
-		dpopKey: key,
-		handle:  handle,
-		request: requester,
-		state:   state,
+	authorizeSession, _ := o.sessionStore.New(r, sessionName)
+	authorizeSession.AddFlash(&authRequestFlash{
+		ClientID:       requester.GetClient().GetID(),
+		RedirectURI:    requester.GetRedirectURI(),
+		State:          requester.GetState(),
+		Scopes:         requester.GetRequestedScopes(),
+		ResponseTypes:  requester.GetResponseTypes(),
+		Form:           requester.GetRequestForm(),
+		AuthorizeState: state,
+		Session:        newSession(handle, dpopKey),
 	})
-	session.Save(r, w)
+	if err := authorizeSession.Save(r, w); err != nil {
+		return fmt.Errorf("failed to save session: %w", err)
+	}
 
 	http.Redirect(w, r, redirect, http.StatusSeeOther)
 	return nil
@@ -112,28 +124,45 @@ func (o *OAuthServer) HandleCallback(
 	r *http.Request,
 ) error {
 	ctx := r.Context()
-	session, err := o.sessionStore.Get(r, sessionName)
+	authorizeSession, err := o.sessionStore.Get(r, sessionName)
 	if err != nil {
 		return fmt.Errorf("failed to get session: %w", err)
 	}
-	arf := session.Flashes()[0].(*authRequestFlash)
-
-	dpopClient := auth.NewDpopHttpClient(arf.dpopKey, &nonceProvider{})
+	flashes := authorizeSession.Flashes()
+	if len(flashes) == 0 {
+		return fmt.Errorf("failed to get auth request flash")
+	}
+	arf, ok := flashes[0].(*authRequestFlash)
+	if !ok {
+		return fmt.Errorf("failed to parse request flash")
+	}
+	authRequest := &fosite.AuthorizeRequest{
+		Request: fosite.Request{
+			Form: arf.Form,
+			Client: &client{
+				ClientMetadata: auth.ClientMetadata{
+					ClientId: arf.ClientID,
+				},
+			},
+			RequestedScope: arf.Scopes,
+		},
+		RedirectURI:   arf.RedirectURI,
+		State:         arf.State,
+		ResponseTypes: arf.ResponseTypes,
+	}
+	dpopClient := auth.NewDpopHttpClient(arf.Session.DpopKey, &nonceProvider{})
 	tokenInfo, err := o.oauthClient.ExchangeCode(
 		dpopClient,
 		r.URL.Query().Get("code"),
 		r.URL.Query().Get("iss"),
-		arf.state,
+		arf.AuthorizeState,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to exchange code: %w", err)
 	}
-	resp, err := o.provider.NewAuthorizeResponse(
-		ctx,
-		arf.request,
-		newSession(arf.handle, arf.dpopKey, tokenInfo),
-	)
-	o.provider.WriteAuthorizeResponse(r.Context(), w, arf.request, resp)
+	arf.Session.SetTokenInfo(tokenInfo)
+	resp, err := o.provider.NewAuthorizeResponse(ctx, authRequest, arf.Session)
+	o.provider.WriteAuthorizeResponse(r.Context(), w, authRequest, resp)
 	return nil
 }
 
