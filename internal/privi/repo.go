@@ -122,10 +122,19 @@ type row struct {
 }
 
 // TODO: create table etc.
-func NewSQLiteRepo(db *sql.DB) repo {
+func NewSQLiteRepo(db *sql.DB) (repo, error) {
+	_, err := db.Exec(`CREATE TABLE IF NOT EXISTS records (
+		did TEXT NOT NULL,
+		rkey TEXT NOT NULL,
+		record BLOB,
+		PRIMARY KEY(did, rkey)
+	);`)
+	if err != nil {
+		return nil, err
+	}
 	return &sqliteRepo{
 		db: db,
-	}
+	}, nil
 }
 
 // putRecord puts a record for the given rkey into the repo no matter what; if a record always exists, it is overwritten.
@@ -216,13 +225,4 @@ func (r *sqliteRepo) listRecords(
 		records = append(records, record)
 	}
 	return records, nil
-}
-
-func CreateTableSQL() string {
-	return `CREATE TABLE IF NOT EXISTS records (
-		did TEXT NOT NULL,
-		rkey TEXT NOT NULL,
-		record BLOB,
-		PRIMARY KEY(did, rkey)
-	);`
 }
