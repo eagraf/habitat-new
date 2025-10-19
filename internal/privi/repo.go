@@ -5,11 +5,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 
+	"github.com/eagraf/habitat-new/api/habitat"
 	_ "github.com/mattn/go-sqlite3"
 
 	"github.com/bluesky-social/indigo/atproto/data"
 	"github.com/bluesky-social/indigo/atproto/syntax"
+
+	sq "github.com/Masterminds/squirrel"
 )
 
 // Persist private data within repos that mirror public repos.
@@ -19,6 +23,11 @@ import (
 type repo interface {
 	putRecord(did string, rkey string, rec record, validate *bool) error
 	getRecord(did string, rkey string) (record, error)
+	listRecords(
+		params habitat.NetworkHabitatRepoListRecordsParams,
+		allow []string,
+		deny []string,
+	) ([]record, error)
 }
 
 // Lexicon NSID -> records for that lexicon.
@@ -65,6 +74,33 @@ func (r inMemoryRepo) getRecord(did string, rkey string) (record, error) {
 		return nil, ErrRecordNotFound
 	}
 	return record, nil
+}
+
+func (r inMemoryRepo) listRecords(
+	params habitat.NetworkHabitatRepoListRecordsParams,
+	allow []string,
+	deny []string,
+) ([]record, error) {
+	coll, ok := r[syntax.DID(params.Repo)]
+	if !ok {
+		return nil, ErrRecordNotFound
+	}
+
+	result := []record{}
+
+	for rkey, record := range coll {
+		for _, d := range deny {
+			if strings.HasPrefix(string(rkey), strings.TrimSuffix(d, "*")) {
+				continue
+			}
+		}
+		for _, a := range allow {
+			if strings.HasPrefix(string(rkey), strings.TrimSuffix(a, "*")) {
+				result = append(result, record)
+			}
+		}
+	}
+	return nil, ErrRecordNotFound
 }
 
 // A sqlite-backed repo per user contains the following two columns:
@@ -151,4 +187,60 @@ func (r *sqliteRepo) getRecord(did string, rkey string) (record, error) {
 	}
 
 	return record, nil
+}
+
+// listRecords implements repo.
+func (r *sqliteRepo) listRecords(
+	params habitat.NetworkHabitatRepoListRecordsParams,
+	allow []string,
+	deny []string,
+) ([]record, error) {
+	if len(allow) == 0 {
+		return []record{}, nil
+	}
+	query := sq.Select("json(record)").From("records").Where(sq.Eq{"did": params.Repo})
+
+	// Build OR conditions for allow list
+	allowOr := sq.Or{}
+	for _, a := range allow {
+		if strings.HasSuffix(a, "*") {
+			allowOr = append(allowOr, sq.Like{"rkey": strings.TrimSuffix(a, "*") + "%"})
+		} else {
+			allowOr = append(allowOr, sq.Eq{"rkey": a})
+		}
+	}
+	query = query.Where(allowOr)
+
+	// Build deny conditions - use NOT LIKE or != for each deny pattern
+	for _, d := range deny {
+		if strings.HasSuffix(d, "*") {
+			query = query.Where(sq.NotLike{"rkey": strings.TrimSuffix(d, "*") + "%"})
+		} else {
+			query = query.Where(sq.NotEq{"rkey": d})
+		}
+	}
+
+	if params.Cursor != "" {
+		query = query.Where(sq.Gt{"rkey": params.Cursor})
+	}
+	if params.Limit != 0 {
+		query = query.Limit(uint64(params.Limit))
+	}
+	rows, err := query.RunWith(r.db).Query()
+	if err != nil {
+		return nil, fmt.Errorf("query failed: %w", err)
+	}
+	records := []record{}
+	for rows.Next() {
+		var rec string
+		if err := rows.Scan(&rec); err != nil {
+			return nil, fmt.Errorf("scan failed: %w", err)
+		}
+		var record record
+		if err := json.Unmarshal([]byte(rec), &record); err != nil {
+			return nil, fmt.Errorf("unmarshal failed: %w", err)
+		}
+		records = append(records, record)
+	}
+	return records, nil
 }

@@ -132,6 +132,42 @@ func (s *Server) GetRecord(callerDID syntax.DID) http.HandlerFunc {
 	}
 }
 
+func (s *Server) ListRecords(callerDID syntax.DID) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var params habitat.NetworkHabitatRepoListRecordsParams
+		err := formDecoder.Decode(&params, r.URL.Query())
+		if err != nil {
+			utils.LogAndHTTPError(w, err, "parsing url", http.StatusBadRequest)
+			return
+		}
+
+		// Try handling both handles and dids
+		atid, err := syntax.ParseAtIdentifier(params.Repo)
+		if err != nil {
+			utils.LogAndHTTPError(w, err, "parsing at identifier", http.StatusBadRequest)
+			return
+		}
+
+		id, err := s.dir.Lookup(r.Context(), *atid)
+		if err != nil {
+			utils.LogAndHTTPError(w, err, "identity lookup", http.StatusBadRequest)
+			return
+		}
+
+		params.Repo = id.DID.String()
+		records, err := s.store.listRecords(params, callerDID)
+		if err != nil {
+			utils.LogAndHTTPError(w, err, "listing records", http.StatusInternalServerError)
+			return
+		}
+
+		if json.NewEncoder(w).Encode(records) != nil {
+			utils.LogAndHTTPError(w, err, "encoding response", http.StatusInternalServerError)
+			return
+		}
+	}
+}
+
 // This creates the xrpc.Client to use in the inner privi requests
 // TODO: this should actually pull out the requested did from the url param or input and re-direct there. (Potentially move this lower into the fns themselves).
 // This would allow for requesting to any pds through these routes, not just the one tied to this habitat node.
