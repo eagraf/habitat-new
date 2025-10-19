@@ -27,12 +27,12 @@ func (p processedRoute) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if r.Method != p.Method() {
 		http.Error(
 			w,
-			fmt.Sprintf("invalid method, require %s", p.Route.Method()),
+			fmt.Sprintf("invalid method, require %s", p.Method()),
 			http.StatusMethodNotAllowed,
 		)
 		return
 	}
-	p.Route.ServeHTTP(w, r)
+	p.ServeHTTP(w, r)
 }
 
 func NewRouter(

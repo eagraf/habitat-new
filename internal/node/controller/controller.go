@@ -128,7 +128,7 @@ func (c *Controller) installApp(
 	installer, ok := c.pkgManagers[pkg.Driver]
 	if !ok {
 		return fmt.Errorf(
-			"No driver %s found for app installation [name: %s, version: %s, package: %v]",
+			"no driver %s found for app installation [name: %s, version: %s, package: %v]",
 			pkg.Driver,
 			name,
 			version,

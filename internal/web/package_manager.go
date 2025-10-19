@@ -262,7 +262,10 @@ func extractTarGz(tarPath, destPath string) error {
 
 			// manually close here after each file operation; defering would cause each file close
 			// to wait until all operations have completed.
-			f.Close()
+			err = f.Close()
+			if err != nil {
+				return err
+			}
 		}
 	}
 }

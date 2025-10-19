@@ -79,7 +79,7 @@ func getHelloWorld(token string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("error making authenticated request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer util.Close(resp.Body)
 
 	var result struct {
 		Message string `json:"message"`
