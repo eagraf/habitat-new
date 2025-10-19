@@ -1,6 +1,6 @@
 module github.com/eagraf/habitat-new
 
-go 1.25.2
+go 1.25.1
 
 require (
 	github.com/bluesky-social/indigo v0.0.0-20250401210623-bfc7f487e4ed
