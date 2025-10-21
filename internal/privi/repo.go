@@ -7,7 +7,9 @@ import (
 	"fmt"
 
 	"github.com/bluesky-social/indigo/atproto/atdata"
-	_ "github.com/mattn/go-sqlite3"
+	"github.com/ipfs/go-cid"
+	"github.com/mattn/go-sqlite3"
+	"github.com/multiformats/go-multihash"
 )
 
 // Persist private data within repos that mirror public repos.
@@ -103,4 +105,29 @@ func (r *sqliteRepo) getRecord(did string, rkey string) (record, error) {
 	}
 
 	return record, nil
+}
+
+func (r *sqliteRepo) uploadBlob(did string, blob []byte, mimeType string) (*atdata.Blob, error) {
+	// Validate blob size
+	if len(blob) > sqlite3.SQLITE_LIMIT_LENGTH {
+		return nil, fmt.Errorf("blob size is too big, must be < SQLITE_LIMIT_LENGTH: %d bytes", sqlite3.SQLITE_LIMIT_LENGTH)
+	}
+
+	// "blessed" CID type: https://atproto.com/specs/blob#blob-metadata
+	cid, err := cid.NewPrefixV1(cid.Raw, multihash.SHA2_256).Sum(blob)
+	if err != nil {
+		return nil, err
+	}
+
+	sql := `insert into blobs(did, cid, blob) values(?, ?, ?)`
+	_, err = r.db.Exec(sql, did, cid.String(), blob)
+	if err != nil {
+		return nil, err
+	}
+
+	return &atdata.Blob{
+		Ref:      atdata.CIDLink(cid),
+		MimeType: mimeType,
+		Size:     int64(len(blob)),
+	}, nil
 }
