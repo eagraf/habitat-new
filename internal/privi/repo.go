@@ -10,7 +10,6 @@ import (
 
 	"github.com/bluesky-social/indigo/atproto/atdata"
 	"github.com/ipfs/go-cid"
-	"github.com/mattn/go-sqlite3"
 	"github.com/multiformats/go-multihash"
 )
 
@@ -151,7 +150,7 @@ type blob struct {
 func (r *sqliteRepo) uploadBlob(did string, data []byte, mimeType string) (*blob, error) {
 	// Validate blob size
 	if len(data) > r.blobMaxSize {
-		return nil, fmt.Errorf("blob size is too big, must be < SQLITE_LIMIT_LENGTH: %d bytes", sqlite3.SQLITE_LIMIT_LENGTH)
+		return nil, fmt.Errorf("blob size is too big, must be < SQLITE_LIMIT_LENGTH: %d bytes", r.blobMaxSize)
 	}
 
 	// "blessed" CID type: https://atproto.com/specs/blob#blob-metadata
