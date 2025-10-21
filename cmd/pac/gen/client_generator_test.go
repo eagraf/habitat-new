@@ -42,24 +42,24 @@ func TestClientGenerator_GenerateClient(t *testing.T) {
 			wantErr: false,
 			contains: []string{
 				// Check imports
-				"import { HabitatClient, getUserDid, getDefaultAgent } from '../sdk/atproto'",
+				"import type { HabitatClient } from '../sdk/atproto'",
 				"import type { CreateRecordResponse, GetRecordResponse, ListRecordsResponse } from '../sdk/atproto'",
 				"import type { Note } from '../types/note_types'",
 
 				// Check public operations
-				"export const createNoteRecord = async (record: Note)",
+				"export const createNoteRecord = async (client: HabitatClient, record: Note)",
 				"client.createRecord<Note>(",
-				"export const listNotes = async (repo?: string)",
+				"export const listNotes = async (client: HabitatClient, repo?: string)",
 				"client.listRecords<Note>(",
-				"export const getNoteRecord = async (rkey: string, repo?: string)",
+				"export const getNoteRecord = async (client: HabitatClient, rkey: string, repo?: string)",
 				"client.getRecord<Note>(",
 
 				// Check private operations
-				"export const putPrivateNoteRecord = async (record: Note, rkey?: string)",
+				"export const putPrivateNoteRecord = async (client: HabitatClient, record: Note, rkey?: string)",
 				"client.putPrivateRecord<Note>(",
-				"export const getPrivateNoteRecord = async (rkey: string, repo?: string)",
+				"export const getPrivateNoteRecord = async (client: HabitatClient, rkey: string, repo?: string)",
 				"client.getPrivateRecord<Note>(",
-				"export const listPrivateNotes = async (repo?: string)",
+				"export const listPrivateNotes = async (client: HabitatClient, repo?: string)",
 				"client.listPrivateRecords<Note>(",
 
 				// Check return types with generics
@@ -109,12 +109,12 @@ func TestClientGenerator_GenerateClient(t *testing.T) {
 			wantErr: false,
 			contains: []string{
 				"import type { Event } from '../types/event_types'",
-				"export const createEventRecord = async (record: Event)",
-				"export const listEvents = async (repo?: string)",
-				"export const getEventRecord = async (rkey: string, repo?: string)",
-				"export const putPrivateEventRecord = async (record: Event, rkey?: string)",
-				"export const getPrivateEventRecord = async (rkey: string, repo?: string)",
-				"export const listPrivateEvents = async (repo?: string)",
+				"export const createEventRecord = async (client: HabitatClient, record: Event)",
+				"export const listEvents = async (client: HabitatClient, repo?: string)",
+				"export const getEventRecord = async (client: HabitatClient, rkey: string, repo?: string)",
+				"export const putPrivateEventRecord = async (client: HabitatClient, record: Event, rkey?: string)",
+				"export const getPrivateEventRecord = async (client: HabitatClient, rkey: string, repo?: string)",
+				"export const listPrivateEvents = async (client: HabitatClient, repo?: string)",
 				"client.createRecord<Event>(",
 				"client.listRecords<Event>(",
 				"client.getRecord<Event>(",
@@ -144,8 +144,8 @@ func TestClientGenerator_GenerateClient(t *testing.T) {
 			}`,
 			wantErr: false,
 			contains: []string{
-				"export const listPosts = async (repo?: string)",
-				"export const listPrivatePosts = async (repo?: string)",
+				"export const listPosts = async (client: HabitatClient, repo?: string)",
+				"export const listPrivatePosts = async (client: HabitatClient, repo?: string)",
 			},
 		},
 		{
@@ -168,8 +168,8 @@ func TestClientGenerator_GenerateClient(t *testing.T) {
 			}`,
 			wantErr: false,
 			contains: []string{
-				"export const listStories = async (repo?: string)",
-				"export const listPrivateStories = async (repo?: string)",
+				"export const listStories = async (client: HabitatClient, repo?: string)",
+				"export const listPrivateStories = async (client: HabitatClient, repo?: string)",
 			},
 		},
 		{
@@ -192,7 +192,7 @@ func TestClientGenerator_GenerateClient(t *testing.T) {
 			}`,
 			wantErr: false,
 			contains: []string{
-				"export const listPrivateTests = async (repo?: string)",
+				"export const listPrivateTests = async (client: HabitatClient, repo?: string)",
 			},
 		},
 		{
@@ -216,7 +216,7 @@ func TestClientGenerator_GenerateClient(t *testing.T) {
 			wantErr: false,
 			contains: []string{
 				"import type { Post } from '../types/post_types'",
-				"export const createPostRecord = async (record: Post)",
+				"export const createPostRecord = async (client: HabitatClient, record: Post)",
 			},
 		},
 		{
