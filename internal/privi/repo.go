@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
+	"strings"
 
 	"github.com/bluesky-social/indigo/atproto/atdata"
 	"github.com/ipfs/go-cid"
@@ -13,7 +15,8 @@ import (
 )
 
 // Persist private data within repos that mirror public repos.
-// A repo implements two methods: putRecord and getRecord.
+// A repo currently implements four basic methods: putRecord, getRecord, uploadBlob, getBlob, meant to implement the same interfaces as ATproto
+// In the future, we should use those lexicons directly
 // In the future, it is possible to implement sync endpoints and other methods.
 
 type repo interface {
@@ -27,20 +30,34 @@ type repo interface {
 // per-user databases or per-user MST repos.
 
 type sqliteRepo struct {
-	db *sql.DB
+	db          *sql.DB
+	blobMaxSize int
 }
 
 var _ repo = &sqliteRepo{}
 
-// Shape of a row in the sqlite table
-type row struct {
-	did  string
-	rkey string
-	rec  string
+// Helper function to query sqlite compile-time options to get the max blob size
+// Not sure if this can change across versions, if so we need to keep that stable
+func getMaxBlobSize(db *sql.DB) (int, error) {
+	rows, err := db.Query("PRAGMA compile_options;")
+	if err != nil {
+		return 0, nil
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var opt string
+		_ = rows.Scan(&opt)
+		if strings.HasPrefix(opt, "MAX_LENGTH=") {
+			return strconv.Atoi(strings.TrimPrefix(opt, "MAX_LENGTH="))
+		}
+	}
+	return 0, fmt.Errorf("no MAX_LENGTH parameter found")
 }
 
 // TODO: create table etc.
 func NewSQLiteRepo(db *sql.DB) (repo, error) {
+	// Create records table
 	_, err := db.Exec(`CREATE TABLE IF NOT EXISTS records (
 		did TEXT NOT NULL,
 		rkey TEXT NOT NULL,
@@ -50,8 +67,27 @@ func NewSQLiteRepo(db *sql.DB) (repo, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	// Create blobs table
+	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS blobs (
+		did TEXT NOT NULL,
+		cid TEXT NOT NULL,
+		mimetype TEXT,
+		blob BLOB,
+		PRIMARY KEY(did, cid)
+	);`)
+	if err != nil {
+		return nil, err
+	}
+
+	maxBlobSize, err := getMaxBlobSize(db)
+	if err != nil {
+		return nil, err
+	}
+
 	return &sqliteRepo{
-		db: db,
+		db:          db,
+		blobMaxSize: maxBlobSize,
 	}, nil
 }
 
@@ -90,7 +126,11 @@ func (r *sqliteRepo) getRecord(did string, rkey string) (record, error) {
 		did,
 	)
 
-	var row row
+	var row struct {
+		did  string
+		rkey string
+		rec  string
+	}
 	err := queried.Scan(&row.did, &row.rkey, &row.rec)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrRecordNotFound
@@ -109,7 +149,7 @@ func (r *sqliteRepo) getRecord(did string, rkey string) (record, error) {
 
 func (r *sqliteRepo) uploadBlob(did string, blob []byte, mimeType string) (*atdata.Blob, error) {
 	// Validate blob size
-	if len(blob) > sqlite3.SQLITE_LIMIT_LENGTH {
+	if len(blob) > r.blobMaxSize {
 		return nil, fmt.Errorf("blob size is too big, must be < SQLITE_LIMIT_LENGTH: %d bytes", sqlite3.SQLITE_LIMIT_LENGTH)
 	}
 
@@ -119,8 +159,8 @@ func (r *sqliteRepo) uploadBlob(did string, blob []byte, mimeType string) (*atda
 		return nil, err
 	}
 
-	sql := `insert into blobs(did, cid, blob) values(?, ?, ?)`
-	_, err = r.db.Exec(sql, did, cid.String(), blob)
+	sql := `insert into blobs(did, cid, mimetype, blob) values(?, ?, ?, ?)`
+	_, err = r.db.Exec(sql, did, cid.String(), mimeType, blob)
 	if err != nil {
 		return nil, err
 	}
@@ -130,4 +170,24 @@ func (r *sqliteRepo) uploadBlob(did string, blob []byte, mimeType string) (*atda
 		MimeType: mimeType,
 		Size:     int64(len(blob)),
 	}, nil
+}
+
+func (r *sqliteRepo) getBlob(did string, cid string) (string /* mimetype */, []byte /* raw blob */, error) {
+	qry := "select mimetype, blob from blobs where did = ? and cid = ?"
+	res := r.db.QueryRow(
+		qry,
+		did,
+		cid,
+	)
+
+	var mimetype string
+	var blob []byte
+	err := res.Scan(&mimetype, &blob)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", nil, ErrRecordNotFound
+	} else if err != nil {
+		return "", nil, err
+	}
+
+	return mimetype, blob, nil
 }

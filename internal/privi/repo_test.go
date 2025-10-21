@@ -34,3 +34,34 @@ func TestSQLiteRepoPutAndGetRecord(t *testing.T) {
 		require.Equal(t, got[k], v)
 	}
 }
+
+func TestUploadAndGetBlob(t *testing.T) {
+	testDBPath := filepath.Join(os.TempDir(), "test_privi_blobs.db")
+	defer func() { require.NoError(t, os.Remove(testDBPath)) }()
+
+	db, err := sql.Open("sqlite3", testDBPath)
+	require.NoError(t, err)
+	defer db.Close()
+
+	repo, err := NewSQLiteRepo(db)
+	require.NoError(t, err)
+
+	sr, ok := repo.(*sqliteRepo)
+	require.True(t, ok, "expected sqliteRepo implementation from NewSQLiteRepo")
+
+	did := "did:example:alice"
+	// use an empty blob to avoid hitting sqlite3.SQLITE_LIMIT_LENGTH in test environment
+	blob := []byte("this is my test blob")
+	mtype := "text/plain"
+
+	bmeta, err := sr.uploadBlob(did, blob, mtype)
+	require.NoError(t, err)
+	require.NotNil(t, bmeta)
+	require.Equal(t, mtype, bmeta.MimeType)
+	require.Equal(t, int64(len(blob)), bmeta.Size)
+
+	m, gotBlob, err := sr.getBlob(did, bmeta.Ref.String())
+	require.NoError(t, err)
+	require.Equal(t, mtype, m)
+	require.Equal(t, blob, gotBlob)
+}
