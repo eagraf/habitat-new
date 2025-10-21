@@ -19,22 +19,17 @@ import (
 // In the future, we should use those lexicons directly
 // In the future, it is possible to implement sync endpoints and other methods.
 
-type repo interface {
-	putRecord(did string, rkey string, rec record, validate *bool) error
-	getRecord(did string, rkey string) (record, error)
-}
-
 // A sqlite-backed repo per user contains the following two columns:
 // [did, record key, record value]
 // For now, store all records in the same database. Eventually, this should be broken up into
 // per-user databases or per-user MST repos.
 
+// We really shouldn't have unexported types that get passed around outside the package, like to `main.go`
+// Leaving this as-is for now.
 type sqliteRepo struct {
 	db          *sql.DB
 	blobMaxSize int
 }
-
-var _ repo = &sqliteRepo{}
 
 // Helper function to query sqlite compile-time options to get the max blob size
 // Not sure if this can change across versions, if so we need to keep that stable
@@ -56,7 +51,7 @@ func getMaxBlobSize(db *sql.DB) (int, error) {
 }
 
 // TODO: create table etc.
-func NewSQLiteRepo(db *sql.DB) (repo, error) {
+func NewSQLiteRepo(db *sql.DB) (*sqliteRepo, error) {
 	// Create records table
 	_, err := db.Exec(`CREATE TABLE IF NOT EXISTS records (
 		did TEXT NOT NULL,
@@ -147,31 +142,39 @@ func (r *sqliteRepo) getRecord(did string, rkey string) (record, error) {
 	return record, nil
 }
 
-func (r *sqliteRepo) uploadBlob(did string, blob []byte, mimeType string) (*atdata.Blob, error) {
+type blob struct {
+	Ref      atdata.CIDLink `json:"cid"`
+	MimeType string         `json:"mimetype"`
+	Size     int64          `json:"size"`
+}
+
+func (r *sqliteRepo) uploadBlob(did string, data []byte, mimeType string) (*blob, error) {
 	// Validate blob size
-	if len(blob) > r.blobMaxSize {
+	if len(data) > r.blobMaxSize {
 		return nil, fmt.Errorf("blob size is too big, must be < SQLITE_LIMIT_LENGTH: %d bytes", sqlite3.SQLITE_LIMIT_LENGTH)
 	}
 
 	// "blessed" CID type: https://atproto.com/specs/blob#blob-metadata
-	cid, err := cid.NewPrefixV1(cid.Raw, multihash.SHA2_256).Sum(blob)
+	cid, err := cid.NewPrefixV1(cid.Raw, multihash.SHA2_256).Sum(data)
 	if err != nil {
 		return nil, err
 	}
 
 	sql := `insert into blobs(did, cid, mimetype, blob) values(?, ?, ?, ?)`
-	_, err = r.db.Exec(sql, did, cid.String(), mimeType, blob)
+	_, err = r.db.Exec(sql, did, cid.String(), mimeType, data)
 	if err != nil {
 		return nil, err
 	}
 
-	return &atdata.Blob{
+	return &blob{
 		Ref:      atdata.CIDLink(cid),
 		MimeType: mimeType,
-		Size:     int64(len(blob)),
+		Size:     int64(len(data)),
 	}, nil
 }
 
+// getBlob gets a blob. this is never exposed to the server, because blobs can only be resolved via records that link them (see LexLink)
+// besides exceptional cases like data migration which we do not support right now.
 func (r *sqliteRepo) getBlob(did string, cid string) (string /* mimetype */, []byte /* raw blob */, error) {
 	qry := "select mimetype, blob from blobs where did = ? and cid = ?"
 	res := r.db.QueryRow(
