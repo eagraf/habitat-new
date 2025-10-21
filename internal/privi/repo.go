@@ -34,10 +34,11 @@ type sqliteRepo struct {
 // Not sure if this can change across versions, if so we need to keep that stable
 func getMaxBlobSize(db *sql.DB) (int, error) {
 	rows, err := db.Query("PRAGMA compile_options;")
+	defer rows.Close() //nolint:errcheck
+
 	if err != nil {
 		return 0, nil
 	}
-	defer rows.Close()
 
 	for rows.Next() {
 		var opt string

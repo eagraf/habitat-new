@@ -41,7 +41,9 @@ func TestUploadAndGetBlob(t *testing.T) {
 
 	db, err := sql.Open("sqlite3", testDBPath)
 	require.NoError(t, err)
-	defer db.Close()
+	defer func() {
+		require.NoError(t, db.Close())
+	}()
 
 	repo, err := NewSQLiteRepo(db)
 	require.NoError(t, err)
