@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/eagraf/habitat-new/util"
 	"github.com/stretchr/testify/require"
 )
 
@@ -36,14 +37,9 @@ func TestSQLiteRepoPutAndGetRecord(t *testing.T) {
 }
 
 func TestUploadAndGetBlob(t *testing.T) {
-	testDBPath := filepath.Join(os.TempDir(), "test_privi_blobs.db")
-	defer func() { require.NoError(t, os.Remove(testDBPath)) }()
-
-	db, err := sql.Open("sqlite3", testDBPath)
+	db, err := sql.Open("sqlite3", ":memory:")
 	require.NoError(t, err)
-	defer func() {
-		require.NoError(t, db.Close())
-	}()
+	defer util.Close(db)
 
 	repo, err := NewSQLiteRepo(db)
 	require.NoError(t, err)

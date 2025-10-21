@@ -9,13 +9,14 @@ import (
 	"strings"
 
 	"github.com/bluesky-social/indigo/atproto/atdata"
+	"github.com/eagraf/habitat-new/util"
 	"github.com/ipfs/go-cid"
 	"github.com/multiformats/go-multihash"
+	"github.com/rs/zerolog/log"
 )
 
 // Persist private data within repos that mirror public repos.
-// A repo currently implements four basic methods: putRecord, getRecord, uploadBlob, getBlob, meant to implement the same interfaces as ATproto
-// In the future, we should use those lexicons directly
+// A repo currently implements four basic methods: putRecord, getRecord, uploadBlob, getBlob
 // In the future, it is possible to implement sync endpoints and other methods.
 
 // A sqlite-backed repo per user contains the following two columns:
@@ -27,14 +28,16 @@ import (
 // Leaving this as-is for now.
 type sqliteRepo struct {
 	db          *sql.DB
-	blobMaxSize int
+	maxBlobSize int
 }
 
 // Helper function to query sqlite compile-time options to get the max blob size
 // Not sure if this can change across versions, if so we need to keep that stable
 func getMaxBlobSize(db *sql.DB) (int, error) {
 	rows, err := db.Query("PRAGMA compile_options;")
-	defer rows.Close() //nolint:errcheck
+	defer util.Close(rows, func(err error) {
+		log.Err(err).Msgf("error closing db rows")
+	})
 
 	if err != nil {
 		return 0, nil
@@ -82,7 +85,7 @@ func NewSQLiteRepo(db *sql.DB) (*sqliteRepo, error) {
 
 	return &sqliteRepo{
 		db:          db,
-		blobMaxSize: maxBlobSize,
+		maxBlobSize: maxBlobSize,
 	}, nil
 }
 
@@ -150,8 +153,8 @@ type blob struct {
 
 func (r *sqliteRepo) uploadBlob(did string, data []byte, mimeType string) (*blob, error) {
 	// Validate blob size
-	if len(data) > r.blobMaxSize {
-		return nil, fmt.Errorf("blob size is too big, must be < SQLITE_LIMIT_LENGTH: %d bytes", r.blobMaxSize)
+	if len(data) > r.maxBlobSize {
+		return nil, fmt.Errorf("blob size is too big, must be < max blob size (based on SQLITE MAX_LENGTH compile option): %d bytes", r.maxBlobSize)
 	}
 
 	// "blessed" CID type: https://atproto.com/specs/blob#blob-metadata
