@@ -12,7 +12,7 @@ import (
 	"crypto"
 	"errors"
 
-	atprotocrypto "github.com/bluesky-social/indigo/atproto/crypto"
+	atprotocrypto "github.com/bluesky-social/indigo/atproto/atcrypto"
 )
 
 // SigningMethodSecp256k1 is the implementation of jwt.SigningMethod.
