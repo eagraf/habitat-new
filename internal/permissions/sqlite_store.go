@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	sq "github.com/Masterminds/squirrel"
+	"github.com/eagraf/habitat-new/util"
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -164,7 +165,7 @@ func (s *sqliteStore) ListReadPermissionsByLexicon(owner string) (map[string][]s
 	if err != nil {
 		return nil, fmt.Errorf("failed to query permissions: %w", err)
 	}
-	defer rows.Close()
+	defer util.Close(rows)
 
 	result := make(map[string][]string)
 	for rows.Next() {
@@ -212,7 +213,7 @@ func (s *sqliteStore) ListReadPermissionsByUser(
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to query permissions: %w", err)
 	}
-	defer rows.Close()
+	defer util.Close(rows)
 
 	allows := []string{}
 	denies := []string{}
