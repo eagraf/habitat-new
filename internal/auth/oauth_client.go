@@ -196,7 +196,7 @@ func (o *oauthClientImpl) ExchangeCode(
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		var errMsg json.RawMessage
@@ -260,7 +260,7 @@ func (o *oauthClientImpl) RefreshToken(
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		var errMsg json.RawMessage
@@ -298,7 +298,7 @@ func fetchOAuthProtectedResource(i *identity.Identity) (*oauthProtectedResource,
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("failed to fetch authorization server: %s", resp.Status)
@@ -341,7 +341,7 @@ func fetchOauthAuthorizationServer(
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("failed to fetch authorization server: %s", resp.Status)
 	}
@@ -435,7 +435,7 @@ func (o *oauthClientImpl) makePushedAuthorizationRequest(
 	if err != nil {
 		return "", err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusCreated {
 		errMsg, _ := io.ReadAll(resp.Body)
