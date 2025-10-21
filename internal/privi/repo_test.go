@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/eagraf/habitat-new/util"
+	_ "github.com/mattn/go-sqlite3"
 	"github.com/stretchr/testify/require"
 )
 
