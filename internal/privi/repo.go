@@ -68,7 +68,7 @@ func (r *sqliteRepo) putRecord(did string, rkey string, rec record, validate *bo
 	}
 	// Always put (even if something exists).
 	_, err = r.db.Exec(
-		"insert into records(did, rkey, record) values(?, ?, jsonb(?));",
+		"insert or replace into records(did, rkey, record) values(?, ?, jsonb(?));",
 		did,
 		rkey,
 		bytes,
