@@ -10,6 +10,7 @@ import (
 	"path"
 	"strings"
 
+	"github.com/eagraf/habitat-new/util"
 	"github.com/gorilla/sessions"
 	"github.com/rs/zerolog/log"
 )
@@ -64,10 +65,11 @@ func (h *xrpcBrokerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	defer resp.Body.Close()
 
 	// Check if we need to refresh the token
 	if resp.StatusCode == http.StatusUnauthorized {
+		util.Close(resp.Body) // Close first response before retry
+
 		err = h.refreshSession(dpopSession)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusUnauthorized)
@@ -94,8 +96,10 @@ func (h *xrpcBrokerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 		dpopSession.Save(r, w)
+	} else {
+		defer func() { _ = resp.Body.Close() }()
 	}
 
 	// Writing out the response as we got it.
@@ -109,16 +113,19 @@ func (h *xrpcBrokerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(resp.StatusCode)
 
 	// Write body last
-	defer resp.Body.Close()
+	defer util.Close(resp.Body)
 	_, err = io.Copy(w, resp.Body)
 	if err == http.ErrBodyReadAfterClose {
 		return
 	}
 }
 
-func (h *xrpcBrokerHandler) getForwardReq(r *http.Request, dpopSession *cookieSession) (*http.Request, error) {
+func (h *xrpcBrokerHandler) getForwardReq(
+	r *http.Request,
+	dpopSession *cookieSession,
+) (*http.Request, error) {
 	// Clone the initial request. Note this only makes a shallow copy of the body
-	//newReq := r.Clone(r.Context())
+	// newReq := r.Clone(r.Context())
 
 	// Get PDS URL from session
 	pdsURL, ok, err := dpopSession.GetPDSURL()
@@ -163,7 +170,10 @@ func (h *xrpcBrokerHandler) getForwardReq(r *http.Request, dpopSession *cookieSe
 	return newReq, nil
 }
 
-func (h *xrpcBrokerHandler) getForwardingDpopClient(originalRequest *http.Request, dpopSession *cookieSession) (*DpopHttpClient, error) {
+func (h *xrpcBrokerHandler) getForwardingDpopClient(
+	originalRequest *http.Request,
+	dpopSession *cookieSession,
+) (*DpopHttpClient, error) {
 	// Get the key from the session
 	key, ok, err := dpopSession.GetDpopKey()
 	if !ok || err != nil {
@@ -217,7 +227,12 @@ func (h *xrpcBrokerHandler) refreshSession(dpopSession *cookieSession) error {
 		return errors.New("no token info in session")
 	}
 
-	tokenResp, err := h.oauthClient.RefreshToken(authDpopClient, identity, issuer, tokenInfo.RefreshToken)
+	tokenResp, err := h.oauthClient.RefreshToken(
+		authDpopClient,
+		identity,
+		issuer,
+		tokenInfo.RefreshToken,
+	)
 	if err != nil {
 		return err
 	}

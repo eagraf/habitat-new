@@ -121,6 +121,7 @@ func TestLoginHandler_MissingHandle(t *testing.T) {
 
 	require.Equal(t, http.StatusBadRequest, w.Code)
 }
+
 func TestLoginHandler_OAuthAuthorizeError(t *testing.T) {
 	// Setup fake OAuth server that returns error for protected resource
 	fakeOAuthServer := fakeAuthServer(t, map[string]interface{}{
@@ -226,7 +227,15 @@ func TestLoginHandler_DefaultDirectoryLookup(t *testing.T) {
 		for _, cookie := range cookies {
 			sessionNames[cookie.Name] = true
 		}
-		require.True(t, sessionNames[SessionKeyDpop], "DPoP session should be created with default directory")
-		require.True(t, sessionNames[SessionKeyAuth], "Auth session should be created with default directory")
+		require.True(
+			t,
+			sessionNames[SessionKeyDpop],
+			"DPoP session should be created with default directory",
+		)
+		require.True(
+			t,
+			sessionNames[SessionKeyAuth],
+			"Auth session should be created with default directory",
+		)
 	}
 }
