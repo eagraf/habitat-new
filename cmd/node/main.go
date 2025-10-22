@@ -237,6 +237,17 @@ func setupPrivi(nodeConfig *config.NodeConfig) (*privi.Server, func()) {
 		log.Fatal().Err(err).Msgf("error adding test lexicon for sashank demo")
 	}
 
+	// More demo purposes
+	ethanDID := "did:plc:rtzf5y356funa3tgp6fzmkjn"
+	_, ok = perms[syntax.DID(ethanDID)]
+	if !ok {
+		perms[syntax.DID(ethanDID)] = permissions.NewDummyStore()
+	}
+	err = perms[syntax.DID(ethanDID)].AddLexiconReadPermission(ethanDID, "dev.eagraf.note")
+	if err != nil {
+		log.Err(err).Msgf("error adding test lexicon for ethan demo")
+	}
+
 	// Create database file if it does not exist
 	priviRepoPath := nodeConfig.PriviRepoFile()
 	_, err = os.Stat(priviRepoPath)
@@ -297,6 +308,12 @@ func generateDefaultReverseProxyRules(config *config.NodeConfig) ([]*reverse_pro
 			Target:  apiURL.String(),
 		},
 		{
+			ID:      "xrpc-broker",
+			Type:    reverse_proxy.ProxyRuleRedirect,
+			Matcher: "/xrpc",
+			Target:  apiURL.String() + "/xrpc",
+		},
+		{
 			ID:      "habitat-put-record",
 			Type:    reverse_proxy.ProxyRuleRedirect,
 			Matcher: "/xrpc/com.habitat.putRecord",
@@ -327,8 +344,6 @@ func generateDefaultReverseProxyRules(config *config.NodeConfig) ([]*reverse_pro
 			Target:  apiURL.String() + "/xrpc/com.habitat.removePermission",
 		},
 		// Serve a DID document for habitat
-		// This rule is currently broken because it clashes with the one above for PDS / OAuth
-		// We should delete the PDS side car because we never use it
 		{
 			ID:      "did-rule",
 			Type:    reverse_proxy.ProxyRuleFileServer,

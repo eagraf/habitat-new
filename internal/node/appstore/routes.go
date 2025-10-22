@@ -73,8 +73,8 @@ func (h *AvailableAppsRoute) Pattern() string {
 	return "/app_store/available_apps"
 }
 
-func (h *AvailableAppsRoute) Method() string {
-	return http.MethodGet
+func (h *AvailableAppsRoute) Methods() []string {
+	return []string{http.MethodGet}
 }
 
 func (h *AvailableAppsRoute) ServeHTTP(w http.ResponseWriter, r *http.Request) {

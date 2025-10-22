@@ -100,7 +100,11 @@ func (s *DpopHttpClient) Do(req *http.Request) (*http.Response, error) {
 
 	req.Header.Set("Authorization", "DPoP "+s.opts.AccessToken)
 
-	req.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+	req.Body = nil
+	if req.Method != http.MethodGet {
+		req.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+	}
+
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, err
@@ -121,7 +125,10 @@ func (s *DpopHttpClient) Do(req *http.Request) (*http.Response, error) {
 	req2 := req.Clone(req.Context())
 	req2.RequestURI = ""
 
-	req2.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+	req2.Body = nil
+	if req2.Method != http.MethodGet {
+		req2.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+	}
 	err = s.sign(req2)
 	if err != nil {
 		return nil, err

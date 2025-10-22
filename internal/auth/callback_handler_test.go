@@ -338,7 +338,7 @@ func TestCallbackHandler_SessionSaveError(t *testing.T) {
 
 func TestCallbackHandler_MethodAndPattern(t *testing.T) {
 	handler := &callbackHandler{}
-	require.Equal(t, "GET", handler.Method())
+	require.Equal(t, []string{"GET"}, handler.Methods())
 	require.Equal(t, "/auth-callback", handler.Pattern())
 }
 

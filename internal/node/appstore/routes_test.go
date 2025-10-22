@@ -72,7 +72,7 @@ func TestAvailableAppsRouteDev(t *testing.T) {
 	require.Equal(t, http.StatusOK, resp.Result().StatusCode)
 	// Get test coverage to pass
 	require.Equal(t, "/app_store/available_apps", handler.Pattern())
-	require.Equal(t, http.MethodGet, handler.Method())
+	require.Equal(t, []string{http.MethodGet}, handler.Methods())
 
 	bytes, err := io.ReadAll(resp.Result().Body)
 	require.NoError(t, err)

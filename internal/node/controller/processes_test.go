@@ -161,7 +161,7 @@ func TestStartProcessHandler(t *testing.T) {
 	handler.ServeHTTP(
 		resp,
 		httptest.NewRequest(
-			startProcessRoute.Method(),
+			startProcessRoute.Methods()[0],
 			startProcessRoute.Pattern(),
 			bytes.NewReader(b),
 		))
@@ -182,7 +182,7 @@ func TestStartProcessHandler(t *testing.T) {
 	handler.ServeHTTP(
 		resp,
 		httptest.NewRequest(
-			startProcessRoute.Method(),
+			startProcessRoute.Methods()[0],
 			startProcessRoute.Pattern(),
 			bytes.NewReader(b),
 		))
@@ -193,7 +193,7 @@ func TestStartProcessHandler(t *testing.T) {
 	handler.ServeHTTP(
 		resp,
 		httptest.NewRequest(
-			startProcessRoute.Method(),
+			startProcessRoute.Methods()[0],
 			startProcessRoute.Pattern(),
 			bytes.NewReader([]byte("invalid")),
 		),

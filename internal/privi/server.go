@@ -180,6 +180,16 @@ func (s *Server) PdsAuthMiddleware(next func(syntax.DID) http.HandlerFunc) http.
 
 // HACK: trust did
 func (s *Server) getCaller(r *http.Request) (syntax.DID, error) {
+	// HACKY HACK - get DID from Cookie (indicates using Habitat OAuth)
+	if cookie, err := r.Cookie("did"); err == nil {
+		did := syntax.DID(cookie.Value)
+		if err != nil {
+			return "", err
+		}
+		fmt.Println("did", did)
+		return did, nil
+	}
+
 	authHeader := r.Header.Get("Authorization")
 	token := strings.Split(authHeader, "Bearer ")[1]
 	jwt.RegisterSigningMethod("ES256K", func() jwt.SigningMethod {

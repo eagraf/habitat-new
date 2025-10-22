@@ -13,7 +13,7 @@ RUN npm install -g pnpm
 COPY ./frontend/package.json ./frontend/pnpm-lock.yaml ./
 
 # Install dependencies
-RUN pnpm install
+#RUN pnpm install
 
 # Copy the rest of your application's code
 COPY ./frontend/ .

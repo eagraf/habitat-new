@@ -31,7 +31,7 @@ func TestMetadataHandler_SuccessfulMetadata(t *testing.T) {
 	require.NotEmpty(t, metadata.ClientUri)
 	require.NotEmpty(t, metadata.RedirectUris)
 
-	require.Equal(t, "GET", handler.Method())
+	require.Equal(t, []string{"GET"}, handler.Methods())
 	require.Equal(t, "/client-metadata.json", handler.Pattern())
 	require.Equal(t, "application/json", w.Header().Get("Content-Type"))
 }
