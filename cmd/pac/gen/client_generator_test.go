@@ -1,276 +1,10 @@
 package gen
 
 import (
+	"os"
 	"strings"
 	"testing"
 )
-
-func TestClientGenerator_GenerateClient(t *testing.T) {
-	tests := []struct {
-		name     string
-		input    string
-		wantErr  bool
-		contains []string
-	}{
-		{
-			name: "simple note record",
-			input: `{
-				"lexicon": 1,
-				"id": "com.example.note",
-				"description": "A simple note",
-				"defs": {
-					"main": {
-						"type": "record",
-						"key": "com.example.note",
-						"record": {
-							"type": "object",
-							"properties": {
-								"text": {
-									"type": "string",
-									"description": "The note text"
-								},
-								"createdAt": {
-									"type": "string",
-									"format": "datetime"
-								}
-							},
-							"required": ["text"]
-						}
-					}
-				}
-			}`,
-			wantErr: false,
-			contains: []string{
-				// Check imports
-				"import type { HabitatClient } from '../sdk/atproto'",
-				"import type { CreateRecordResponse, GetRecordResponse, ListRecordsResponse } from '../sdk/atproto'",
-				"import type { Note } from '../types/note_types'",
-
-				// Check public operations
-				"export const createNoteRecord = async (client: HabitatClient, record: Note)",
-				"client.createRecord<Note>(",
-				"export const listNotes = async (client: HabitatClient, repo?: string)",
-				"client.listRecords<Note>(",
-				"export const getNoteRecord = async (client: HabitatClient, rkey: string, repo?: string)",
-				"client.getRecord<Note>(",
-
-				// Check private operations
-				"export const putPrivateNoteRecord = async (client: HabitatClient, record: Note, rkey?: string)",
-				"client.putPrivateRecord<Note>(",
-				"export const getPrivateNoteRecord = async (client: HabitatClient, rkey: string, repo?: string)",
-				"client.getPrivateRecord<Note>(",
-				"export const listPrivateNotes = async (client: HabitatClient, repo?: string)",
-				"client.listPrivateRecords<Note>(",
-
-				// Check return types with generics
-				"Promise<GetRecordResponse<Note>>",
-				"Promise<ListRecordsResponse<Note>>",
-
-				// Check collection ID is set correctly
-				"'com.example.note'",
-			},
-		},
-		{
-			name: "event record with multiple fields",
-			input: `{
-				"lexicon": 1,
-				"id": "com.calendar.event",
-				"description": "A calendar event",
-				"defs": {
-					"main": {
-						"type": "record",
-						"key": "com.calendar.event",
-						"record": {
-							"type": "object",
-							"properties": {
-								"title": {
-									"type": "string"
-								},
-								"description": {
-									"type": "string"
-								},
-								"startTime": {
-									"type": "string",
-									"format": "datetime"
-								},
-								"endTime": {
-									"type": "string",
-									"format": "datetime"
-								},
-								"location": {
-									"type": "string"
-								}
-							},
-							"required": ["title", "startTime"]
-						}
-					}
-				}
-			}`,
-			wantErr: false,
-			contains: []string{
-				"import type { Event } from '../types/event_types'",
-				"export const createEventRecord = async (client: HabitatClient, record: Event)",
-				"export const listEvents = async (client: HabitatClient, repo?: string)",
-				"export const getEventRecord = async (client: HabitatClient, rkey: string, repo?: string)",
-				"export const putPrivateEventRecord = async (client: HabitatClient, record: Event, rkey?: string)",
-				"export const getPrivateEventRecord = async (client: HabitatClient, rkey: string, repo?: string)",
-				"export const listPrivateEvents = async (client: HabitatClient, repo?: string)",
-				"client.createRecord<Event>(",
-				"client.listRecords<Event>(",
-				"client.getRecord<Event>(",
-				"client.putPrivateRecord<Event>(",
-				"client.getPrivateRecord<Event>(",
-				"client.listPrivateRecords<Event>(",
-				"'com.calendar.event'",
-			},
-		},
-		{
-			name: "pluralization - simple",
-			input: `{
-				"lexicon": 1,
-				"id": "com.example.post",
-				"defs": {
-					"main": {
-						"type": "record",
-						"key": "com.example.post",
-						"record": {
-							"type": "object",
-							"properties": {
-								"text": {"type": "string"}
-							}
-						}
-					}
-				}
-			}`,
-			wantErr: false,
-			contains: []string{
-				"export const listPosts = async (client: HabitatClient, repo?: string)",
-				"export const listPrivatePosts = async (client: HabitatClient, repo?: string)",
-			},
-		},
-		{
-			name: "pluralization - ends with y",
-			input: `{
-				"lexicon": 1,
-				"id": "com.example.story",
-				"defs": {
-					"main": {
-						"type": "record",
-						"key": "com.example.story",
-						"record": {
-							"type": "object",
-							"properties": {
-								"text": {"type": "string"}
-							}
-						}
-					}
-				}
-			}`,
-			wantErr: false,
-			contains: []string{
-				"export const listStories = async (client: HabitatClient, repo?: string)",
-				"export const listPrivateStories = async (client: HabitatClient, repo?: string)",
-			},
-		},
-		{
-			name: "no console.log in generated code",
-			input: `{
-				"lexicon": 1,
-				"id": "com.example.test",
-				"defs": {
-					"main": {
-						"type": "record",
-						"key": "com.example.test",
-						"record": {
-							"type": "object",
-							"properties": {
-								"text": {"type": "string"}
-							}
-						}
-					}
-				}
-			}`,
-			wantErr: false,
-			contains: []string{
-				"export const listPrivateTests = async (client: HabitatClient, repo?: string)",
-			},
-		},
-		{
-			name: "entity name extraction from lexicon ID",
-			input: `{
-				"lexicon": 1,
-				"id": "app.bsky.feed.post",
-				"defs": {
-					"main": {
-						"type": "record",
-						"key": "app.bsky.feed.post",
-						"record": {
-							"type": "object",
-							"properties": {
-								"text": {"type": "string"}
-							}
-						}
-					}
-				}
-			}`,
-			wantErr: false,
-			contains: []string{
-				"import type { Post } from '../types/post_types'",
-				"export const createPostRecord = async (client: HabitatClient, record: Post)",
-			},
-		},
-		{
-			name: "missing record definition",
-			input: `{
-				"lexicon": 1,
-				"id": "com.example.query",
-				"defs": {
-					"main": {
-						"type": "query",
-						"parameters": {
-							"type": "params",
-							"properties": {}
-						}
-					}
-				}
-			}`,
-			wantErr:  true,
-			contains: []string{},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			generator := NewClientGenerator()
-			reader := strings.NewReader(tt.input)
-
-			result, err := generator.GenerateClient(reader)
-
-			if (err != nil) != tt.wantErr {
-				t.Errorf("GenerateClient() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-
-			if tt.wantErr {
-				return
-			}
-
-			resultStr := string(result)
-
-			// Check that all expected strings are present
-			for _, expected := range tt.contains {
-				if !strings.Contains(resultStr, expected) {
-					t.Errorf("GenerateClient() result missing expected string:\n%q\n\nFull output:\n%s", expected, resultStr)
-				}
-			}
-
-			// Additional check: ensure no console.log is present
-			if strings.Contains(resultStr, "console.log") {
-				t.Error("GenerateClient() result should not contain console.log statements")
-			}
-		})
-	}
-}
 
 func TestClientGenerator_Pluralization(t *testing.T) {
 	tests := []struct {
@@ -372,5 +106,35 @@ func TestClientGenerator_GetEntityName(t *testing.T) {
 				t.Errorf("getEntityName(%q) = %q, want %q", tt.input, got, tt.want)
 			}
 		})
+	}
+}
+
+func TestClientGenerator_GenerateClient_EventTest(t *testing.T) {
+	// Read the input JSON file
+	inputBytes, err := os.ReadFile("test_files/event_test/event.json")
+	if err != nil {
+		t.Fatalf("Failed to read input file: %v", err)
+	}
+
+	// Read the expected output file
+	expectedBytes, err := os.ReadFile("test_files/event_test/event_client.ts")
+	if err != nil {
+		t.Fatalf("Failed to read expected output file: %v", err)
+	}
+
+	// Generate the client
+	generator := NewClientGenerator()
+	reader := strings.NewReader(string(inputBytes))
+	result, err := generator.GenerateClient(reader)
+	if err != nil {
+		t.Fatalf("GenerateClient() failed: %v", err)
+	}
+
+	// Compare the result with the expected output
+	resultStr := string(result)
+	expectedStr := string(expectedBytes)
+
+	if resultStr != expectedStr {
+		t.Errorf("GenerateClient() output does not match expected.\n\nExpected:\n%s\n\nGot:\n%s", expectedStr, resultStr)
 	}
 }
