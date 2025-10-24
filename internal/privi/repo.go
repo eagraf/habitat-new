@@ -13,6 +13,11 @@ import (
 	"github.com/ipfs/go-cid"
 	"github.com/multiformats/go-multihash"
 	"github.com/rs/zerolog/log"
+
+	"github.com/eagraf/habitat-new/api/habitat"
+	_ "github.com/mattn/go-sqlite3"
+
+	sq "github.com/Masterminds/squirrel"
 )
 
 // Persist private data within repos that mirror public repos.
@@ -154,7 +159,10 @@ type blob struct {
 func (r *sqliteRepo) uploadBlob(did string, data []byte, mimeType string) (*blob, error) {
 	// Validate blob size
 	if len(data) > r.maxBlobSize {
-		return nil, fmt.Errorf("blob size is too big, must be < max blob size (based on SQLITE MAX_LENGTH compile option): %d bytes", r.maxBlobSize)
+		return nil, fmt.Errorf(
+			"blob size is too big, must be < max blob size (based on SQLITE MAX_LENGTH compile option): %d bytes",
+			r.maxBlobSize,
+		)
 	}
 
 	// "blessed" CID type: https://atproto.com/specs/blob#blob-metadata
@@ -178,7 +186,10 @@ func (r *sqliteRepo) uploadBlob(did string, data []byte, mimeType string) (*blob
 
 // getBlob gets a blob. this is never exposed to the server, because blobs can only be resolved via records that link them (see LexLink)
 // besides exceptional cases like data migration which we do not support right now.
-func (r *sqliteRepo) getBlob(did string, cid string) (string /* mimetype */, []byte /* raw blob */, error) {
+func (r *sqliteRepo) getBlob(
+	did string,
+	cid string,
+) (string /* mimetype */, []byte /* raw blob */, error) {
 	qry := "select mimetype, blob from blobs where did = ? and cid = ?"
 	res := r.db.QueryRow(
 		qry,
@@ -196,4 +207,60 @@ func (r *sqliteRepo) getBlob(did string, cid string) (string /* mimetype */, []b
 	}
 
 	return mimetype, blob, nil
+}
+
+// listRecords implements repo.
+func (r *sqliteRepo) listRecords(
+	params habitat.NetworkHabitatRepoListRecordsParams,
+	allow []string,
+	deny []string,
+) ([]record, error) {
+	if len(allow) == 0 {
+		return []record{}, nil
+	}
+	query := sq.Select("json(record)").From("records").Where(sq.Eq{"did": params.Repo})
+
+	// Build OR conditions for allow list
+	allowOr := sq.Or{}
+	for _, a := range allow {
+		if strings.HasSuffix(a, "*") {
+			allowOr = append(allowOr, sq.Like{"rkey": strings.TrimSuffix(a, "*") + "%"})
+		} else {
+			allowOr = append(allowOr, sq.Eq{"rkey": a})
+		}
+	}
+	query = query.Where(allowOr)
+
+	// Build deny conditions - use NOT LIKE or != for each deny pattern
+	for _, d := range deny {
+		if strings.HasSuffix(d, "*") {
+			query = query.Where(sq.NotLike{"rkey": strings.TrimSuffix(d, "*") + "%"})
+		} else {
+			query = query.Where(sq.NotEq{"rkey": d})
+		}
+	}
+
+	if params.Cursor != "" {
+		query = query.Where(sq.Gt{"rkey": params.Cursor})
+	}
+	if params.Limit != 0 {
+		query = query.Limit(uint64(params.Limit))
+	}
+	rows, err := query.RunWith(r.db).Query()
+	if err != nil {
+		return nil, fmt.Errorf("query failed: %w", err)
+	}
+	records := []record{}
+	for rows.Next() {
+		var rec string
+		if err := rows.Scan(&rec); err != nil {
+			return nil, fmt.Errorf("scan failed: %w", err)
+		}
+		var record record
+		if err := json.Unmarshal([]byte(rec), &record); err != nil {
+			return nil, fmt.Errorf("unmarshal failed: %w", err)
+		}
+		records = append(records, record)
+	}
+	return records, nil
 }
