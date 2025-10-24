@@ -19,7 +19,7 @@ import (
 func TestOAuthServerE2E(t *testing.T) {
 	// setup oauth server
 	serverMetadata := &auth.ClientMetadata{}
-	oauthClient := oauthserver.NewTestOAuthClient(t, serverMetadata)
+	oauthClient := oauthserver.NewDummyOAuthClient(t, serverMetadata)
 	defer oauthClient.Close()
 
 	oauthServer := oauthserver.NewOAuthServer(
