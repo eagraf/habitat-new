@@ -77,7 +77,7 @@ func TestOAuthServerE2E(t *testing.T) {
 					oauth2.VerifierOption(verifier),
 				)
 				require.NoError(t, err, "failed to exchange token")
-				json.NewEncoder(w).Encode(token)
+				require.NoError(t, json.NewEncoder(w).Encode(token))
 				return
 			default:
 				t.Logf("unknown client app path: %v", r.URL.Path)
@@ -102,6 +102,7 @@ func TestOAuthServerE2E(t *testing.T) {
 	server.Client().Jar = jar
 
 	result, err := server.Client().Do(authRequest)
+	defer func() { require.NoError(t, result.Body.Close()) }()
 	require.NoError(t, err, "failed to make authorize request")
 	require.Equal(t, http.StatusOK, result.StatusCode)
 

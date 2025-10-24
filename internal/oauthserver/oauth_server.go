@@ -183,7 +183,7 @@ func (o *OAuthServer) HandleCallback(
 		return fmt.Errorf("failed to get session: %w", err)
 	}
 	flashes := authorizeSession.Flashes()
-	authorizeSession.Save(r, w)
+	_ = authorizeSession.Save(r, w)
 	if len(flashes) == 0 {
 		return fmt.Errorf("failed to get auth request flash")
 	}
@@ -217,6 +217,9 @@ func (o *OAuthServer) HandleCallback(
 	}
 	arf.Session.SetTokenInfo(tokenInfo)
 	resp, err := o.provider.NewAuthorizeResponse(ctx, authRequest, arf.Session)
+	if err != nil {
+		return fmt.Errorf("failed to generate response: %w", err)
+	}
 	o.provider.WriteAuthorizeResponse(r.Context(), w, authRequest, resp)
 	return nil
 }

@@ -41,6 +41,7 @@ func (s *store) GetClient(ctx context.Context, id string) (fosite.Client, error)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch client metadata: %w", err)
 	}
+	defer func() { _ = resp.Body.Close() }()
 	var metadata auth.ClientMetadata
 	err = json.NewDecoder(resp.Body).Decode(&metadata)
 	if err != nil {
