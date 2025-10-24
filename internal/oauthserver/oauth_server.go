@@ -183,6 +183,7 @@ func (o *OAuthServer) HandleCallback(
 		return fmt.Errorf("failed to get session: %w", err)
 	}
 	flashes := authorizeSession.Flashes()
+	authorizeSession.Save(r, w)
 	if len(flashes) == 0 {
 		return fmt.Errorf("failed to get auth request flash")
 	}
@@ -236,6 +237,7 @@ func (o *OAuthServer) HandleCallback(
 //
 // Errors are written directly to the response using the OAuth error format.
 func (o *OAuthServer) HandleToken(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", r.Header.Get("Origin"))
 	ctx := r.Context()
 	var session session
 	req, err := o.provider.NewAccessRequest(ctx, r, &session)
