@@ -23,6 +23,7 @@ func TestOAuthServerE2E(t *testing.T) {
 	defer oauthClient.Close()
 
 	oauthServer := oauthserver.NewOAuthServer(
+		oauthserver.NewProvider(),
 		oauthClient,
 		sessions.NewCookieStore(securecookie.GenerateRandomKey(32)),
 		auth.NewDummyDirectory("http://pds.url"),

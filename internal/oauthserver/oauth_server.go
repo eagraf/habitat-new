@@ -42,11 +42,26 @@ type authRequestFlash struct {
 // It handles OAuth authorization flows, token issuance, and integrates with DPoP
 // for proof-of-possession token binding.
 type OAuthServer struct {
-	storage      *store                // Token and authorization code storage
 	provider     fosite.OAuth2Provider // Underlying OAuth 2.0 provider implementation
 	sessionStore sessions.Store        // Session storage for authorization flow state
 	oauthClient  auth.OAuthClient      // Client for communicating with AT Protocol services
 	directory    identity.Directory    // AT Protocol identity directory for handle resolution
+}
+
+func NewProvider() fosite.OAuth2Provider {
+	storage := newStore()
+	config := &fosite.Config{
+		GlobalSecret:               []byte("my super secret signing password"),
+		SendDebugMessagesToClients: true,
+	}
+	return compose.Compose(
+		config,
+		storage,
+		compose.NewOAuth2HMACStrategy(config),
+		compose.OAuth2AuthorizeExplicitFactory,
+		compose.OAuth2RefreshTokenGrantFactory,
+		compose.OAuth2PKCEFactory,
+	)
 }
 
 // NewOAuthServer creates a new OAuth 2.0 authorization server instance.
@@ -64,28 +79,15 @@ type OAuthServer struct {
 //
 // Returns a configured OAuthServer ready to handle authorization requests.
 func NewOAuthServer(
+	provider fosite.OAuth2Provider,
 	oauthClient auth.OAuthClient,
 	sessionStore sessions.Store,
 	directory identity.Directory,
 ) *OAuthServer {
-	storage := newStore()
-	config := &fosite.Config{
-		GlobalSecret:               []byte("my super secret signing password"),
-		SendDebugMessagesToClients: true,
-	}
-	provider := compose.Compose(
-		config,
-		storage,
-		compose.NewOAuth2HMACStrategy(config),
-		compose.OAuth2AuthorizeExplicitFactory,
-		compose.OAuth2RefreshTokenGrantFactory,
-		compose.OAuth2PKCEFactory,
-	)
 	// Register types for session serialization
 	gob.Register(&authRequestFlash{})
 	gob.Register(auth.AuthorizeState{})
 	return &OAuthServer{
-		storage:      storage,
 		provider:     provider,
 		oauthClient:  oauthClient,
 		sessionStore: sessionStore,
