@@ -66,35 +66,7 @@ func main() {
 		*repoPathPtr,
 	)
 
-	// Create database file if it does not exist
-	// TODO: this should really be taken in as an argument or env variable
-	priviRepoPath := *repoPathPtr
-	_, err := os.Stat(priviRepoPath)
-	if errors.Is(err, os.ErrNotExist) {
-		fmt.Println("Privi repo file does not exist; creating...")
-		_, err := os.Create(priviRepoPath)
-		if err != nil {
-			log.Err(err).Msgf("unable to create privi repo file at %s", priviRepoPath)
-		}
-	} else if err != nil {
-		log.Err(err).Msgf("error finding privi repo file")
-	}
-
-	priviDB, err := sql.Open("sqlite3", priviRepoPath)
-	if err != nil {
-		log.Fatal().Err(err).Msg("unable to open sqlite file backing privi server")
-	}
-
-	repo, err := privi.NewSQLiteRepo(priviDB)
-	if err != nil {
-		log.Fatal().Err(err).Msg("unable to setup privi sqlite db")
-	}
-
-	adapter, err := permissions.NewSQLiteStore(priviDB)
-	if err != nil {
-		log.Fatal().Err(err).Msg("unable to setup permissions store")
-	}
-	priviServer := privi.NewServer(adapter, repo)
+	priviServer := setupPriviServer()
 
 	mux := http.NewServeMux()
 
@@ -147,11 +119,43 @@ func main() {
 	}
 
 	fmt.Println("Starting server on port :" + *portPtr)
-	err = s.ListenAndServeTLS(
+	err := s.ListenAndServeTLS(
 		fmt.Sprintf("%s%s", *certsFilePtr, "fullchain.pem"),
 		fmt.Sprintf("%s%s", *certsFilePtr, "privkey.pem"),
 	)
 	if err != nil {
 		log.Fatal().Err(err).Msg("error serving http")
 	}
+}
+
+func setupPriviServer() *privi.Server {
+	// Create database file if it does not exist
+	// TODO: this should really be taken in as an argument or env variable
+	priviRepoPath := *repoPathPtr
+	_, err := os.Stat(priviRepoPath)
+	if errors.Is(err, os.ErrNotExist) {
+		fmt.Println("Privi repo file does not exist; creating...")
+		_, err := os.Create(priviRepoPath)
+		if err != nil {
+			log.Err(err).Msgf("unable to create privi repo file at %s", priviRepoPath)
+		}
+	} else if err != nil {
+		log.Err(err).Msgf("error finding privi repo file")
+	}
+
+	priviDB, err := sql.Open("sqlite3", priviRepoPath)
+	if err != nil {
+		log.Fatal().Err(err).Msg("unable to open sqlite file backing privi server")
+	}
+
+	repo, err := privi.NewSQLiteRepo(priviDB)
+	if err != nil {
+		log.Fatal().Err(err).Msg("unable to setup privi sqlite db")
+	}
+
+	adapter, err := permissions.NewSQLiteStore(priviDB)
+	if err != nil {
+		log.Fatal().Err(err).Msg("unable to setup permissions store")
+	}
+	return privi.NewServer(adapter, repo)
 }
