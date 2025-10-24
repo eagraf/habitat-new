@@ -94,56 +94,54 @@ func (s *Server) PutRecord(w http.ResponseWriter, r *http.Request) {
 // --> otherwise verify requester's token via bff auth --> if they have permissions via permission store --> fulfill request
 
 // GetRecord gets a potentially encrypted record (see s.inner.getRecord)
-func (s *Server) GetRecord(callerDID syntax.DID) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		var params habitat.NetworkHabitatRepoGetRecordParams
-		err := formDecoder.Decode(&params, r.URL.Query())
-		if err != nil {
-			utils.LogAndHTTPError(w, err, "parsing url", http.StatusBadRequest)
-			return
-		}
+func (s *Server) GetRecord(w http.ResponseWriter, r *http.Request) {
+	callerDID, ok := s.getAuthedUser(w, r)
+	if !ok {
+		return
+	}
+	var params habitat.NetworkHabitatRepoGetRecordParams
+	err := formDecoder.Decode(&params, r.URL.Query())
+	if err != nil {
+		utils.LogAndHTTPError(w, err, "parsing url", http.StatusBadRequest)
+		return
+	}
 
-		// Try handling both handles and dids
-		atid, err := syntax.ParseAtIdentifier(params.Repo)
-		if err != nil {
-			// TODO: write helpful message
-			utils.LogAndHTTPError(w, err, "parsing at identifier", http.StatusBadRequest)
-			return
-		}
+	// Try handling both handles and dids
+	atid, err := syntax.ParseAtIdentifier(params.Repo)
+	if err != nil {
+		// TODO: write helpful message
+		utils.LogAndHTTPError(w, err, "parsing at identifier", http.StatusBadRequest)
+		return
+	}
 
-		id, err := s.dir.Lookup(r.Context(), *atid)
-		if err != nil {
-			// TODO: write helpful message
-			utils.LogAndHTTPError(w, err, "identity lookup", http.StatusBadRequest)
-			return
-		}
+	id, err := s.dir.Lookup(r.Context(), *atid)
+	if err != nil {
+		// TODO: write helpful message
+		utils.LogAndHTTPError(w, err, "identity lookup", http.StatusBadRequest)
+		return
+	}
 
-		targetDID := id.DID
-		record, err := s.store.getRecord(params.Collection, params.Rkey, targetDID, callerDID)
-		if err != nil {
-			utils.LogAndHTTPError(w, err, "getting record", http.StatusInternalServerError)
-			return
-		}
+	targetDID := id.DID
+	record, err := s.store.getRecord(params.Collection, params.Rkey, targetDID, callerDID)
+	if err != nil {
+		utils.LogAndHTTPError(w, err, "getting record", http.StatusInternalServerError)
+		return
+	}
 
-		if json.NewEncoder(w).Encode(record) != nil {
-			utils.LogAndHTTPError(w, err, "encoding response", http.StatusInternalServerError)
-			return
-		}
+	if json.NewEncoder(w).Encode(record) != nil {
+		utils.LogAndHTTPError(w, err, "encoding response", http.StatusInternalServerError)
+		return
 	}
 }
 
-// This creates the xrpc.Client to use in the inner privi requests
-// TODO: this should actually pull out the requested did from the url param or input and re-direct there. (Potentially move this lower into the fns themselves).
-// This would allow for requesting to any pds through these routes, not just the one tied to this habitat node.
-func (s *Server) PdsAuthMiddleware(next func(syntax.DID) http.HandlerFunc) http.HandlerFunc {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		did, err := s.getCaller(r)
-		if err != nil {
-			utils.LogAndHTTPError(w, err, "getting caller did", http.StatusForbidden)
-			return
-		}
-		next(did).ServeHTTP(w, r)
-	})
+func (s *Server) getAuthedUser(w http.ResponseWriter, r *http.Request) (did syntax.DID, ok bool) {
+	did, err := s.getCaller(r)
+	if err != nil {
+		utils.LogAndHTTPError(w, err, "getting caller did", http.StatusForbidden)
+		return "", false
+	}
+
+	return did, true
 }
 
 // HACK: trust did
@@ -258,7 +256,7 @@ func (s *Server) GetRoutes() []api.Route {
 		api.NewBasicRoute(
 			http.MethodGet,
 			"/xrpc/com.habitat.getRecord",
-			s.PdsAuthMiddleware(s.GetRecord),
+			s.GetRecord,
 		),
 		api.NewBasicRoute(http.MethodPost, "/xrpc/com.habitat.addPermission", s.AddPermission),
 		api.NewBasicRoute(
