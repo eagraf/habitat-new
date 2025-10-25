@@ -45,6 +45,10 @@ var formDecoder = schema.NewDecoder()
 
 // PutRecord puts a potentially encrypted record (see s.inner.putRecord)
 func (s *Server) PutRecord(w http.ResponseWriter, r *http.Request) {
+	callerDID, ok := s.getAuthedUser(w, r)
+	if !ok {
+		return
+	}
 	var req habitat.NetworkHabitatRepoPutRecordInput
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
@@ -61,6 +65,11 @@ func (s *Server) PutRecord(w http.ResponseWriter, r *http.Request) {
 	ownerId, err := s.dir.Lookup(r.Context(), *atid)
 	if err != nil {
 		utils.LogAndHTTPError(w, err, "parsing at identifier", http.StatusBadRequest)
+		return
+	}
+
+	if ownerId.DID.String() != callerDID.String() {
+		utils.LogAndHTTPError(w, err, "only owner can put record", http.StatusUnauthorized)
 		return
 	}
 
