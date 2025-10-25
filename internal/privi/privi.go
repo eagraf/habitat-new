@@ -1,7 +1,6 @@
 package privi
 
 import (
-	"encoding/json"
 	"fmt"
 
 	"github.com/bluesky-social/indigo/atproto/syntax"
@@ -9,9 +8,6 @@ import (
 )
 
 type record map[string]any
-
-// A record key is a string
-type recordKey string
 
 // Privi is an ATProto PDS Wrapper which allows for storing & getting private data.
 // It does this by encrypting data, then storing it in blob. A special lexicon for this purpose,
@@ -27,7 +23,7 @@ type store struct {
 	permissions permissions.Store
 
 	// The backing store for the data. Should implement similar methods to public atproto repos
-	repo repo
+	repo *sqliteRepo
 }
 
 var (
@@ -38,7 +34,7 @@ var (
 )
 
 // TODO: take in a carfile/sqlite where user's did is persisted
-func newStore(perms permissions.Store, repo repo) *store {
+func newStore(perms permissions.Store, repo *sqliteRepo) *store {
 	return &store{
 		permissions: perms,
 		repo:        repo,
@@ -59,19 +55,13 @@ func (p *store) putRecord(
 	return p.repo.putRecord(did, rkey, record, validate)
 }
 
-type GetRecordResponse struct {
-	Cid   *string `json:"cid"`
-	Uri   string  `json:"uri"`
-	Value any     `json:"value"`
-}
-
 // getRecord checks permissions on callerDID and then passes through to `repo.getRecord`.
 func (p *store) getRecord(
 	collection string,
 	rkey string,
 	targetDID syntax.DID,
 	callerDID syntax.DID,
-) (json.RawMessage, error) {
+) (record, error) {
 	// Run permissions before returning to the user
 	authz, err := p.permissions.HasPermission(
 		callerDID.String(),
@@ -87,14 +77,5 @@ func (p *store) getRecord(
 		return nil, ErrUnauthorized
 	}
 
-	record, err := p.repo.getRecord(targetDID.String(), rkey)
-	if err != nil {
-		return nil, err
-	}
-
-	raw, err := json.Marshal(record)
-	if err != nil {
-		return nil, err
-	}
-	return raw, nil
+	return p.repo.getRecord(string(targetDID), rkey)
 }

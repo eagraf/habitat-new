@@ -1,6 +1,7 @@
 package privi
 
 import (
+	"database/sql"
 	"encoding/json"
 	"testing"
 
@@ -19,7 +20,11 @@ func TestControllerPrivateDataPutGet(t *testing.T) {
 	require.NoError(t, err)
 
 	dummy := permissions.NewDummyStore()
-	p := newStore(dummy, newInMemoryRepo())
+	db, err := sql.Open("sqlite3", ":memory:")
+	require.NoError(t, err)
+	repo, err := NewSQLiteRepo(db)
+	require.NoError(t, err)
+	p := newStore(dummy, repo)
 
 	// putRecord
 	coll := "my.fake.collection"
@@ -36,7 +41,10 @@ func TestControllerPrivateDataPutGet(t *testing.T) {
 
 	got, err = p.getRecord(coll, "my-rkey", "my-did", "another-did")
 	require.NoError(t, err)
-	require.Equal(t, []byte(got), marshalledVal)
+
+	marshalled, err := json.Marshal(got)
+	require.NoError(t, err)
+	require.Equal(t, []byte(marshalled), marshalledVal)
 
 	err = p.putRecord("my-did", coll, val, rkey, &validate)
 	require.NoError(t, err)
