@@ -49,3 +49,29 @@ func TestControllerPrivateDataPutGet(t *testing.T) {
 	err = p.putRecord("my-did", coll, val, rkey, &validate)
 	require.NoError(t, err)
 }
+
+func TestGetBlob(t *testing.T) {
+	db, err := sql.Open("sqlite3", ":memory:")
+	require.NoError(t, err)
+	defer db.Close()
+
+	repo, err := NewSQLiteRepo(db)
+	require.NoError(t, err)
+	// ensure reasonable blob limit in test env
+	repo.maxBlobSize = 1024 * 1024
+
+	did := "did:example:alice"
+	data := []byte("hello world")
+	mtype := "text/plain"
+
+	meta, err := repo.uploadBlob(did, data, mtype)
+	require.NoError(t, err)
+
+	// meta.Ref is a atdata.CIDLink which prints nested structure; use its String() method
+	cidStr := meta.Ref.String()
+
+	gotMtype, gotData, err := repo.getBlob(did, cidStr)
+	require.NoError(t, err)
+	require.Equal(t, mtype, gotMtype)
+	require.Equal(t, data, gotData)
+}

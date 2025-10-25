@@ -52,7 +52,7 @@ func (p *store) putRecord(
 	validate *bool,
 ) error {
 	// It is assumed right now that if this endpoint is called, the caller wants to put a private record into privi.
-	return p.repo.putRecord(did, rkey, record, validate)
+	return p.repo.putRecord(did, rkey, record, collection, validate)
 }
 
 // getRecord checks permissions on callerDID and then passes through to `repo.getRecord`.
@@ -78,4 +78,30 @@ func (p *store) getRecord(
 	}
 
 	return p.repo.getRecord(string(targetDID), rkey)
+}
+
+// Same signature as repo.getBlob, wrapped with permissions
+func (p *store) getBlob(requestorDID string, ownerDID string, cid string) (string /* mimetype */, []byte /* raw blob */, error) {
+	refs, err := p.repo.getBlobRefs(cid, ownerDID)
+	if err != nil {
+		return "", nil, err
+	}
+
+	ok := false
+	for _, ref := range refs {
+		// If the requestor has permission to any record referencing this blob, it is safe to return
+		ok, err = p.permissions.HasPermission(requestorDID, ref.ownerDID, ref.nsid, ref.rkey)
+		if err != nil {
+			return "", nil, err
+		}
+		if ok {
+			break
+		}
+	}
+	// The requestor does not have permission to any record referencing this blob
+	if !ok {
+		return "", nil, ErrUnauthorized
+	}
+
+	return p.repo.getBlob(ownerDID, cid)
 }
