@@ -30,10 +30,10 @@ func TestOAuthServerE2E(t *testing.T) {
 	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/authorize":
-			require.NoError(t, oauthServer.HandleAuthorize(w, r))
+			oauthServer.HandleAuthorize(w, r)
 			return
 		case "/callback":
-			require.NoError(t, oauthServer.HandleCallback(w, r))
+			oauthServer.HandleCallback(w, r)
 			return
 		case "/token":
 			oauthServer.HandleToken(w, r)

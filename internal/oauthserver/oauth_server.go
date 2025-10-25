@@ -7,13 +7,13 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"encoding/gob"
-	"fmt"
 	"net/http"
 	"net/url"
 
 	"github.com/bluesky-social/indigo/atproto/identity"
 	"github.com/bluesky-social/indigo/atproto/syntax"
 	"github.com/eagraf/habitat-new/internal/auth"
+	"github.com/eagraf/habitat-new/internal/utils"
 	"github.com/gorilla/sessions"
 	"github.com/ory/fosite"
 	"github.com/ory/fosite/compose"
@@ -111,33 +111,43 @@ func NewOAuthServer(
 func (o *OAuthServer) HandleAuthorize(
 	w http.ResponseWriter,
 	r *http.Request,
-) error {
+) {
 	ctx := r.Context()
 	requester, err := o.provider.NewAuthorizeRequest(ctx, r)
 	if err != nil {
 		o.provider.WriteAuthorizeError(ctx, w, requester, err)
-		return nil
+		return
 	}
 	if r.ParseForm() != nil {
-		return fmt.Errorf("failed to parse form: %w", err)
+		utils.LogAndHTTPError(w, err, "failed to parse form", http.StatusBadRequest)
+		return
 	}
 	handle := r.Form.Get("handle")
 	atid, err := syntax.ParseAtIdentifier(handle)
 	if err != nil {
-		return fmt.Errorf("failed to parse handle: %w", err)
+		utils.LogAndHTTPError(w, err, "failed to parse handle", http.StatusBadRequest)
+		return
 	}
 	id, err := o.directory.Lookup(ctx, *atid)
 	if err != nil {
-		return fmt.Errorf("failed to lookup identity: %w", err)
+		utils.LogAndHTTPError(w, err, "failed to lookup identity", http.StatusInternalServerError)
+		return
 	}
 	dpopKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
-		return fmt.Errorf("failed to generate key: %w", err)
+		utils.LogAndHTTPError(w, err, "failed to generate key", http.StatusInternalServerError)
+		return
 	}
 	dpopClient := auth.NewDpopHttpClient(dpopKey, &nonceProvider{})
 	redirect, state, err := o.oauthClient.Authorize(dpopClient, id)
 	if err != nil {
-		return fmt.Errorf("failed to authorize: %w", err)
+		utils.LogAndHTTPError(
+			w,
+			err,
+			"failed to initiate authorization",
+			http.StatusInternalServerError,
+		)
+		return
 	}
 	authorizeSession, _ := o.sessionStore.New(r, sessionName)
 	authorizeSession.AddFlash(&authRequestFlash{
@@ -151,11 +161,11 @@ func (o *OAuthServer) HandleAuthorize(
 		Session:        newSession(handle, dpopKey),
 	})
 	if err := authorizeSession.Save(r, w); err != nil {
-		return fmt.Errorf("failed to save session: %w", err)
+		utils.LogAndHTTPError(w, err, "failed to save session", http.StatusInternalServerError)
+		return
 	}
 
 	http.Redirect(w, r, redirect, http.StatusSeeOther)
-	return nil
 }
 
 // HandleCallback processes the OAuth callback from the user's PDS.
@@ -176,20 +186,23 @@ func (o *OAuthServer) HandleAuthorize(
 func (o *OAuthServer) HandleCallback(
 	w http.ResponseWriter,
 	r *http.Request,
-) error {
+) {
 	ctx := r.Context()
 	authorizeSession, err := o.sessionStore.Get(r, sessionName)
 	if err != nil {
-		return fmt.Errorf("failed to get session: %w", err)
+		utils.LogAndHTTPError(w, err, "failed to get session", http.StatusInternalServerError)
+		return
 	}
 	flashes := authorizeSession.Flashes()
 	_ = authorizeSession.Save(r, w)
 	if len(flashes) == 0 {
-		return fmt.Errorf("failed to get auth request flash")
+		utils.LogAndHTTPError(w, err, "failed to get auth request flash", http.StatusBadRequest)
+		return
 	}
 	arf, ok := flashes[0].(*authRequestFlash)
 	if !ok {
-		return fmt.Errorf("failed to parse request flash")
+		utils.LogAndHTTPError(w, err, "failed to parse auth request flash", http.StatusBadRequest)
+		return
 	}
 	authRequest := &fosite.AuthorizeRequest{
 		Request: fosite.Request{
@@ -213,15 +226,16 @@ func (o *OAuthServer) HandleCallback(
 		arf.AuthorizeState,
 	)
 	if err != nil {
-		return fmt.Errorf("failed to exchange code: %w", err)
+		utils.LogAndHTTPError(w, err, "failed to exchange code", http.StatusInternalServerError)
+		return
 	}
 	arf.Session.SetTokenInfo(tokenInfo)
 	resp, err := o.provider.NewAuthorizeResponse(ctx, authRequest, arf.Session)
 	if err != nil {
-		return fmt.Errorf("failed to generate response: %w", err)
+		utils.LogAndHTTPError(w, err, "failed to create response", http.StatusInternalServerError)
+		return
 	}
 	o.provider.WriteAuthorizeResponse(r.Context(), w, authRequest, resp)
-	return nil
 }
 
 // HandleToken processes OAuth 2.0 token requests from the client.
