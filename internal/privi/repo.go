@@ -1,6 +1,7 @@
 package privi
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -9,6 +10,10 @@ import (
 	"strings"
 
 	"github.com/bluesky-social/indigo/atproto/atdata"
+	"github.com/bluesky-social/indigo/atproto/identity"
+	"github.com/bluesky-social/indigo/atproto/lexicon"
+	"github.com/bluesky-social/indigo/atproto/syntax"
+	"github.com/bradenaw/juniper/xslices"
 	"github.com/eagraf/habitat-new/util"
 	"github.com/ipfs/go-cid"
 	"github.com/multiformats/go-multihash"
@@ -53,15 +58,21 @@ func getMaxBlobSize(db *sql.DB) (int, error) {
 	return 0, fmt.Errorf("no MAX_LENGTH parameter found")
 }
 
-// TODO: create table etc.
 func NewSQLiteRepo(db *sql.DB) (*sqliteRepo, error) {
 	// Create records table
 	_, err := db.Exec(`CREATE TABLE IF NOT EXISTS records (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		did TEXT NOT NULL,
 		rkey TEXT NOT NULL,
+		nsid TEXT NOT NULL,
 		record BLOB,
-		PRIMARY KEY(did, rkey)
 	);`)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create index for efficient fetching on did + rkey
+	_, err = db.Exec(`CREATE INDEX IF NOT EXISTS index_records_by_rkey ON records (did, rkey)`)
 	if err != nil {
 		return nil, err
 	}
@@ -72,8 +83,32 @@ func NewSQLiteRepo(db *sql.DB) (*sqliteRepo, error) {
 		cid TEXT NOT NULL,
 		mimetype TEXT,
 		blob BLOB,
-		PRIMARY KEY(did, cid)
+		PRIMARY KEY(cid)
 	);`)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create table mapping blob -> records that reference them
+	// Columns are: cid | did | rkey, where cid uniquely identifies the blob and did + rkey uniquely identify a record that references it
+	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS blob_refs (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		record_id INTEGER NOT NULL,
+		cid TEXT NOT NULL,
+		did TEXT NOT NULL
+	);`)
+	if err != nil {
+		return nil, err
+	}
+
+	// Index the blob_refs table by cid + did for looking up blob -> record mapping
+	_, err = db.Exec(`CREATE INDEX index_blob_refs_by_cid ON blob_refs (cid, did)`)
+	if err != nil {
+		return nil, err
+	}
+
+	// Index the blob_refs table by record_id for deletion upon record deletion
+	_, err = db.Exec(`CREATE INDEX index_blob_refs_by_record ON blob_refs (record_id)`)
 	if err != nil {
 		return nil, err
 	}
@@ -89,8 +124,24 @@ func NewSQLiteRepo(db *sql.DB) (*sqliteRepo, error) {
 	}, nil
 }
 
+// TODO: does this need to recurse more than one layer?
+func getBlobRefsFromSchema(sch *lexicon.SchemaFile, rec record) ([]syntax.CID, error) {
+	cids := make([]syntax.CID, 0)
+	for key, def := range sch.Defs {
+		if _, ok := def.Inner.(lexicon.SchemaCIDLink); ok {
+			cid, ok := rec[key].(string)
+			if !ok {
+				return nil, fmt.Errorf("error type-casting $link in record to cid link string; path:", rec[key])
+			}
+			cids = append(cids, syntax.CID(cid))
+		}
+	}
+	return cids, nil
+}
+
 // putRecord puts a record for the given rkey into the repo no matter what; if a record always exists, it is overwritten.
-func (r *sqliteRepo) putRecord(did string, rkey string, rec record, validate *bool) error {
+func (r *sqliteRepo) putRecord(did string, rkey string, rec record, nsid string, validate *bool) error {
+	// TODO: this doesn't actually validate that the record is well-formed against nsid
 	if validate != nil && *validate {
 		err := atdata.Validate(rec)
 		if err != nil {
@@ -98,18 +149,49 @@ func (r *sqliteRepo) putRecord(did string, rkey string, rec record, validate *bo
 		}
 	}
 
+	// TODO: Recursively traverse rec to determine if it references a blob, and if so, add it to blob_refs
+	sch, err := lexicon.ResolveLexiconSchemaFile(context.Background(), identity.DefaultDirectory(), syntax.NSID(nsid))
+	if err != nil {
+		return err
+	}
+
+	blobRefs, err := getBlobRefsFromSchema(sch, rec)
+	if err != nil {
+		return err
+	}
+
 	bytes, err := json.Marshal(rec)
 	if err != nil {
 		return err
 	}
+
+	tx, err := r.db.Begin()
+	if err != nil {
+		return err
+	}
+
 	// Always put (even if something exists).
-	_, err = r.db.Exec(
-		"insert or replace into records(did, rkey, record) values(?, ?, jsonb(?));",
+	var id int
+	err = tx.QueryRow(
+		"insert or replace into records(did, rkey, record, nsid) values(?, ?, ?, jsonb(?)) returning id;",
 		did,
 		rkey,
+		nsid,
 		bytes,
-	)
-	return err
+	).Scan(&id)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	for _, cid := range blobRefs {
+		_, err = tx.Exec("insert into blob_refs (record_id, cid, did) values (?, ?, ?)", id, cid, did)
+		if err != nil {
+			tx.Rollback()
+			return err
+		}
+	}
+	return tx.Commit()
 }
 
 var (
@@ -196,4 +278,57 @@ func (r *sqliteRepo) getBlob(did string, cid string) (string /* mimetype */, []b
 	}
 
 	return mimetype, blob, nil
+}
+
+// uniqeley identifies a record
+type recordRef struct {
+	ownerDID string
+	rkey     string
+	nsid     string
+}
+
+// Gets all the records that reference a blob given by cid
+func (r *sqliteRepo) getBlobRefs(cid string, did string) ([]recordRef, error) {
+	qry := "select record_id from blob_refs where cid = ? and did = ?"
+	rows, err := r.db.Query(
+		qry,
+		cid,
+		did,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	ids := make([]int, 0)
+	defer util.Close(rows)
+	for rows.Next() {
+		var id int
+		err = rows.Scan(&id)
+		if err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+
+	// Now get the recordRefs for each returned record_id
+	qs := make([]string, len(ids))
+	xslices.Fill(qs, "?")
+	qry2 := fmt.Sprintf("select (did, nsid, rkey) from records where record_id in (%s)", strings.Join(qs, ","))
+	rows2, err := r.db.Query(qry2, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer util.Close(rows2)
+
+	res := make([]recordRef, len(ids))
+	for rows.Next() {
+		var ref recordRef
+		err = rows.Scan(&ref.ownerDID, ref.nsid, ref.rkey)
+		if err != nil {
+			return nil, err
+		}
+		res = append(res, ref)
+	}
+
+	return res, nil
 }

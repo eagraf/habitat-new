@@ -24,7 +24,7 @@ func TestSQLiteRepoPutAndGetRecord(t *testing.T) {
 	key := "test-key"
 	val := map[string]any{"data": "value", "data-1": float64(123), "data-2": true}
 
-	err = repo.putRecord("my-did", key, val, nil)
+	err = repo.putRecord("my-did", key, val, "my.collection", nil)
 	require.NoError(t, err)
 
 	got, err := repo.getRecord("my-did", key)
