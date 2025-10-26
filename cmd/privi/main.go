@@ -9,11 +9,6 @@ import (
 	"net/http/httputil"
 	"os"
 
-<<<<<<< HEAD
-	"github.com/eagraf/habitat-new/internal/node/logging"
-=======
-	fileadapter "github.com/casbin/casbin/v2/persist/file-adapter"
->>>>>>> master
 	"github.com/eagraf/habitat-new/internal/permissions"
 	"github.com/eagraf/habitat-new/internal/privi"
 	"github.com/rs/zerolog/log"
