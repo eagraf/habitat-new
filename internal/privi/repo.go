@@ -76,7 +76,9 @@ type Blob struct {
 
 // TODO: create table etc.
 func NewSQLiteRepo(db *gorm.DB) (*sqliteRepo, error) {
-	db.AutoMigrate(&Record{}, &Blob{})
+	if err := db.AutoMigrate(&Record{}, &Blob{}); err != nil {
+		return nil, err
+	}
 
 	maxBlobSize, err := getMaxBlobSize(db)
 	if err != nil {
