@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/bluesky-social/indigo/atproto/crypto"
+	"github.com/bluesky-social/indigo/atproto/atcrypto"
 	"github.com/eagraf/habitat-new/internal/node/api"
 	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
@@ -58,7 +58,7 @@ func (p *Provider) handleChallenge(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	key, err := crypto.ParsePublicBytesP256([]byte(req.PublicKeyMultibase))
+	key, err := atcrypto.ParsePublicBytesP256([]byte(req.PublicKeyMultibase))
 	if err != nil {
 		http.Error(w, "Failed to parse public key", http.StatusInternalServerError)
 		return
@@ -174,7 +174,6 @@ func (p *Provider) handleTest(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Err(err).Msgf("error sending response in handleTest")
 	}
-
 }
 
 func (p *Provider) ValidateToken(token string) (string, error) {
@@ -184,7 +183,7 @@ func (p *Provider) ValidateToken(token string) (string, error) {
 	}
 	dids := []string(claims.Audience)
 	if len(dids) > 1 || len(dids) <= 0 {
-		return "", fmt.Errorf("Invalidly formatted jwt claims audience")
+		return "", fmt.Errorf("invalidly formatted jwt claims audience")
 	}
 	return dids[0], nil
 }
