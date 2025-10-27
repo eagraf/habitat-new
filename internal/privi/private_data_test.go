@@ -19,8 +19,9 @@ func TestControllerPrivateDataPutGet(t *testing.T) {
 	marshalledVal, err := json.Marshal(val)
 	require.NoError(t, err)
 
-	dummy := permissions.NewDummyStore()
 	db, err := sql.Open("sqlite3", ":memory:")
+	require.NoError(t, err)
+	dummy, err := permissions.NewStore(db)
 	require.NoError(t, err)
 	repo, err := NewSQLiteRepo(db)
 	require.NoError(t, err)
