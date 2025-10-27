@@ -133,21 +133,7 @@ func (p *casbinStore) ListReadPermissionsByUser(
 	requester string,
 	nsid string,
 ) ([]string, []string, error) {
-	policies, err := p.enforcer.GetFilteredPolicy(0, requester, owner, nsid)
-	if err != nil {
-		return nil, nil, err
-	}
-	allows := []string{}
-	denies := []string{}
-	for _, policy := range policies {
-		if policy[3] == "allow" {
-			allows = append(allows, policy[2])
-		}
-		if policy[3] == "deny" {
-			denies = append(denies, policy[2])
-		}
-	}
-	return allows, denies, nil
+	panic("unimplemented")
 }
 
 // Helpers to translate lexicon + record references into object type required by casbin
