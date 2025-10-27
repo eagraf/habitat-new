@@ -9,9 +9,6 @@ import (
 
 type record map[string]any
 
-// A record key is a string
-type recordKey string
-
 // Privi is an ATProto PDS Wrapper which allows for storing & getting private data.
 // It does this by encrypting data, then storing it in blob. A special lexicon for this purpose,
 // identified by com.habitat.encryptedRecord, points to the blob storing the actual data.
@@ -26,7 +23,7 @@ type store struct {
 	permissions permissions.Store
 
 	// The backing store for the data. Should implement similar methods to public atproto repos
-	repo repo
+	repo *sqliteRepo
 }
 
 var (
@@ -37,7 +34,7 @@ var (
 )
 
 // TODO: take in a carfile/sqlite where user's did is persisted
-func newStore(perms permissions.Store, repo repo) *store {
+func newStore(perms permissions.Store, repo *sqliteRepo) *store {
 	return &store{
 		permissions: perms,
 		repo:        repo,

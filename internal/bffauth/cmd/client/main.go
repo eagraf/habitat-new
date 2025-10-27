@@ -1,16 +1,15 @@
 package main
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"os"
 
-	"bytes"
-	"encoding/json"
-
-	"github.com/bluesky-social/indigo/atproto/crypto"
+	"github.com/bluesky-social/indigo/atproto/atcrypto"
 	"github.com/eagraf/habitat-new/internal/bffauth"
 	"github.com/joho/godotenv"
 )
@@ -20,7 +19,7 @@ func getChallenge() (string, string, error) {
 	if err != nil {
 		return "", "", fmt.Errorf("error getting challenge: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	var result struct {
 		Challenge string `json:"challenge"`
@@ -42,11 +41,15 @@ func submitProof(sessionID string, proof string) (string, error) {
 		return "", fmt.Errorf("error marshaling proof request: %w", err)
 	}
 
-	resp, err := http.Post("http://localhost:8080/auth", "application/json", bytes.NewBuffer(reqBody))
+	resp, err := http.Post(
+		"http://localhost:8080/auth",
+		"application/json",
+		bytes.NewBuffer(reqBody),
+	)
 	if err != nil {
 		return "", fmt.Errorf("error submitting proof: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// Read the entire response body first
 	respBody, err := io.ReadAll(resp.Body)
@@ -75,7 +78,7 @@ func getHelloWorld(token string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("error making authenticated request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	var result struct {
 		Message string `json:"message"`
@@ -98,7 +101,7 @@ func main() {
 		log.Fatalf("ALICE_PRIVATE_KEY_MULTIBASE is not set")
 	}
 
-	privateKey, err := crypto.ParsePrivateMultibase(alicePrivateKey)
+	privateKey, err := atcrypto.ParsePrivateMultibase(alicePrivateKey)
 	if err != nil {
 		log.Fatalf("error parsing alice private key: %v", err)
 	}
