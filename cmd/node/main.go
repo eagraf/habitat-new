@@ -10,11 +10,9 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"syscall"
 	"time"
 
-	fileadapter "github.com/casbin/casbin/v2/persist/file-adapter"
 	"github.com/docker/docker/client"
 	"github.com/eagraf/habitat-new/internal/app"
 	"github.com/eagraf/habitat-new/internal/auth"
@@ -220,11 +218,22 @@ func main() {
 }
 
 func setupPrivi(nodeConfig *config.NodeConfig) (*privi.Server, func()) {
-	policiesDirPath := nodeConfig.PermissionPolicyFilesDir()
-	perms, err := permissions.NewStore(
-		fileadapter.NewAdapter(filepath.Join(policiesDirPath, "policies.csv")),
-		true,
-	)
+	// Create database file if it does not exist
+	priviRepoPath := nodeConfig.PriviRepoFile()
+	_, err := os.Stat(priviRepoPath)
+	if errors.Is(err, os.ErrNotExist) {
+		_, err := os.Create(priviRepoPath)
+		if err != nil {
+			log.Fatal().Err(err).Msgf("unable to create privi repo file at %s", priviRepoPath)
+		}
+	} else if err != nil {
+		log.Fatal().Err(err).Msgf("error finding privi repo file")
+	}
+	priviDB, err := sql.Open("sqlite3", priviRepoPath)
+	if err != nil {
+		log.Fatal().Err(err).Msg("unable to open sqlite file backing privi server")
+	}
+	perms, err := permissions.NewStore(priviDB)
 	if err != nil {
 		log.Fatal().Err(err).Msgf("error creating permission store")
 	}
@@ -235,23 +244,6 @@ func setupPrivi(nodeConfig *config.NodeConfig) (*privi.Server, func()) {
 	err = perms.AddLexiconReadPermission(arushiDID, sashankDID, "com.habitat.test")
 	if err != nil {
 		log.Fatal().Err(err).Msgf("error adding test lexicon for sashank demo")
-	}
-
-	// Create database file if it does not exist
-	priviRepoPath := nodeConfig.PriviRepoFile()
-	_, err = os.Stat(priviRepoPath)
-	if errors.Is(err, os.ErrNotExist) {
-		_, err := os.Create(priviRepoPath)
-		if err != nil {
-			log.Fatal().Err(err).Msgf("unable to create privi repo file at %s", priviRepoPath)
-		}
-	} else if err != nil {
-		log.Fatal().Err(err).Msgf("error finding privi repo file")
-	}
-
-	priviDB, err := sql.Open("sqlite3", priviRepoPath)
-	if err != nil {
-		log.Fatal().Err(err).Msg("unable to open sqlite file backing privi server")
 	}
 
 	repo, err := privi.NewSQLiteRepo(priviDB)
