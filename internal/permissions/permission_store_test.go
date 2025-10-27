@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"testing"
 
+	sq "github.com/Masterminds/squirrel"
+	_ "github.com/mattn/go-sqlite3"
 	"github.com/stretchr/testify/require"
 )
 
@@ -12,7 +14,7 @@ func TestSQLiteStoreBasicPermissions(t *testing.T) {
 	require.NoError(t, err)
 	defer func() { require.NoError(t, db.Close(), "failed to close db") }()
 
-	store, err := NewSQLiteStore(db)
+	store, err := NewStore(db)
 	require.NoError(t, err)
 
 	// Test: Owner always has permission
@@ -57,7 +59,7 @@ func TestSQLiteStorePrefixPermissions(t *testing.T) {
 	require.NoError(t, err)
 	defer func() { require.NoError(t, db.Close(), "failed to close db") }()
 
-	store, err := NewSQLiteStore(db)
+	store, err := NewStore(db)
 	require.NoError(t, err)
 
 	// Grant permission to all "com.habitat.*" lexicons
@@ -88,7 +90,7 @@ func TestSQLiteStoreMultipleGrantees(t *testing.T) {
 	require.NoError(t, err)
 	defer func() { require.NoError(t, db.Close(), "failed to close db") }()
 
-	store, err := NewSQLiteStore(db)
+	store, err := NewStore(db)
 	require.NoError(t, err)
 
 	// Grant permissions to multiple users
@@ -116,7 +118,7 @@ func TestSQLiteStoreListByUser(t *testing.T) {
 	require.NoError(t, err)
 	defer func() { require.NoError(t, db.Close(), "failed to close db") }()
 
-	store, err := NewSQLiteStore(db)
+	store, err := NewStore(db)
 	require.NoError(t, err)
 
 	// Grant bob access to com.habitat.posts
@@ -142,7 +144,7 @@ func TestSQLiteStorePermissionHierarchy(t *testing.T) {
 	require.NoError(t, err)
 	defer func() { require.NoError(t, db.Close(), "failed to close db") }()
 
-	store, err := NewSQLiteStore(db)
+	store, err := NewStore(db)
 	require.NoError(t, err)
 
 	// Grant broad permission
@@ -177,7 +179,7 @@ func TestSQLiteStoreEmptyRecordKey(t *testing.T) {
 	require.NoError(t, err)
 	defer func() { require.NoError(t, db.Close(), "failed to close db") }()
 
-	store, err := NewSQLiteStore(db)
+	store, err := NewStore(db)
 	require.NoError(t, err)
 
 	// Grant permission
@@ -195,7 +197,7 @@ func TestSQLiteStoreMultipleOwners(t *testing.T) {
 	require.NoError(t, err)
 	defer func() { require.NoError(t, db.Close(), "failed to close db") }()
 
-	store, err := NewSQLiteStore(db)
+	store, err := NewStore(db)
 	require.NoError(t, err)
 
 	// Grant bob access to alice's posts
@@ -239,7 +241,7 @@ func TestSQLiteStoreDenyOverridesAllow(t *testing.T) {
 	require.NoError(t, err)
 	defer func() { require.NoError(t, db.Close(), "failed to close db") }()
 
-	store, err := NewSQLiteStore(db)
+	store, err := NewStore(db)
 	require.NoError(t, err)
 
 	// Grant bob broad access to com.habitat

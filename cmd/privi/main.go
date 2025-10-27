@@ -90,7 +90,7 @@ func main() {
 		log.Fatal().Err(err).Msg("unable to setup privi sqlite db")
 	}
 
-	adapter, err := permissions.NewSQLiteStore(priviDB)
+	adapter, err := permissions.NewStore(priviDB)
 	if err != nil {
 		log.Fatal().Err(err).Msg("unable to setup permissions store")
 	}
