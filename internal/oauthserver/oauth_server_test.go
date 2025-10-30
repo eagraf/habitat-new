@@ -46,8 +46,9 @@ func TestOAuthServerE2E(t *testing.T) {
 			oauthServer.HandleToken(w, r)
 			return
 		case "/resource":
-			_, ok := oauthServer.Validate(w, r)
+			did, _, ok := oauthServer.Validate(w, r)
 			require.True(t, ok, "failed to validate token")
+			require.Equal(t, "did:web:test", did)
 		default:
 			t.Errorf("unknown server path: %s", r.URL.Path)
 			w.WriteHeader(http.StatusNotFound)

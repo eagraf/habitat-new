@@ -230,7 +230,7 @@ func (o *OAuthServer) HandleCallback(
 	resp, err := o.provider.NewAuthorizeResponse(
 		ctx,
 		authRequest,
-		newAuthCodeSession(arf.Form.Get("handle"), arf.DpopKey, tokenInfo),
+		newAuthSession(arf.Form.Get("handle"), arf.DpopKey, tokenInfo),
 	)
 	if err != nil {
 		utils.LogAndHTTPError(w, err, "failed to create response", http.StatusInternalServerError)
@@ -288,20 +288,31 @@ func (o *OAuthServer) Validate(
 	w http.ResponseWriter,
 	r *http.Request,
 	scopes ...string,
-) (did string, ok bool) {
+) (did string, client *auth.DpopHttpClient, ok bool) {
 	ctx := r.Context()
 	_, ar, err := o.provider.IntrospectToken(
 		r.Context(),
 		fosite.AccessTokenFromRequest(r),
 		fosite.AccessToken,
-		&fosite.DefaultSession{},
+		nil,
 		scopes...,
 	)
 	if err != nil {
 		o.provider.WriteIntrospectionError(ctx, w, err)
-		return "", false
+		return "", nil, false
 	}
-	return ar.GetSession().GetSubject(), true
+	session := ar.GetSession().(*authSession)
+	dpopKey, err := ecdsa.ParseRawPrivateKey(elliptic.P256(), session.DpopKey)
+	if err != nil {
+		utils.LogAndHTTPError(w, err, "failed to parse dpop key", http.StatusBadRequest)
+		return
+	}
+
+	return session.Subject, auth.NewDpopHttpClient(
+		dpopKey,
+		&nonceProvider{},
+		auth.WithAccessToken(session.TokenInfo.AccessToken),
+	), true
 }
 
 // This simple implementation stores a single nonce value in memory.
