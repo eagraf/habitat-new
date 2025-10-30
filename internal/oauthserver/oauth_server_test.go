@@ -3,6 +3,7 @@ package oauthserver_test
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/cookiejar"
 	"net/http/httptest"
@@ -14,6 +15,8 @@ import (
 	"github.com/gorilla/sessions"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/oauth2"
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
 )
 
 func TestOAuthServerE2E(t *testing.T) {
@@ -22,7 +25,11 @@ func TestOAuthServerE2E(t *testing.T) {
 	oauthClient := oauthserver.NewDummyOAuthClient(t, serverMetadata)
 	defer oauthClient.Close()
 
+	db, err := gorm.Open(sqlite.Open(":memory:"))
+	require.NoError(t, err)
+
 	oauthServer := oauthserver.NewOAuthServer(
+		db,
 		oauthClient,
 		sessions.NewCookieStore(securecookie.GenerateRandomKey(32)),
 		auth.NewDummyDirectory("http://pds.url"),
@@ -38,6 +45,9 @@ func TestOAuthServerE2E(t *testing.T) {
 		case "/token":
 			oauthServer.HandleToken(w, r)
 			return
+		case "/resource":
+			_, ok := oauthServer.Validate(w, r)
+			require.True(t, ok, "failed to validate token")
 		default:
 			t.Errorf("unknown server path: %s", r.URL.Path)
 			w.WriteHeader(http.StatusNotFound)
@@ -87,7 +97,7 @@ func TestOAuthServerE2E(t *testing.T) {
 	)
 	defer clientApp.Close()
 
-	// Set the client app's OAuth configuration not that we know the url
+	// Set the client app's OAuth configuration now that we know the url
 	config.ClientID = clientApp.URL + "/client-metadata.json"
 	config.RedirectURL = clientApp.URL + "/callback"
 
@@ -102,12 +112,23 @@ func TestOAuthServerE2E(t *testing.T) {
 	server.Client().Jar = jar
 
 	result, err := server.Client().Do(authRequest)
-	defer func() { require.NoError(t, result.Body.Close()) }()
 	require.NoError(t, err, "failed to make authorize request")
-	require.Equal(t, http.StatusOK, result.StatusCode)
+	defer func() { require.NoError(t, result.Body.Close()) }()
+	respBytes, err := io.ReadAll(result.Body)
+	require.NoError(t, err, "failed to read response body")
+	require.Equal(t, http.StatusOK, result.StatusCode, "authorize request failed: %s", respBytes)
 
 	token := &oauth2.Token{}
-	require.NoError(t, json.NewDecoder(result.Body).Decode(token), "failed to decode token")
+	require.NoError(t, json.Unmarshal(respBytes, token), "failed to decode token")
 
 	require.NotEmpty(t, token.AccessToken, "access token should not be empty")
+
+	oauthClientCtx := context.WithValue(context.Background(), oauth2.HTTPClient, server.Client())
+	client := config.Client(oauthClientCtx, token)
+
+	resp, err := client.Get(server.URL + "/resource")
+	require.NoError(t, err, "failed to make resource request")
+	respBytes, err = io.ReadAll(resp.Body)
+	require.NoError(t, err, "failed to read response body")
+	require.Equal(t, http.StatusOK, resp.StatusCode, "resource request failed: %s", respBytes)
 }

@@ -1,7 +1,10 @@
 package main
 
 import (
-	"database/sql"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -9,8 +12,16 @@ import (
 	"net/http/httputil"
 	"os"
 
+	jose "github.com/go-jose/go-jose/v3"
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
+
+	"github.com/bluesky-social/indigo/atproto/identity"
+	"github.com/eagraf/habitat-new/internal/auth"
+	"github.com/eagraf/habitat-new/internal/oauthserver"
 	"github.com/eagraf/habitat-new/internal/permissions"
 	"github.com/eagraf/habitat-new/internal/privi"
+	"github.com/gorilla/sessions"
 	"github.com/rs/zerolog/log"
 )
 
@@ -40,6 +51,12 @@ var (
 		"The directory in which TLS certs can be found. Should contain fullchain.pem and privkey.pem",
 	)
 	helpFlag = flag.Bool("help", false, "Display this menu.")
+
+	keyFilePtr = flag.String(
+		"key",
+		"privi.jwk",
+		"The path to the JWK file to use for signing tokens",
+	)
 )
 
 func main() {
@@ -66,50 +83,19 @@ func main() {
 		*repoPathPtr,
 	)
 
-	// Create database file if it does not exist
-	// TODO: this should really be taken in as an argument or env variable
-	priviRepoPath := *repoPathPtr
-	_, err := os.Stat(priviRepoPath)
-	if errors.Is(err, os.ErrNotExist) {
-		fmt.Println("Privi repo file does not exist; creating...")
-		_, err := os.Create(priviRepoPath)
-		if err != nil {
-			log.Err(err).Msgf("unable to create privi repo file at %s", priviRepoPath)
-		}
-	} else if err != nil {
-		log.Err(err).Msgf("error finding privi repo file")
-	}
-
-	priviDB, err := sql.Open("sqlite3", priviRepoPath)
-	if err != nil {
-		log.Fatal().Err(err).Msg("unable to open sqlite file backing privi server")
-	}
-
-	repo, err := privi.NewSQLiteRepo(priviDB)
-	if err != nil {
-		log.Fatal().Err(err).Msg("unable to setup privi sqlite db")
-	}
-
-	adapter, err := permissions.NewSQLiteStore(priviDB)
-	if err != nil {
-		log.Fatal().Err(err).Msg("unable to setup permissions store")
-	}
-	priviServer := privi.NewServer(adapter, repo)
+	db := setupDB()
+	oauthServer := setupOAuthServer(*domainPtr, *keyFilePtr, db)
+	priviServer := setupPriviServer(db)
 
 	mux := http.NewServeMux()
 
-	loggingMiddleware := func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			x, err := httputil.DumpRequest(r, true)
-			if err != nil {
-				http.Error(w, fmt.Sprint(err), http.StatusInternalServerError)
-				return
-			}
-			fmt.Println("Got a request: ", string(x))
-			next.ServeHTTP(w, r)
-		})
-	}
+	// auth routes
+	mux.HandleFunc("/oauth-callback", oauthServer.HandleCallback)
+	mux.HandleFunc("/client-metadata.json", oauthServer.HandleClientMetadata)
+	mux.HandleFunc("/oauth/authorize", oauthServer.HandleAuthorize)
+	mux.HandleFunc("/oauth/token", oauthServer.HandleToken)
 
+	// privi routes
 	mux.HandleFunc("/xrpc/com.habitat.putRecord", priviServer.PutRecord)
 	mux.HandleFunc("/xrpc/com.habitat.getRecord", priviServer.GetRecord)
 	mux.HandleFunc("/xrpc/network.habitat.uploadBlob", priviServer.UploadBlob)
@@ -147,11 +133,111 @@ func main() {
 	}
 
 	fmt.Println("Starting server on port :" + *portPtr)
-	err = s.ListenAndServeTLS(
+	err := s.ListenAndServeTLS(
 		fmt.Sprintf("%s%s", *certsFilePtr, "fullchain.pem"),
 		fmt.Sprintf("%s%s", *certsFilePtr, "privkey.pem"),
 	)
 	if err != nil {
 		log.Fatal().Err(err).Msg("error serving http")
 	}
+}
+
+func setupDB() *gorm.DB {
+	// Create database file if it does not exist
+	// TODO: this should really be taken in as an argument or env variable
+	priviRepoPath := *repoPathPtr
+	_, err := os.Stat(priviRepoPath)
+	if errors.Is(err, os.ErrNotExist) {
+		fmt.Println("Privi repo file does not exist; creating...")
+		_, err := os.Create(priviRepoPath)
+		if err != nil {
+			log.Err(err).Msgf("unable to create privi repo file at %s", priviRepoPath)
+		}
+	} else if err != nil {
+		log.Err(err).Msgf("error finding privi repo file")
+	}
+
+	priviDB, err := gorm.Open(sqlite.Open(priviRepoPath))
+	if err != nil {
+		log.Fatal().Err(err).Msg("unable to open sqlite file backing privi server")
+	}
+
+	return priviDB
+}
+
+func setupPriviServer(gormDb *gorm.DB) *privi.Server {
+	db, err := gormDb.DB()
+	if err != nil {
+		log.Fatal().Err(err).Msg("unable to setup privi sqlite db")
+	}
+	repo, err := privi.NewSQLiteRepo(db)
+	if err != nil {
+		log.Fatal().Err(err).Msg("unable to setup privi sqlite db")
+	}
+
+	adapter, err := permissions.NewSQLiteStore(db)
+	if err != nil {
+		log.Fatal().Err(err).Msg("unable to setup permissions store")
+	}
+	return privi.NewServer(adapter, repo)
+}
+
+func setupOAuthServer(
+	domain string,
+	keyFile string,
+	db *gorm.DB,
+) *oauthserver.OAuthServer {
+	// Read JWK from file
+	jwkBytes, err := os.ReadFile(keyFile)
+	if err != nil {
+		if !errors.Is(err, os.ErrNotExist) {
+			log.Fatal().Err(err).Msgf("unable to read key file at %s", keyFile)
+		}
+		// Generate ECDSA key using P-256 curve with crypto/rand for secure randomness
+		key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		if err != nil {
+			log.Fatal().Err(err).Msgf("failed to generate key")
+		}
+		// Create JWK from the generated key
+		jwk := jose.JSONWebKey{
+			Key:       key,
+			KeyID:     "habitat",
+			Algorithm: string(jose.ES256),
+			Use:       "sig",
+		}
+		jwkBytes, err = json.MarshalIndent(jwk, "", "  ")
+		if err != nil {
+			log.Fatal().Err(err).Msgf("failed to marshal JWK")
+		}
+		if err := os.WriteFile(keyFile, jwkBytes, 0o600); err != nil {
+			log.Fatal().Err(err).Msgf("failed to write key to file")
+		}
+		log.Info().Msgf("created key file at %s", keyFile)
+	}
+
+	oauthClient, err := auth.NewOAuthClient(
+		"https://"+domain+"/client-metadata.json", /*clientId*/
+		"https://"+domain,                         /*clientUri*/
+		"https://"+domain+"/oauth-callback",       /*redirectUri*/
+		jwkBytes,                                  /*secretJwk*/
+	)
+
+	return oauthserver.NewOAuthServer(
+		db,
+		oauthClient,
+		sessions.NewCookieStore([]byte("my super secret signing password")),
+		identity.DefaultDirectory(),
+	)
+}
+
+func loggingMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		x, err := httputil.DumpRequest(r, true)
+		if err != nil {
+			http.Error(w, fmt.Sprint(err), http.StatusInternalServerError)
+			return
+		}
+		fmt.Println("Got a request: ", string(x))
+		next.ServeHTTP(w, r)
+	})
 }
