@@ -12,14 +12,29 @@ import (
 	"github.com/ory/fosite/handler/oauth2"
 	"github.com/ory/fosite/handler/pkce"
 	"github.com/ory/fosite/storage"
+	"gorm.io/gorm"
 )
 
+type AccessTokenSession struct {
+	Signature    string
+	Subject      string
+	AccessToken  string
+	RefreshToken string
+	DpopKey      []byte
+	ExpiresAt    time.Time
+}
+
 type store struct {
+	db          *gorm.DB
 	memoryStore *storage.MemoryStore
 }
 
-func newStore() *store {
-	return &store{memoryStore: storage.NewMemoryStore()}
+func newStore(db *gorm.DB) (*store, error) {
+	err := db.AutoMigrate(&AccessTokenSession{})
+	if err != nil {
+		return nil, err
+	}
+	return &store{memoryStore: storage.NewMemoryStore(), db: db}, nil
 }
 
 var (
@@ -61,7 +76,15 @@ func (s *store) CreateAccessTokenSession(
 	signature string,
 	request fosite.Requester,
 ) (err error) {
-	return s.memoryStore.CreateAccessTokenSession(ctx, signature, request)
+	acs := request.GetSession().(*authSession)
+	return s.db.Create(&AccessTokenSession{
+		Signature:    signature,
+		Subject:      acs.Subject,
+		AccessToken:  acs.TokenInfo.AccessToken,
+		RefreshToken: acs.TokenInfo.RefreshToken,
+		DpopKey:      acs.DpopKey,
+		ExpiresAt:    acs.ExpiresAt,
+	}).Error
 }
 
 // CreateAuthorizeCodeSession implements oauth2.CoreStorage.
@@ -85,7 +108,7 @@ func (s *store) CreateRefreshTokenSession(
 
 // DeleteAccessTokenSession implements oauth2.CoreStorage.
 func (s *store) DeleteAccessTokenSession(ctx context.Context, signature string) (err error) {
-	return s.memoryStore.DeleteAccessTokenSession(ctx, signature)
+	return s.db.Delete(&AccessTokenSession{}, "token = ?", signature).Error
 }
 
 // DeleteRefreshTokenSession implements oauth2.CoreStorage.
@@ -99,7 +122,21 @@ func (s *store) GetAccessTokenSession(
 	signature string,
 	session fosite.Session,
 ) (request fosite.Requester, err error) {
-	return s.memoryStore.GetAccessTokenSession(ctx, signature, session)
+	var ats AccessTokenSession
+	err = s.db.First(&ats, "signature = ?", signature).Error
+	if err != nil {
+		return nil, err
+	}
+	sess := newAuthSession(ats.Subject, ats.DpopKey, &auth.TokenResponse{
+		AccessToken:  ats.AccessToken,
+		RefreshToken: ats.RefreshToken,
+	})
+	sess.ExpiresAt = ats.ExpiresAt
+	return &fosite.AccessRequest{
+		Request: fosite.Request{
+			Session: sess,
+		},
+	}, nil
 }
 
 // GetAuthorizeCodeSession implements oauth2.CoreStorage.
