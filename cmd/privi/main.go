@@ -4,6 +4,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -13,8 +14,6 @@ import (
 	"os"
 
 	jose "github.com/go-jose/go-jose/v3"
-	"gorm.io/driver/sqlite"
-	"gorm.io/gorm"
 
 	"github.com/bluesky-social/indigo/atproto/identity"
 	"github.com/eagraf/habitat-new/internal/auth"
@@ -84,7 +83,7 @@ func main() {
 	)
 
 	db := setupDB()
-	oauthServer := setupOAuthServer(*domainPtr, *keyFilePtr, db)
+	oauthServer := setupOAuthServer(*domainPtr, *keyFilePtr)
 	priviServer := setupPriviServer(db)
 
 	mux := http.NewServeMux()
@@ -142,7 +141,7 @@ func main() {
 	}
 }
 
-func setupDB() *gorm.DB {
+func setupDB() *sql.DB {
 	// Create database file if it does not exist
 	// TODO: this should really be taken in as an argument or env variable
 	priviRepoPath := *repoPathPtr
@@ -157,7 +156,7 @@ func setupDB() *gorm.DB {
 		log.Err(err).Msgf("error finding privi repo file")
 	}
 
-	priviDB, err := gorm.Open(sqlite.Open(priviRepoPath))
+	priviDB, err := sql.Open("sqlite3", priviRepoPath)
 	if err != nil {
 		log.Fatal().Err(err).Msg("unable to open sqlite file backing privi server")
 	}
@@ -165,11 +164,7 @@ func setupDB() *gorm.DB {
 	return priviDB
 }
 
-func setupPriviServer(gormDb *gorm.DB) *privi.Server {
-	db, err := gormDb.DB()
-	if err != nil {
-		log.Fatal().Err(err).Msg("unable to setup privi sqlite db")
-	}
+func setupPriviServer(db *sql.DB) *privi.Server {
 	repo, err := privi.NewSQLiteRepo(db)
 	if err != nil {
 		log.Fatal().Err(err).Msg("unable to setup privi sqlite db")
@@ -185,7 +180,6 @@ func setupPriviServer(gormDb *gorm.DB) *privi.Server {
 func setupOAuthServer(
 	domain string,
 	keyFile string,
-	db *gorm.DB,
 ) *oauthserver.OAuthServer {
 	// Read JWK from file
 	jwkBytes, err := os.ReadFile(keyFile)
