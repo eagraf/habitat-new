@@ -16,20 +16,22 @@ type authSession struct {
 	RedirectURI string              `cbor:"6,keyasint"`
 	Scopes      []string            `cbor:"7,keyasint"`
 	State       string              `cbor:"8,keyasint"`
-	RequestedAt time.Time           `cbor:"9,keyasint"`
 }
 
 var _ fosite.Session = (*authSession)(nil)
 
-func newAuthSession(
-	subject string,
+func newAuthorizeSession(
+	req fosite.AuthorizeRequester,
 	dpopKey []byte,
 	tokenInfo *auth.TokenResponse,
 ) *authSession {
 	return &authSession{
-		Subject:   subject,
+		Subject:   req.GetRequestForm().Get("handle"),
+		Scopes:    req.GetRequestedScopes(),
 		DpopKey:   dpopKey,
 		TokenInfo: tokenInfo,
+		State:     req.GetState(),
+		ClientID:  req.GetClient().GetID(),
 	}
 }
 

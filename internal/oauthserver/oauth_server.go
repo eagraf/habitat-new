@@ -8,7 +8,6 @@ import (
 	"crypto/rand"
 	"encoding/gob"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"net/url"
 
@@ -152,7 +151,6 @@ func (o *OAuthServer) HandleAuthorize(
 		utils.LogAndHTTPError(w, err, "failed to serialize key", http.StatusInternalServerError)
 		return
 	}
-	fmt.Println("dpop key: ", string(dpopKeyBytes))
 	authorizeSession, _ := o.sessionStore.New(r, sessionName)
 	authorizeSession.AddFlash(&authRequestFlash{
 		Form:           requester.GetRequestForm(),
@@ -213,11 +211,6 @@ func (o *OAuthServer) HandleCallback(
 		utils.LogAndHTTPError(w, err, "failed to recreate request", http.StatusBadRequest)
 		return
 	}
-	authRequest.SetSession(&authSession{
-		DpopKey: arf.DpopKey,
-		Subject: arf.Form.Get("handle"),
-	})
-	fmt.Println("dpop key: ", string(arf.DpopKey))
 	dpopKey, err := ecdsa.ParseRawPrivateKey(elliptic.P256(), arf.DpopKey)
 	if err != nil {
 		utils.LogAndHTTPError(w, err, "failed to parse dpop key", http.StatusBadRequest)
@@ -237,7 +230,7 @@ func (o *OAuthServer) HandleCallback(
 	resp, err := o.provider.NewAuthorizeResponse(
 		ctx,
 		authRequest,
-		newAuthSession(arf.Form.Get("handle"), arf.DpopKey, tokenInfo),
+		newAuthorizeSession(authRequest, arf.DpopKey, tokenInfo),
 	)
 	if err != nil {
 		utils.LogAndHTTPError(w, err, "failed to create response", http.StatusInternalServerError)

@@ -15,15 +15,6 @@ import (
 	"github.com/ory/fosite/storage"
 )
 
-type AccessTokenSession struct {
-	Signature    string
-	Subject      string
-	AccessToken  string
-	RefreshToken string
-	DpopKey      []byte
-	ExpiresAt    time.Time
-}
-
 type store struct {
 	memoryStore *storage.MemoryStore
 	strategy    *strategy
@@ -85,20 +76,18 @@ func (s *store) GetAuthorizeCodeSession(
 	code string,
 	session fosite.Session,
 ) (request fosite.Requester, err error) {
-	var data authorizeCodeData
+	var data authSession
 	err = s.strategy.decrypt(code, &data)
 	if err != nil {
 		return nil, errors.Join(fosite.ErrNotFound, err)
 	}
-
 	client, err := s.GetClient(ctx, data.ClientID)
 	if err != nil {
 		return nil, errors.Join(fosite.ErrNotFound, err)
 	}
-
 	return &fosite.Request{
 		Client:         client,
-		Session:        data.Session,
+		Session:        &data,
 		RequestedScope: data.Scopes,
 	}, nil
 }
