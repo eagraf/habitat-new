@@ -226,7 +226,6 @@ func setupOAuthServer(
 	}
 
 	oauthServer, err := oauthserver.NewOAuthServer(
-		db,
 		oauthClient,
 		sessions.NewCookieStore([]byte("my super secret signing password")),
 		identity.DefaultDirectory(),
