@@ -12,51 +12,15 @@ import (
 	"github.com/eagraf/habitat-new/internal/permissions"
 	"github.com/eagraf/habitat-new/internal/privi"
 	"github.com/rs/zerolog/log"
-	altsrc "github.com/urfave/cli-altsrc/v3"
-	yaml "github.com/urfave/cli-altsrc/v3/yaml"
 	"github.com/urfave/cli/v3"
 )
 
-const (
-	defaultPort = "443"
-)
-
-var profileFile string
-
 func main() {
+	flags, mutuallyExclusiveFlags := getFlags()
 	cmd := &cli.Command{
-		Flags: []cli.Flag{
-			&cli.StringFlag{
-				Name:        "profile",
-				Usage:       "The configuration profile to use. ",
-				Destination: &profileFile,
-			},
-			&cli.StringFlag{
-				Name:     "domain",
-				Required: true,
-				Usage:    "The publicly available domain at which the server can be found",
-				Sources:  flagSources("domain", "HABITAT_DOMAIN"),
-			},
-			&cli.StringFlag{
-				Name:    "db",
-				Usage:   "The path to the sqlite file to use as the backing database for this server",
-				Value:   "./repo.db",
-				Sources: flagSources("db", "HABITAT_DB"),
-			},
-			&cli.StringFlag{
-				Name:    "port",
-				Usage:   "The port on which to run the server. Default 9000",
-				Value:   defaultPort,
-				Sources: flagSources("port", "HABITAT_PORT"),
-			},
-			&cli.StringFlag{
-				Name:    "certs",
-				Usage:   "The directory in which TLS certs can be found. Should contain fullchain.pem and privkey.pem",
-				Value:   "/etc/letsencrypt/live/habitat.network/",
-				Sources: flagSources("certs", "HABITAT_CERTS"),
-			},
-		},
-		Action: run,
+		Flags:                  flags,
+		MutuallyExclusiveFlags: mutuallyExclusiveFlags,
+		Action:                 run,
 	}
 	if err := cmd.Run(context.Background(), os.Args); err != nil {
 		log.Fatal().Err(err).Msg("error running command")
@@ -64,7 +28,7 @@ func main() {
 }
 
 func run(_ context.Context, cli *cli.Command) error {
-	dbPath := cli.String("db")
+	dbPath := cli.String(cDb)
 	// Create database file if it does not exist
 	_, err := os.Stat(dbPath)
 	if errors.Is(err, os.ErrNotExist) {
@@ -130,7 +94,7 @@ func run(_ context.Context, cli *cli.Command) error {
     }
   ]
 }`
-		domain := cli.String("domain")
+		domain := cli.String(cDomain)
 		_, err := fmt.Fprintf(w, template, domain, domain)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -138,23 +102,19 @@ func run(_ context.Context, cli *cli.Command) error {
 		}
 	})
 
-	port := cli.String("port")
+	port := cli.String(cPort)
 	s := &http.Server{
 		Handler: loggingMiddleware(mux),
 		Addr:    fmt.Sprintf(":%s", port),
 	}
 
 	fmt.Println("Starting server on port :" + port)
-	certs := cli.String("certs")
+	certs := cli.String(cHttpsCerts)
+	if certs == "" {
+		return s.ListenAndServe()
+	}
 	return s.ListenAndServeTLS(
 		fmt.Sprintf("%s%s", certs, "fullchain.pem"),
 		fmt.Sprintf("%s%s", certs, "privkey.pem"),
-	)
-}
-
-func flagSources(name string, envName string) cli.ValueSourceChain {
-	return cli.NewValueSourceChain(
-		cli.EnvVar(envName),
-		yaml.YAML(name, altsrc.NewStringPtrSourcer(&profileFile)),
 	)
 }
