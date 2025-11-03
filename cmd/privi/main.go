@@ -84,7 +84,7 @@ func main() {
 
 	db := setupDB()
 	oauthServer := setupOAuthServer(*domainPtr, *keyFilePtr)
-	priviServer := setupPriviServer(db)
+	priviServer := setupPriviServer(db, oauthServer)
 
 	mux := http.NewServeMux()
 
@@ -164,7 +164,7 @@ func setupDB() *sql.DB {
 	return priviDB
 }
 
-func setupPriviServer(db *sql.DB) *privi.Server {
+func setupPriviServer(db *sql.DB, oauthServer *oauthserver.OAuthServer) *privi.Server {
 	repo, err := privi.NewSQLiteRepo(db)
 	if err != nil {
 		log.Fatal().Err(err).Msg("unable to setup privi sqlite db")
@@ -174,7 +174,7 @@ func setupPriviServer(db *sql.DB) *privi.Server {
 	if err != nil {
 		log.Fatal().Err(err).Msg("unable to setup permissions store")
 	}
-	return privi.NewServer(adapter, repo)
+	return privi.NewServer(adapter, repo, oauthServer)
 }
 
 func setupOAuthServer(

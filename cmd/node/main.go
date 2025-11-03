@@ -263,6 +263,7 @@ func setupPrivi(nodeConfig *config.NodeConfig) (*privi.Server, func()) {
 	priviServer := privi.NewServer(
 		perms,
 		repo,
+		nil,
 	)
 	return priviServer, func() { _ = priviDB.Close() }
 }
