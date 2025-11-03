@@ -69,7 +69,12 @@ func (s *Server) PutRecord(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if ownerId.DID.String() != callerDID.String() {
-		utils.LogAndHTTPError(w, err, "only owner can put record", http.StatusUnauthorized)
+		utils.LogAndHTTPError(
+			w,
+			fmt.Errorf("only owner can put record"),
+			"only owner can put record",
+			http.StatusUnauthorized,
+		)
 		return
 	}
 
@@ -145,6 +150,10 @@ func (s *Server) GetRecord(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) getAuthedUser(w http.ResponseWriter, r *http.Request) (did syntax.DID, ok bool) {
+	if r.Header.Get("Habitat-Auth-Method") == "oauth" {
+		did, _, ok := s.oauthServer.Validate(w, r)
+		return syntax.DID(did), ok
+	}
 	did, err := s.getCaller(r)
 	if err != nil {
 		utils.LogAndHTTPError(w, err, "getting caller did", http.StatusForbidden)
