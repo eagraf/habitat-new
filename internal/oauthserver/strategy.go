@@ -36,7 +36,7 @@ func (s *strategy) GenerateAccessToken(
 	ctx context.Context,
 	requester fosite.Requester,
 ) (token string, signature string, err error) {
-	token, err = s.encrypt(requester.GetSession().(*authSession))
+	token, err = s.encrypt(newAccessTokenSession(requester.GetSession().(*authSession)))
 	return token, token, err
 }
 
