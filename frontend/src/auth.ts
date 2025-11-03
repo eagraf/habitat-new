@@ -1,12 +1,17 @@
-import clientMetadata from "..//client-metadata";
+import clientMetadata from "../client-metadata";
 import * as client from "openid-client";
+
+const handleLocalStorageKey = "handle";
+const tokenLocalStorageKey = "token";
+const stateLocalStorageKey = "state";
 
 export class AuthManager {
   handle: string | null;
   private accessToken: string | null;
   private config: client.Configuration;
+  private onUnauthenticated: () => void;
 
-  constructor(serverDomain: string) {
+  constructor(serverDomain: string, onUnauthenticated: () => void) {
     const { client_id } = clientMetadata(__DOMAIN__);
     this.config = new client.Configuration(
       {
@@ -16,8 +21,9 @@ export class AuthManager {
       },
       client_id,
     );
-    this.handle = localStorage.getItem("handle");
-    this.accessToken = localStorage.getItem("token");
+    this.handle = localStorage.getItem(handleLocalStorageKey);
+    this.accessToken = localStorage.getItem(tokenLocalStorageKey);
+    this.onUnauthenticated = onUnauthenticated;
   }
 
   isAuthenticated() {
@@ -26,10 +32,10 @@ export class AuthManager {
 
   loginUrl(handle: string, redirectUri: string) {
     this.handle = handle;
-    localStorage.setItem("handle", handle);
+    localStorage.setItem(handleLocalStorageKey, handle);
     const state = client.randomState();
     console.log(state);
-    localStorage.setItem("state", state);
+    localStorage.setItem(stateLocalStorageKey, state);
     return client.buildAuthorizationUrl(this.config, {
       redirect_uri: redirectUri,
       response_type: "code",
@@ -38,11 +44,11 @@ export class AuthManager {
     });
   }
   async exchangeCode(currentUrl: string) {
-    const state = localStorage.getItem("state");
+    const state = localStorage.getItem(stateLocalStorageKey);
     if (!state) {
       throw new Error("No state found");
     }
-    localStorage.removeItem("state");
+    localStorage.removeItem(stateLocalStorageKey);
     console.log(currentUrl);
     console.log(state);
     const token = await client.authorizationCodeGrant(
@@ -53,7 +59,7 @@ export class AuthManager {
       },
     );
     this.accessToken = token.access_token;
-    localStorage.setItem("token", token.access_token);
+    localStorage.setItem(tokenLocalStorageKey, token.access_token);
   }
 
   async fetch(
@@ -64,7 +70,8 @@ export class AuthManager {
     options?: client.DPoPOptions,
   ) {
     if (!this.accessToken) {
-      throw new UnauthenticatedError();
+      this.handleUnauthenticated();
+      return;
     }
     if (!headers) {
       headers = new Headers();
@@ -81,9 +88,19 @@ export class AuthManager {
     );
 
     if (response.status === 401) {
-      throw new UnauthenticatedError();
+      this.handleUnauthenticated();
+      return;
     }
     return response;
+  }
+
+  private handleUnauthenticated() {
+    this.handle = null;
+    this.accessToken = null;
+    localStorage.removeItem(handleLocalStorageKey);
+    localStorage.removeItem(tokenLocalStorageKey);
+    this.onUnauthenticated();
+    throw new UnauthenticatedError();
   }
 }
 
