@@ -27,7 +27,7 @@ func getFlags() ([]cli.Flag, []cli.MutuallyExclusiveFlags) {
 		},
 		&cli.StringSliceFlag{
 			Name:        "profile",
-			Usage:       "The configuration profile to use.",
+			Usage:       "YAML profile files that specify flags. Can be stacked from highest precedence to lowest.",
 			TakesFile:   true,
 			Destination: &profiles,
 		},
@@ -81,10 +81,10 @@ func (ps *profilesSource) Lookup() (string, bool) {
 	sources := cli.ValueSourceChain{
 		Chain: []cli.ValueSource{},
 	}
-	for range profiles {
+	for i := range profiles {
 		sources.Chain = append(
 			sources.Chain,
-			yaml.YAML(ps.name, altsrc.NewStringPtrSourcer(&profiles[0])),
+			yaml.YAML(ps.name, altsrc.NewStringPtrSourcer(&profiles[i])),
 		)
 	}
 	return sources.Lookup()

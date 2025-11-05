@@ -28,6 +28,10 @@ func main() {
 }
 
 func run(_ context.Context, cmd *cli.Command) error {
+	log.Info().Msgf("running with flags: ")
+	for _, flag := range cmd.FlagNames() {
+		log.Info().Msgf("%s: %v", flag, cmd.Value(flag))
+	}
 	dbPath := cmd.String(cDb)
 	// Create database file if it does not exist
 	_, err := os.Stat(dbPath)
