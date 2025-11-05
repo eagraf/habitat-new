@@ -59,6 +59,7 @@ func run(_ context.Context, cmd *cli.Command) error {
 	// privi routes
 	mux.HandleFunc("/xrpc/com.habitat.putRecord", priviServer.PutRecord)
 	mux.HandleFunc("/xrpc/com.habitat.getRecord", priviServer.GetRecord)
+	mux.HandleFunc("/xrpc/com.habitat.listRecords", priviServer.ListRecords)
 	mux.HandleFunc("/xrpc/network.habitat.uploadBlob", priviServer.UploadBlob)
 	mux.HandleFunc("/xrpc/com.habitat.listPermissions", priviServer.ListPermissions)
 	mux.HandleFunc("/xrpc/com.habitat.addPermission", priviServer.AddPermission)
