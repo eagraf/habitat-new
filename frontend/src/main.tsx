@@ -1,6 +1,10 @@
 import { StrictMode } from "react";
 import ReactDOM from "react-dom/client";
-import { RouterProvider, createRouter } from "@tanstack/react-router";
+import {
+  RouterProvider,
+  createHashHistory,
+  createRouter,
+} from "@tanstack/react-router";
 import clientMetadata from "../client-metadata";
 // Import the generated route tree
 import { routeTree } from "./routeTree.gen";
@@ -34,6 +38,7 @@ const router = createRouter({
   scrollRestoration: true,
   defaultStructuralSharing: true,
   defaultPreloadStaleTime: 0,
+  history: __HASH_ROUTING__ ? createHashHistory() : undefined,
 });
 
 // Register the router instance for type safety
