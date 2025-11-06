@@ -35,4 +35,5 @@ export default defineConfig({
     host: true,
     allowedHosts: [".ts.net"]
   },
+  base: domain ? `https://${domain}/` : "/",
 });
