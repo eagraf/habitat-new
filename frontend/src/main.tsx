@@ -27,6 +27,8 @@ export const oauthClient = new BrowserOAuthClient({
 
 const queryClient = new QueryClient();
 
+const domainUrl = new URL(`https://${__DOMAIN__}`);
+
 // Create a new router instance
 const router = createRouter({
   routeTree,
@@ -38,6 +40,7 @@ const router = createRouter({
   scrollRestoration: true,
   defaultStructuralSharing: true,
   defaultPreloadStaleTime: 0,
+  basepath: __HASH_ROUTING__ ? undefined : domainUrl.pathname,
   history: __HASH_ROUTING__ ? createHashHistory() : undefined,
 });
 
