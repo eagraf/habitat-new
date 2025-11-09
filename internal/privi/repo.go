@@ -1,7 +1,7 @@
 package privi
 
 import (
-	"database/sql"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -13,11 +13,11 @@ import (
 	"github.com/ipfs/go-cid"
 	"github.com/multiformats/go-multihash"
 	"github.com/rs/zerolog/log"
+	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"github.com/eagraf/habitat-new/api/habitat"
 	_ "github.com/mattn/go-sqlite3"
-
-	sq "github.com/Masterminds/squirrel"
 )
 
 // Persist private data within repos that mirror public repos.
@@ -32,21 +32,25 @@ import (
 // We really shouldn't have unexported types that get passed around outside the package, like to `main.go`
 // Leaving this as-is for now.
 type sqliteRepo struct {
-	db          *sql.DB
+	db          *gorm.DB
 	maxBlobSize int
 }
 
 // Helper function to query sqlite compile-time options to get the max blob size
 // Not sure if this can change across versions, if so we need to keep that stable
-func getMaxBlobSize(db *sql.DB) (int, error) {
-	rows, err := db.Query("PRAGMA compile_options;")
+func getMaxBlobSize(db *gorm.DB) (int, error) {
+	sqlDb, err := db.DB()
+	if err != nil {
+		return 0, err
+	}
+
+	rows, err := sqlDb.Query("PRAGMA compile_options;")
+	if err != nil {
+		return 0, err
+	}
 	defer util.Close(rows, func(err error) {
 		log.Err(err).Msgf("error closing db rows")
 	})
-
-	if err != nil {
-		return 0, nil
-	}
 
 	for rows.Next() {
 		var opt string
@@ -58,28 +62,22 @@ func getMaxBlobSize(db *sql.DB) (int, error) {
 	return 0, fmt.Errorf("no MAX_LENGTH parameter found")
 }
 
-// TODO: create table etc.
-func NewSQLiteRepo(db *sql.DB) (*sqliteRepo, error) {
-	// Create records table
-	_, err := db.Exec(`CREATE TABLE IF NOT EXISTS records (
-		did TEXT NOT NULL,
-		rkey TEXT NOT NULL,
-		record BLOB,
-		PRIMARY KEY(did, rkey)
-	);`)
-	if err != nil {
-		return nil, err
-	}
+type Record struct {
+	Did  string `gorm:"primaryKey"`
+	Rkey string `gorm:"primaryKey"`
+	Rec  string
+}
+type Blob struct {
+	gorm.Model
+	Did      string
+	Cid      string
+	MimeType string
+	Blob     []byte
+}
 
-	// Create blobs table
-	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS blobs (
-		did TEXT NOT NULL,
-		cid TEXT NOT NULL,
-		mimetype TEXT,
-		blob BLOB,
-		PRIMARY KEY(did, cid)
-	);`)
-	if err != nil {
+// TODO: create table etc.
+func NewSQLiteRepo(db *gorm.DB) (*sqliteRepo, error) {
+	if err := db.AutoMigrate(&Record{}, &Blob{}); err != nil {
 		return nil, err
 	}
 
@@ -95,7 +93,7 @@ func NewSQLiteRepo(db *sql.DB) (*sqliteRepo, error) {
 }
 
 // putRecord puts a record for the given rkey into the repo no matter what; if a record always exists, it is overwritten.
-func (r *sqliteRepo) putRecord(did string, rkey string, rec record, validate *bool) error {
+func (r *sqliteRepo) putRecord(did string, rkey string, rec map[string]any, validate *bool) error {
 	if validate != nil && *validate {
 		err := atdata.Validate(rec)
 		if err != nil {
@@ -107,14 +105,13 @@ func (r *sqliteRepo) putRecord(did string, rkey string, rec record, validate *bo
 	if err != nil {
 		return err
 	}
+
+	record := Record{Did: did, Rkey: rkey, Rec: string(bytes)}
 	// Always put (even if something exists).
-	_, err = r.db.Exec(
-		"insert or replace into records(did, rkey, record) values(?, ?, jsonb(?));",
-		did,
-		rkey,
-		bytes,
-	)
-	return err
+	return gorm.G[Record](
+		r.db,
+		clause.OnConflict{UpdateAll: true},
+	).Create(context.Background(), &record)
 }
 
 var (
@@ -122,32 +119,17 @@ var (
 	ErrMultipleRecordsFound = fmt.Errorf("multiple records found for desired query")
 )
 
-func (r *sqliteRepo) getRecord(did string, rkey string) (record, error) {
-	queried := r.db.QueryRow(
-		"select did, rkey, json(record) from records where rkey = ? and did = ?",
-		rkey,
-		did,
-	)
-
-	var row struct {
-		did  string
-		rkey string
-		rec  string
-	}
-	err := queried.Scan(&row.did, &row.rkey, &row.rec)
-	if errors.Is(err, sql.ErrNoRows) {
+func (r *sqliteRepo) getRecord(did string, rkey string) (*Record, error) {
+	row, err := gorm.G[Record](
+		r.db,
+	).Where("did = ? and rkey = ?", did, rkey).
+		First(context.Background())
+	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, ErrRecordNotFound
 	} else if err != nil {
 		return nil, err
 	}
-
-	var record record
-	err = json.Unmarshal([]byte(row.rec), &record)
-	if err != nil {
-		return nil, err
-	}
-
-	return record, nil
+	return &row, nil
 }
 
 type blob struct {
@@ -171,8 +153,15 @@ func (r *sqliteRepo) uploadBlob(did string, data []byte, mimeType string) (*blob
 		return nil, err
 	}
 
-	sql := `insert into blobs(did, cid, mimetype, blob) values(?, ?, ?, ?)`
-	_, err = r.db.Exec(sql, did, cid.String(), mimeType, data)
+	err = gorm.G[Blob](
+		r.db,
+		clause.OnConflict{UpdateAll: true},
+	).Create(context.Background(), &Blob{
+		Did:      did,
+		Cid:      cid.String(),
+		MimeType: mimeType,
+		Blob:     data,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -190,23 +179,16 @@ func (r *sqliteRepo) getBlob(
 	did string,
 	cid string,
 ) (string /* mimetype */, []byte /* raw blob */, error) {
-	qry := "select mimetype, blob from blobs where did = ? and cid = ?"
-	res := r.db.QueryRow(
-		qry,
-		did,
-		cid,
-	)
-
-	var mimetype string
-	var blob []byte
-	err := res.Scan(&mimetype, &blob)
-	if errors.Is(err, sql.ErrNoRows) {
+	row, err := gorm.G[Blob](
+		r.db,
+	).Where("did = ? and cid = ?", did, cid).First(context.Background())
+	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return "", nil, ErrRecordNotFound
 	} else if err != nil {
 		return "", nil, err
 	}
 
-	return mimetype, blob, nil
+	return row.MimeType, row.Blob, nil
 }
 
 // listRecords implements repo.
@@ -214,53 +196,56 @@ func (r *sqliteRepo) listRecords(
 	params habitat.NetworkHabitatRepoListRecordsParams,
 	allow []string,
 	deny []string,
-) ([]record, error) {
+) ([]Record, error) {
 	if len(allow) == 0 {
-		return []record{}, nil
+		return []Record{}, nil
 	}
-	query := sq.Select("json(record)").From("records").Where(sq.Eq{"did": params.Repo})
+
+	query := gorm.G[Record](r.db.Debug()).Where("did = ?", params.Repo)
 
 	// Build OR conditions for allow list
-	allowOr := sq.Or{}
-	for _, a := range allow {
-		if strings.HasSuffix(a, "*") {
-			allowOr = append(allowOr, sq.Like{"rkey": strings.TrimSuffix(a, "*") + "%"})
-		} else {
-			allowOr = append(allowOr, sq.Eq{"rkey": a})
+	if len(allow) > 0 {
+		allowConditions := r.db.Where("1 = 0") // Start with false condition
+		for _, a := range allow {
+			if strings.HasSuffix(a, "*") {
+				// Wildcard match
+				prefix := strings.TrimSuffix(a, "*")
+				allowConditions = allowConditions.Or("rkey LIKE ?", prefix+"%")
+			} else {
+				// Exact match
+				allowConditions = allowConditions.Or("rkey = ?", a)
+			}
 		}
+		query = query.Where(allowConditions)
 	}
-	query = query.Where(allowOr)
 
 	// Build deny conditions - use NOT LIKE or != for each deny pattern
 	for _, d := range deny {
 		if strings.HasSuffix(d, "*") {
-			query = query.Where(sq.NotLike{"rkey": strings.TrimSuffix(d, "*") + "%"})
+			prefix := strings.TrimSuffix(d, "*")
+			query = query.Where("rkey NOT LIKE ?", prefix+"%")
 		} else {
-			query = query.Where(sq.NotEq{"rkey": d})
+			query = query.Where("rkey != ?", d)
 		}
 	}
 
+	// Cursor-based pagination
 	if params.Cursor != "" {
-		query = query.Where(sq.Gt{"rkey": params.Cursor})
+		query = query.Where("rkey > ?", params.Cursor)
 	}
+
+	// Limit
 	if params.Limit != 0 {
-		query = query.Limit(uint64(params.Limit))
+		query = query.Limit(int(params.Limit))
 	}
-	rows, err := query.RunWith(r.db).Query()
+
+	// Order by rkey for consistent pagination
+	query = query.Order("rkey ASC")
+
+	// Execute query
+	rows, err := query.Find(context.Background())
 	if err != nil {
 		return nil, fmt.Errorf("query failed: %w", err)
 	}
-	records := []record{}
-	for rows.Next() {
-		var rec string
-		if err := rows.Scan(&rec); err != nil {
-			return nil, fmt.Errorf("scan failed: %w", err)
-		}
-		var record record
-		if err := json.Unmarshal([]byte(rec), &record); err != nil {
-			return nil, fmt.Errorf("unmarshal failed: %w", err)
-		}
-		records = append(records, record)
-	}
-	return records, nil
+	return rows, nil
 }
