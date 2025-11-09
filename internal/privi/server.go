@@ -69,7 +69,12 @@ func (s *Server) PutRecord(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if ownerId.DID.String() != callerDID.String() {
-		utils.LogAndHTTPError(w, err, "only owner can put record", http.StatusUnauthorized)
+		utils.LogAndHTTPError(
+			w,
+			fmt.Errorf("only owner can put record"),
+			"only owner can put record",
+			http.StatusMethodNotAllowed,
+		)
 		return
 	}
 
@@ -92,8 +97,11 @@ func (s *Server) PutRecord(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, err := w.Write([]byte("OK")); err != nil {
-		log.Err(err).Msgf("error sending response for PutRecord request")
+	if err = json.NewEncoder(w).Encode(&habitat.NetworkHabitatRepoPutRecordOutput{
+		Uri: fmt.Sprintf("habitat://%s/%s/%s", ownerId.DID.String(), req.Collection, rkey),
+	}); err != nil {
+		utils.LogAndHTTPError(w, err, "encoding response", http.StatusInternalServerError)
+		return
 	}
 }
 
@@ -137,8 +145,19 @@ func (s *Server) GetRecord(w http.ResponseWriter, r *http.Request) {
 		utils.LogAndHTTPError(w, err, "getting record", http.StatusInternalServerError)
 		return
 	}
-
-	if json.NewEncoder(w).Encode(record) != nil {
+	output := &habitat.NetworkHabitatRepoGetRecordOutput{
+		Uri: fmt.Sprintf(
+			"habitat://%s/%s/%s",
+			targetDID.String(),
+			params.Collection,
+			params.Rkey,
+		),
+	}
+	if err := json.Unmarshal([]byte(record.Rec), &output.Value); err != nil {
+		utils.LogAndHTTPError(w, err, "unmarshalling record", http.StatusInternalServerError)
+		return
+	}
+	if json.NewEncoder(w).Encode(output) != nil {
 		utils.LogAndHTTPError(w, err, "encoding response", http.StatusInternalServerError)
 		return
 	}
@@ -234,7 +253,27 @@ func (s *Server) ListRecords(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if json.NewEncoder(w).Encode(records) != nil {
+	output := &habitat.NetworkHabitatRepoListRecordsOutput{
+		Records: []habitat.NetworkHabitatRepoListRecordsRecord{},
+	}
+	for _, record := range records {
+		rkeyParts := strings.Split(record.Rkey, ".")
+		rkey := rkeyParts[len(rkeyParts)-1]
+		next := habitat.NetworkHabitatRepoListRecordsRecord{
+			Uri: fmt.Sprintf(
+				"habitat://%s/%s/%s",
+				params.Repo,
+				params.Collection,
+				rkey,
+			),
+		}
+		if err := json.Unmarshal([]byte(record.Rec), &next.Value); err != nil {
+			utils.LogAndHTTPError(w, err, "unmarshalling record", http.StatusInternalServerError)
+			return
+		}
+		output.Records = append(output.Records, next)
+	}
+	if json.NewEncoder(w).Encode(output) != nil {
 		utils.LogAndHTTPError(w, err, "encoding response", http.StatusInternalServerError)
 		return
 	}
