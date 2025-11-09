@@ -1,20 +1,18 @@
 package permissions
 
 import (
-	"database/sql"
 	"testing"
 
-	sq "github.com/Masterminds/squirrel"
-	_ "github.com/mattn/go-sqlite3"
 	"github.com/stretchr/testify/require"
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
 )
 
 func TestSQLiteStoreBasicPermissions(t *testing.T) {
-	db, err := sql.Open("sqlite3", ":memory:")
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
 	require.NoError(t, err)
-	defer func() { require.NoError(t, db.Close(), "failed to close db") }()
 
-	store, err := NewStore(db)
+	store, err := NewSQLiteStore(db)
 	require.NoError(t, err)
 
 	// Test: Owner always has permission
@@ -55,11 +53,10 @@ func TestSQLiteStoreBasicPermissions(t *testing.T) {
 }
 
 func TestSQLiteStorePrefixPermissions(t *testing.T) {
-	db, err := sql.Open("sqlite3", ":memory:")
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
 	require.NoError(t, err)
-	defer func() { require.NoError(t, db.Close(), "failed to close db") }()
 
-	store, err := NewStore(db)
+	store, err := NewSQLiteStore(db)
 	require.NoError(t, err)
 
 	// Grant permission to all "com.habitat.*" lexicons
@@ -86,11 +83,10 @@ func TestSQLiteStorePrefixPermissions(t *testing.T) {
 }
 
 func TestSQLiteStoreMultipleGrantees(t *testing.T) {
-	db, err := sql.Open("sqlite3", ":memory:")
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
 	require.NoError(t, err)
-	defer func() { require.NoError(t, db.Close(), "failed to close db") }()
 
-	store, err := NewStore(db)
+	store, err := NewSQLiteStore(db)
 	require.NoError(t, err)
 
 	// Grant permissions to multiple users
@@ -114,11 +110,10 @@ func TestSQLiteStoreMultipleGrantees(t *testing.T) {
 }
 
 func TestSQLiteStoreListByUser(t *testing.T) {
-	db, err := sql.Open("sqlite3", ":memory:")
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
 	require.NoError(t, err)
-	defer func() { require.NoError(t, db.Close(), "failed to close db") }()
 
-	store, err := NewStore(db)
+	store, err := NewSQLiteStore(db)
 	require.NoError(t, err)
 
 	// Grant bob access to com.habitat.posts
@@ -140,11 +135,10 @@ func TestSQLiteStoreListByUser(t *testing.T) {
 }
 
 func TestSQLiteStorePermissionHierarchy(t *testing.T) {
-	db, err := sql.Open("sqlite3", ":memory:")
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
 	require.NoError(t, err)
-	defer func() { require.NoError(t, db.Close(), "failed to close db") }()
 
-	store, err := NewStore(db)
+	store, err := NewSQLiteStore(db)
 	require.NoError(t, err)
 
 	// Grant broad permission
@@ -175,11 +169,10 @@ func TestSQLiteStorePermissionHierarchy(t *testing.T) {
 }
 
 func TestSQLiteStoreEmptyRecordKey(t *testing.T) {
-	db, err := sql.Open("sqlite3", ":memory:")
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
 	require.NoError(t, err)
-	defer func() { require.NoError(t, db.Close(), "failed to close db") }()
 
-	store, err := NewStore(db)
+	store, err := NewSQLiteStore(db)
 	require.NoError(t, err)
 
 	// Grant permission
@@ -193,11 +186,10 @@ func TestSQLiteStoreEmptyRecordKey(t *testing.T) {
 }
 
 func TestSQLiteStoreMultipleOwners(t *testing.T) {
-	db, err := sql.Open("sqlite3", ":memory:")
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
 	require.NoError(t, err)
-	defer func() { require.NoError(t, db.Close(), "failed to close db") }()
 
-	store, err := NewStore(db)
+	store, err := NewSQLiteStore(db)
 	require.NoError(t, err)
 
 	// Grant bob access to alice's posts
@@ -237,11 +229,10 @@ func TestSQLiteStoreMultipleOwners(t *testing.T) {
 }
 
 func TestSQLiteStoreDenyOverridesAllow(t *testing.T) {
-	db, err := sql.Open("sqlite3", ":memory:")
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
 	require.NoError(t, err)
-	defer func() { require.NoError(t, db.Close(), "failed to close db") }()
 
-	store, err := NewStore(db)
+	store, err := NewSQLiteStore(db)
 	require.NoError(t, err)
 
 	// Grant bob broad access to com.habitat
@@ -258,12 +249,14 @@ func TestSQLiteStoreDenyOverridesAllow(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, hasPermission)
 
-	// Now add a deny rule for likes specifically
-	_, err = sq.Insert("permissions").
-		Columns("grantee", "owner", "object", "effect").
-		Values("bob", "alice", "com.habitat.likes", "deny").
-		RunWith(db).
-		Exec()
+	// Now add a deny rule for likes specifically using GORM
+	denyPermission := Permission{
+		Grantee: "bob",
+		Owner:   "alice",
+		Object:  "com.habitat.likes",
+		Effect:  "deny",
+	}
+	err = db.Create(&denyPermission).Error
 	require.NoError(t, err)
 
 	// Bob should still have access to posts
