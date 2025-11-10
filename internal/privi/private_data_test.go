@@ -18,8 +18,9 @@ func TestControllerPrivateDataPutGet(t *testing.T) {
 		"someKey": "someVal",
 	}
 
-	dummy := permissions.NewDummyStore()
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	require.NoError(t, err)
+	dummy, err := permissions.NewSQLiteStore(db)
 	require.NoError(t, err)
 	repo, err := NewSQLiteRepo(db)
 	require.NoError(t, err)

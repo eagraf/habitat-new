@@ -4,7 +4,6 @@ go 1.25.1
 
 require (
 	github.com/bluesky-social/indigo v0.0.0-20251020231157-aa7fd7f7a301
-	github.com/casbin/casbin/v2 v2.104.0
 	github.com/docker/docker v26.1.4+incompatible
 	github.com/docker/go-connections v0.5.0
 	github.com/evanphx/json-patch/v5 v5.9.0
@@ -22,6 +21,8 @@ require (
 	github.com/rs/zerolog v1.31.0
 	github.com/spf13/viper v1.18.2
 	github.com/stretchr/testify v1.11.1
+	github.com/urfave/cli-altsrc/v3 v3.1.0
+	github.com/urfave/cli/v3 v3.4.1
 	github.com/wI2L/jsondiff v0.5.1
 	golang.org/x/mod v0.28.0
 	golang.org/x/oauth2 v0.30.0
@@ -35,8 +36,6 @@ require (
 require (
 	github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
-	github.com/bmatcuk/doublestar/v4 v4.6.1 // indirect
-	github.com/casbin/govaluate v1.3.0 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.5 // indirect
