@@ -10,20 +10,20 @@ import (
 )
 
 var (
-	cDebug      = "debug"
-	cDomain     = "domain"
-	cDb         = "db"
-	cPort       = "port"
-	cHttpsCerts = "httpscerts"
+	fDebug      = "debug"
+	fDomain     = "domain"
+	fDb         = "db"
+	fPort       = "port"
+	fHttpsCerts = "httpscerts"
 )
 var profiles []string
 
 func getFlags() ([]cli.Flag, []cli.MutuallyExclusiveFlags) {
 	return []cli.Flag{
 		&cli.BoolFlag{
-			Name:    cDebug,
+			Name:    fDebug,
 			Usage:   "Enable debug mode",
-			Sources: getSources(cDebug),
+			Sources: getSources(fDebug),
 		},
 		&cli.StringSliceFlag{
 			Name:        "profile",
@@ -32,27 +32,27 @@ func getFlags() ([]cli.Flag, []cli.MutuallyExclusiveFlags) {
 			Destination: &profiles,
 		},
 		&cli.StringFlag{
-			Name:     cDomain,
+			Name:     fDomain,
 			Required: true,
 			Usage:    "The publicly available domain at which the server can be found",
-			Sources:  getSources(cDomain),
+			Sources:  getSources(fDomain),
 		},
 		&cli.StringFlag{
-			Name:    cDb,
+			Name:    fDb,
 			Usage:   "The path to the sqlite file to use as the backing database for this server",
 			Value:   "./repo.db",
-			Sources: getSources(cDb),
+			Sources: getSources(fDb),
 		},
 		&cli.StringFlag{
-			Name:    cPort,
+			Name:    fPort,
 			Usage:   "The port on which to run the server",
 			Value:   "8000",
-			Sources: getSources(cPort),
+			Sources: getSources(fPort),
 		},
 		&cli.StringFlag{
-			Name:    cHttpsCerts,
+			Name:    fHttpsCerts,
 			Usage:   "The directory in which TLS certs can be found. Should contain fullchain.pem and privkey.pem",
-			Sources: getSources(cHttpsCerts),
+			Sources: getSources(fHttpsCerts),
 		},
 	}, []cli.MutuallyExclusiveFlags{}
 }

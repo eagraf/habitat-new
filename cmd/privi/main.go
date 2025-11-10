@@ -33,7 +33,7 @@ func run(_ context.Context, cmd *cli.Command) error {
 	for _, flag := range cmd.FlagNames() {
 		log.Info().Msgf("%s: %v", flag, cmd.Value(flag))
 	}
-	dbPath := cmd.String(cDb)
+	dbPath := cmd.String(fDb)
 	// Create database file if it does not exist
 	_, err := os.Stat(dbPath)
 	if errors.Is(err, os.ErrNotExist) {
@@ -99,7 +99,7 @@ func run(_ context.Context, cmd *cli.Command) error {
     }
   ]
 }`
-		domain := cmd.String(cDomain)
+		domain := cmd.String(fDomain)
 		_, err := fmt.Fprintf(w, template, domain, domain)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -107,14 +107,14 @@ func run(_ context.Context, cmd *cli.Command) error {
 		}
 	})
 
-	port := cmd.String(cPort)
+	port := cmd.String(fPort)
 	s := &http.Server{
 		Handler: loggingMiddleware(mux),
 		Addr:    fmt.Sprintf(":%s", port),
 	}
 
 	fmt.Println("Starting server on port :" + port)
-	certs := cmd.String(cHttpsCerts)
+	certs := cmd.String(fHttpsCerts)
 	if certs == "" {
 		return s.ListenAndServe()
 	}
