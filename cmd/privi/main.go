@@ -175,14 +175,11 @@ func setupOAuthServer(cmd *cli.Command) *oauthserver.OAuthServer {
 		log.Fatal().Err(err).Msgf("unable to setup oauth client")
 	}
 
-	oauthServer, err := oauthserver.NewOAuthServer(
+	oauthServer := oauthserver.NewOAuthServer(
 		oauthClient,
 		sessions.NewCookieStore([]byte("my super secret signing password")),
 		identity.DefaultDirectory(),
 	)
-	if err != nil {
-		log.Fatal().Err(err).Msgf("unable to setup oauth server")
-	}
 	return oauthServer
 }
 

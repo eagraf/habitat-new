@@ -23,12 +23,11 @@ func TestOAuthServerE2E(t *testing.T) {
 	oauthClient := oauthserver.NewDummyOAuthClient(t, serverMetadata)
 	defer oauthClient.Close()
 
-	oauthServer, err := oauthserver.NewOAuthServer(
+	oauthServer := oauthserver.NewOAuthServer(
 		oauthClient,
 		sessions.NewCookieStore(securecookie.GenerateRandomKey(32)),
 		auth.NewDummyDirectory("http://pds.url"),
 	)
-	require.NoError(t, err)
 
 	// setup http server oauth client to make requests to
 	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
