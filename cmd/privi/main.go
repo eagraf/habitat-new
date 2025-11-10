@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 	"net/http"
@@ -13,6 +12,8 @@ import (
 	"github.com/eagraf/habitat-new/internal/privi"
 	"github.com/rs/zerolog/log"
 	"github.com/urfave/cli/v3"
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
 )
 
 func main() {
@@ -45,7 +46,7 @@ func run(_ context.Context, cmd *cli.Command) error {
 		return fmt.Errorf("error finding privi repo file: %w", err)
 	}
 
-	priviDB, err := sql.Open("sqlite3", dbPath)
+	priviDB, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
 	if err != nil {
 		return fmt.Errorf("unable to open sqlite file backing privi server: %w", err)
 	}
