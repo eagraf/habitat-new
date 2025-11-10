@@ -130,7 +130,7 @@ func setupPriviServer(db *gorm.DB, oauthServer *oauthserver.OAuthServer) *privi.
 func setupOAuthServer(cmd *cli.Command) *oauthserver.OAuthServer {
 	keyFile := cmd.String(fKeyFile)
 
-	jwkBytes := []byte{}
+	var jwkBytes []byte
 	_, err := os.Stat(keyFile)
 	if err != nil {
 		if !errors.Is(err, os.ErrNotExist) {
@@ -159,6 +159,9 @@ func setupOAuthServer(cmd *cli.Command) *oauthserver.OAuthServer {
 	} else {
 		// Read JWK from file
 		jwkBytes, err = os.ReadFile(keyFile)
+		if err != nil {
+			log.Fatal().Err(err).Msgf("failed to read key from file")
+		}
 	}
 
 	domain := cmd.String(fDomain)
