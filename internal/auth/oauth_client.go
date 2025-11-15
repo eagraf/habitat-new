@@ -37,7 +37,10 @@ type ClientMetadata struct {
 
 type OAuthClient interface {
 	ClientMetadata() *ClientMetadata
-	Authorize(dpopClient *DpopHttpClient, i *identity.Identity) (string, *AuthorizeState, error)
+	Authorize(
+		dpopClient *DpopHttpClient,
+		i *identity.Identity,
+	) (redirectUri string, state *AuthorizeState, err error)
 	ExchangeCode(
 		dpopClient *DpopHttpClient,
 		code string,
@@ -152,11 +155,11 @@ func (o *oauthClientImpl) Authorize(
 }
 
 type TokenResponse struct {
-	AccessToken  string `json:"access_token"`
-	RefreshToken string `json:"refresh_token"`
-	Scope        string `json:"scope"`
-	TokenType    string `json:"token_type"`
-	ExpiresIn    int    `json:"expires_in"`
+	AccessToken  string `json:"access_token" cbor:"1,keyasint"`
+	RefreshToken string `json:"refresh_token" cbor:"2,keyasint"`
+	Scope        string `json:"scope" cbor:"3,keyasint"`
+	TokenType    string `json:"token_type" cbor:"4,keyasint"`
+	ExpiresIn    int    `json:"expires_in" cbor:"5,keyasint"`
 }
 
 // ExchangeCode implements OAuthClient.
