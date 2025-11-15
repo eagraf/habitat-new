@@ -69,9 +69,9 @@ func TestSQLiteRepoListRecords(t *testing.T) {
 	require.NoError(t, err)
 
 	records, err := repo.listRecords(
-		habitat.NetworkHabitatRepoListRecordsParams{
+		&habitat.NetworkHabitatRepoListRecordsParams{
 			Repo:       "my-did",
-			Collection: "my-collection",
+			Collection: "network.habitat.collection-1",
 		},
 		[]string{},
 		[]string{},
@@ -80,9 +80,9 @@ func TestSQLiteRepoListRecords(t *testing.T) {
 	require.Len(t, records, 0)
 
 	records, err = repo.listRecords(
-		habitat.NetworkHabitatRepoListRecordsParams{
+		&habitat.NetworkHabitatRepoListRecordsParams{
 			Repo:       "my-did",
-			Collection: "my-collection",
+			Collection: "network.habitat.collection-1",
 		},
 		[]string{"network.habitat.collection-1.key-1", "network.habitat.collection-1.key-2"},
 		[]string{},
@@ -91,9 +91,9 @@ func TestSQLiteRepoListRecords(t *testing.T) {
 	require.Len(t, records, 2)
 
 	records, err = repo.listRecords(
-		habitat.NetworkHabitatRepoListRecordsParams{
+		&habitat.NetworkHabitatRepoListRecordsParams{
 			Repo:       "my-did",
-			Collection: "my-collection",
+			Collection: "network.habitat.collection-1",
 		},
 		[]string{"network.habitat.collection-1.*"},
 		[]string{},
@@ -102,9 +102,9 @@ func TestSQLiteRepoListRecords(t *testing.T) {
 	require.Len(t, records, 2)
 
 	records, err = repo.listRecords(
-		habitat.NetworkHabitatRepoListRecordsParams{
+		&habitat.NetworkHabitatRepoListRecordsParams{
 			Repo:       "my-did",
-			Collection: "my-collection",
+			Collection: "network.habitat.collection-1",
 		},
 		[]string{"network.habitat.collection-1.*"},
 		[]string{"network.habitat.collection-1.key-1"},
@@ -113,15 +113,26 @@ func TestSQLiteRepoListRecords(t *testing.T) {
 	require.Len(t, records, 1)
 
 	records, err = repo.listRecords(
-		habitat.NetworkHabitatRepoListRecordsParams{
+		&habitat.NetworkHabitatRepoListRecordsParams{
 			Repo:       "my-did",
-			Collection: "my-collection",
+			Collection: "network.habitat.collection-2",
 		},
 		[]string{"network.habitat.*"},
-		[]string{"network.habitat.collection-1.key-1"},
+		[]string{},
 	)
 	require.NoError(t, err)
-	require.Len(t, records, 2)
+	require.Len(t, records, 1)
+
+	records, err = repo.listRecords(
+		&habitat.NetworkHabitatRepoListRecordsParams{
+			Repo:       "my-did",
+			Collection: "network.habitat.collection-2",
+		},
+		[]string{"network.habitat.*"},
+		[]string{"network.habitat.collection-2.*"},
+	)
+	require.NoError(t, err)
+	require.Len(t, records, 0)
 }
 
 func TestUploadAndGetBlob(t *testing.T) {

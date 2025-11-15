@@ -80,7 +80,7 @@ func (p *store) getRecord(
 }
 
 func (p *store) listRecords(
-	params habitat.NetworkHabitatRepoListRecordsParams,
+	params *habitat.NetworkHabitatRepoListRecordsParams,
 	callerDID syntax.DID,
 ) ([]Record, error) {
 	allow, deny, err := p.permissions.ListReadPermissionsByUser(

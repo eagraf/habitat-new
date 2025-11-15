@@ -258,7 +258,7 @@ func (s *Server) ListRecords(w http.ResponseWriter, r *http.Request) {
 	}
 
 	params.Repo = id.DID.String()
-	records, err := s.store.listRecords(params, callerDID)
+	records, err := s.store.listRecords(&params, callerDID)
 	if err != nil {
 		utils.LogAndHTTPError(w, err, "listing records", http.StatusInternalServerError)
 		return

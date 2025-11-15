@@ -193,7 +193,7 @@ func (r *sqliteRepo) getBlob(
 
 // listRecords implements repo.
 func (r *sqliteRepo) listRecords(
-	params habitat.NetworkHabitatRepoListRecordsParams,
+	params *habitat.NetworkHabitatRepoListRecordsParams,
 	allow []string,
 	deny []string,
 ) ([]Record, error) {
@@ -201,7 +201,10 @@ func (r *sqliteRepo) listRecords(
 		return []Record{}, nil
 	}
 
-	query := gorm.G[Record](r.db.Debug()).Where("did = ?", params.Repo)
+	query := gorm.G[Record](
+		r.db.Debug(),
+	).Where("did = ?", params.Repo).
+		Where("rkey LIKE ?", params.Collection+".%")
 
 	// Build OR conditions for allow list
 	if len(allow) > 0 {
