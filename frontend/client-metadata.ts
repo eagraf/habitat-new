@@ -12,4 +12,7 @@ export default (domain: string) =>
       token_endpoint_auth_method: "none",
       application_type: "web",
       dpop_bound_access_tokens: true,
-   }) satisfies OAuthClientMetadata;
+   }) satisfies Omit<
+      OAuthClientMetadata,
+      "subject_type" | "authorization_signed_response_alg"
+   >;

@@ -3,7 +3,10 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/")({
   async loader() {
-    const webAppInstallations = await getWebApps();
+    let webAppInstallations: any[] = [];
+    try {
+      webAppInstallations = await getWebApps();
+    } catch { }
     const filteredWebApps = webAppInstallations
       .filter((app: any) => app.driver === "web")
       .map((app: any) => ({
@@ -11,7 +14,7 @@ export const Route = createFileRoute("/")({
         name: app.name,
         description: "No description available",
         icon: "🌐", // Default icon for web apps
-        link: (app.url as string) || "#",
+        link: app.url || "#",
       }));
 
     return [
