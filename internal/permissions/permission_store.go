@@ -182,10 +182,7 @@ func (s *sqliteStore) ListReadPermissionsByUser(
 	}
 	// Query all permissions for this grantee/owner combination
 	// that could match the given NSID
-	// We need to check:
-	// 1. Exact match: object = "nsid"
-	// 2. Parent prefix that matches: nsid LIKE object || ".%"
-	// 3. Child permissions: object LIKE nsid || ".%"
+	// object = nsid OR object = nsid.*
 	var permissions []Permission
 	err := s.db.Where("grantee = ?", requester).
 		Where("owner = ?", owner).
