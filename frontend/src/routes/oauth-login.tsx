@@ -1,5 +1,5 @@
 import { useMutation } from "@tanstack/react-query";
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import type { FormEvent } from "react";
 
 export const Route = createFileRoute("/oauth-login")({
@@ -14,7 +14,6 @@ export const Route = createFileRoute("/oauth-login")({
   async beforeLoad({ search, context }) {
     if (search.code) {
       await context.authManager.exchangeCode(window.location.href);
-      return redirect({ to: "/" });
     }
   },
   component() {
@@ -24,10 +23,7 @@ export const Route = createFileRoute("/oauth-login")({
         e.preventDefault();
         const formData = new FormData(e.target as HTMLFormElement);
         const handle = formData.get("handle") as string;
-        const url = authManager.loginUrl(
-          handle,
-          `https://${__DOMAIN__}/oauth-login`,
-        );
+        const url = authManager.loginUrl(handle, `https://${__DOMAIN__}`);
         window.location.href = url.toString();
       },
       onError(e) {
