@@ -2,6 +2,12 @@ import { getWebApps } from "@/api/node";
 import { createFileRoute, Link } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/")({
+  async beforeLoad({ search, context }) {
+    if ("code" in search) {
+      await context.authManager.exchangeCode(window.location.href);
+      window.location.search = "";
+    }
+  },
   async loader() {
     let webAppInstallations: any[] = [];
     try {
