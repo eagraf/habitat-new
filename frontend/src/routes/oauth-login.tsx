@@ -3,19 +3,6 @@ import { createFileRoute } from "@tanstack/react-router";
 import type { FormEvent } from "react";
 
 export const Route = createFileRoute("/oauth-login")({
-  validateSearch(search) {
-    if (!search.code) {
-      return {};
-    }
-    return {
-      code: search.code as string,
-    };
-  },
-  async beforeLoad({ search, context }) {
-    if (search.code) {
-      await context.authManager.exchangeCode(window.location.href);
-    }
-  },
   component() {
     const { authManager } = Route.useRouteContext();
     const { mutate: handleSubmit, isPending } = useMutation({
