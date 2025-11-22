@@ -3,37 +3,44 @@ import { ThemedView } from "@/components/themed-view";
 import { CameraCapturedPicture, CameraType, CameraView, useCameraPermissions } from "expo-camera";
 import { Stack, useNavigation, useRouter } from "expo-router";
 import { useRef, useEffect, useState } from "react";
-import { Button, TouchableHighlight } from "react-native";
+import { Button, Platform, TouchableHighlight } from "react-native";
 
-const Home = () => {
-  const cameraRef = useRef<CameraView>(null);
-  const router = useRouter();
-  const [permission, requestPermission] = useCameraPermissions();
-  const [facing, setFacing] = useState<CameraType>('back');
+const cleanBase64 = (data: string) => {
+  if (data.startsWith("data:")) {
+    return data.substring(data.indexOf(",") + 1);
+  }
+  return data;
+}
 
-  async function uploadPhoto(photo: CameraCapturedPicture) {
-    const res = await fetch(
-      "https://privi.taile529e.ts.net/xrpc/network.habitat.uploadBlob",
-      {
-        method: 'POST',
-        body: photo.base64,
-        headers: {
-          'Content-Type': photo.format
-        },
-      }
-    )
+// Can't use form data because we are uploading directly to uploadBlob, not a special endpoint for photos
+const uploadPhoto = async (photo: CameraCapturedPicture) => {
+  // Convert base64 to binary
+  try {
+    const base64 = cleanBase64(photo.base64!)
+    const binary = atob(base64)
+    const len = binary.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+    // Upload without FormData
+    const res = await fetch("https://privi.taile529e.ts.net/xrpc/network.habitat.uploadBlob", {
+      method: "POST",
+      headers: {
+        "Content-Type": `image/jpeg`,
+      },
+      body: bytes,   // raw jpeg bytes
+    });
 
     if (!res || !res.ok) {
-      console.error("uploading photo blob", res)
-      return
+      throw new Error("uploading photo blob")
     }
 
     const upload = await res.json()
     const cid = upload["blob"]["cid"]["$link"]
 
     if (cid == "") {
-      console.error("upload blob returned empty cid")
-      return
+      throw new Error("upload blob returned empty cid")
     }
 
     const res2 = await fetch(
@@ -51,12 +58,18 @@ const Home = () => {
     )
 
     if (!res2 || !res2.ok) {
-      console.error("uploading photo record", res2)
-      return
+      throw new Error("uploading photo record")
     }
-
-    console.log("uploaded photo record, response is: ", await res2.blob())
+  } catch (e) {
+    console.error("Unable to upload photo because: ", e)
   }
+}
+
+const Home = () => {
+  const cameraRef = useRef<CameraView>(null);
+  const router = useRouter();
+  const [permission, requestPermission] = useCameraPermissions();
+  const [facing, setFacing] = useState<CameraType>('back');
 
   useEffect(() => {
     if (!permission?.granted) {
@@ -86,7 +99,8 @@ const Home = () => {
       <TouchableHighlight
         onPress={async () => {
           const photo = await cameraRef.current?.takePictureAsync({
-            quality: 0.1,
+            base64: true,
+            imageType: 'jpg'
           });
           if (!photo) {
             console.error("camera.takePictureAsync returned undefined")

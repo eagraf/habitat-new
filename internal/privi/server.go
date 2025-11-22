@@ -274,6 +274,7 @@ func (s *Server) GetBlob(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", mimeType)
+	w.Header().Set("Content-Length", fmt.Sprint(len(blob)))
 	_, err = w.Write(blob)
 	if err != nil {
 		utils.LogAndHTTPError(
@@ -302,19 +303,22 @@ func (s *Server) ListRecords(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Try handling both handles and dids
-	atid, err := syntax.ParseAtIdentifier(params.Repo)
-	if err != nil {
-		utils.LogAndHTTPError(w, err, "parsing at identifier", http.StatusBadRequest)
-		return
-	}
+	/*
+		atid, err := syntax.ParseAtIdentifier(params.Repo)
+		if err != nil {
+			utils.LogAndHTTPError(w, err, "parsing at identifier", http.StatusBadRequest)
+			return
+		}
 
-	id, err := s.dir.Lookup(r.Context(), *atid)
-	if err != nil {
-		utils.LogAndHTTPError(w, err, "identity lookup", http.StatusBadRequest)
-		return
-	}
+		id, err := s.dir.Lookup(r.Context(), *atid)
+		if err != nil {
+			utils.LogAndHTTPError(w, err, "identity lookup", http.StatusBadRequest)
+			return
+		}
+		params.Repo = id.DID.String()
+	*/
 
-	params.Repo = id.DID.String()
+	params.Repo = "test"
 	records, err := s.store.listRecords(&params, syntax.DID(callerDID))
 	if err != nil {
 		utils.LogAndHTTPError(w, err, "listing records", http.StatusInternalServerError)
