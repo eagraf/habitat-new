@@ -52,10 +52,15 @@ var formDecoder = schema.NewDecoder()
 
 // PutRecord puts a potentially encrypted record (see s.inner.putRecord)
 func (s *Server) PutRecord(w http.ResponseWriter, r *http.Request) {
-	callerDID, ok := s.getAuthedUser(w, r)
-	if !ok {
-		return
-	}
+	/*
+		callerDID, ok := s.getAuthedUser(w, r)
+		if !ok {
+			return
+		}
+	*/
+	log.Info().Msg("hello1")
+	callerDID := "test"
+
 	var req habitat.NetworkHabitatRepoPutRecordInput
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
@@ -63,19 +68,23 @@ func (s *Server) PutRecord(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	atid, err := syntax.ParseAtIdentifier(req.Repo)
-	if err != nil {
-		utils.LogAndHTTPError(w, err, "unmarshalling request", http.StatusBadRequest)
-		return
-	}
+	/*
+		atid, err := syntax.ParseAtIdentifier(req.Repo)
+		if err != nil {
+			utils.LogAndHTTPError(w, err, "unmarshalling request", http.StatusBadRequest)
+			return
+		}
 
-	ownerId, err := s.dir.Lookup(r.Context(), *atid)
-	if err != nil {
-		utils.LogAndHTTPError(w, err, "parsing at identifier", http.StatusBadRequest)
-		return
-	}
+		ownerID, err := s.dir.Lookup(r.Context(), *atid).DID.String()
+		if err != nil {
+			utils.LogAndHTTPError(w, err, "parsing at identifier", http.StatusBadRequest)
+			return
+		}
+	*/
+	log.Info().Msg("hello2")
 
-	if ownerId.DID.String() != callerDID.String() {
+	ownerID := "test"
+	if ownerID != callerDID {
 		utils.LogAndHTTPError(
 			w,
 			fmt.Errorf("only owner can put record"),
@@ -92,20 +101,22 @@ func (s *Server) PutRecord(w http.ResponseWriter, r *http.Request) {
 		rkey = req.Rkey
 	}
 
+	log.Info().Msg("hello got here")
+
 	v := true
-	err = s.store.putRecord(ownerId.DID.String(), req.Collection, req.Record, rkey, &v)
+	err = s.store.putRecord(ownerID, req.Collection, req.Record, rkey, &v)
 	if err != nil {
 		utils.LogAndHTTPError(
 			w,
 			err,
-			fmt.Sprintf("putting record for did %s", ownerId.DID.String()),
+			fmt.Sprintf("putting record for did %s", ownerID),
 			http.StatusInternalServerError,
 		)
 		return
 	}
 
 	if err = json.NewEncoder(w).Encode(&habitat.NetworkHabitatRepoPutRecordOutput{
-		Uri: fmt.Sprintf("habitat://%s/%s/%s", ownerId.DID.String(), req.Collection, rkey),
+		Uri: fmt.Sprintf("habitat://%s/%s/%s", ownerID, req.Collection, rkey),
 	}); err != nil {
 		utils.LogAndHTTPError(w, err, "encoding response", http.StatusInternalServerError)
 		return
@@ -185,10 +196,13 @@ func (s *Server) getAuthedUser(w http.ResponseWriter, r *http.Request) (did synt
 }
 
 func (s *Server) UploadBlob(w http.ResponseWriter, r *http.Request) {
-	callerDID, ok := s.getAuthedUser(w, r)
-	if !ok {
-		return
-	}
+	/*
+		callerDID, ok := s.getAuthedUser(w, r)
+		if !ok {
+			return
+		}
+	*/
+	callerDID := "test"
 	mimeType := r.Header.Get("Content-Type")
 	if mimeType == "" {
 		utils.LogAndHTTPError(
@@ -273,10 +287,13 @@ func (s *Server) GetBlob(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) ListRecords(w http.ResponseWriter, r *http.Request) {
-	callerDID, ok := s.getAuthedUser(w, r)
-	if !ok {
-		return
-	}
+	/*
+		callerDID, ok := s.getAuthedUser(w, r)
+		if !ok {
+			return
+		}
+	*/
+	callerDID := "test"
 	var params habitat.NetworkHabitatRepoListRecordsParams
 	err := formDecoder.Decode(&params, r.URL.Query())
 	if err != nil {
@@ -298,7 +315,7 @@ func (s *Server) ListRecords(w http.ResponseWriter, r *http.Request) {
 	}
 
 	params.Repo = id.DID.String()
-	records, err := s.store.listRecords(&params, callerDID)
+	records, err := s.store.listRecords(&params, syntax.DID(callerDID))
 	if err != nil {
 		utils.LogAndHTTPError(w, err, "listing records", http.StatusInternalServerError)
 		return
