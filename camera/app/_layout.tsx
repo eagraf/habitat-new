@@ -27,15 +27,20 @@ export default function RootLayout() {
   // Pass auth and setAuth so signin can update it
   /*
   return (
-    <AuthContext.Provider value={{ auth, setAuth }}>
-      {!auth ? <SignIn setAuth={setAuth} /> : 
-      <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
-      <ThemedView style={{ flex: 1, paddingBottom: bottom }}>
-        <Stack />
-      </ThemedView>
-      <StatusBar style="auto" />
-    </ThemeProvider>}
-    </AuthContext.Provider>
+    <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
+      <AuthContext.Provider value={{ auth, setAuth }}>
+        {!auth ? (
+          <SignIn setAuth={setAuth} />
+        ) : (
+          <>
+            <ThemedView style={{ flex: 1, paddingBottom: bottom }}>
+              <Stack />
+            </ThemedView>
+            <StatusBar style="auto" />
+          </>
+        )}
+      </AuthContext.Provider>
+    </ThemeProvider>
   );
    */
 
