@@ -9,11 +9,8 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as ServerRouteImport } from './routes/server'
 import { Route as OauthLoginRouteImport } from './routes/oauth-login'
 import { Route as LoginRouteImport } from './routes/login'
-import { Route as AppStoreRouteImport } from './routes/app-store'
-import { Route as AddUserRouteImport } from './routes/add-user'
 import { Route as RequireAuthRouteImport } from './routes/_requireAuth'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as RequireAuthPermissionsRouteImport } from './routes/_requireAuth/permissions'
@@ -27,11 +24,6 @@ import { Route as RequireAuthPermissionsLexiconsIndexRouteImport } from './route
 import { Route as RequireAuthPermissionsGroupsIndexRouteImport } from './routes/_requireAuth/permissions/groups/index'
 import { Route as RequireAuthPermissionsLexiconsLexiconIdRouteImport } from './routes/_requireAuth/permissions/lexicons/$lexiconId'
 
-const ServerRoute = ServerRouteImport.update({
-  id: '/server',
-  path: '/server',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const OauthLoginRoute = OauthLoginRouteImport.update({
   id: '/oauth-login',
   path: '/oauth-login',
@@ -40,16 +32,6 @@ const OauthLoginRoute = OauthLoginRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AppStoreRoute = AppStoreRouteImport.update({
-  id: '/app-store',
-  path: '/app-store',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AddUserRoute = AddUserRouteImport.update({
-  id: '/add-user',
-  path: '/add-user',
   getParentRoute: () => rootRouteImport,
 } as any)
 const RequireAuthRoute = RequireAuthRouteImport.update({
@@ -123,11 +105,8 @@ const RequireAuthPermissionsLexiconsLexiconIdRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/add-user': typeof AddUserRoute
-  '/app-store': typeof AppStoreRoute
   '/login': typeof LoginRoute
   '/oauth-login': typeof OauthLoginRoute
-  '/server': typeof ServerRoute
   '/permissions': typeof RequireAuthPermissionsRouteWithChildren
   '/permissions/lexicons': typeof RequireAuthPermissionsLexiconsRouteWithChildren
   '/permissions/people': typeof RequireAuthPermissionsPeopleRoute
@@ -141,11 +120,8 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/add-user': typeof AddUserRoute
-  '/app-store': typeof AppStoreRoute
   '/login': typeof LoginRoute
   '/oauth-login': typeof OauthLoginRoute
-  '/server': typeof ServerRoute
   '/permissions/people': typeof RequireAuthPermissionsPeopleRoute
   '/privi-test/view': typeof RequireAuthPriviTestViewRoute
   '/blob-test': typeof RequireAuthBlobTestIndexRoute
@@ -159,11 +135,8 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_requireAuth': typeof RequireAuthRouteWithChildren
-  '/add-user': typeof AddUserRoute
-  '/app-store': typeof AppStoreRoute
   '/login': typeof LoginRoute
   '/oauth-login': typeof OauthLoginRoute
-  '/server': typeof ServerRoute
   '/_requireAuth/permissions': typeof RequireAuthPermissionsRouteWithChildren
   '/_requireAuth/permissions/lexicons': typeof RequireAuthPermissionsLexiconsRouteWithChildren
   '/_requireAuth/permissions/people': typeof RequireAuthPermissionsPeopleRoute
@@ -179,11 +152,8 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
-    | '/add-user'
-    | '/app-store'
     | '/login'
     | '/oauth-login'
-    | '/server'
     | '/permissions'
     | '/permissions/lexicons'
     | '/permissions/people'
@@ -197,11 +167,8 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/add-user'
-    | '/app-store'
     | '/login'
     | '/oauth-login'
-    | '/server'
     | '/permissions/people'
     | '/privi-test/view'
     | '/blob-test'
@@ -214,11 +181,8 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/_requireAuth'
-    | '/add-user'
-    | '/app-store'
     | '/login'
     | '/oauth-login'
-    | '/server'
     | '/_requireAuth/permissions'
     | '/_requireAuth/permissions/lexicons'
     | '/_requireAuth/permissions/people'
@@ -234,22 +198,12 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   RequireAuthRoute: typeof RequireAuthRouteWithChildren
-  AddUserRoute: typeof AddUserRoute
-  AppStoreRoute: typeof AppStoreRoute
   LoginRoute: typeof LoginRoute
   OauthLoginRoute: typeof OauthLoginRoute
-  ServerRoute: typeof ServerRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/server': {
-      id: '/server'
-      path: '/server'
-      fullPath: '/server'
-      preLoaderRoute: typeof ServerRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/oauth-login': {
       id: '/oauth-login'
       path: '/oauth-login'
@@ -262,20 +216,6 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/app-store': {
-      id: '/app-store'
-      path: '/app-store'
-      fullPath: '/app-store'
-      preLoaderRoute: typeof AppStoreRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/add-user': {
-      id: '/add-user'
-      path: '/add-user'
-      fullPath: '/add-user'
-      preLoaderRoute: typeof AddUserRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_requireAuth': {
@@ -426,11 +366,8 @@ const RequireAuthRouteWithChildren = RequireAuthRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   RequireAuthRoute: RequireAuthRouteWithChildren,
-  AddUserRoute: AddUserRoute,
-  AppStoreRoute: AppStoreRoute,
   LoginRoute: LoginRoute,
   OauthLoginRoute: OauthLoginRoute,
-  ServerRoute: ServerRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

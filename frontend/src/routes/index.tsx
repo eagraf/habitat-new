@@ -1,4 +1,3 @@
-import { getWebApps } from "@/api/node";
 import { createFileRoute, Link } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/")({
@@ -9,35 +8,7 @@ export const Route = createFileRoute("/")({
     }
   },
   async loader() {
-    let webAppInstallations: any[] = [];
-    try {
-      webAppInstallations = await getWebApps();
-    } catch { }
-    const filteredWebApps = webAppInstallations
-      .filter((app: any) => app.driver === "web")
-      .map((app: any) => ({
-        id: app.id,
-        name: app.name,
-        description: "No description available",
-        icon: "🌐", // Default icon for web apps
-        link: app.url || "#",
-      }));
-
     return [
-      {
-        id: "my-server",
-        name: "My Server",
-        description: "Manage your server",
-        icon: "🖥️",
-        link: "/server",
-      },
-      {
-        id: "app-shop",
-        name: "App Gallery",
-        description: "Find apps to install on your server",
-        icon: "🍎",
-        link: "/app-store",
-      },
       {
         id: "permissions",
         name: "Permissions",
@@ -59,14 +30,13 @@ export const Route = createFileRoute("/")({
         icon: "📸",
         link: "/blob-test",
       },
-      ...filteredWebApps,
     ];
   },
   component() {
     const data = Route.useLoaderData();
     return (
       <>
-        <h1>Apps</h1>
+        <h1>Shortcuts</h1>
         <table>
           <thead>
             <tr>

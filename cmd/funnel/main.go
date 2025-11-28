@@ -11,10 +11,14 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/eagraf/habitat-new/internal/node/config"
+	"github.com/eagraf/habitat-new/internal/utils"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"tailscale.com/tsnet"
+)
+
+const (
+	tsAuthKeyVar = "TAILSCALE_AUTHKEY"
 )
 
 func main() {
@@ -29,14 +33,14 @@ func main() {
 	})
 	flag.Parse()
 
-	nodeConfig, err := config.NewNodeConfig()
-	if err != nil {
-		log.Fatal().Err(err).Msg("error loading node config")
+	tsAuthKey := utils.GetEnvString(tsAuthKeyVar, "")
+	if tsAuthKey == "" {
+		log.Fatal().Msgf("required env var '%s' not found", tsAuthKeyVar)
 	}
 
 	server := &tsnet.Server{
 		Hostname: hostName,
-		AuthKey:  nodeConfig.TailscaleAuthkey(),
+		AuthKey:  tsAuthKey,
 		Logf: func(format string, args ...any) {
 			log.Debug().Msgf(format, args...)
 		},

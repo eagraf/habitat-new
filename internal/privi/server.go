@@ -15,7 +15,6 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/eagraf/habitat-new/api/habitat"
-	"github.com/eagraf/habitat-new/internal/node/api"
 	"github.com/eagraf/habitat-new/internal/oauthserver"
 	"github.com/eagraf/habitat-new/internal/permissions"
 	"github.com/eagraf/habitat-new/internal/utils"
@@ -423,27 +422,5 @@ func (s *Server) RemovePermission(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		utils.LogAndHTTPError(w, err, "removing permission", http.StatusInternalServerError)
 		return
-	}
-}
-
-func (s *Server) GetRoutes() []api.Route {
-	return []api.Route{
-		api.NewBasicRoute(
-			http.MethodPost,
-			"/xrpc/com.habitat.putRecord",
-			s.PutRecord,
-		),
-		api.NewBasicRoute(
-			http.MethodGet,
-			"/xrpc/com.habitat.getRecord",
-			s.GetRecord,
-		),
-		api.NewBasicRoute(http.MethodPost, "/xrpc/com.habitat.addPermission", s.AddPermission),
-		api.NewBasicRoute(
-			http.MethodPost,
-			"/xrpc/com.habitat.removePermission",
-			s.RemovePermission,
-		),
-		api.NewBasicRoute(http.MethodGet, "/xrpc/com.habitat.listPermissions", s.ListPermissions),
 	}
 }

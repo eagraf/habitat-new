@@ -154,7 +154,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
         Cookies.remove("dpop-session");
 
         setIsAuthenticated(false);
-        router.navigate({ to: "/login" });
+        router.navigate({ to: "/oauth-login" });
     };
 
     return (
