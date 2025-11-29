@@ -3,18 +3,12 @@ import {
     loadAsync,
     makeRedirectUri,
 } from "expo-auth-session";
-import {
-    createContext,
-    PropsWithChildren,
-    useContext,
-    useMemo,
-    useState,
-} from "react";
+import { createContext, PropsWithChildren, useContext, useMemo } from "react";
 import * as SecureStore from "expo-secure-store";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 const clientId = "https://sashankg.github.io/client-metadata.json"; // fake for now
-const domain = "habitat-new.onrender.com";
+const domain = "privi.dwelf-mirzam.ts.net";
 const redirectUri = makeRedirectUri({
     scheme: "habitat.camera",
     path: "oauth",
@@ -27,11 +21,17 @@ const issuer = {
 
 const secureStoreKey = "token";
 
+export type FetchWithAuth = (
+    url: string,
+    options?: Parameters<typeof fetch>[1],
+) => Promise<Response>;
+
 interface AuthContextData {
     signIn: (handle: string) => Promise<void>;
     signOut: () => void;
     token: string | null;
     isLoading: boolean;
+    fetchWithAuth: FetchWithAuth;
 }
 
 const AuthContext = createContext<AuthContextData>({
@@ -39,6 +39,7 @@ const AuthContext = createContext<AuthContextData>({
     signOut: () => { },
     token: null,
     isLoading: false,
+    fetchWithAuth: fetch,
 });
 
 export const useAuth = () => useContext(AuthContext);
@@ -92,6 +93,16 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
                 queryClient.invalidateQueries({ queryKey: ["token"] });
             },
             isLoading,
+            fetchWithAuth: (url, options) => {
+                return fetch(new URL(url, `https://${domain}`), {
+                    ...options,
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        "Habitat-Auth-Method": "oauth",
+                        ...options?.headers,
+                    },
+                });
+            },
         }),
         [token, isLoading, queryClient],
     );

@@ -57,9 +57,7 @@ const RootNavigator = () => {
         headerShown: false,
       }}
     >
-      <Stack.Protected guard={!token}>
-        <Stack.Screen name="signin" />
-      </Stack.Protected>
+      <Stack.Screen name="signin" />
       <Stack.Protected guard={!!token}>
         <Stack.Screen name="(app)" />
       </Stack.Protected>

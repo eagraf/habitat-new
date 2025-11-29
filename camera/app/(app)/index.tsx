@@ -1,5 +1,6 @@
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
+import { FetchWithAuth, useAuth } from "@/context/auth";
 import { CameraCapturedPicture, CameraType, CameraView, useCameraPermissions } from "expo-camera";
 import { Stack, useNavigation, useRouter } from "expo-router";
 import { useRef, useEffect, useState } from "react";
@@ -13,7 +14,7 @@ const cleanBase64 = (data: string) => {
 }
 
 // Can't use form data because we are uploading directly to uploadBlob, not a special endpoint for photos
-const uploadPhoto = async (photo: CameraCapturedPicture) => {
+const uploadPhoto = async (photo: CameraCapturedPicture, fetchWithAuth: FetchWithAuth) => {
   // Convert base64 to binary
   try {
     const base64 = cleanBase64(photo.base64!)
@@ -24,7 +25,7 @@ const uploadPhoto = async (photo: CameraCapturedPicture) => {
       bytes[i] = binary.charCodeAt(i);
     }
     // Upload without FormData
-    const res = await fetch("https://privi.taile529e.ts.net/xrpc/network.habitat.uploadBlob", {
+    const res = await fetchWithAuth("/xrpc/network.habitat.uploadBlob", {
       method: "POST",
       headers: {
         "Content-Type": `image/jpeg`,
@@ -33,7 +34,7 @@ const uploadPhoto = async (photo: CameraCapturedPicture) => {
     });
 
     if (!res || !res.ok) {
-      throw new Error("uploading photo blob")
+      throw new Error("uploading photo blob: " + res.statusText + await res.text())
     }
 
     const upload = await res.json()
@@ -43,8 +44,8 @@ const uploadPhoto = async (photo: CameraCapturedPicture) => {
       throw new Error("upload blob returned empty cid")
     }
 
-    const res2 = await fetch(
-      "https://privi.taile529e.ts.net/xrpc/network.habitat.putRecord",
+    const res2 = await fetchWithAuth(
+      "/xrpc/network.habitat.putRecord",
       {
         method: 'POST',
         body: JSON.stringify({
@@ -70,6 +71,7 @@ const Home = () => {
   const router = useRouter();
   const [permission, requestPermission] = useCameraPermissions();
   const [facing, setFacing] = useState<CameraType>('back');
+  const { fetchWithAuth } = useAuth()
 
   useEffect(() => {
     if (!permission?.granted) {
@@ -105,7 +107,7 @@ const Home = () => {
           if (!photo) {
             console.error("camera.takePictureAsync returned undefined")
           } else {
-            uploadPhoto(photo)
+            uploadPhoto(photo, fetchWithAuth)
           }
         }}
         style={{ padding: 8 }}
