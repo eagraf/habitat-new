@@ -12,7 +12,7 @@ import (
 )
 
 func TestOAuthClient_Authorize_Success(t *testing.T) {
-	server := fakeAuthServer(t, nil)
+	server := fakeAuthServer(nil)
 	defer server.Close()
 
 	client := testOAuthClient(t)
@@ -37,7 +37,7 @@ func TestOAuthClient_Authorize_Success(t *testing.T) {
 }
 
 func TestOAuthClient_Authorize_WithLoginHint(t *testing.T) {
-	server := fakeAuthServer(t, nil)
+	server := fakeAuthServer(nil)
 	defer server.Close()
 
 	client := testOAuthClient(t)
@@ -73,7 +73,7 @@ func TestOAuthClient_Authorize_ProtectedResourceError(t *testing.T) {
 }
 
 func TestOAuthClient_Authorize_NoAuthorizationServers(t *testing.T) {
-	server := fakeAuthServer(t, map[string]interface{}{
+	server := fakeAuthServer(map[string]interface{}{
 		"protected-resource": oauthProtectedResource{
 			AuthorizationServers: []string{},
 		},
@@ -91,7 +91,7 @@ func TestOAuthClient_Authorize_NoAuthorizationServers(t *testing.T) {
 }
 
 func TestOAuthClient_Authorize_AuthServerError(t *testing.T) {
-	server := fakeAuthServer(t, map[string]interface{}{
+	server := fakeAuthServer(map[string]interface{}{
 		"auth-server": map[string]interface{}{
 			"error": "server error",
 		},
@@ -130,7 +130,7 @@ func TestOAuthClient_Authorize_AuthServerError(t *testing.T) {
 }
 
 func TestOAuthClient_Authorize_PARError(t *testing.T) {
-	server := fakeAuthServer(t, map[string]interface{}{
+	server := fakeAuthServer(map[string]interface{}{
 		"par-status": http.StatusBadRequest,
 		"par":        map[string]string{"error": "invalid request"},
 	})
@@ -176,10 +176,10 @@ func TestOAuthClient_Authorize_LocalhostHostMapping(t *testing.T) {
 }
 
 func TestOAuthClient_Authorize_StateAndVerifierGeneration(t *testing.T) {
-	server1 := fakeAuthServer(t, nil)
+	server1 := fakeAuthServer(nil)
 	defer server1.Close()
 
-	server2 := fakeAuthServer(t, nil)
+	server2 := fakeAuthServer(nil)
 	defer server2.Close()
 
 	client := testOAuthClient(t)
@@ -208,7 +208,7 @@ func TestOAuthClient_Authorize_StateAndVerifierGeneration(t *testing.T) {
 }
 
 func TestOAuthClient_Authorize_RedirectURLFormat(t *testing.T) {
-	server := fakeAuthServer(t, nil)
+	server := fakeAuthServer(nil)
 	defer server.Close()
 
 	client := testOAuthClient(t)

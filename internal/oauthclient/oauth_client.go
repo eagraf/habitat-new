@@ -335,9 +335,6 @@ func fetchOauthAuthorizationServer(
 	}
 
 	authServerURL.Path = "/.well-known/oauth-authorization-server"
-	if err != nil {
-		return nil, err
-	}
 	resp, err := http.DefaultClient.Get(
 		authServerURL.String(),
 	)

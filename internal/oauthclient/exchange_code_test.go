@@ -10,7 +10,7 @@ import (
 )
 
 func TestOAuthClient_ExchangeCode_Success(t *testing.T) {
-	server := fakeTokenServer(t, map[string]interface{}{
+	server := fakeTokenServer(map[string]interface{}{
 		"token": TokenResponse{
 			AccessToken:  "test-access-token",
 			RefreshToken: "test-refresh-token",
@@ -82,7 +82,7 @@ func TestOAuthClient_ExchangeCode_HTTPRequestError(t *testing.T) {
 }
 
 func TestOAuthClient_ExchangeCode_NonOKStatus(t *testing.T) {
-	server := fakeTokenServer(t, map[string]interface{}{
+	server := fakeTokenServer(map[string]interface{}{
 		"token-status": http.StatusBadRequest,
 		"token-error":  "invalid_grant",
 	})

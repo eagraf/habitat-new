@@ -18,7 +18,7 @@ import (
 )
 
 // setupTestXrpcBrokerHandler creates a xrpcBrokerHandler with test dependencies
-func setupTestXrpcBrokerHandler(t *testing.T, oauthClient OAuthClient, htuURL string) *xrpcBrokerHandler {
+func setupTestXrpcBrokerHandler(oauthClient OAuthClient, htuURL string) *xrpcBrokerHandler {
 	sessionStore := sessions.NewCookieStore([]byte("test-key"))
 	return &xrpcBrokerHandler{
 		htuURL:       htuURL,
@@ -28,7 +28,7 @@ func setupTestXrpcBrokerHandler(t *testing.T, oauthClient OAuthClient, htuURL st
 }
 
 // setupTestXrpcBrokerHandlerWithSessionStore creates a xrpcBrokerHandler with a specific session store
-func setupTestXrpcBrokerHandlerWithSessionStore(t *testing.T, oauthClient OAuthClient, htuURL string, sessionStore sessions.Store) *xrpcBrokerHandler {
+func setupTestXrpcBrokerHandlerWithSessionStore(oauthClient OAuthClient, htuURL string, sessionStore sessions.Store) *xrpcBrokerHandler {
 	return &xrpcBrokerHandler{
 		htuURL:       htuURL,
 		oauthClient:  oauthClient,
@@ -158,7 +158,7 @@ func TestXrpcBrokerHandler_SuccessfulRequest(t *testing.T) {
 
 func TestXrpcBrokerHandler_NoDPOPSession(t *testing.T) {
 	oauthClient := testOAuthClient(t)
-	handler := setupTestXrpcBrokerHandler(t, oauthClient, "https://test.com")
+	handler := setupTestXrpcBrokerHandler(oauthClient, "https://test.com")
 
 	req := httptest.NewRequest("POST", "/xrpc/com.atproto.repo.getRecord", nil)
 	w := httptest.NewRecorder()
@@ -180,7 +180,7 @@ func TestXrpcBrokerHandler_UnauthorizedResponse(t *testing.T) {
 
 	oauthClient := testOAuthClient(t)
 	sessionStore := sessions.NewCookieStore([]byte("test-key"))
-	handler := setupTestXrpcBrokerHandlerWithSessionStore(t, oauthClient, "https://test.com", sessionStore)
+	handler := setupTestXrpcBrokerHandlerWithSessionStore(oauthClient, "https://test.com", sessionStore)
 
 	// Create request with valid DPoP session
 	req, w := setupTestRequestWithSession(t, sessionStore, DpopSessionOptions{
@@ -210,7 +210,7 @@ func TestXrpcBrokerHandler_RefreshTokenError(t *testing.T) {
 	defer mockPDS.Close()
 
 	// Setup fake OAuth server that returns error for refresh
-	fakeOAuthServer := fakeTokenServer(t, map[string]interface{}{
+	fakeOAuthServer := fakeTokenServer(map[string]interface{}{
 		"token-status": http.StatusBadRequest,
 		"token-error":  "invalid_grant",
 	})
@@ -218,7 +218,7 @@ func TestXrpcBrokerHandler_RefreshTokenError(t *testing.T) {
 
 	oauthClient := testOAuthClient(t)
 	sessionStore := sessions.NewCookieStore([]byte("test-key"))
-	handler := setupTestXrpcBrokerHandlerWithSessionStore(t, oauthClient, "https://test.com", sessionStore)
+	handler := setupTestXrpcBrokerHandlerWithSessionStore(oauthClient, "https://test.com", sessionStore)
 
 	// Create request with DPoP session that has refresh token
 	req, w := setupTestRequestWithSession(t, sessionStore, DpopSessionOptions{
@@ -245,7 +245,7 @@ func TestXrpcBrokerHandler_SuccessfulTokenRefresh(t *testing.T) {
 	// when the PDS returns unauthorized
 
 	// Setup fake OAuth server that returns successful token refresh
-	fakeOAuthServer := fakeAuthServer(t, map[string]interface{}{
+	fakeOAuthServer := fakeAuthServer(map[string]interface{}{
 		"token": TokenResponse{
 			AccessToken:  "new-access-token",
 			RefreshToken: "new-refresh-token",
@@ -309,7 +309,7 @@ func TestXrpcBrokerHandler_SuccessfulTokenRefresh(t *testing.T) {
 
 	oauthClient := testOAuthClient(t)
 	sessionStore := sessions.NewCookieStore([]byte("test-key"))
-	handler := setupTestXrpcBrokerHandlerWithSessionStore(t, oauthClient, "https://test.com", sessionStore)
+	handler := setupTestXrpcBrokerHandlerWithSessionStore(oauthClient, "https://test.com", sessionStore)
 
 	// Create request with DPoP session that has refresh token
 	req, w := setupTestRequestWithSession(t, sessionStore, DpopSessionOptions{
@@ -361,7 +361,7 @@ func TestXrpcBrokerHandler_RequestBodyHandling(t *testing.T) {
 
 	oauthClient := testOAuthClient(t)
 	sessionStore := sessions.NewCookieStore([]byte("test-key"))
-	handler := setupTestXrpcBrokerHandlerWithSessionStore(t, oauthClient, "https://test.com", sessionStore)
+	handler := setupTestXrpcBrokerHandlerWithSessionStore(oauthClient, "https://test.com", sessionStore)
 
 	// Create request with body and valid DPoP session
 	requestBody := `{"collection": "app.bsky.feed.post", "repo": "did:plc:test123", "rkey": "3juxg", "value": {"text": "Hello world"}}`
@@ -403,7 +403,7 @@ func TestXrpcBrokerHandler_ErrorResponse(t *testing.T) {
 
 	oauthClient := testOAuthClient(t)
 	sessionStore := sessions.NewCookieStore([]byte("test-key"))
-	handler := setupTestXrpcBrokerHandlerWithSessionStore(t, oauthClient, "https://test.com", sessionStore)
+	handler := setupTestXrpcBrokerHandlerWithSessionStore(oauthClient, "https://test.com", sessionStore)
 
 	// Create request with valid DPoP session
 	req, w := setupTestRequestWithSession(t, sessionStore, DpopSessionOptions{
@@ -450,7 +450,7 @@ func TestXrpcBrokerHandler_RequestBodyCopying(t *testing.T) {
 
 	oauthClient := testOAuthClient(t)
 	sessionStore := sessions.NewCookieStore([]byte("test-key"))
-	handler := setupTestXrpcBrokerHandlerWithSessionStore(t, oauthClient, "https://test.com", sessionStore)
+	handler := setupTestXrpcBrokerHandlerWithSessionStore(oauthClient, "https://test.com", sessionStore)
 
 	// Create request with large body and valid DPoP session
 	largeBody := bytes.Repeat([]byte("test"), 1000)

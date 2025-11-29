@@ -49,7 +49,7 @@ func testIdentity(pdsEndpoint string) *identity.Identity {
 }
 
 // fakeAuthServer creates a test server that responds to OAuth discovery endpoints
-func fakeAuthServer(t *testing.T, responses map[string]interface{}) *httptest.Server {
+func fakeAuthServer(responses map[string]interface{}) *httptest.Server {
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/.well-known/oauth-protected-resource":
@@ -126,7 +126,7 @@ func fakeAuthServer(t *testing.T, responses map[string]interface{}) *httptest.Se
 }
 
 // fakeTokenServer creates a test server that responds to token exchange endpoints
-func fakeTokenServer(t *testing.T, responses map[string]interface{}) *httptest.Server {
+func fakeTokenServer(responses map[string]interface{}) *httptest.Server {
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/token" {
 			if status, ok := responses["token-status"]; ok {

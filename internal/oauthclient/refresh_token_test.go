@@ -10,7 +10,7 @@ import (
 )
 
 func TestOAuthClient_RefreshToken_Success(t *testing.T) {
-	server := fakeAuthServer(t, map[string]interface{}{
+	server := fakeAuthServer(map[string]interface{}{
 		"token": TokenResponse{
 			AccessToken:  "new-access-token",
 			RefreshToken: "new-refresh-token",
@@ -100,7 +100,7 @@ func TestOAuthClient_RefreshToken_ProtectedResourceError(t *testing.T) {
 }
 
 func TestOAuthClient_RefreshToken_NoAuthorizationServers(t *testing.T) {
-	server := fakeAuthServer(t, map[string]interface{}{
+	server := fakeAuthServer(map[string]interface{}{
 		"protected-resource": oauthProtectedResource{
 			AuthorizationServers: []string{},
 		},
@@ -139,7 +139,7 @@ func TestOAuthClient_RefreshToken_NoAuthorizationServers(t *testing.T) {
 }
 
 func TestOAuthClient_RefreshToken_AuthServerError(t *testing.T) {
-	server := fakeAuthServer(t, map[string]interface{}{
+	server := fakeAuthServer(map[string]interface{}{
 		"auth-server": map[string]interface{}{
 			"error": "server error",
 		},
@@ -238,7 +238,7 @@ func TestOAuthClient_RefreshToken_HTTPRequestError(t *testing.T) {
 }
 
 func TestOAuthClient_RefreshToken_NonOKStatus(t *testing.T) {
-	server := fakeAuthServer(t, map[string]interface{}{
+	server := fakeAuthServer(map[string]interface{}{
 		"token-status": http.StatusBadRequest,
 		"token-error":  "invalid_grant",
 	})
@@ -278,7 +278,7 @@ func TestOAuthClient_RefreshToken_NonOKStatus(t *testing.T) {
 
 func TestOAuthClient_RefreshToken_RequestParameters(t *testing.T) {
 	var capturedRequest *http.Request
-	server := fakeAuthServer(t, map[string]interface{}{
+	server := fakeAuthServer(map[string]interface{}{
 		"token": TokenResponse{
 			AccessToken:  "new-access-token",
 			RefreshToken: "new-refresh-token",
