@@ -23,7 +23,7 @@ const Header = ({ authManager }: { authManager: AuthManager} ) => {
               {authManager.handle && formatHandle(authManager.handle)}
             </li>
             <li><button onClick={authManager.logout}>
-              Logout
+              Logout [does nothing right now]
             </button></li>
           </ul>
         )}
