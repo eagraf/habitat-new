@@ -1,73 +1,13 @@
 import { ThemedView } from "@/components/themed-view";
-import { useEffect, useState } from "react";
-import { Button, TextInput, TouchableHighlight } from "react-native";
-import * as AuthSession from "expo-auth-session";
-import { makeRedirectUri, useAuthRequest } from "expo-auth-session";
+import { useState } from "react";
+import { Button, TextInput } from "react-native";
+import { useAuth } from "@/context/auth";
+import { useRouter } from "expo-router";
 
-const SignIn = ({
-  setAuth,
-}: {
-  setAuth: React.Dispatch<React.SetStateAction<any>>;
-}) => {
-  const [handle, setHandle] = useState<string>("sashankg.bsky.social");
-  const clientId = "https://sashankg.github.io/client-metadata.json"; // fake for now
-
-  const domain = "habitat-new.onrender.com";
-  const discoveryDoc = {
-    authorizationEndpoint: `https://${domain}/oauth/authorize`,
-    tokenEndpoint: `https://${domain}/oauth/token`,
-  };
-
-  const redirectUri = makeRedirectUri({
-    scheme: "habitat.camera",
-    path: "oauth",
-  });
-  console.log("redirect uri", redirectUri);
-
-  const [request, response, promptAsync] = useAuthRequest(
-    {
-      extraParams: {
-        handle,
-      },
-      clientId: clientId,
-      scopes: [],
-      redirectUri: redirectUri,
-    },
-    discoveryDoc,
-  );
-
-  useEffect(() => {
-    console.log("response", response);
-    if (response?.type === "success") {
-      const { code } = response.params;
-      // Now, exchange this code for an access token
-      exchangeCodeForToken(code);
-    }
-  }, [response]);
-
-  const exchangeCodeForToken = async (code: string) => {
-    try {
-      const tokenResponse = await AuthSession.exchangeCodeAsync(
-        {
-          clientId,
-          code,
-          redirectUri,
-          extraParams: {
-            code_verifier: request?.codeVerifier ?? "",
-          },
-        },
-        discoveryDoc,
-      );
-      // tokenResponse.accessToken will contain your access token
-      // tokenResponse.refreshToken may contain a refresh token
-      console.log("Access Token:", tokenResponse.accessToken);
-      setAuth(tokenResponse.accessToken);
-      // Store and use the access token
-    } catch (error) {
-      console.error("Error exchanging code for token:", error);
-    }
-  };
-
+const SignIn = () => {
+  const [handle, setHandle] = useState("sashankg.bsky.social");
+  const { signIn } = useAuth();
+  const { replace } = useRouter();
   return (
     <ThemedView
       style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
@@ -79,8 +19,8 @@ const SignIn = ({
       />
       <Button
         onPress={async () => {
-          const type = await promptAsync();
-          console.log(type);
+          await signIn(handle);
+          replace("/");
         }}
         title="Sign in"
       />

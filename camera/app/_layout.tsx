@@ -3,53 +3,66 @@ import {
   DefaultTheme,
   ThemeProvider,
 } from "@react-navigation/native";
-import { Stack } from "expo-router";
+import { SplashScreen, Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { ThemedView } from "@/components/themed-view";
-import { useState } from "react";
-import SignIn from "./signin";
-import AuthContext from "./AuthContext";
+import { AuthProvider, useAuth } from "@/context/auth";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 export const unstable_settings = {
   anchor: "(tabs)",
 };
 
+const queryClient = new QueryClient();
+
+SplashScreen.preventAutoHideAsync();
+
 export default function RootLayout() {
   const colorScheme = useColorScheme();
   const { bottom } = useSafeAreaInsets();
-
-  const [auth, setAuth] = useState(null);
-
-  // Pass auth and setAuth so signin can update it
-  /*
   return (
-    <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
-      <AuthContext.Provider value={{ auth, setAuth }}>
-        {!auth ? (
-          <SignIn setAuth={setAuth} />
-        ) : (
-          <>
-            <ThemedView style={{ flex: 1, paddingBottom: bottom }}>
-              <Stack />
-            </ThemedView>
-            <StatusBar style="auto" />
-          </>
-        )}
-      </AuthContext.Provider>
-    </ThemeProvider>
-  );
-   */
-
-  return (
-    <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
-      <ThemedView style={{ flex: 1, paddingBottom: bottom }}>
-        <Stack />
-      </ThemedView>
-      <StatusBar style="auto" />
-    </ThemeProvider>
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <SplashScreenController />
+        <ThemeProvider
+          value={colorScheme === "dark" ? DarkTheme : DefaultTheme}
+        >
+          <ThemedView style={{ flex: 1, paddingBottom: bottom }}>
+            <RootNavigator />
+          </ThemedView>
+          <StatusBar style="auto" />
+        </ThemeProvider>
+      </AuthProvider>
+    </QueryClientProvider>
   );
 }
+
+export function SplashScreenController() {
+  const { isLoading } = useAuth();
+  if (!isLoading) {
+    SplashScreen.hide();
+  }
+  return null;
+}
+
+const RootNavigator = () => {
+  const { token } = useAuth();
+  return (
+    <Stack
+      screenOptions={{
+        headerShown: false,
+      }}
+    >
+      <Stack.Protected guard={!token}>
+        <Stack.Screen name="signin" />
+      </Stack.Protected>
+      <Stack.Protected guard={!!token}>
+        <Stack.Screen name="(app)" />
+      </Stack.Protected>
+    </Stack>
+  );
+};
