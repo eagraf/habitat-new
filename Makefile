@@ -18,7 +18,7 @@ PERMS_DIR = $(DEV_HABITAT_PATH)/permissions
 
 GOBIN ?= $$(go env GOPATH)/bin
 
-build: $(TOPDIR)/bin/amd64-linux/habitat $(TOPDIR)/bin/amd64-darwin/habitat build-ctrl
+build: $(TOPDIR)/bin/amd64-linux/habitat $(TOPDIR)/bin/amd64-darwin/habitat
 
 # ===============================================================================
 

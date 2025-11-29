@@ -6,7 +6,7 @@ const tokenLocalStorageKey = "token";
 const stateLocalStorageKey = "state";
 
 export class AuthManager {
-  handle: string | null = null;
+  handle: string | null;
   private serverDomain: string;
   private accessToken: string | null = null;
   private config: client.Configuration;

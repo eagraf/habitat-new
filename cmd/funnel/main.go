@@ -11,14 +11,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/eagraf/habitat-new/internal/utils"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"tailscale.com/tsnet"
-)
-
-const (
-	tsAuthKeyVar = "TS_AUTHKEY"
 )
 
 func main() {
@@ -33,14 +28,8 @@ func main() {
 	})
 	flag.Parse()
 
-	tsAuthKey := utils.GetEnvString(tsAuthKeyVar, "")
-	if tsAuthKey == "" {
-		log.Fatal().Msgf("required env var '%s' not found", tsAuthKeyVar)
-	}
-
 	server := &tsnet.Server{
 		Hostname: hostName,
-		AuthKey:  tsAuthKey,
 		Logf: func(format string, args ...any) {
 			log.Debug().Msgf(format, args...)
 		},
