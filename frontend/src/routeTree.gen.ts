@@ -10,7 +10,6 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as OauthLoginRouteImport } from './routes/oauth-login'
-import { Route as LoginRouteImport } from './routes/login'
 import { Route as RequireAuthRouteImport } from './routes/_requireAuth'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as RequireAuthPermissionsRouteImport } from './routes/_requireAuth/permissions'
@@ -27,11 +26,6 @@ import { Route as RequireAuthPermissionsLexiconsLexiconIdRouteImport } from './r
 const OauthLoginRoute = OauthLoginRouteImport.update({
   id: '/oauth-login',
   path: '/oauth-login',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LoginRoute = LoginRouteImport.update({
-  id: '/login',
-  path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
 const RequireAuthRoute = RequireAuthRouteImport.update({
@@ -105,7 +99,6 @@ const RequireAuthPermissionsLexiconsLexiconIdRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/login': typeof LoginRoute
   '/oauth-login': typeof OauthLoginRoute
   '/permissions': typeof RequireAuthPermissionsRouteWithChildren
   '/permissions/lexicons': typeof RequireAuthPermissionsLexiconsRouteWithChildren
@@ -120,7 +113,6 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/login': typeof LoginRoute
   '/oauth-login': typeof OauthLoginRoute
   '/permissions/people': typeof RequireAuthPermissionsPeopleRoute
   '/privi-test/view': typeof RequireAuthPriviTestViewRoute
@@ -135,7 +127,6 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_requireAuth': typeof RequireAuthRouteWithChildren
-  '/login': typeof LoginRoute
   '/oauth-login': typeof OauthLoginRoute
   '/_requireAuth/permissions': typeof RequireAuthPermissionsRouteWithChildren
   '/_requireAuth/permissions/lexicons': typeof RequireAuthPermissionsLexiconsRouteWithChildren
@@ -152,7 +143,6 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
-    | '/login'
     | '/oauth-login'
     | '/permissions'
     | '/permissions/lexicons'
@@ -167,7 +157,6 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/login'
     | '/oauth-login'
     | '/permissions/people'
     | '/privi-test/view'
@@ -181,7 +170,6 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/_requireAuth'
-    | '/login'
     | '/oauth-login'
     | '/_requireAuth/permissions'
     | '/_requireAuth/permissions/lexicons'
@@ -198,7 +186,6 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   RequireAuthRoute: typeof RequireAuthRouteWithChildren
-  LoginRoute: typeof LoginRoute
   OauthLoginRoute: typeof OauthLoginRoute
 }
 
@@ -209,13 +196,6 @@ declare module '@tanstack/react-router' {
       path: '/oauth-login'
       fullPath: '/oauth-login'
       preLoaderRoute: typeof OauthLoginRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/login': {
-      id: '/login'
-      path: '/login'
-      fullPath: '/login'
-      preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_requireAuth': {
@@ -366,7 +346,6 @@ const RequireAuthRouteWithChildren = RequireAuthRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   RequireAuthRoute: RequireAuthRouteWithChildren,
-  LoginRoute: LoginRoute,
   OauthLoginRoute: OauthLoginRoute,
 }
 export const routeTree = rootRouteImport

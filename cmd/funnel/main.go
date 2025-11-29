@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	tsAuthKeyVar = "TAILSCALE_AUTHKEY"
+	tsAuthKeyVar = "TS_AUTHKEY"
 )
 
 func main() {

@@ -1,5 +1,5 @@
 import { Link } from '@tanstack/react-router';
-import { useAuth } from './authContext';
+import type { AuthManager } from '@/auth';
 
 function formatHandle(handle: string | null) {
   if (!handle) return '';
@@ -10,20 +10,19 @@ function formatHandle(handle: string | null) {
   return handle;
 }
 
-const Header = () => {
-  const { isAuthenticated, handle, logout } = useAuth();
+const Header = ({ authManager }: { authManager: AuthManager} ) => {
   return (
     <header >
       <nav>
         <ul>
           <li><Link to="/">🌱 Habitat</Link></li>
         </ul>
-        {isAuthenticated && (
+        {authManager.isAuthenticated() && (
           <ul >
             <li>
-              {handle && formatHandle(handle)}
+              {authManager.handle && formatHandle(authManager.handle)}
             </li>
-            <li><button onClick={logout}>
+            <li><button onClick={authManager.logout}>
               Logout
             </button></li>
           </ul>
