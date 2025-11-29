@@ -38,9 +38,10 @@ const uploadPhoto = async (photo: CameraCapturedPicture, fetchWithAuth: FetchWit
     }
 
     const upload = await res.json()
+    console.log(upload)
     const cid = upload["blob"]["cid"]["$link"]
 
-    if (cid == "") {
+    if (cid === "") {
       throw new Error("upload blob returned empty cid")
     }
 
@@ -61,6 +62,7 @@ const uploadPhoto = async (photo: CameraCapturedPicture, fetchWithAuth: FetchWit
     if (!res2 || !res2.ok) {
       throw new Error("uploading photo record")
     }
+    console.log('sucessful upload')
   } catch (e) {
     console.error("Unable to upload photo because: ", e)
   }

@@ -6,10 +6,15 @@ import { useEffect, useState } from "react";
 import { Image, Platform, useWindowDimensions } from "react-native";
 
 const Tile = ({ cid, size }: { cid: string, size: number }) => {
-    const src = `https://privi.taile529e.ts.net/xrpc/network.habitat.getBlob?cid=${cid}&did=test`
+    const { token } = useAuth()
+    const src = `https://privi.dwelf-mirzam.ts.net/xrpc/network.habitat.getBlob?cid=${cid}&did=test`
     return <Image
         source={{
             uri: src,
+            headers: {
+                Authorization: `Bearer ${token}`,
+                "Habitat-Auth-Method": "oauth",
+            }
         }}
         style={{
             width: size,
@@ -31,7 +36,7 @@ const Photos = () => {
                 throw new Error("fetching photos: " + res.statusText + await res.text())
             }
             const list = await res.json()
-            return list["records"] as string[]
+            return list["records"] as { value: { ref: string } }[]
         }
     })
     const { width } = useWindowDimensions();
@@ -50,8 +55,8 @@ const Photos = () => {
 
     return (
         <ThemedView style={{ flexDirection: "row", flexWrap: "wrap", }}>
-            {photos.map((cid) => (
-                <Tile key={cid} cid={cid} size={tileSize} />
+            {photos.map(({ value }, i) => (
+                <Tile key={i} cid={value.ref} size={tileSize} />
             ))}
         </ThemedView>
     );
