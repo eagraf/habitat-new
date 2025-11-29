@@ -21,6 +21,7 @@ import { Route as RequireAuthDocsRouteImport } from './routes/_requireAuth/docs'
 import { Route as RequireAuthPriviTestIndexRouteImport } from './routes/_requireAuth/privi-test/index'
 import { Route as RequireAuthPermissionsIndexRouteImport } from './routes/_requireAuth/permissions/index'
 import { Route as RequireAuthDocsIndexRouteImport } from './routes/_requireAuth/docs/index'
+import { Route as RequireAuthBlobTestIndexRouteImport } from './routes/_requireAuth/blob-test/index'
 import { Route as RequireAuthPriviTestViewRouteImport } from './routes/_requireAuth/privi-test/view'
 import { Route as RequireAuthPermissionsPeopleRouteImport } from './routes/_requireAuth/permissions/people'
 import { Route as RequireAuthPermissionsLexiconsRouteImport } from './routes/_requireAuth/permissions/lexicons'
@@ -90,6 +91,12 @@ const RequireAuthDocsIndexRoute = RequireAuthDocsIndexRouteImport.update({
   path: '/',
   getParentRoute: () => RequireAuthDocsRoute,
 } as any)
+const RequireAuthBlobTestIndexRoute =
+  RequireAuthBlobTestIndexRouteImport.update({
+    id: '/blob-test/',
+    path: '/blob-test/',
+    getParentRoute: () => RequireAuthRoute,
+  } as any)
 const RequireAuthPriviTestViewRoute =
   RequireAuthPriviTestViewRouteImport.update({
     id: '/privi-test/view',
@@ -144,6 +151,7 @@ export interface FileRoutesByFullPath {
   '/permissions/lexicons': typeof RequireAuthPermissionsLexiconsRouteWithChildren
   '/permissions/people': typeof RequireAuthPermissionsPeopleRoute
   '/privi-test/view': typeof RequireAuthPriviTestViewRoute
+  '/blob-test': typeof RequireAuthBlobTestIndexRoute
   '/docs/': typeof RequireAuthDocsIndexRoute
   '/permissions/': typeof RequireAuthPermissionsIndexRoute
   '/privi-test': typeof RequireAuthPriviTestIndexRoute
@@ -161,6 +169,7 @@ export interface FileRoutesByTo {
   '/server': typeof ServerRoute
   '/permissions/people': typeof RequireAuthPermissionsPeopleRoute
   '/privi-test/view': typeof RequireAuthPriviTestViewRoute
+  '/blob-test': typeof RequireAuthBlobTestIndexRoute
   '/docs': typeof RequireAuthDocsIndexRoute
   '/permissions': typeof RequireAuthPermissionsIndexRoute
   '/privi-test': typeof RequireAuthPriviTestIndexRoute
@@ -183,6 +192,7 @@ export interface FileRoutesById {
   '/_requireAuth/permissions/lexicons': typeof RequireAuthPermissionsLexiconsRouteWithChildren
   '/_requireAuth/permissions/people': typeof RequireAuthPermissionsPeopleRoute
   '/_requireAuth/privi-test/view': typeof RequireAuthPriviTestViewRoute
+  '/_requireAuth/blob-test/': typeof RequireAuthBlobTestIndexRoute
   '/_requireAuth/docs/': typeof RequireAuthDocsIndexRoute
   '/_requireAuth/permissions/': typeof RequireAuthPermissionsIndexRoute
   '/_requireAuth/privi-test/': typeof RequireAuthPriviTestIndexRoute
@@ -205,6 +215,7 @@ export interface FileRouteTypes {
     | '/permissions/lexicons'
     | '/permissions/people'
     | '/privi-test/view'
+    | '/blob-test'
     | '/docs/'
     | '/permissions/'
     | '/privi-test'
@@ -222,6 +233,7 @@ export interface FileRouteTypes {
     | '/server'
     | '/permissions/people'
     | '/privi-test/view'
+    | '/blob-test'
     | '/docs'
     | '/permissions'
     | '/privi-test'
@@ -243,6 +255,7 @@ export interface FileRouteTypes {
     | '/_requireAuth/permissions/lexicons'
     | '/_requireAuth/permissions/people'
     | '/_requireAuth/privi-test/view'
+    | '/_requireAuth/blob-test/'
     | '/_requireAuth/docs/'
     | '/_requireAuth/permissions/'
     | '/_requireAuth/privi-test/'
@@ -347,6 +360,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/docs/'
       preLoaderRoute: typeof RequireAuthDocsIndexRouteImport
       parentRoute: typeof RequireAuthDocsRoute
+    }
+    '/_requireAuth/blob-test/': {
+      id: '/_requireAuth/blob-test/'
+      path: '/blob-test'
+      fullPath: '/blob-test'
+      preLoaderRoute: typeof RequireAuthBlobTestIndexRouteImport
+      parentRoute: typeof RequireAuthRoute
     }
     '/_requireAuth/privi-test/view': {
       id: '/_requireAuth/privi-test/view'
@@ -458,6 +478,7 @@ interface RequireAuthRouteChildren {
   RequireAuthDocsRoute: typeof RequireAuthDocsRouteWithChildren
   RequireAuthPermissionsRoute: typeof RequireAuthPermissionsRouteWithChildren
   RequireAuthPriviTestViewRoute: typeof RequireAuthPriviTestViewRoute
+  RequireAuthBlobTestIndexRoute: typeof RequireAuthBlobTestIndexRoute
   RequireAuthPriviTestIndexRoute: typeof RequireAuthPriviTestIndexRoute
 }
 
@@ -465,6 +486,7 @@ const RequireAuthRouteChildren: RequireAuthRouteChildren = {
   RequireAuthDocsRoute: RequireAuthDocsRouteWithChildren,
   RequireAuthPermissionsRoute: RequireAuthPermissionsRouteWithChildren,
   RequireAuthPriviTestViewRoute: RequireAuthPriviTestViewRoute,
+  RequireAuthBlobTestIndexRoute: RequireAuthBlobTestIndexRoute,
   RequireAuthPriviTestIndexRoute: RequireAuthPriviTestIndexRoute,
 }
 
