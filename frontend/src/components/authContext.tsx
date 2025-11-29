@@ -30,7 +30,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
   const isAuthenticatedHelper = (): boolean => {
     const token = Cookies.get("access_token");
     const authed = token ? true : false;
-    console.log("authed", authed);
     return authed;
   };
 

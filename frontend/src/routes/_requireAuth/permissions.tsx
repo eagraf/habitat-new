@@ -1,10 +1,6 @@
 import { createFileRoute, Link, Outlet } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/_requireAuth/permissions")({
-  loader() {
-    // fetch user permissions
-    return {};
-  },
   component() {
     return (
       <>
