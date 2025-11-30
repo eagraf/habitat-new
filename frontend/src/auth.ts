@@ -8,7 +8,7 @@ const stateLocalStorageKey = "state";
 export class AuthManager {
   handle: string | null;
   private serverDomain: string;
-  private accessToken: string | null;
+  private accessToken: string | null = null;
   private config: client.Configuration;
   private onUnauthenticated: () => void;
 
@@ -45,6 +45,11 @@ export class AuthManager {
       state,
     });
   }
+
+  logout() {
+    // TODO: implement me!!
+  }
+
   async exchangeCode(currentUrl: string) {
     const state = localStorage.getItem(stateLocalStorageKey);
     if (!state) {
