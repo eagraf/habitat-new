@@ -51,8 +51,10 @@ var formDecoder = schema.NewDecoder()
 func (s *Server) PutRecord(w http.ResponseWriter, r *http.Request) {
 	callerDID, ok := s.getAuthedUser(w, r)
 	if !ok {
+		utils.LogAndHTTPError(w, fmt.Errorf("no authed user"), "s.getAuthedUser", http.StatusUnauthorized)
 		return
 	}
+
 	var req habitat.NetworkHabitatRepoPutRecordInput
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
@@ -186,8 +188,10 @@ func (s *Server) getAuthedUser(w http.ResponseWriter, r *http.Request) (syntax.D
 func (s *Server) UploadBlob(w http.ResponseWriter, r *http.Request) {
 	callerDID, ok := s.getAuthedUser(w, r)
 	if !ok {
+		utils.LogAndHTTPError(w, fmt.Errorf("no authed user"), "s.getAuthedUser", http.StatusUnauthorized)
 		return
 	}
+
 	mimeType := r.Header.Get("Content-Type")
 	if mimeType == "" {
 		utils.LogAndHTTPError(
@@ -259,6 +263,7 @@ func (s *Server) GetBlob(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", mimeType)
+	w.Header().Set("Content-Length", fmt.Sprint(len(blob)))
 	_, err = w.Write(blob)
 	if err != nil {
 		utils.LogAndHTTPError(
@@ -274,8 +279,10 @@ func (s *Server) GetBlob(w http.ResponseWriter, r *http.Request) {
 func (s *Server) ListRecords(w http.ResponseWriter, r *http.Request) {
 	callerDID, ok := s.getAuthedUser(w, r)
 	if !ok {
+		utils.LogAndHTTPError(w, fmt.Errorf("no authed user"), "s.getAuthedUser", http.StatusUnauthorized)
 		return
 	}
+
 	var params habitat.NetworkHabitatRepoListRecordsParams
 	err := formDecoder.Decode(&params, r.URL.Query())
 	if err != nil {
