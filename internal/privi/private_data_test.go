@@ -1,6 +1,7 @@
 package privi
 
 import (
+	"context"
 	"encoding/json"
 	"testing"
 
@@ -12,6 +13,7 @@ import (
 // A unit test testing putRecord and getRecord with one basic permission.
 // TODO: an integration test with two PDS's + privi servers running.
 func TestControllerPrivateDataPutGet(t *testing.T) {
+	ctx := context.Background()
 	// The val the caller is trying to put
 	val := map[string]any{
 		"someKey": "someVal",
@@ -20,25 +22,25 @@ func TestControllerPrivateDataPutGet(t *testing.T) {
 	require.NoError(t, err)
 
 	dummy := permissions.NewDummyStore()
-	p := newStore(syntax.DID("my-did"), dummy)
+	p := newStore(syntax.DID("my-did"), make(inMemoryRepo), dummy)
 
 	// putRecord
 	coll := "my.fake.collection"
 	rkey := "my-rkey"
 	validate := true
-	err = p.putRecord(coll, val, rkey, &validate)
+	err = p.putRecord(ctx, coll, val, rkey, &validate)
 	require.NoError(t, err)
 
-	got, err := p.getRecord(coll, "my-rkey", "another-did")
+	got, err := p.getRecord(ctx, coll, "my-rkey", "another-did")
 	require.Nil(t, got)
 	require.ErrorIs(t, ErrUnauthorized, err)
 
 	require.NoError(t, dummy.AddLexiconReadPermission(coll, "another-did"))
 
-	got, err = p.getRecord(coll, "my-rkey", "another-did")
+	got, err = p.getRecord(ctx, coll, "my-rkey", "another-did")
 	require.NoError(t, err)
 	require.Equal(t, []byte(got), marshalledVal)
 
-	err = p.putRecord(coll, val, rkey, &validate)
+	err = p.putRecord(ctx, coll, val, rkey, &validate)
 	require.NoError(t, err)
 }
